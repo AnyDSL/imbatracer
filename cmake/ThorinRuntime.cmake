@@ -26,7 +26,7 @@ macro(IMPALA_WRAP outfiles)
 		# tell cmake what to do
 		add_custom_command(OUTPUT ${llfile}
 			COMMAND impala
-			ARGS ${infile} -emit-thorin -emit-llvm
+			ARGS ${infile} -emit-llvm
 			WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
 			DEPENDS ${infile} VERBATIM)
 		add_custom_command(OUTPUT ${objfile}
