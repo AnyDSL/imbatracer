@@ -1,2 +1,4 @@
 *.ll
 build*
+3rdparty/*
+bin/*
