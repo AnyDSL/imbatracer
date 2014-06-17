@@ -43,6 +43,11 @@ protected:
 		state.dtaccu += dt*20;
 	}
 
+	virtual void _OnWindowResize(int w, int h)
+	{
+		_img = new Image(w, h);
+	}
+
 	RenderState state;
 	CountedPtr<Image> _img;
 };

@@ -261,6 +261,7 @@ void SDLGuiThread::handleEvents()
 				switch(ev.window.event)
 				{
 				case SDL_WINDOWEVENT_SIZE_CHANGED:
+					imageToUpload = nullptr;
 					_disp->OnWindowResize(ev.window.data1, ev.window.data2);
 					_gui->_OnWindowResize(ev.window.data1, ev.window.data2);
 					break; // the innermost switch
