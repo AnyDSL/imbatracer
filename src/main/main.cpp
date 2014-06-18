@@ -1,18 +1,23 @@
 #include <io/sdlgui.h>
 #include <io/image.h>
 #include <SDL.h>
+#include <stdio.h>
+
+
+extern "C" void impala_render(unsigned *buf, int w, int h, void *statep);
 
 using namespace rt;
 
 // testing, POD struct
 struct RenderState
 {
-	double dtaccu;
+    float dtaccu;
 };
 
 static void fillImageBuf(unsigned *buf, unsigned w, unsigned h, void *statep)
 {
-	RenderState *state = (RenderState*)statep;
+    /*
+    RenderState *state = (RenderState*)statep;
 	int t = (int)state->dtaccu;
 	// TODO: call into impala instead
 	for(unsigned y = 0; y < h; ++y)
@@ -22,6 +27,15 @@ static void fillImageBuf(unsigned *buf, unsigned w, unsigned h, void *statep)
 				| (t+(x^y^(rand()&0x40)) << 16) // blue
 				| (y << 8) // green
 				| x; // red
+    */
+
+
+    impala_render(buf, w, h, statep);
+}
+
+extern "C" void callbackTest(int x, int y)
+{
+    printf("callback: (%d, %d)\n", x, y);
 }
 
 class TestGui : public SDLGui

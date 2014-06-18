@@ -1,0 +1,46 @@
+
+extern "C"
+{
+    fn callbackTest(x : int, y : int) -> ();
+}
+
+fn setpixel(mut buf : &[u32], width : int, height : int, state : &[float], x : int, y : int)
+-> ()
+{
+    buf(x + width*y) = state(0) * 5000.0f as u32;
+}
+
+
+// TODO: passed state should be a struct
+extern fn impala_render(mut buf : &[u32], width : int, height : int, state : &[float])
+-> ()
+{
+    // DOES NOT WORK
+    // should tint the background dark red
+    for x, y in iteration(width, height)
+    {
+        if x > 30 && y > 30
+        {
+            buf(y*width + x) = 0xff00003f as u32; //((x + y) + 0xff000000) as u32; // FIXME: should be OR operation (crashes otherwise??)
+        }
+    }
+
+
+    // DOES NOT WORK
+    // should display green line, but does not write to array
+    for x in range(0, width)
+    {
+         buf(20*width + x) = 0xff00ff00 as u32;
+         callbackTest(x, -1);
+    }
+
+    // DOES NOT WORK
+    // should display single pixel at (15, 15) with changing color
+    setpixel(buf, width, height, state, 15, 15);
+
+
+    // WORKS!
+    // displays single pixel at (10, 10) with rapidly changing color
+    buf(10 + width*10) = state(0) * 10000.0f as u32;
+}
+

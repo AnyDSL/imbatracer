@@ -23,23 +23,22 @@ pkg_check_modules(SDL2 sdl2 REQUIRED)
 include_directories(${SDL2_INCLUDE_DIRS})
 link_directories(${SDL2_LIBRARY_DIRS})
 # PNG
-find_package(PNG REQUIRED)
-include_directories(${PNG_INCLUDE_DIRS})
-link_directories(${PNG_LIBRARY_DIRS})
+#find_package(PNG REQUIRED)
+#include_directories(${PNG_INCLUDE_DIRS})
+#link_directories(${PNG_LIBRARY_DIRS})
 
 
+set(CUDA_DIR "/opt/cuda6.0" CACHE STRING "The directory containing the CUDA toolkit")
+FIND_PACKAGE ( THORIN REQUIRED )
+message(STATUS "Using THORIN at ${THORIN_RUNTIME_DIR}")
+message(STATUS "Using CUDA at ${CUDA_DIR}")
+include(${THORIN_RUNTIME_DIR}/cmake/ThorinRuntime.cmake)
+include_directories(${THORIN_RUNTIME_INCLUDE_DIR})
 
-include(cmake/ThorinRuntime.cmake)
-
-include_directories(${THORIN_INCLUDE_DIRS})
-link_directories(${THORIN_LIBRARY_DIRS})
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
 set(CMAKE_CXX_FLAGS_RELEASE "-O3 -DNDEBUG")
 
-#IMPALA_WRAP(IMPALA_FILES stencil_int.impala)
-#add_executable(main ${IMPALA_FILES})
-#target_link_libraries(main ${THORIN_LIBRARIES})
 
 add_subdirectory(src)
 

@@ -1,0 +1,28 @@
+
+
+fn range(a : int, b : int, yield : fn(int, fn()))
+-> ()
+{
+    if a < b {
+        yield(a);
+        range(a+1, b, yield, return)
+    }
+}
+
+fn iteration(width : int, height : int, body : fn(int, int) -> () )
+-> ()
+{
+    for y in $range(0, height) {
+        for x in $range(0, width) {
+            body(x, y);
+        }
+    }
+}
+
+fn clamp(val : float, lower : float, upper : float)
+-> float
+{
+    //min(upper, max(lower, val))
+    if val < lower { lower } else { if val <= upper { val } else { upper } }
+}
+
