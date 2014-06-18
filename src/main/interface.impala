@@ -7,31 +7,41 @@ extern "C"
 fn setpixel(mut buf : &[u32], width : int, height : int, state : &[float], x : int, y : int)
 -> ()
 {
-    buf(x + width*y) = state(0) * 5000.0f as u32;
+    buf(x + width*y) = (state(0) * 5000.0f) as u32;
 }
+
+/*
+fn wat(x : u32) -> u32
+{
+    //x + (1 as u32) // huh?: "error: expected number type but found u32"
+    x + 1u  // <-- would be nice to be able to specify unsigned like this (or with u8, u16, u32 suffix if char, short, int size is to be made explicit)
+}
+*/
+
 
 
 // TODO: passed state should be a struct
 extern fn impala_render(mut buf : &[u32], width : int, height : int, state : &[float])
 -> ()
 {
-    // DOES NOT WORK
-    // should tint the background dark red
     for x, y in iteration(width, height)
     {
         if x > 30 && y > 30
         {
-            buf(y*width + x) = 0xff00003f as u32; //((x + y) + 0xff000000) as u32; // FIXME: should be OR operation (crashes otherwise??)
+            buf(y*width + x) = (state(0) * 10.0f) as u32;
         }
     }
 
-
-    // DOES NOT WORK
-    // should display green line, but does not write to array
     for x in range(0, width)
     {
-         buf(20*width + x) = 0xff00ff00 as u32;
-         callbackTest(x, -1);
+         buf(20*width + x) = 4278255360 as u32; // green line: ok!
+
+         buf(22*width + x) = 0xff as u32; // red line: ok!
+
+         //let v = (state(0) * 1000.0f) as int;
+         //buf(24*width + x) = ((v<<24) | v) as u32; // <-- ehh what. won't compile this
+
+         //callbackTest(x, 0xffffffff); // COMMENT THIS IN TO MAKE LINES APPEAR
     }
 
     // DOES NOT WORK
