@@ -39,7 +39,7 @@ void SDLRenderer::OnWindowResize(unsigned w, unsigned h)
 {
 	if(_tex)
 		SDL_DestroyTexture(_tex);
-	_tex = SDL_CreateTexture(_renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, w, h);
+    _tex = SDL_CreateTexture(_renderer, SDL_PIXELFORMAT_ABGR8888, SDL_TEXTUREACCESS_STREAMING, w, h);
 }
 
 void SDLRenderer::uploadImage(const Image *img)
