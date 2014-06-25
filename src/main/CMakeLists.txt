@@ -3,7 +3,14 @@ main.cpp
 )
 
 set(main_impala_SRC
+extern_c.impala
 util.impala
+color.impala
+vector.impala
+rttypes.impala
+view.impala
+cameras.impala
+render.impala
 interface.impala
 )
 

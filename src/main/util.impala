@@ -19,10 +19,32 @@ fn iteration(width : int, height : int, body : fn(int, int) -> () )
     }
 }
 
-fn clamp(val : float, lower : float, upper : float)
--> float
+fn min(a : float, b : float) -> float
 {
-    //min(upper, max(lower, val))
-    if val < lower { lower } else { if val <= upper { val } else { upper } }
+    if a < b { a } else { b }
 }
+
+fn max(a : float, b : float) -> float
+{
+    if a < b { b } else { a }
+}
+
+
+fn clamp(val : float, lower : float, upper : float) -> float
+{
+    min(upper, max(lower, val))
+}
+
+
+fn mul(a : float, b : float) -> float { a * b }
+fn div(a : float, b : float) -> float { a / b }
+fn add(a : float, b : float) -> float { a + b }
+fn sub(a : float, b : float) -> float { a - b }
+fn less(a : float, b : float) -> bool { a < b }
+
+fn almost(a : float, b : float) -> bool
+{
+    fabs(a - b) < 0.00001f
+}
+
 

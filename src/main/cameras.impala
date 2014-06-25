@@ -1,0 +1,51 @@
+
+fn perspectiveRay(v : View, x : float, y : float) -> Ray
+{
+    rayNormalize(
+        o.origin,
+        vadd(v.forward, vadd(vfmul(v.up, y), vfmul(v.right, x)
+    )
+}
+
+fn orthoRay(v : View, x : float, y : float) -> Ray
+{
+    ray(
+        vadd(v.origin, vadd(vfmul(v.up, y), vfmul(v.right x))),
+        v.forward // already normalized
+    )
+}
+
+// TODO: functions below should be signature compatible
+
+fn fisheyeRay(v : View, x : float, y : float, fov : float) -> Ray
+{
+    let r = sqrtf(x*x + y*y);
+    let phi = atan2f(y, x);
+    let theta = r * fov / 2.0f;
+    let costheta = cosf(theta);
+    let sinthety = sinf(theta);
+
+    let a = vmulf(v.forward, costheta);
+    let b = vmulf(v.up, sintheta*sinf(phi));
+    let c = vmulf(v.right, sintheta*cosf(phi));
+    ray(
+        v.origin,
+        vadd(a, vadd(b, c)) // known to be normal
+    )
+}
+
+fn environRay(v : View, x : float, y : float, vertical : float, horiz : float) -> Ray
+{
+    let theta = y * (vertical / 2.0f);
+    let phi = x * (horiz / 2.0f);
+    let costheta = cosf(theta);
+    let sintheta = sinf(theta);
+
+    let a = vmulf(v.up, sintheta);
+    let b = vmulf(v.right, costheta*sinf(phi));
+    let c = vmulf(v.forward, costheta*cosf(phi));
+    ray(
+        v.origin,
+        vadd(a, vadd(b, c)) // known to be normal
+    )
+}

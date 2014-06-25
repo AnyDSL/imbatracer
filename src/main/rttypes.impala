@@ -1,0 +1,25 @@
+
+struct Ray
+{
+    o : Point,
+    d : Vec
+}
+
+fn ray(o : Point, d : vec)
+{
+    // TODO: assert(almost(vlen(d), 1.0f))
+    Ray{ o:o, d:d }
+}
+
+fn rayNormalize(o : Point, d : Vec)
+{
+    ray(o, normalize(d))
+}
+
+fn rayP(r : Ray, dist : float)
+{
+    padd(o, vfmul(d, dist))
+}
+
+
+

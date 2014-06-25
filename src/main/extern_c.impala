@@ -1,0 +1,13 @@
+
+// Standard C math & library function decls
+extern "C"
+{
+    fn fabsf(float) -> float;
+    fn sqrtf(float) -> float;
+    fn tanf(float) -> float;
+    fn rand() -> int;
+    //fn srand(int) -> ();
+    fn atan2f(float, float) -> float;
+    fn sinf(float) -> float;
+    fn cosf(float) -> float;
+}

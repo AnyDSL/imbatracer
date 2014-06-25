@@ -1,0 +1,21 @@
+struct Color
+{
+    r : float,
+    g : float,
+    b : float
+}
+
+fn cclamp01(c : Color)
+{
+    Color{ r : clamp(c.r, 0.0f, 1.0f), g : clamp(c.g, 0.0f, 1.0f), b : clamp(c.b, 0.0f, 1.0f) }
+}
+
+
+fn col_rgb2int(cc : Color) -> int
+{
+    let c = cclamp01(cc);
+     0xff000000
+     | ((c.b*255.0f) as int) << 16)
+     | ((v.g*255.0f) as int) << 8 )
+     | ((c.r*255.0f) as int)      )
+}

@@ -1,0 +1,135 @@
+struct Vec
+{
+    x : float,
+    y : float,
+    z : float
+}
+
+struct Point
+{
+    x : float,
+    y : float,
+    z : float
+}
+
+
+fn vec0() -> Vec
+{
+    vec1(0.0f)
+}
+
+fn vec1(a : float) -> Vec
+{
+    Vec{ x : a, y : a, z: a }
+}
+
+
+fn vapply1(a : Vec, f: fn(float) -> float) -> Vec
+{
+    Vec{ x : f(a.x), y : f(a.y), z : f(a.z) }
+}
+
+fn vvapply2(a : Vec, b : Vec, f: fn(float, float) -> float) -> Vec
+{
+    Vec{ x : f(a.x, b.x), y : f(a.y, b.y), z : f(a.z, b.z) }
+}
+fn vfapply2(a : Vec, b : float, f: fn(float, float) -> float) -> Vec
+{
+    Vec{ x : f(a.x, b), y : f(a.y, b), z : f(a.z, b) }
+}
+fn fvapply2(a : float, b : Vec, f: fn(float, float) -> float) -> Vec
+{
+    Vec{ x : f(a, b.x), y : f(a, b.y), z : f(a, b.z) }
+}
+
+fn vclamp(v : Vec, mi : Vec, ma : Vec) -> Vec { vmin(ma, vmax(mi, v)) }
+
+fn vmin(a : Vec, b : Vec) -> Vec { vvapply2(a, b, min) }
+fn vmax(a : Vec, b : Vec) -> Vec { vvapply2(a, b, max) }
+
+fn vmul(a : Vec, b : Vec) -> Vec { vvapply2(a, b, mul) }
+fn vdiv(a : Vec, b : Vec) -> Vec { vvapply2(a, b, div) }
+fn vadd(a : Vec, b : Vec) -> Vec { vvapply2(a, b, add) }
+fn vsub(a : Vec, b : Vec) -> Vec { vvapply2(a, b, sub) }
+
+fn vfmul(a : Vec, b : float) -> Vec { vfapply2(a, b, mul) }
+fn vfdiv(a : Vec, b : float) -> Vec { vfapply2(a, b, div) }
+
+fn fvmul(a : float, b : Vec) -> Vec { fvapply2(a, b, mul) }
+fn fvdiv(a : float, b : Vec) -> Vec { fvapply2(a, b, div) }
+
+fn vabs(a : Vec) -> Vec { vapply1(a, fabsf) }
+
+fn vdiff(a : Vec, b : Vec) -> Vec { vabs(vsub(a, b)) }
+
+fn vlensq(v : Vec) -> float { v.x*v.x + v.y*v.y + v.z*v.z }
+
+fn vlen(v : Vec) -> float { sqrtf(vlensq(v)) }
+
+fn normalize(v : Vec) -> Vec { vfdiv(v, vlen(v)) }
+
+fn vmaxf(v : Vec) -> float { max(v.x, max(v.y, v.z)) }
+fn vminf(v : Vec) -> float { min(v.x, min(v.y, v.z))}
+
+fn dot(a : Vec, b : Vec) -> float { a.x*b.x + a.y*b.y + a.z*b.z }
+fn cross(a : Vec, b : Vec) -> Vec { Vec { x : a.y*b.z - a.z*b.y, y : a.z*b.x - a.x*b.z, z : a.x*b.y - a.y*b.x } }
+
+fn vequals(a : Vec, b : Vec) -> bool {  a.x==b.x && a.y==b.y && a.z==b.z }
+
+fn valmost(a : Vec, b : Vec) -> bool { vlensq(vsub(a, b)) < 0.00001f } // TODO: need to use vlen() instead?
+
+fn vminaxis(a : Vec) -> int
+{
+    if a.x < a.y { if a.x < a.z { 0 } else { 2 } } else { if a.y < a.z { 1 } else { 2 } }
+}
+
+fn vmaxaxis(a : Vec) -> int
+{
+    if a.x > a.y { if a.x > a.z { 0 } else { 2 } } else { if a.y > a.z { 1 } else { 2 } }
+}
+
+fn vorthogonal(a : Vec) -> Vec
+{
+    let minaxis = vminaxis(vabs(a));
+    if      minaxis == 0 { Vec{ x : 0.0f, y : -a.z, z : a.y  } }
+    else if minaxis == 1 { Vec{ x : -a.z, y : 0.0f, z : a.x  } }
+    else                 { Vec{ x : -a.y, y : a.x,  z : 0.0f } }
+}
+
+fn orthogonalize(ref : Vec, toOrtho : Vec) -> (Vec, Vec)
+{
+    let third = normalize(cross(ref, toOrtho));
+    let ortho = cross(third, ref);
+    // TODO: assert(dot(toOrtho, ortho) > 0.0f)
+    (ortho, third)
+}
+
+
+
+fn point(x : float, y : float, z : float) -> Point
+{
+    Point{ x:x, y:y, z:z }
+}
+
+fn point1(x : float) -> Point
+{
+    point(x, x, x)
+}
+
+fn point0() -> Point
+{
+    point1(0.0f)
+}
+
+fn pvadd(p : Point, v : Vec) -> Point
+{
+    Point{ x : p.x+v.x, y : p.y+v.y, z : p.z+v.z }
+}
+
+fn to(src : Point, dst : Point) -> Vec
+{
+    Vec{ x : dst.x - src.x, y : dst.y - src.y, z : dst.z - src.z }
+}
+
+
+

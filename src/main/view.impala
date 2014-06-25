@@ -1,0 +1,71 @@
+struct View
+{
+    origin : Point,
+    forward : Vec,
+    up : Vec,
+    right : Vec,
+    originalUp : Vec,
+    rightFactor : float,
+    upFactor : float
+}
+
+fn view(origin : Point, forward : Vec, up : Vec) -> View
+{
+    viewEx(origin, forward, up, 1.0f, 1.0f)
+}
+
+fn viewEx(origin : Point, forward : Vec, up : Vec, upFactor : float, rightFactor : float) -> View
+{
+    let v = View{ origin : origin, forward : forward, up : up, upFactor : upFactor, rightFactor : rightFactor,
+        right : vec0(), originalUp : up
+    };
+    viewSetForwardUp(v, forward, up);
+    v
+}
+
+fn viewSetForwardUp(mut v : &View, f : Vec, u : Vec) -> ()
+{
+    v.originalUp = u;
+    let fnorm = normalize(f);
+    v.forward = fnorm;
+
+    let t = orthogonalize(fnorm, u);
+    v.up = t(0) * v.upFactor;
+    v.right = t(1) * v.rightFactor;
+}
+
+
+fn viewSetForward(mut v : &View, f : Vec) -> ()
+{
+    viewSetForwardUp(v, f, v.originalUp)
+}
+
+fn viewSetLookAt(mut v : &View, at : Point) -> ()
+{
+    viewSetForward(to(v.origin, at))
+}
+
+fn viewSetUp(mut v : &View, up : Vec) -> ()
+{
+    viewSetForwardUp(v, v.forward, up)
+}
+
+fn viewSetScale(mut v : &View, upFactor : float, rightFactor : float) -> ()
+{
+    v.rightFactor = rightFactor;
+    v.upFactor = upFactor;
+    viewSetForwardUp(v.forward, v.originalUp);
+}
+
+fn viewSetOpeningAngle(mut v : &View, vertical : float, horiz : float) -> ()
+{
+    viewSetScale(v, tanf(vertical / 2.0f), tanf(horiz / 2.0f));
+}
+
+fn viewSetOpeningAngleWithAspectRatio(mut v : &View, vertical : float, aspect : float) -> ()
+{
+    let a = tanf(vertical / 2);
+    viewSetScale(a, a*aspect);
+}
+
+
