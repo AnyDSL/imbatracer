@@ -38,6 +38,11 @@ extern "C" void callbackTest(int x, int y)
     printf("callback: (%d, %d)\n", x, y);
 }
 
+extern "C" int c_rand()
+{
+    return rand();
+}
+
 class TestGui : public SDLGui
 {
 public:

@@ -2,6 +2,7 @@
 extern "C"
 {
     fn callbackTest(x : int, y : int) -> ();
+    fn c_rand() -> (int);
 }
 
 fn setpixel(mut buf : &[u32], width : int, height : int, state : &[float], x : int, y : int)
@@ -49,5 +50,19 @@ extern fn impala_render(mut buf : &[u32], width : int, height : int, state : &[f
     // WORKS!
     // displays single pixel at (10, 10) with rapidly changing color
     buf(10 + width*10) = state(0) * 10000.0f as u32;
+
+    let t = state(0) as int;
+    for x, y in iteration(width, height)
+    {
+        let c = (0
+            | (0x7e << 24) // alpha // <---- 0x7f macht es hier kaputt
+            //| (t+(x^y^(c_rand()&0x40)) << 16) // blue
+            //| (y << 8) // green
+            | x // red
+            );
+
+        //callbackTest(c, c);
+        buf(y*width+x) = c as u32;
+    }
 }
 
