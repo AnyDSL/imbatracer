@@ -1,5 +1,8 @@
 
-//let ISEC_EPS = 2.0f*0.00001f // FIXME
+fn defaultEps() -> float
+{
+    2.0f*0.00001f // FIXME: value + this should be static variable (as soon as compiler supports it)
+}
 
 struct Intersection
 {
