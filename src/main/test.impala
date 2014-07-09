@@ -1,0 +1,14 @@
+
+// works!
+fn test1() -> &[int*1]
+{
+    let a = [0];
+    &a
+}
+
+// "unknown exception"
+fn test2() -> &[int*1]
+{
+    &[0]
+}
+

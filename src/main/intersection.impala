@@ -47,17 +47,3 @@ fn improveIntersection(mut isec : &Intersection, dist : float, obj : &Tri, surfa
 
 
 
-fn triIntersectFirst(obj : &Tri, isec : &Intersection) -> ()
-{
-    let res = triIntersectDistance(*obj, (*isec).ray, (*isec).dist);
-    let t = res(0); // TODO: would be nice to have syntax for tuple unpacking
-	if t >= 0.0f
-	{
-	    let bar = res(1);
-	    let normal = (*obj).normal;
-	    improveIntersection(isec, t, obj, normal, normal, bar, defaultEps()); // FIXME
-	}
-}
-
-
-

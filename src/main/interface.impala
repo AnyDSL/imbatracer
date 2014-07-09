@@ -16,7 +16,7 @@ fn setpixel(mut buf : &[u32], width : int, height : int, state : &[float], x : i
 extern fn impala_render(mut buf : &[u32], width : int, height : int, state : &[float])
 -> ()
 {
-    //assert(false, "derp");
+    assertf(||{true}); // TEST/TODO: remove this
 
     for x, y in iteration(width, height)
     {

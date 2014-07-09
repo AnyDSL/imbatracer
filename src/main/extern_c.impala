@@ -15,12 +15,33 @@ extern "C"
     // some custom stuff / various hacks
     fn HACK_NULL() -> &u8;
     fn FLT_MAX_fn() -> float;
-    fn c_assert(bool, &[u8]) -> ();
+    fn c_assert(bool, &[u8*1]) -> (); // FIXME
 }
 
-fn assert(cond : bool, msg : &[u8]) -> ()
+fn isDebug() -> bool
 {
-    c_assert(cond, msg)
+    true
+}
+
+fn assert(cond : bool, msg : &[u8*1]) -> () // FIXME
+{
+    if @isDebug()
+    {
+        c_assert(cond, msg)
+    }
+}
+
+// FIXME: this and the above, as soon as strings are supported
+fn assertf(f : fn() -> bool/*, msg : &[u8]*/) -> ()
+{
+    if @isDebug()
+    {
+        let dummy = [0u8];
+        assert(@f()
+               //, (HACK_NULL() as &[u8])
+               , &dummy
+               )
+    }
 }
 
 fn pos_infinity() -> float

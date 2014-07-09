@@ -40,7 +40,9 @@ extern "C"
 
     void c_assert(bool cond, const char *str)
     {
-        fprintf(stderr, "ASSERTION FAILED: %s", str);
+        if(cond)
+            return;
+        fprintf(stderr, "IMBA ASSERTION FAILED: %s\n", str);
         debugAbort();
     }
 }

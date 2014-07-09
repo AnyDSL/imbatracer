@@ -14,6 +14,7 @@ view.impala
 cameras.impala
 render.impala
 interface.impala
+test.impala # compiler testing only
 )
 
 THORIN_RUNTIME_WRAP(main_impala_OBJ main_impala_LIB
