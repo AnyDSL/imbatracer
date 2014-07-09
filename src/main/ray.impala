@@ -22,4 +22,3 @@ fn rayP(r : Ray, dist : float) -> Point
 }
 
 
-

@@ -7,7 +7,9 @@ extern_c.impala
 util.impala
 color.impala
 vector.impala
-rttypes.impala
+ray.impala
+tri.impala
+intersection.impala
 view.impala
 cameras.impala
 render.impala

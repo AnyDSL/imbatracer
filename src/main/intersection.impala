@@ -1,0 +1,14 @@
+
+struct Intersection
+{
+    dist : float,
+    obj : Tri, // TODO: only triangles supported for now
+    r : Ray,
+    surfaceNorm : Vec,
+    shadingNorm : Vec,
+    uv : Point,
+    kind : int, // TODO: enum
+    eps : float
+}
+
+

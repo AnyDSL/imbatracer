@@ -1,0 +1,61 @@
+
+// HMM: could also use integers as float array offsets, and carry around a float ptr?
+struct Tri
+{
+    a : Point,
+    e1 : Vec,
+    e2 : Vec,
+    normal : Vec
+}
+
+fn tri(a : Point, b : Point, c : Point) -> Tri
+{
+    let e1 = to(a, b);
+    let e2 = to(a, c);
+    Tri{ a:a, e1:e1, e2:e2, normal:normalize(cross(e1, e2)) }
+}
+
+fn triIntersectDistance(obj : Tri, ray : Ray, maxDistance : float, bar : &Point) -> (float, Point) // t, barycentric coords
+{
+    /* Directly compute barycentric coordinates and t, and cancel early if we notice the ray is not going to hit
+     * Surface parameterization: with barycentric coordinates b1, b2, it is p(b1, b2) = (1-b1-b2)*a + b1*b + b2*c
+     * Let e1 = a.to(b), a2 = a.to(c). Then p(b1, b2) * a + b1*e1 + b2*e2
+     * We want p(b1, b2) = o + t*d, which after sorting coefficients yields
+     *      -t*d + b1*e1 + b2*e2 = o-a = a.to(o)
+     * This is a linear system with the matrix A = [ -d e1 e2 ] and s = a.to(o). By Cramer's rule, the solution is
+     * Let detA = | A |, then t = | s  e1 e2 | / detA
+     *					     b1 = | -d s  e2 | / detA
+     *                       b2 = |-d  e1  s | / detA
+     * We can use that | v1 v2 v3 | = v1*cross(v2, v3), and swapping columns *twice* does not change the determinant
+     * so we can pre-compute cross(d, e2) = cross(e2, -d) = f1, cross(s, e1) = f2, and we get
+     * detA = e1*f1, t = e2*f2, / detA, b1 = s*f1, b2 = -d*-f2 = d*f2
+     */
+    // compute inverse determinant
+    let f1 = cross(ray.d, obj.e2);
+    let detA = dot(obj.e1, f1);
+    let invDetA = 1.0f/detA;
+
+    // compute b1
+    let s = to(obj.a, ray.o);
+    let b1 = dot(s, f1) * invDetA;
+    if b1 < 0.0f || b1 > 1.0f
+    { (-1.0f, point0()) }
+    else
+    {
+        // compute b2
+        let f2 = cross(s, obj.e1);
+        let b2 = dot(ray.d, f2) * invDetA;
+        if b2 < 0.0f || b1+b2 > 1.0f
+        { (-1.0f, point0()) }
+        else
+        {
+            // compute t
+            let t = dot(obj.e2, f2) * invDetA;
+            if t >= maxDistance
+            { (-1.0f, point0()) }
+            else
+            { (t, point(1.0f-b1-b2, b1, b2)) }
+        }
+    }
+}
+
