@@ -1,26 +1,26 @@
 
-fn renderPixeli(v : &View, x : int, y : int, w : int, h : int) -> Color
+fn renderPixeli(v : View, x : int, y : int, w : int, h : int) -> Color
 {
-    renderPixelf(x as float, y as float, w as float, h as float)
+    @renderPixelf(v, x as float, y as float, w as float, h as float)
 }
 
-fn renderPixeli(v : &View, x : float, y : float, w : float, h : float) -> Color
+fn renderPixelf(v : View, x : float, y : float, w : float, h : float) -> Color
 {
     let nx = (x + 0.5f) / w;
     let ny = (y + 0.5f) / h;
-
+    @renderCoords(v, nx, ny)
 }
 
-fn renderCoords(v : &View, x : float, y : float) -> Color
+fn renderCoords(v : View, x : float, y : float) -> Color
 {
     // convert to screen coordinates (remember to swap y axis)
     let sx =  (x - 0.5f) * 2.0f;
     let sy = -(y - 0.5f) * 2.0f;
 
-    getRadiance(perspectiveRay(v, sx, sy)) // TODO: support for other ray types
+    @getRadiance(perspectiveRay(v, sx, sy)) // TODO: support for other ray types
 }
 
 fn getRadiance(r : Ray) -> Color
 {
-    // TODO: next time!
+    color(0.0f, 0.0f, 0.0f) // TODO
 }

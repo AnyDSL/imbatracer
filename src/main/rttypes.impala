@@ -5,20 +5,20 @@ struct Ray
     d : Vec
 }
 
-fn ray(o : Point, d : vec)
+fn ray(o : Point, d : Vec) -> Ray
 {
     // TODO: assert(almost(vlen(d), 1.0f))
     Ray{ o:o, d:d }
 }
 
-fn rayNormalize(o : Point, d : Vec)
+fn rayNormalize(o : Point, d : Vec) -> Ray
 {
     ray(o, normalize(d))
 }
 
-fn rayP(r : Ray, dist : float)
+fn rayP(r : Ray, dist : float) -> Point
 {
-    padd(o, vfmul(d, dist))
+    pvadd(r.o, vfmul(r.d, dist))
 }
 
 

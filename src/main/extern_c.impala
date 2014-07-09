@@ -3,7 +3,7 @@
 extern "C"
 {
     fn fabsf(float) -> float;
-    fn sqrtf(float) -> float;
+    //fn sqrtf(float) -> float;
     fn tanf(float) -> float;
     fn rand() -> int;
     //fn srand(int) -> ();

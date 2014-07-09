@@ -44,7 +44,7 @@ fn less(a : float, b : float) -> bool { a < b }
 
 fn almost(a : float, b : float) -> bool
 {
-    fabs(a - b) < 0.00001f
+    fabsf(a - b) < 0.00001f
 }
 
 

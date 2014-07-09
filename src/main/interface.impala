@@ -2,18 +2,12 @@
 extern "C"
 {
     fn callbackTest(x : int, y : int) -> ();
-    fn c_rand() -> (int);
 }
 
 fn setpixel(mut buf : &[u32], width : int, height : int, state : &[float], x : int, y : int)
 -> ()
 {
     buf(x + width*y) = (state(0) * 5000.0f) as u32;
-}
-
-fn wat(x : u32) -> u32
-{
-    x + 1u32
 }
 
 

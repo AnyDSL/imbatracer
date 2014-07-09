@@ -2,15 +2,15 @@
 fn perspectiveRay(v : View, x : float, y : float) -> Ray
 {
     rayNormalize(
-        o.origin,
-        vadd(v.forward, vadd(vfmul(v.up, y), vfmul(v.right, x)
+        v.origin,
+        vadd(v.forward, vadd(vfmul(v.up, y), vfmul(v.right, x)))
     )
 }
 
 fn orthoRay(v : View, x : float, y : float) -> Ray
 {
     ray(
-        vadd(v.origin, vadd(vfmul(v.up, y), vfmul(v.right x))),
+        pvadd(v.origin, vadd(vfmul(v.up, y), vfmul(v.right, x))),
         v.forward // already normalized
     )
 }
@@ -23,11 +23,11 @@ fn fisheyeRay(v : View, x : float, y : float, fov : float) -> Ray
     let phi = atan2f(y, x);
     let theta = r * fov / 2.0f;
     let costheta = cosf(theta);
-    let sinthety = sinf(theta);
+    let sintheta = sinf(theta);
 
-    let a = vmulf(v.forward, costheta);
-    let b = vmulf(v.up, sintheta*sinf(phi));
-    let c = vmulf(v.right, sintheta*cosf(phi));
+    let a = vfmul(v.forward, costheta);
+    let b = vfmul(v.up, sintheta*sinf(phi));
+    let c = vfmul(v.right, sintheta*cosf(phi));
     ray(
         v.origin,
         vadd(a, vadd(b, c)) // known to be normal
@@ -41,9 +41,9 @@ fn environRay(v : View, x : float, y : float, vertical : float, horiz : float) -
     let costheta = cosf(theta);
     let sintheta = sinf(theta);
 
-    let a = vmulf(v.up, sintheta);
-    let b = vmulf(v.right, costheta*sinf(phi));
-    let c = vmulf(v.forward, costheta*cosf(phi));
+    let a = vfmul(v.up, sintheta);
+    let b = vfmul(v.right, costheta*sinf(phi));
+    let c = vfmul(v.forward, costheta*cosf(phi));
     ray(
         v.origin,
         vadd(a, vadd(b, c)) // known to be normal
