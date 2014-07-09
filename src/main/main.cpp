@@ -2,6 +2,8 @@
 #include <io/image.h>
 #include <SDL.h>
 #include <stdio.h>
+#include <float.h>
+#include <limits.h>
 
 
 extern "C" void impala_render(unsigned *buf, int w, int h, void *statep);
@@ -19,14 +21,28 @@ static void fillImageBuf(unsigned *buf, unsigned w, unsigned h, void *statep)
     impala_render(buf, w, h, statep);
 }
 
-extern "C" void callbackTest(int x, int y)
+extern "C"
 {
-    printf("callback: (%d, %d)\n", x, y);
-}
+    void callbackTest(int x, int y)
+    {
+        printf("callback: (%d, %d)\n", x, y);
+    }
 
-extern "C" unsigned char *HACK_NULL()
-{
-    return nullptr;
+    unsigned char *HACK_NULL()
+    {
+        return nullptr;
+    }
+
+    float FLT_MAX_fn()
+    {
+        return FLT_MAX;
+    }
+
+    void c_assert(bool cond, const char *str)
+    {
+        fprintf(stderr, "ASSERTION FAILED: %s", str);
+        debugAbort();
+    }
 }
 
 class TestGui : public SDLGui

@@ -12,6 +12,10 @@ struct Point
     z : float
 }
 
+fn vec(x : float, y : float, z : float) -> Vec
+{
+    Vec{ x:x, y:y, z:z }
+}
 
 fn vec0() -> Vec
 {
@@ -131,12 +135,12 @@ fn point0() -> Point
 
 fn pvadd(p : Point, v : Vec) -> Point
 {
-    Point{ x : p.x+v.x, y : p.y+v.y, z : p.z+v.z }
+    point(p.x+v.x, p.y+v.y, p.z+v.z)
 }
 
 fn to(src : Point, dst : Point) -> Vec
 {
-    Vec{ x : dst.x - src.x, y : dst.y - src.y, z : dst.z - src.z }
+    vec(dst.x - src.x, dst.y - src.y, dst.z - src.z)
 }
 
 

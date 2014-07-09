@@ -10,4 +10,32 @@ extern "C"
     fn atan2f(float, float) -> float;
     fn sinf(float) -> float;
     fn cosf(float) -> float;
+
+
+    // some custom stuff / various hacks
+    fn HACK_NULL() -> &u8;
+    fn FLT_MAX_fn() -> float;
+    fn c_assert(bool, &[u8]) -> ();
 }
+
+fn assert(cond : bool, msg : &[u8]) -> ()
+{
+    c_assert(cond, msg)
+}
+
+fn pos_infinity() -> float
+{
+    1.0f/0.0f
+}
+
+fn neg_infinity() -> float
+{
+    -1.0f/0.0f
+}
+
+
+
+
+
+
+

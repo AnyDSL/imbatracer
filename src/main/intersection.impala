@@ -4,6 +4,7 @@ fn defaultEps() -> float
     2.0f*0.00001f // FIXME: value + this should be static variable (as soon as compiler supports it)
 }
 
+
 struct Intersection
 {
     dist : float,
@@ -19,8 +20,18 @@ struct Intersection
 fn noIntersection() -> Intersection
 {
     // TODO: there is no need to init anything but obj
-    Intersection{ dist:-1.0f, obj:HACK_NULL_tri(), ray:ray0(), surfaceNorm:vec0(), shadingNorm:vec0(), uv:point0(), kind:0, eps:0.0f }
+    Intersection{ obj:HACK_NULL_tri(),
+        dist:-1.0f, ray:ray0(), surfaceNorm:vec0(), shadingNorm:vec0(), uv:point0(), kind:0, eps:0.0f
+    }
 }
+
+fn beginIntersection() -> Intersection
+{
+    // TODO: only dist & obj needed
+    Intersection{ dist:FLT_MAX_fn(), obj:HACK_NULL_tri(),
+        ray:ray0(), surfaceNorm:vec0(), shadingNorm:vec0(), uv:point0(), kind:0, eps:0.0f }
+}
+
 
 fn improveIntersection(mut isec : &Intersection, dist : float, obj : &Tri, surfaceNorm : Vec, shadingNorm : Vec, uv : Point, eps : float) -> ()
 {

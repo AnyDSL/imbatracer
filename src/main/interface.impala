@@ -2,7 +2,6 @@
 extern "C"
 {
     fn callbackTest(x : int, y : int) -> ();
-    fn HACK_NULL() -> &u8;
 }
 
 fn setpixel(mut buf : &[u32], width : int, height : int, state : &[float], x : int, y : int)
@@ -17,6 +16,8 @@ fn setpixel(mut buf : &[u32], width : int, height : int, state : &[float], x : i
 extern fn impala_render(mut buf : &[u32], width : int, height : int, state : &[float])
 -> ()
 {
+    //assert(false, "derp");
+
     for x, y in iteration(width, height)
     {
         if x > 30 && y > 30
