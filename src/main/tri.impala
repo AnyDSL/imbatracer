@@ -69,19 +69,3 @@ fn triIntersectAny(obj : &Tri, ray : Ray, maxDistance : float) -> bool
 {
     @triIntersectDistance(*obj, ray, maxDistance)(0) >= 0.0f
 }
-
-// FIXME: COMPILER BUG
-/*fn triIntersectFirst(obj : &Tri, isec : &Intersection) -> ()
-{
-    let res = triIntersectDistance(*obj, (*isec).ray, (*isec).dist);
-    let t = res(0); // TODO: would be nice to have syntax for tuple unpacking
-	if t >= 0.0f
-	{
-	    let bar = res(1);
-	    let normal = (*obj).normal;
-	    improveIntersection(isec, t, obj, normal, normal, bar, defaultEps()); // FIXME
-	}
-}*/
-
-
-
