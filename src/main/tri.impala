@@ -15,7 +15,12 @@ fn tri(a : Point, b : Point, c : Point) -> Tri
     Tri{ a:a, e1:e1, e2:e2, normal:normalize(cross(e1, e2)) }
 }
 
-fn triIntersectDistance(obj : Tri, ray : Ray, maxDistance : float, bar : &Point) -> (float, Point) // t, barycentric coords
+fn HACK_NULL_tri() -> &Tri
+{
+    HACK_NULL() as &Tri
+}
+
+fn triIntersectDistance(obj : Tri, ray : Ray, maxDistance : float) -> (float, Point) // t, barycentric coords
 {
     /* Directly compute barycentric coordinates and t, and cancel early if we notice the ray is not going to hit
      * Surface parameterization: with barycentric coordinates b1, b2, it is p(b1, b2) = (1-b1-b2)*a + b1*b + b2*c
@@ -57,5 +62,24 @@ fn triIntersectDistance(obj : Tri, ray : Ray, maxDistance : float, bar : &Point)
             { (t, point(1.0f-b1-b2, b1, b2)) }
         }
     }
+}
+
+
+fn triIntersectAny(obj : &Tri, ray : Ray, maxDistance : float) -> bool
+{
+    @triIntersectDistance(*obj, ray, maxDistance)(0) >= 0.0f
+}
+
+// FIXME: THIS FAILS?
+fn triIntersectFirst(obj : &Tri, isec : &Intersection) -> ()
+{
+    //let res = triIntersectDistance(*obj, (*isec).ray, (*isec).dist);
+    //let t = res(0); // TODO: would be nice to have syntax for tuple unpacking
+	//if t >= 0.0f
+	//{
+	    //let bar = res(1);
+	    //let normal = (*obj).normal;
+	    //improveIntersection(isec, t, obj, normal, normal, bar, 0.00001f); // FIXME
+	//}
 }
 

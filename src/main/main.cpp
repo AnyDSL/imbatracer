@@ -24,6 +24,11 @@ extern "C" void callbackTest(int x, int y)
     printf("callback: (%d, %d)\n", x, y);
 }
 
+extern "C" unsigned char *HACK_NULL()
+{
+    return nullptr;
+}
+
 class TestGui : public SDLGui
 {
 public:

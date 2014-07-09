@@ -2,6 +2,7 @@
 extern "C"
 {
     fn callbackTest(x : int, y : int) -> ();
+    fn HACK_NULL() -> &u8;
 }
 
 fn setpixel(mut buf : &[u32], width : int, height : int, state : &[float], x : int, y : int)

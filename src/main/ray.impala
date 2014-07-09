@@ -11,6 +11,11 @@ fn ray(o : Point, d : Vec) -> Ray
     Ray{ o:o, d:d }
 }
 
+fn ray0() -> Ray
+{
+    ray(point0(), vec0())
+}
+
 fn rayNormalize(o : Point, d : Vec) -> Ray
 {
     ray(o, normalize(d))

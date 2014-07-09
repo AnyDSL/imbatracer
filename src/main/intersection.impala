@@ -1,9 +1,11 @@
 
+//let ISEC_EPS = 2.0f*0.00001f // FIXME
+
 struct Intersection
 {
     dist : float,
-    obj : Tri, // TODO: only triangles supported for now
-    r : Ray,
+    obj : &Tri, // TODO: only triangles supported for now
+    ray : Ray,
     surfaceNorm : Vec,
     shadingNorm : Vec,
     uv : Point,
@@ -11,4 +13,21 @@ struct Intersection
     eps : float
 }
 
+fn noIntersection() -> Intersection
+{
+    // TODO: there is no need to init anything but obj
+    Intersection{ dist:-1.0f, obj:HACK_NULL_tri(), ray:ray0(), surfaceNorm:vec0(), shadingNorm:vec0(), uv:point0(), kind:0, eps:0.0f }
+}
+
+fn improveIntersection(mut isec : &Intersection, dist : float, obj : &Tri, surfaceNorm : Vec, shadingNorm : Vec, uv : Point, eps : float) -> ()
+{
+    // TODO: various assertions
+
+    (*isec).dist = dist;
+    (*isec).obj = obj;
+    (*isec).surfaceNorm = surfaceNorm;
+    (*isec).shadingNorm = shadingNorm;
+    (*isec).uv = uv;
+    (*isec).eps = eps;
+}
 
