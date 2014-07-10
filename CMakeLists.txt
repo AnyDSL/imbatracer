@@ -35,7 +35,7 @@ include(${THORIN_RUNTIME_DIR}/cmake/ThorinRuntime.cmake)
 include_directories(${THORIN_RUNTIME_INCLUDE_DIR})
 
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -Wall -Wextra")
 set(CMAKE_CXX_FLAGS_RELEASE "-O3 -DNDEBUG")
 
 

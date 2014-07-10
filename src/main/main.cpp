@@ -5,21 +5,11 @@
 #include <float.h>
 #include <limits.h>
 
-
-extern "C" void impala_render(unsigned *buf, int w, int h, void *statep);
+#include "interface.h"
+#include "sceneload.h"
 
 using namespace rt;
-
-// testing, POD struct
-struct RenderState
-{
-    float dtaccu;
-};
-
-static void fillImageBuf(unsigned *buf, unsigned w, unsigned h, void *statep)
-{
-    impala_render(buf, w, h, statep);
-}
+using namespace impala;
 
 extern "C"
 {
@@ -53,16 +43,18 @@ public:
 	TestGui(unsigned w, unsigned h)
 		: _img(new Image(w, h))
 	{
-		state.dtaccu = 0;
+		state.time = 0;
 	}
+	
+	State *getState() { return &state; }
 
 protected:
 
 	virtual void _Update(float dt)
 	{
-		fillImageBuf(_img->getPtr(), _img->width(), _img->height(), &state);
+		impala_render(_img->getPtr(), _img->width(), _img->height(), &state);
 		ShowImage(_img);
-		state.dtaccu += dt*20;
+		state.time += dt*20;
 	}
 
 	virtual void _OnWindowResize(int w, int h)
@@ -70,17 +62,18 @@ protected:
 		_img = new Image(w, h);
 	}
 
-	RenderState state;
+	State state;
 	CountedPtr<Image> _img;
 };
 
-int main(int argc, char *argv[])
+int main(int /*argc*/, char */*argv*/[])
 {
 	SDL_Init(0);
 	atexit(SDL_Quit);
 
 	TestGui gui(640, 480);
 	gui.Init();
+    loadScene(&gui.getState()->scene);
 
 	gui.SetWindowTitle("ImbaTracer");
 	gui.WaitForQuit();

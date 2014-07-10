@@ -1,4 +1,5 @@
 set(main_cpp_SRC
+sceneload.cpp
 main.cpp
 )
 
