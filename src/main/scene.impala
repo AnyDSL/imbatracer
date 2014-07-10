@@ -1,0 +1,7 @@
+
+struct Scene
+{
+    nTris : uint,
+    verts : &[Point],
+    triVerts : &[uint] // 3 successive entries are the three indices of the vertices of a triangle
+}

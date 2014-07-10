@@ -1,26 +1,10 @@
 
-// HMM: could also use integers as float array offsets, and carry around a float ptr?
-struct Tri
+fn triPoint(tri : uint, pt : uint, scene : &Scene) -> Point
 {
-    a : Point,
-    e1 : Vec,
-    e2 : Vec,
-    normal : Vec
+    (*scene).verts((*scene).triVerts(3u*tri + pt))
 }
 
-fn tri(a : Point, b : Point, c : Point) -> Tri
-{
-    let e1 = to(a, b);
-    let e2 = to(a, c);
-    Tri{ a:a, e1:e1, e2:e2, normal:normalize(cross(e1, e2)) }
-}
-
-fn HACK_NULL_tri() -> &Tri
-{
-    0 as &Tri
-}
-
-fn triIntersectDistance(obj : Tri, ray : Ray, maxDistance : float) -> (float, Point) // t, barycentric coords
+fn triIntersectDistance(tri : uint, scene : &Scene, ray : Ray, maxDistance : float) -> (float, Vec, Point) // t, barycentric coords
 {
     /* Directly compute barycentric coordinates and t, and cancel early if we notice the ray is not going to hit
      * Surface parameterization: with barycentric coordinates b1, b2, it is p(b1, b2) = (1-b1-b2)*a + b1*b + b2*c
@@ -36,49 +20,51 @@ fn triIntersectDistance(obj : Tri, ray : Ray, maxDistance : float) -> (float, Po
      * detA = e1*f1, t = e2*f2, / detA, b1 = s*f1, b2 = -d*-f2 = d*f2
      */
     // compute inverse determinant
-    let f1 = cross(ray.d, obj.e2);
-    let detA = dot(obj.e1, f1);
+    let a = @triPoint(tri, 0u, scene);
+    let e1 = to(a, @triPoint(tri, 1u, scene));
+    let e2 = to(a, @triPoint(tri, 2u, scene));
+    let f1 = cross(ray.d, e2);
+    let detA = dot(e1, f1);
     let invDetA = 1.0f/detA;
 
     // compute b1
-    let s = to(obj.a, ray.o);
+    let s = to(a, ray.o);
     let b1 = dot(s, f1) * invDetA;
     if b1 < 0.0f || b1 > 1.0f
-    { (-1.0f, point0()) }
+    { (-1.0f, vec0(), point0()) }
     else
     {
         // compute b2
-        let f2 = cross(s, obj.e1);
+        let f2 = cross(s, e1);
         let b2 = dot(ray.d, f2) * invDetA;
         if b2 < 0.0f || b1+b2 > 1.0f
-        { (-1.0f, point0()) }
+        { (-1.0f, vec0(), point0()) }
         else
         {
             // compute t
-            let t = dot(obj.e2, f2) * invDetA;
+            let t = dot(e2, f2) * invDetA;
             if t >= maxDistance
-            { (-1.0f, point0()) }
+            { (-1.0f, vec0(), point0()) }
             else
-            { (t, point(1.0f-b1-b2, b1, b2)) }
+            { (t, normalize(cross(e1, e2)), point(1.0f-b1-b2, b1, b2)) }
         }
     }
 }
 
-fn triIntersectAny(obj : &Tri, ray : Ray, maxDistance : float) -> bool
+fn triIntersectAny(tri : uint, scene : &Scene, ray : Ray, maxDistance : float) -> bool
 {
-    @triIntersectDistance(*obj, ray, maxDistance)(0) >= 0.0f
+    @(triIntersectDistance(tri, scene, ray, maxDistance)(0)) >= 0.0f
 }
 
-fn triIntersectFirst(obj : &Tri, isec : &Intersection) -> ()
+fn triIntersectFirst(tri : uint, scene : &Scene, isec : &Intersection) -> ()
 {
-    let res = triIntersectDistance(*obj, (*isec).ray, (*isec).dist);
+    let res = @triIntersectDistance(tri, scene, (*isec).ray, (*isec).dist);
     let t = res(0); // TODO: would be nice to have syntax for tuple unpacking
-	if t >= 0.0f
-	{
-	    let bar = res(1);
-	    let normal = (*obj).normal;
-	    improveIntersection(isec, t, obj, normal, normal, bar, defaultEps()); // FIXME
-	}
+    if t >= 0.0f
+    {
+        let normal = res(1);
+        improveIntersection(isec, t, tri, normal, defaultEps()); // FIXME
+    }
 }
 
 

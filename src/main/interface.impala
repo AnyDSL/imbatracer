@@ -8,7 +8,8 @@ struct State
 {
     time : float,
     cam : Cam,
-    integrator : Integrator
+    integrator : Integrator,
+    scene : Scene
 }
 
 
@@ -30,12 +31,14 @@ extern fn impala_render(mut buf : &[u32], width : int, height : int, state : &St
     }*/
 
     let getray = getRayFn((*state).cam);
+    let getrad = getRadFn((*state).integrator);
+    let rendercoord = |x:float, y:float|->Color {getrad(getray(x, y))};
 
     let wf = width as float;
     let hf = height as float;
     for x, y in iteration(width, height)
     {
-        let c = renderPixelf(getray, x as float, y as float, wf, hf);
+        let c = @renderPixelf(rendercoord, x as float, y as float, wf, hf);
         buf(y*width+x) = col_rgb2int(c)
     }
 }

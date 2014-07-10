@@ -4,44 +4,42 @@ fn defaultEps() -> float
     2.0f*0.00001f // FIXME: value + this should be static variable (as soon as compiler supports it)
 }
 
+fn noObj() -> uint
+{ 0xFFFFFFFFu }
 
 struct Intersection
 {
     dist : float,
-    obj : &Tri, // TODO: only triangles supported for now
+    obj : uint,
     ray : Ray,
-    surfaceNorm : Vec,
-    shadingNorm : Vec,
-    uv : Point,
-    kind : int, // TODO: enum
+    norm : Vec,
+//    uv : Point,
     eps : float
 }
 
 fn noIntersection() -> Intersection
 {
     // TODO: there is no need to init anything but obj
-    Intersection{ obj:HACK_NULL_tri(),
-        dist:-1.0f, ray:ray0(), surfaceNorm:vec0(), shadingNorm:vec0(), uv:point0(), kind:0, eps:0.0f
+    Intersection{ obj:noObj(),
+        dist:-1.0f, ray:ray0(), norm:vec0(), eps:0.0f
     }
 }
 
-fn beginIntersection() -> Intersection
+fn beginIntersection(ray : Ray) -> Intersection
 {
     // TODO: only dist & obj needed
-    Intersection{ dist:FLT_MAX_fn(), obj:HACK_NULL_tri(),
-        ray:ray0(), surfaceNorm:vec0(), shadingNorm:vec0(), uv:point0(), kind:0, eps:0.0f }
+    Intersection{ dist:FLT_MAX_fn(), obj:noObj(),
+        ray:ray, norm:vec0(), eps:0.0f }
 }
 
 
-fn improveIntersection(mut isec : &Intersection, dist : float, obj : &Tri, surfaceNorm : Vec, shadingNorm : Vec, uv : Point, eps : float) -> ()
+fn improveIntersection(mut isec : &Intersection, dist : float, obj : uint, norm : Vec, eps : float) -> ()
 {
     // TODO: various assertions
 
     (*isec).dist = dist;
     (*isec).obj = obj;
-    (*isec).surfaceNorm = surfaceNorm;
-    (*isec).shadingNorm = shadingNorm;
-    (*isec).uv = uv;
+    (*isec).norm = norm;
     (*isec).eps = eps;
 }
 

@@ -1,21 +1,21 @@
 
-fn renderPixelf(getray : fn(float, float) -> Ray, x : float, y : float, w : float, h : float) -> Color
+fn renderPixelf(getcol : fn(float, float) -> Color, x : float, y : float, w : float, h : float) -> Color
 {
     let nx = (x + 0.5f) / w;
     let ny = (y + 0.5f) / h;
-    @renderCoords(getray, nx, ny)
+    renderCoords(getcol, nx, ny)
 }
 
-fn renderCoords(getray : fn(float, float) -> Ray, x : float, y : float) -> Color
+fn renderCoords(getcol : fn(float, float) -> Color, x : float, y : float) -> Color
 {
     // convert to screen coordinates (remember to swap y axis)
     let sx =  (x - 0.5f) * 2.0f;
     let sy = -(y - 0.5f) * 2.0f;
 
-    @getRadiance(getray(sx, sy))
+    getcol(sx, sy)
 }
 
-fn getRadiance(r : Ray) -> Color
+fn getRadiance(scene : Scene, r : Ray) -> Color
 {
     color(0.0f, 0.0f, 0.0f) // TODO
 }
