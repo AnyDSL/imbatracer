@@ -48,7 +48,7 @@ namespace impala {
 
     struct Integrator
     {
-        float maxDist, maxRecDepth;
+        float minDist, maxDist, maxRecDepth;
         int mode;
         int itype;
     };

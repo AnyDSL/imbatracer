@@ -64,10 +64,10 @@ fn makeDistanceScaled(integr : Integrator, getcol: fn(Intersection) -> Color) ->
 fn getRadianceForHitFn(integr : Integrator) -> fn(Intersection) -> Color
 {
     let ty = integr.itype;
-         if ty == 0 { cosineRadiance }
+         if ty == 0 { cosineRadiance }  // Cosine shading
     else if ty == 1 { raytraceRadiance }
     else if ty == 2 { recraytraceRadiance }
-    else
+    else          // Debugging Shading
     {
         let mode = integr.mode;
         makeDistanceScaled(integr,
@@ -78,14 +78,14 @@ fn getRadianceForHitFn(integr : Integrator) -> fn(Intersection) -> Color
     }
 }
 
-fn getRadiance(scene : &Scene, hit : fn(Ray) -> Color, nohit : fn() -> Color) -> Color
+fn getRadiance(ray : Ray, scene : &Scene, hit : fn(Intersection) -> Color, nohit : Color) -> Color
 {
-    let isec = @beginIntersection();
+    let isec = @beginIntersection(ray);
 
     //intersectWithScene(scene, &isec);
     triIntersectScene(scene, &isec);
 
-    if isec.obj == @noObj() { nohit() } else { hit(isec) }
+    if isec.obj == @noObj() { nohit } else { hit(isec) }
 }
 
 
@@ -94,6 +94,6 @@ fn getRadFn(integr : Integrator, scene : &Scene) -> fn(Ray) -> Color
     let hit = getRadianceForHitFn(integr);
     let nohit = color0();
 
-    |ray : Ray| -> Color { getRadiance(scene, hit, nohit) }
+    |ray : Ray| -> Color { getRadiance(ray, scene, hit, nohit) }
 }
 
