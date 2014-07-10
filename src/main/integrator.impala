@@ -1,0 +1,6 @@
+
+struct Integrator
+{
+    a : int
+}
+

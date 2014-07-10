@@ -12,6 +12,7 @@ tri.impala
 intersection.impala
 view.impala
 cameras.impala
+integrator.impala
 render.impala
 interface.impala
 test.impala # compiler testing only

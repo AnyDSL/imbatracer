@@ -16,11 +16,11 @@ fn cclamp01(c : Color) -> Color
 }
 
 
-fn col_rgb2int(cc : Color) -> int
+fn col_rgb2int(cc : Color) -> u32
 {
     let c = cclamp01(cc);
-     0xff000000
-     | (((c.b*255.0f) as int) << 16)
-     | (((c.g*255.0f) as int) << 8 )
-     | (((c.r*255.0f) as int)      )
+     0xff000000u32
+     | ((((c.b*255.0f) as int) as u32) << 16u32)
+     | ((((c.g*255.0f) as int) as u32) << 8u32 )
+     | ((((c.r*255.0f) as int) as u32)         )
 }

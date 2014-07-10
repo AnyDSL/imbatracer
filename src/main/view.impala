@@ -23,6 +23,16 @@ fn viewEx(origin : Point, forward : Vec, up : Vec, upFactor : float, rightFactor
     v
 }
 
+fn view1(pos : Point) -> View
+{
+    view(pos, vec(0.0f, 0.0f, 1.0f), vec(0.0f, 1.0f, 0.0f))
+}
+
+fn view0() -> View
+{
+    view1(point0())
+}
+
 fn viewSetForwardUp(mut v : &View, f : Vec, u : Vec) -> ()
 {
     (*v).originalUp = u;

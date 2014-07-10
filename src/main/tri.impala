@@ -17,7 +17,7 @@ fn tri(a : Point, b : Point, c : Point) -> Tri
 
 fn HACK_NULL_tri() -> &Tri
 {
-    HACK_NULL() as &Tri
+    0 as &Tri
 }
 
 fn triIntersectDistance(obj : Tri, ray : Ray, maxDistance : float) -> (float, Point) // t, barycentric coords
