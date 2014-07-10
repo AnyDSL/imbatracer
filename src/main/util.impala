@@ -30,9 +30,14 @@ fn max(a : float, b : float) -> float
 }
 
 
-fn clamp(val : float, lower : float, upper : float) -> float
+fn clamp(lower : float, val : float, upper : float) -> float
 {
     min(upper, max(lower, val))
+}
+
+fn clamp01f(val : float) -> float
+{
+    @clamp(0.0f, val, 1.0f)
 }
 
 
@@ -45,6 +50,19 @@ fn less(a : float, b : float) -> bool { a < b }
 fn almost(a : float, b : float) -> bool
 {
     fabsf(a - b) < 0.00001f
+}
+
+fn lerp(a : float, b : float, t : float) -> float
+{
+    a * (1.0f - t) + b * t
+}
+
+// Scale a range to a range, linearly
+fn scaleLin(v : float, vMin : float, vMax : float, targetMin : float, targetMax : float) -> float
+{
+	let f = clamp(vMin, v, vMax);
+	let d = vMax-vMin;
+	if d == 0.0f { vMin } else { lerp((f-vMin)/d, targetMin, targetMax) }
 }
 
 

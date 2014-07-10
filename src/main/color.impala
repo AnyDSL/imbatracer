@@ -10,19 +10,26 @@ fn color(r : float, g : float, b : float) -> Color
     Color{ r:r, g:g, b:b }
 }
 
-fn color1(c : float)
+fn color1(c : float) -> Color
 {
     color(c, c, c)
 }
 
-fn color0()
+fn color0() -> Color
 {
     color1(0.0f)
 }
 
 fn cclamp01(c : Color) -> Color
 {
-    Color{ r : clamp(c.r, 0.0f, 1.0f), g : clamp(c.g, 0.0f, 1.0f), b : clamp(c.b, 0.0f, 1.0f) }
+    color(clamp01f(c.r), clamp01f(c.g), clamp01f(c.b))
+}
+
+fn clerp(c1 : Color, c2 : Color, t : float) -> Color
+{
+    color(lerp(c1.r, c2.r, t),
+          lerp(c1.g, c2.g, t),
+          lerp(c1.b, c2.b, t))
 }
 
 
