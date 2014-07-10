@@ -1,14 +1,2 @@
 
-// works!
-fn test1() -> &[int*1]
-{
-    let a = [0];
-    &a
-}
-
-// "unknown exception"
-fn test2() -> &[int*1]
-{
-    &[0]
-}
-
+// not compiling / buggy stuff goes here
