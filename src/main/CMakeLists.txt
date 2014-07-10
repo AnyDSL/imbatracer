@@ -8,6 +8,7 @@ util.impala
 color.impala
 vector.impala
 ray.impala
+scene.impala
 tri.impala
 intersection.impala
 view.impala

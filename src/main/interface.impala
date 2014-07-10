@@ -8,7 +8,8 @@ struct State
 {
     time : float,
     cam : Cam,
-    integrator : Integrator
+    integrator : Integrator,
+    scene : Scene
 }
 
 
