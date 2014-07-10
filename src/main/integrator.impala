@@ -1,6 +1,99 @@
 
 struct Integrator
 {
-    a : int
+    minDist : float,
+    maxDist : float,
+    maxRecDepth : float,
+    mode : int, // for debugger
+
+    itype : int
+}
+
+
+// return a gray color whose value is the cosine between the ray direction and the hit surface normal
+fn cosineRadiance(isec : Intersection) -> Color
+{
+    color1(absdot(isec.norm, isec.ray.d)) // ignore normal direction by abs()ing
+}
+
+fn debugRadianceNormalDir(isec : Intersection) -> Color
+{
+    let n = isec.norm;
+    color(n.x, n.y, n.z)
+}
+
+fn debugRadianceNormalSign(isec : Intersection) -> Color
+{
+    let n = isec.norm;
+    @color(@scaleLin(n.x, -1.f, 1.f, 0.f, 1.f),
+           @scaleLin(n.y, -1.f, 1.f, 0.f, 1.f),
+           @scaleLin(n.z, -1.f, 1.f, 0.f, 1.f))
+}
+
+fn debugRadianceDepth(isec : Intersection) -> Color
+{
+    color1(1.0f)
+}
+
+fn raytraceRadiance(isec : Intersection) -> Color
+{
+    color0() // TODO
+}
+
+fn recraytraceRadiance(isec : Intersection) -> Color
+{
+    color0() // TODO
+}
+
+fn makeDistanceScaled(integr : Integrator, getcol: fn(Intersection) -> Color) -> fn(Intersection) -> Color
+{
+    let minDist = integr.minDist;
+    let maxDist = integr.maxDist;
+    if maxDist <= minDist
+    { getcol }
+    else
+    {
+        |isec : Intersection| -> Color
+        {
+            let t = scaleLin(isec.dist, minDist, maxDist, 1.0f, 0.0f);
+            clerp(getcol(isec), color0(), t)
+        }
+    }
+}
+
+fn getRadianceForHitFn(integr : Integrator) -> fn(Intersection) -> Color
+{
+    let ty = integr.itype;
+         if ty == 0 { cosineRadiance }
+    else if ty == 1 { raytraceRadiance }
+    else if ty == 2 { recraytraceRadiance }
+    else
+    {
+        let mode = integr.mode;
+        makeDistanceScaled(integr,
+            if      mode == 0 { debugRadianceNormalDir }
+            else if mode == 1 { debugRadianceNormalSign }
+            else              { debugRadianceDepth }
+        )
+    }
+}
+
+fn getRadiance(scene : &Scene, hit : fn(Ray) -> Color, nohit : fn() -> Color) -> Color
+{
+    let isec = @beginIntersection();
+
+    //intersectWithScene(scene, &isec);
+    triIntersectScene(scene, &isec);
+
+    if isec.obj == @noObj() { nohit() } else { hit(isec) }
+}
+
+
+fn getRadFn(integr : Integrator, scene : &Scene) -> fn(Ray) -> Color
+{
+    let hit = getRadianceForHitFn(integr);
+    let nohit = color0();
+
+    |ray : Ray| -> Color { getRadiance(scene, hit, nohit) }
 }
 

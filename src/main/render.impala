@@ -14,8 +14,3 @@ fn renderCoords(getcol : fn(float, float) -> Color, x : float, y : float) -> Col
 
     getcol(sx, sy)
 }
-
-fn getRadiance(scene : Scene, r : Ray) -> Color
-{
-    color(0.0f, 0.0f, 0.0f) // TODO
-}
