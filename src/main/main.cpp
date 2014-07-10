@@ -41,45 +41,46 @@ extern "C"
 class TestGui : public SDLGui
 {
 public:
-	TestGui(unsigned w, unsigned h)
-		: _img(new Image(w, h))
-	{
-		state.time = 0;
-	}
-	
-	State *getState() { return &state; }
+    TestGui(unsigned w, unsigned h)
+        : _img(new Image(w, h))
+    {
+        state.time = 0;
+    }
+    
+    State *getState() { return &state; }
 
 protected:
 
-	virtual void _Update(float dt)
-	{
-		impala_render(_img->getPtr(), _img->width(), _img->height(), &state);
-		ShowImage(_img);
-		state.time += dt*20;
-	}
+    virtual void _Update(float dt)
+    {
+        state.time += dt;
+        state.cam = perspectiveCam(point(2*sinf(dt), 2*cosf(1.5*dt), 2*sinf(-0.2*dt)), point(0, 0, 0));
+        impala_render(_img->getPtr(), _img->width(), _img->height(), &state);
+        ShowImage(_img);
+    }
 
-	virtual void _OnWindowResize(int w, int h)
-	{
-		_img = new Image(w, h);
-	}
+    virtual void _OnWindowResize(int w, int h)
+    {
+        _img = new Image(w, h);
+    }
 
-	State state;
-	CountedPtr<Image> _img;
+    State state;
+    CountedPtr<Image> _img;
 };
 
 int main(int /*argc*/, char */*argv*/[])
 {
     thorin_init();
-	SDL_Init(0);
-	atexit(SDL_Quit);
+    SDL_Init(0);
+    atexit(SDL_Quit);
 
-	TestGui gui(640, 480);
-	gui.Init();
+    TestGui gui(640, 480);
+    gui.Init();
     loadScene(&gui.getState()->scene);
 
-	gui.SetWindowTitle("ImbaTracer");
-	gui.WaitForQuit();
+    gui.SetWindowTitle("ImbaTracer");
+    gui.WaitForQuit();
 
 
-	return 0;
+    return 0;
 }

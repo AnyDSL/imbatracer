@@ -7,6 +7,11 @@ struct Cam
     camtype : int
 }
 
+extern fn perspectiveCam(center : Point, at : Point, up : Vec, verticalOpeningAngle : float, horizonalOpeningAngle : float) -> Cam
+{
+    Cam { camtype : 0, view : viewEx(center, to(center, at), up, tanf(verticalOpeningAngle / 2.0f), tanf(horizonalOpeningAngle / 2.0f)),
+        param1: 0.0f, param2: 0.0f }
+}
 
 fn perspectiveRay(v : View, x : float, y : float) -> Ray
 {
