@@ -10,6 +10,16 @@ fn color(r : float, g : float, b : float) -> Color
     Color{ r:r, g:g, b:b }
 }
 
+fn color1(c : float)
+{
+    color(c, c, c)
+}
+
+fn color0()
+{
+    color1(0.0f)
+}
+
 fn cclamp01(c : Color) -> Color
 {
     Color{ r : clamp(c.r, 0.0f, 1.0f), g : clamp(c.g, 0.0f, 1.0f), b : clamp(c.b, 0.0f, 1.0f) }

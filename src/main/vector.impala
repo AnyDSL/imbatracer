@@ -84,6 +84,7 @@ fn vmaxf(v : Vec) -> float { max(v.x, max(v.y, v.z)) }
 fn vminf(v : Vec) -> float { min(v.x, min(v.y, v.z))}
 
 fn dot(a : Vec, b : Vec) -> float { a.x*b.x + a.y*b.y + a.z*b.z }
+fn absdot(a : Vec, b : Vec) -> float { fabsf(dot(a, b)) }
 fn cross(a : Vec, b : Vec) -> Vec { Vec { x : a.y*b.z - a.z*b.y, y : a.z*b.x - a.x*b.z, z : a.x*b.y - a.y*b.x } }
 
 fn vequals(a : Vec, b : Vec) -> bool {  a.x==b.x && a.y==b.y && a.z==b.z }
