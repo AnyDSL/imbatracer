@@ -7,6 +7,11 @@ namespace impala {
     {
         float x, y, z;
     };
+    
+    inline Point point(float x, float y, float z)
+    {
+        return { .x = x, .y = y, .z = z };
+    }
 
     struct Vec
     {

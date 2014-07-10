@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <float.h>
 #include <limits.h>
+#include <thorin_ext_runtime.h>
 
 #include "interface.h"
 #include "sceneload.h"
@@ -68,6 +69,7 @@ protected:
 
 int main(int /*argc*/, char */*argv*/[])
 {
+    thorin_init();
 	SDL_Init(0);
 	atexit(SDL_Quit);
 

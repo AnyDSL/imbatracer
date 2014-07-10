@@ -31,7 +31,7 @@ extern fn impala_render(mut buf : &[u32], width : int, height : int, state : &St
     }*/
 
     let getray = getRayFn((*state).cam);
-    let getrad = getRadFn((*state).integrator);
+    let getrad = |r:Ray|->Color {color(0.0f, 0.0f, 0.0f)};
     let rendercoord = |x:float, y:float|->Color {getrad(getray(x, y))};
 
     let wf = width as float;
