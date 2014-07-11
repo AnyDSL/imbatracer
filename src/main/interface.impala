@@ -31,15 +31,18 @@ extern fn impala_render(mut buf : &[u32], width : int, height : int, state : &St
     }*/
 
     let getray = getRayFn((*state).cam);
-    let getrad = |r:Ray|->Color {color(0.0f, 0.0f, 0.0f)};
+    let getrad = getRadFn((*state).integrator, (*state).scene); // FIXME pass ptr to scene here
     let rendercoord = |x:float, y:float|->Color {getrad(getray(x, y))};
 
     let wf = width as float;
     let hf = height as float;
     for x, y in iteration(width, height)
     {
+        print_ints(x, y);
         let c = @renderPixelf(rendercoord, x as float, y as float, wf, hf);
-        buf(y*width+x) = col_rgb2int(c)
+        let idx = y*width+x;
+        assert(||{idx >= 0 && idx < width*height});
+        buf(idx) = col_rgb2int(c)
     }
 }
 

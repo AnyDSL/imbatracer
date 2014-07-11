@@ -8,8 +8,9 @@ namespace rt {
 
 // width and height of initial window - we assume your screen is large enough so this
 // comfortably fits
-const unsigned baseWidth = 600;
-const unsigned baseHeight = 480;
+// FIXME why is this hard-coded...?!??
+const unsigned baseWidth = 64;
+const unsigned baseHeight = 48;
 
 // time to wait till the window is "force-closed" (in milliseconds)
 const unsigned forceCloseTime = 500;

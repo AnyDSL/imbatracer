@@ -1,5 +1,6 @@
 set(main_cpp_SRC
 scene.cpp
+extern_c.cpp
 main.cpp
 )
 
@@ -13,10 +14,10 @@ scene.impala
 tri.impala
 intersection.impala
 view.impala
-#cameras.impala
-#integrator.impala
-#render.impala
-#interface.impala
+cameras.impala
+integrator.impala
+render.impala
+interface.impala
 test.impala # compiler testing only
 )
 

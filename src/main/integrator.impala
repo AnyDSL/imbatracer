@@ -45,10 +45,8 @@ fn recraytraceRadiance(isec : Intersection) -> Color
     color0() // TODO
 }
 
-fn makeDistanceScaled(integr : Integrator, getcol: fn(Intersection) -> Color) -> fn(Intersection) -> Color
+fn makeDistanceScaled(minDist: float, maxDist: float, getcol: fn(Intersection) -> Color) -> fn(Intersection) -> Color
 {
-    let minDist = integr.minDist;
-    let maxDist = integr.maxDist;
     if maxDist <= minDist
     { getcol }
     else
@@ -61,24 +59,25 @@ fn makeDistanceScaled(integr : Integrator, getcol: fn(Intersection) -> Color) ->
     }
 }
 
+fn debuggerRadiance(mode: int, minDist: float, maxDist: float) -> fn(Intersection) -> Color
+{
+    makeDistanceScaled(minDist, maxDist,
+            if      mode == 0 { debugRadianceNormalDir }
+            else if mode == 1 { debugRadianceNormalSign }
+            else              { debugRadianceDepth }
+        )
+}
+
 fn getRadianceForHitFn(integr : Integrator) -> fn(Intersection) -> Color
 {
     let ty = integr.itype;
          if ty == 0 { cosineRadiance }  // Cosine shading
     else if ty == 1 { raytraceRadiance }
     else if ty == 2 { recraytraceRadiance }
-    else          // Debugging Shading
-    {
-        let mode = integr.mode;
-        makeDistanceScaled(integr,
-            if      mode == 0 { debugRadianceNormalDir }
-            else if mode == 1 { debugRadianceNormalSign }
-            else              { debugRadianceDepth }
-        )
-    }
+    else            { debuggerRadiance(integr.mode, integr.minDist, integr.maxDist) }
 }
 
-fn getRadiance(ray : Ray, scene : &Scene, hit : fn(Intersection) -> Color, nohit : Color) -> Color
+fn getRadiance(ray : Ray, scene : Scene, hit : fn(Intersection) -> Color, nohit : Color) -> Color
 {
     let mut isec = @beginIntersection(ray);
 
@@ -89,10 +88,10 @@ fn getRadiance(ray : Ray, scene : &Scene, hit : fn(Intersection) -> Color, nohit
 }
 
 
-fn getRadFn(integr : Integrator, scene : &Scene) -> fn(Ray) -> Color
+fn getRadFn(integr : Integrator, scene : Scene) -> fn(Ray) -> Color
 {
     let hit = getRadianceForHitFn(integr);
-    let nohit = color0();
+    let nohit = color(1.0f, 0.0f, 0.0f);
 
     |ray : Ray| -> Color { getRadiance(ray, scene, hit, nohit) }
 }

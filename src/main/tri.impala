@@ -1,10 +1,12 @@
 
-fn triPoint(tri : uint, pt : uint, scene : &Scene) -> Point
+fn triPoint(tri : uint, pt : uint, scene : Scene) -> Point
 {
-    (*scene).verts((*scene).triVerts(3u*tri + pt))
+    assert(||{pt < 3u && tri < scene.nTris});
+    let idx = scene.triVerts(3u*tri + pt);
+    scene.verts(idx)
 }
 
-fn triIntersectDistance(tri : uint, scene : &Scene, ray : Ray, maxDistance : float) -> (float, Vec, Point) // t, barycentric coords
+fn triIntersectDistance(tri : uint, scene : Scene, ray : Ray, maxDistance : float) -> (float, Vec, Point) // t, barycentric coords
 {
     /* Directly compute barycentric coordinates and t, and cancel early if we notice the ray is not going to hit
      * Surface parameterization: with barycentric coordinates b1, b2, it is p(b1, b2) = (1-b1-b2)*a + b1*b + b2*c
@@ -51,26 +53,32 @@ fn triIntersectDistance(tri : uint, scene : &Scene, ray : Ray, maxDistance : flo
     }
 }
 
-fn triIntersectAny(tri : uint, scene : &Scene, ray : Ray, maxDistance : float) -> bool
+fn triIntersectAny(tri : uint, scene : Scene, ray : Ray, maxDistance : float) -> bool
 {
     @(triIntersectDistance(tri, scene, ray, maxDistance)(0)) >= 0.0f
 }
 
-fn triIntersectFirst(tri : uint, scene : &Scene, isec : &Intersection) -> ()
+fn triIntersectFirst(tri : uint, scene : Scene, isec : &Intersection) -> ()
 {
+   // print_ints(900, tri as int);
     let res = @triIntersectDistance(tri, scene, (*isec).ray, (*isec).dist);
+   // print_ints(901, tri as int);
     let t = res(0); // TODO: would be nice to have syntax for tuple unpacking
     if t >= 0.0f
     {
         let normal = res(1);
+        //print_ints(910, tri as int);
         improveIntersection(isec, t, tri, normal, defaultEps()); // FIXME
+       // print_ints(911, tri as int);
     }
 }
 
-fn triIntersectScene(scene : &Scene, isec : &Intersection) -> ()
+fn triIntersectScene(scene : Scene, isec : &Intersection) -> ()
 {
-    for tri in range(0, (*scene).nTris as int)
+   // print_ints(1000, scene.nTris as int);
+    for tri in range(0, (scene.nTris-1u) as int)
     {
+        //print_ints(1001, tri);
         triIntersectFirst(tri as uint, scene, isec)
     }
 }

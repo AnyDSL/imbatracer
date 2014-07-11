@@ -1,6 +1,7 @@
 
 fn renderPixelf(getcol : fn(float, float) -> Color, x : float, y : float, w : float, h : float) -> Color
 {
+    // render in the center of the pixel
     let nx = (x + 0.5f) / w;
     let ny = (y + 0.5f) / h;
     renderCoords(getcol, nx, ny)

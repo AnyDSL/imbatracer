@@ -1,4 +1,5 @@
 #include <thorin_ext_runtime.h>
+#include <iostream>
 #include "scene.h"
 
 namespace rt {
@@ -29,10 +30,12 @@ namespace rt {
         scene->triVerts = (unsigned*)thorin_malloc(tris.size()*3*sizeof(unsigned));
         unsigned i = 0;
         for (auto& tri : tris) {
+            //std::cout << tri.p1 << ", " << tri.p2 << ", " << tri.p3 << std::endl;
             scene->triVerts[i++] = tri.p1;
             scene->triVerts[i++] = tri.p2;
             scene->triVerts[i++] = tri.p3;
         }
+        //std::cout << tris.size() << ", " << i << std::endl;
     }
     
     /** CubeScene */

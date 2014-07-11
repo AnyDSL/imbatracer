@@ -22,20 +22,20 @@ SDLGui::~SDLGui()
 
 void SDLGui::Init()
 {
-	th = new SDLGuiThread(this);
-	{
-		MTGuard g(th->waiter);
-		th->launch();
-		std::cout << "Waiting for GUI thread to start" << std::endl;
-		while(th->threadState < SDLGuiThread::READY)
-			th->waiter.wait();
-	}
-	if(th->getStateSafe() == SDLGuiThread::FAIL)
-	{
-		// something went seriously wrong
-		th->quitThreadNow();
-		::exit(1);
-	}
+    th = new SDLGuiThread(this);
+    th->launch();
+    {
+        std::cout << "Waiting for GUI thread to start" << std::endl;
+        MTGuard g(th->waiter);
+        while(th->threadState < SDLGuiThread::READY)
+            th->waiter.wait();
+    }
+    if(th->getStateSafe() == SDLGuiThread::FAIL)
+    {
+        // something went seriously wrong
+        th->quitThreadNow();
+        ::exit(1);
+    }
 }
 
 void SDLGui::SetWindowTitle(const char *title)
