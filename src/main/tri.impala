@@ -76,7 +76,7 @@ fn triIntersectFirst(tri : uint, scene : Scene, isec : &Intersection) -> ()
 fn triIntersectScene(scene : Scene, isec : &Intersection) -> ()
 {
    // print_ints(1000, scene.nTris as int);
-    for tri in range(0, (scene.nTris-1u) as int)
+    for tri in range(0, scene.nTris as int)
     {
         //print_ints(1001, tri);
         triIntersectFirst(tri as uint, scene, isec)

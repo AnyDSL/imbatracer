@@ -13,7 +13,9 @@ extern "C"
 
 
     // some custom stuff / various hacks
-    fn print_ints(int, int) -> ();
+    fn print_ii(int, int) -> ();
+    fn print_if(int, float) -> ();
+    fn print_ifff(int, float, float, float) -> ();
     fn HACK_NULL() -> &u8;
     fn FLT_MAX_fn() -> float;
     fn c_assert(bool) -> (); // FIXME

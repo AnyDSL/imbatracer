@@ -113,10 +113,15 @@ fn orthogonalize(ref : Vec, toOrtho : Vec) -> (Vec, Vec)
 {
     let third = normalize(cross(ref, toOrtho));
     let ortho = cross(third, ref);
-    // TODO: assert(dot(toOrtho, ortho) > 0.0f)
+    assert(||{dot(toOrtho, ortho) > 0.0f});
     (ortho, third)
 }
 
+
+fn print_iv(i : int, v : Vec) -> ()
+{
+    print_ifff(i, v.x, v.y, v.z);
+}
 
 
 fn point(x : float, y : float, z : float) -> Point
@@ -142,6 +147,11 @@ fn pvadd(p : Point, v : Vec) -> Point
 fn to(src : Point, dst : Point) -> Vec
 {
     vec(dst.x - src.x, dst.y - src.y, dst.z - src.z)
+}
+
+fn print_ip(i : int, p : Point) -> ()
+{
+    print_ifff(i, p.x, p.y, p.z);
 }
 
 

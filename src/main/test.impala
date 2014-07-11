@@ -1,2 +1,10 @@
 
 // not compiling / buggy stuff goes here
+
+extern fn imp_print_stuff(p : Point, x : float, y : float, z : float, v : Vec, a: float, b : float, c : float) -> ()
+{
+    print_ip(44, p);
+    print_ifff(43, x, y, z);
+    print_iv(42,v);
+    print_ifff(41, a, b, c);
+}

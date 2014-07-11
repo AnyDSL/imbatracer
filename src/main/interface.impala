@@ -38,7 +38,7 @@ extern fn impala_render(mut buf : &[u32], width : int, height : int, state : &St
     let hf = height as float;
     for x, y in iteration(width, height)
     {
-        print_ints(x, y);
+        //print_ints(x, y);
         let c = @renderPixelf(rendercoord, x as float, y as float, wf, hf);
         let idx = y*width+x;
         assert(||{idx >= 0 && idx < width*height});

@@ -5,9 +5,17 @@
 
 extern "C"
 {
-    void print_ints(int x, int y)
+    void print_ii(int i, int x)
     {
-      std::cout << "Impala print " << x << " " << y << std::endl;
+      std::cout << "Impala print [" << i << "] " << x << std::endl;
+    }
+    void print_if(int i, float x)
+    {
+      std::cout << "Impala print [" << i << "] " << x << std::endl;
+    }
+    void print_ifff(int i, float x, float y, float z)
+    {
+      std::cout << "Impala print [" << i << "] " << x << ", " << y << ", " << z << std::endl;
     }
 
     unsigned char *HACK_NULL()
