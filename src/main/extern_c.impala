@@ -18,7 +18,6 @@ extern "C"
     fn print_ifff(int, float, float, float) -> ();
     fn HACK_NULL() -> &u8;
     fn FLT_MAX_fn() -> float;
-    fn fdiv(float, float) -> float;
     fn c_assert(bool) -> (); // FIXME
 }
 

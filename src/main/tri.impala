@@ -27,7 +27,7 @@ fn triIntersectDistance(tri : uint, scene : Scene, ray : Ray, maxDistance : floa
     let e2 = to(a, @triPoint(tri, 2u, scene));
     let f1 = cross(ray.d, e2);
     let detA = dot(e1, f1);
-    let invDetA = fdiv(1.0f, detA);
+    let invDetA = 1.0f / detA;
 
     // compute b1
     let s = to(a, ray.o);
