@@ -1,7 +1,7 @@
 
 fn triPoint(tri : uint, pt : uint, scene : Scene) -> Point
 {
-    assert(||{pt < 3u && tri < scene.nTris});
+    assert(||pt < 3u && tri < scene.nTris);
     let idx = scene.triVerts(3u*tri + pt);
     scene.verts(idx)
 }
@@ -25,13 +25,21 @@ fn triIntersectDistance(tri : uint, scene : Scene, ray : Ray, maxDistance : floa
     let a = @triPoint(tri, 0u, scene);
     let e1 = to(a, @triPoint(tri, 1u, scene));
     let e2 = to(a, @triPoint(tri, 2u, scene));
+    print_ip(1, a);
+    print_iv(2, e1);
+    print_iv(3, e2);
     let f1 = cross(ray.d, e2);
+    print_iv(42, f1);
     let detA = dot(e1, f1);
+    print_if(41, detA);
     let invDetA = 1.0f/detA;
+    print_if(44, 1.0f/-0.990052f);
 
     // compute b1
     let s = to(a, ray.o);
-    let b1 = dot(s, f1) * invDetA;
+    print_iv(43, s);
+    let b1 = dot(s, f1) * (1.0f / detA);
+    print_if(40, b1);
     if b1 < 0.0f || b1 > 1.0f
     { (-1.0f, vec0(), point0()) }
     else
@@ -45,6 +53,12 @@ fn triIntersectDistance(tri : uint, scene : Scene, ray : Ray, maxDistance : floa
         {
             // compute t
             let t = dot(e2, f2) * invDetA;
+            if (t < 0.0f) {
+                print_iv(4, f1); print_iv(5, f2);
+                print_if(6, b1); print_if(7, b2);
+                print_if(8, detA);
+                print_ip(12, pvadd(ray.o, vfmul(ray.d, t)));
+            }
             if t >= maxDistance
             { (-1.0f, vec0(), point0()) }
             else
@@ -64,6 +78,9 @@ fn triIntersectFirst(tri : uint, scene : Scene, isec : &Intersection) -> ()
     let res = @triIntersectDistance(tri, scene, (*isec).ray, (*isec).dist);
    // print_ints(901, tri as int);
     let t = res(0); // TODO: would be nice to have syntax for tuple unpacking
+    print_ip(9000, (*isec).ray.o);
+    print_iv(9001, (*isec).ray.d);
+    print_if(9002, t);
     if t >= 0.0f
     {
         let normal = res(1);

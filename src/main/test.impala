@@ -8,3 +8,8 @@ extern fn imp_print_stuff(p : Point, x : float, y : float, z : float, v : Vec, a
     print_iv(42,v);
     print_ifff(41, a, b, c);
 }
+
+fn divbug(x : float) -> float
+{
+    1.0f / x
+}

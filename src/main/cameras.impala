@@ -7,14 +7,14 @@ struct Cam
     camtype : int
 }
 
-extern fn perspectiveCam(center : Point, at : Point, upx : float, upy : float, upz : float, verticalOpeningAngle : float, horizonalOpeningAngle : float) -> Cam
+extern fn perspectiveCam(cx : float, cy : float, cz : float, atx : float, aty : float, atz : float,
+        upx : float, upy : float, upz : float, verticalOpeningAngle : float, horizonalOpeningAngle : float) -> Cam
 {
+    let center = point(cx, cy, cz);
+    let at = point(atx, aty, atz);
     let up = vec(upx, upy, upz);
-    print_iv(10000, up);
-    print_ip(10001, center);
     let c = Cam { camtype : 0, view : viewEx(center, to(center, at), up, tanf(verticalOpeningAngle / 2.0f), tanf(horizonalOpeningAngle / 2.0f)),
         param1: 0.0f, param2: 0.0f };
-    print_iv(10010, c.view.up);
     c
 }
 

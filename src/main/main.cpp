@@ -25,14 +25,17 @@ protected:
     virtual void _Update(float dt)
     {
         state.time += dt;
-        state.cam = perspectiveCam(impala::Point(5, 0, 0), impala::Point(0, 0, 0), 0, 1.0f, 0, M_PI/4, M_PI/3);
+        state.cam = impala::perspectiveCam(-3, 0, 0, 0, 0, 0,
+                                           0, 1.0f, 0, M_PI/4, M_PI/3);
+        state.integrator.itype = 0;
         std::cout << "Origin: " << state.cam.view.origin << ", Fwd: " << state.cam.view.forward << ", Up: " << state.cam.view.up << ", Right: " << state.cam.view.right << std::endl;
-        impala::imp_print_stuff(impala::Point(-1, -2, -3), 1.0f, 2.0f, 3.0f, impala::Vec(4.0f, 5.0f, 6.0f), 7.0f, 8.0f, 9.0f);
+        //impala::imp_print_stuff(impala::Point(-1, -2, -3), 1.0f, 2.0f, 3.0f, impala::Vec(4.0f, 5.0f, 6.0f), 7.0f, 8.0f, 9.0f);
         {
             Timer timer("Rendering image");
             impala_render(_img->getPtr(), _img->width(), _img->height(), &state);
         }
         ShowImage(_img);
+        exit(0);
     }
 
     virtual void _OnWindowResize(int w, int h)
