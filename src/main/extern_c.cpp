@@ -35,4 +35,9 @@ extern "C"
         std::cerr << "IMBA ASSERTION FAILED" << std::endl;
         rt::debugAbort();
     }
+    
+    float fdiv(float a, float b)
+    {
+        return a/b;
+    }
 }

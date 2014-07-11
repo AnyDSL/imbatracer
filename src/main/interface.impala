@@ -34,14 +34,9 @@ extern fn impala_render(mut buf : &[u32], width : int, height : int, state : &St
     let getrad = getRadFn((*state).integrator, (*state).scene); // FIXME pass ptr to scene here
     let rendercoord = |x:float, y:float|->Color {getrad(getray(x, y))};
 
-    let wf = width as float;
-    let hf = height as float;
-    print_if(9999, divbug(-0.990052f));
-    let c = @renderCoords(rendercoord, 0.6f, 0.4f);
     for x, y in iteration(width, height)
     {
-        //print_ints(x, y);
-        //let c = @renderPixelf(rendercoord, x as float, y as float, wf, hf);
+        let c = @renderPixel(rendercoord, x, y, width, height);
         let idx = y*width+x;
         assert(||{idx >= 0 && idx < width*height});
         buf(idx) = col_rgb2int(c)
