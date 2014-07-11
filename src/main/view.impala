@@ -16,7 +16,7 @@ fn view(origin : Point, forward : Vec, up : Vec) -> View
 
 fn viewEx(origin : Point, forward : Vec, up : Vec, upFactor : float, rightFactor : float) -> View
 {
-    let v = View{ origin : origin, forward : forward, up : up, upFactor : upFactor, rightFactor : rightFactor,
+    let mut v = View{ origin : origin, forward : forward, up : up, upFactor : upFactor, rightFactor : rightFactor,
         right : vec0(), originalUp : up
     };
     @viewSetForwardUp(&v, forward, up);

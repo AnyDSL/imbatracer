@@ -80,7 +80,7 @@ fn getRadianceForHitFn(integr : Integrator) -> fn(Intersection) -> Color
 
 fn getRadiance(ray : Ray, scene : &Scene, hit : fn(Intersection) -> Color, nohit : Color) -> Color
 {
-    let isec = @beginIntersection(ray);
+    let mut isec = @beginIntersection(ray);
 
     //intersectWithScene(scene, &isec);
     triIntersectScene(scene, &isec);
