@@ -39,13 +39,9 @@ fn viewSetForwardUp(mut v : &View, f : Vec, u : Vec) -> ()
     let fnorm = normalize(f);
     (*v).forward = fnorm;
 
-    print_iv(20001, fnorm);
     let t = orthogonalize(fnorm, u); // (ortho, third)
     (*v).up = vfmul(t(0), (*v).upFactor);
-    print_iv(20002, (*v).up);
     (*v).right = vfmul(t(1), (*v).rightFactor);
-    print_iv(20003, (*v).right);
-    print_ip(20004, (*v).origin);
 }
 
 

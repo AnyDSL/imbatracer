@@ -41,7 +41,7 @@ namespace rt {
     /** CubeScene */
     CubeScene::CubeScene(impala::Scene *scene) : Scene(scene)
     {
-        /*verts.push_back(impala::Point(-1, -1, -1));
+        verts.push_back(impala::Point(-1, -1, -1));
         verts.push_back(impala::Point( 1, -1, -1));
         verts.push_back(impala::Point(-1,  1, -1));
         verts.push_back(impala::Point(-1, -1,  1));
@@ -66,12 +66,7 @@ namespace rt {
         tris.push_back(Tri(2, 6, 4));
         
         tris.push_back(Tri(7, 5, 4));
-        tris.push_back(Tri(3, 5, 4));*/
-        
-        verts.push_back(impala::Point(0, 0, 0));
-        verts.push_back(impala::Point(0, 1, 0));
-        verts.push_back(impala::Point(0, 0, 1));
-        tris.push_back(Tri(0, 1, 2));
+        tris.push_back(Tri(3, 5, 4));
         
         build();
     }

@@ -25,7 +25,7 @@ protected:
     virtual void _Update(float dt)
     {
         state.time += dt;
-        state.cam = impala::perspectiveCam(-3*sinf(state.time), 0, 3*cosf(state.time), 0, 0, 0,
+        state.cam = impala::perspectiveCam(-3.5f*sinf(state.time), 1.2f*sinf(0.2f*state.time), 3.7f*cosf(state.time), 0, 0, 0,
                                            0, 1.0f, 0, M_PI/4, M_PI/3);
         state.integrator.itype = 0;
         std::cout << "Origin: " << state.cam.view.origin << ", Fwd: " << state.cam.view.forward << ", Up: " << state.cam.view.up << ", Right: " << state.cam.view.right << std::endl;
