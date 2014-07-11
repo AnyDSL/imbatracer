@@ -7,10 +7,9 @@
 #include <thorin_ext_runtime.h>
 
 #include "interface.h"
-#include "sceneload.h"
+#include "scene.h"
 
 using namespace rt;
-using namespace impala;
 
 extern "C"
 {
@@ -29,32 +28,32 @@ extern "C"
         return FLT_MAX;
     }
 
-    void c_assert(bool cond, const char *str)
+    void c_assert(bool cond)
     {
         if(cond)
             return;
-        fprintf(stderr, "IMBA ASSERTION FAILED: %s\n", str);
+        fprintf(stderr, "IMBA ASSERTION FAILED\n");
         debugAbort();
     }
 }
 
-class TestGui : public SDLGui
+class ImpalaGui : public SDLGui
 {
 public:
-    TestGui(unsigned w, unsigned h)
+    ImpalaGui(unsigned w, unsigned h)
         : _img(new Image(w, h))
     {
         state.time = 0;
     }
     
-    State *getState() { return &state; }
+    impala::State *getState() { return &state; }
 
 protected:
 
     virtual void _Update(float dt)
     {
         state.time += dt;
-        state.cam = perspectiveCam(point(2*sinf(dt), 2*cosf(1.5*dt), 2*sinf(-0.2*dt)), point(0, 0, 0));
+        state.cam = perspectiveCam(impala::Point(2*sinf(dt), 2*cosf(1.5*dt), 2*sinf(-0.2*dt)), impala::Point(0, 0, 0));
         impala_render(_img->getPtr(), _img->width(), _img->height(), &state);
         ShowImage(_img);
     }
@@ -64,7 +63,7 @@ protected:
         _img = new Image(w, h);
     }
 
-    State state;
+    impala::State state;
     CountedPtr<Image> _img;
 };
 
@@ -74,9 +73,9 @@ int main(int /*argc*/, char */*argv*/[])
     SDL_Init(0);
     atexit(SDL_Quit);
 
-    TestGui gui(640, 480);
+    ImpalaGui gui(640, 480);
     gui.Init();
-    loadScene(&gui.getState()->scene);
+    CubeScene(&gui.getState()->scene);
 
     gui.SetWindowTitle("ImbaTracer");
     gui.WaitForQuit();
