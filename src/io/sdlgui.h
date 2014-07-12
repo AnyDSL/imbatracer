@@ -2,6 +2,7 @@
 #define CG_IO_SDLGUI_H
 
 #include <core/refcounted.h>
+#include <atomic>
 
 struct SDL_Window;
 
@@ -36,8 +37,8 @@ protected:
 	virtual void _OnWindowResize(int w, int h);
 	virtual void _OnShutdown() {}
 
-	// only available in GUI thread
-	unsigned windowW, windowH;
+	// write only by GUI thread!
+	std::atomic_uint windowW, windowH;
 
 private:
 	SDLGuiThread *th;

@@ -59,13 +59,11 @@ public:
 			_p->incref();
 	}
 
-#ifdef HAVE_CXX_11
 	// C++11 move constructor
     CountedPtr(CountedPtr&& ref) : CountedPtr() // initialize via default constructor
     {
         CountedPtr::swap(*this, ref);
     }
-#endif
 
 	// intentionally not a reference -- see http://stackoverflow.com/questions/3279543/what-is-the-copy-and-swap-idiom
 	CountedPtr& operator=(CountedPtr ref)
