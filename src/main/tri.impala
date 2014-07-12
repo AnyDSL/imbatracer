@@ -55,7 +55,7 @@ fn triIntersectDistance(tri : uint, scene : &Scene, ray : Ray, maxDistance : flo
 
 fn triIntersectAny(tri : uint, scene : &Scene, ray : Ray, maxDistance : float) -> bool
 {
-    @(triIntersectDistance(tri, scene, ray, maxDistance)(0)) >= 0.0f
+    triIntersectDistance(tri, scene, ray, maxDistance)(0) >= 0.0f // TODO can we use partial evaluation to compute only the necessary component
 }
 
 fn triIntersectFirst(tri : uint, scene : &Scene, isec : &Intersection) -> ()
@@ -65,7 +65,7 @@ fn triIntersectFirst(tri : uint, scene : &Scene, isec : &Intersection) -> ()
     if t >= 0.0f
     {
         let normal = res(1);
-        improveIntersection(isec, t, tri, normal, defaultEps()); // FIXME
+        improveIntersection(isec, t, tri, normal, defaultEps());
     }
 }
 

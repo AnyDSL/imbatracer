@@ -8,10 +8,11 @@ struct Scene
 
 fn compileScene(mut scene: Scene) -> fn(&Intersection) -> ()
 {
+    let scenePtr = &scene;
     |isec: &Intersection|->() {
         for tri in range(0, scene.nTris as int)
         {
-            triIntersectFirst(tri as uint, &scene, isec)
+            triIntersectFirst(tri as uint, scenePtr, isec)
         }
     }
 }
