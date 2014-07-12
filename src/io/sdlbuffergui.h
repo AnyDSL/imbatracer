@@ -16,7 +16,7 @@ namespace rt {
         
     protected:
         // called in the main thread
-        virtual void _Render(CountedPtr<Image> img) = 0;
+        virtual void _Render(CountedPtr<Image> img, float time) = 0;
         
         // implemented by us
         virtual CountedPtr<Image> _Update(float dt);

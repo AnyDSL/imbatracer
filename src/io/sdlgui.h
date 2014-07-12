@@ -33,7 +33,7 @@ protected:
 	virtual void _OnMouseMotion(int /*xrel*/, int /*yrel*/) {}
 	virtual void _OnMouseWheel(int /*x*/, int /*y*/) {}
 	virtual void _OnWindowResize(int w, int h);
-	virtual void _OnShutdown();
+	virtual void _OnShutdown() {}
 
 	// only available in GUI thread
 	unsigned windowW, windowH;

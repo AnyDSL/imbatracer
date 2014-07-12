@@ -23,12 +23,12 @@ namespace rt {
             const unsigned next = (curBuffer+1)%nBuffers;
             auto img = buffers[next];
             // does the image have the right size?
-            if (!(img->width() == windowW && img->height() == windowH)) {
+            if (!(img && img->width() == windowW && img->height() == windowH)) {
                 img = new Image(windowW, windowH);
                 buffers[next] = img;
             }
             // render into it!
-            _Render(img);
+            _Render(img, time);
             // this is the new "now"
             curBuffer = next;
         }
@@ -41,7 +41,7 @@ namespace rt {
         time = time + dt;
         // check the size of the current image
         auto img = buffers[curBuffer];
-        if (img->width() == windowW && img->height() == windowH)
+        if (img && img->width() == windowW && img->height() == windowH)
             return img;
         // we don't have anything useful
         return nullptr;
