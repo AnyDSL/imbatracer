@@ -6,22 +6,33 @@
 
 namespace rt {
 
-// width and height of initial window - we assume your screen is large enough so this
-// comfortably fits
-// FIXME why is this hard-coded...?!??
-const unsigned baseWidth = 64;
-const unsigned baseHeight = 48;
-
 // time to wait till the window is "force-closed" (in milliseconds)
 const unsigned forceCloseTime = 500;
 
 SDLGuiThread::SDLGuiThread(SDLGui *gui)
-	: threadState(UNDEFINED), _gui(gui), _window(nullptr), _glctx(nullptr), _disp(nullptr), customEventBase(-1)
+	: threadState(UNDEFINED), _gui(gui), _window(nullptr), _glctx(nullptr), _disp(nullptr)
 {
 }
 
 SDLGuiThread::~SDLGuiThread()
 {
+}
+
+void SDLGuiThread::launch()
+{
+    Thread::launch();
+    {
+        // Waiting for GUI thread to start
+        MTGuard g(waiter);
+        while(threadState < SDLGuiThread::READY)
+            waiter.wait();
+    }
+    if(getState() == SDLGuiThread::FAIL)
+    {
+        // something went seriously wrong
+        quitThreadNow();
+        ::exit(1);
+    }
 }
 
 void SDLGuiThread::run()
@@ -59,19 +70,33 @@ void SDLGuiThread::quitThreadNow()
 	join();
 }
 
-void SDLGuiThread::quitThreadASAP() {
+void SDLGuiThread::quitThreadASAP()
+{
 	MTGuard g(waiter);
 	if (threadState < ABOUT_TO_QUIT) {
-		std::cout << "SDLGui: About to quit" << std::endl;
+		std::cout << "SDLGuiThread: About to quit" << std::endl;
 		threadState = ABOUT_TO_QUIT;
 		aboutToQuitTime = SDL_GetTicks();
 	}
 	waiter.broadcast();
 }
 
+void SDLGuiThread::waitForQuit()
+{
+    std::cout << "SDLGuiThread::WaitForQuit" << std::endl;
+    // wait till the thread does not want to run anymore
+    {
+        MTGuard g(waiter);
+        while(threadState <= SDLGuiThread::READY)
+            waiter.wait();
+    }
+    // tell it that it's okay to go
+    quitThreadNow();
+}
+
 bool SDLGuiThread::init()
 {
-	assert(getStateSafe() == UNDEFINED, "Attempt to initialize the same GLGuiThread twice");
+	assert(getState() == UNDEFINED, "Attempt to initialize the same GLGuiThread twice");
 	aboutToQuitTime = 0;
 
 	std::cout << "GUI thread init..." << std::endl;
@@ -82,32 +107,13 @@ bool SDLGuiThread::init()
 		return false;
 	}
 
-	if (customEventBase == static_cast<unsigned>(-1)) {
-		// we need some space for our events
-		customEventBase = SDL_RegisterEvents(NumCustomEvents);
-		if (customEventBase == static_cast<unsigned>(-1)) {
-			std::cerr << "SDL_RegisterEvents failed" << std::endl;
-			return false;
-		}
-	}
-
-	/*std::cout << "Loading OpenGL..." << std::endl;
-
-	if (SDL_GL_LoadLibrary(nullptr) == -1)
-	{
-		std::cerr << "SDL_GL_LoadLibrary Error: " << SDL_GetError() << std::endl;
-		return false;
-	}*/
-
-	if(!createWindow(baseWidth, baseHeight, "UberTracer")) // this also creates the GL context
+	if(!createWindow(_gui->windowW, _gui->windowH, "SDL Window"))
 		return false;
 
 	_disp = new SDLRenderer(_window);
 
 	// don't render faster than the GPU
 	SDL_GL_SetSwapInterval(-1);
-
-	setRenderOn(true);
 
 	if(!_disp->Init())
 		return false;
@@ -128,12 +134,6 @@ bool SDLGuiThread::createWindow(unsigned w, unsigned h, const char *title)
 		std::cerr << "Failed to create SDL window" << std::endl;
 		return false;
 	}
-	/*_glctx = SDL_GL_CreateContext(_window);
-	if(!_glctx)
-	{
-		std::cerr << "Failed to create SDL OpenGL context" << std::endl;
-		return false;
-	}*/
 
 	// Notify initial size
 	int aw, ah;
@@ -166,22 +166,17 @@ void SDLGuiThread::shutdown()
 }
 
 
-void SDLGuiThread::render()
+void SDLGuiThread::render(float dt)
 {
-	if(!_renderOn)
-		return;
-
-	if(imageToUpload)
+    CountedPtr<Image> img = _gui->_Update(dt);
+	if(img)
 	{
-		_disp->uploadImage(imageToUpload.content());
-		imageToUpload = nullptr;
+		_disp->uploadImage(img.content());
 	}
 
 	_disp->BeginFrame();
 	_disp->render();
 	_disp->EndFrame();
-
-	//SDL_GL_SwapWindow(_window);
 }
 
 void SDLGuiThread::resize(unsigned w, unsigned h)
@@ -189,29 +184,33 @@ void SDLGuiThread::resize(unsigned w, unsigned h)
 #ifndef _WIN32
 	// on Linux, SDL thinks that resizing will always work. However, if the window manager decides our
 	// window must not change in size, X11 will NOT send any resize event which may correct
-	// SDL's false imagination
-	SDL_SetWindowSize(_window, baseWidth, baseHeight);
+	// SDL's false imagination. So make the window really small first to get the right resize events.
+	SDL_SetWindowSize(_window, 640, 480);
 #endif
 	SDL_SetWindowSize(_window, w, h);
 	SDL_SetWindowPosition(_window, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED);
 }
 
+bool SDLGuiThread::checkQuittingTooLong(unsigned nowTime)
+{
+    MTGuard g(waiter);
+    return threadState >= ABOUT_TO_QUIT && nowTime-aboutToQuitTime > forceCloseTime;
+}
+
 void SDLGuiThread::threadMain()
 {
 	Uint32 lastUpdateTime = SDL_GetTicks();
-	while(getStateSafe() < QUIT)
+	while(getState() < QUIT)
 	{
 		handleEvents();
 
 		Uint32 nowTime = SDL_GetTicks();
 		Uint32 diffTime = nowTime - lastUpdateTime;
 		lastUpdateTime = nowTime;
-		_gui->_Update(diffTime / 1000.0f);
-		handleEvents(); // make sure we saw the image-update-events
-		render();
+		render(diffTime / 1000.0f);
 
 		// check if we are waiting for quit too long. If yes, terminate.
-		if (getStateSafe() >= ABOUT_TO_QUIT && nowTime-aboutToQuitTime > forceCloseTime) {
+		if (checkQuittingTooLong(nowTime)) {
 			std::cerr << "Forcing unclean shutdown of the entire application" << std::endl;
 			::exit(1);
 			// of course we could just terminate the thread, but that wouldn't gain us anything - it would mean one cannot
@@ -222,8 +221,6 @@ void SDLGuiThread::threadMain()
 
 void SDLGuiThread::handleEvents()
 {
-	bool ignoreMouseMove = false;
-
 	SDL_PumpEvents();
 
 	SDL_Event ev;
@@ -249,8 +246,7 @@ void SDLGuiThread::handleEvents()
 			continue;
 
 		case SDL_MOUSEMOTION:
-			if(!ignoreMouseMove)
-				_gui->_OnMouseMotion(ev.motion.xrel, ev.motion.yrel);
+            _gui->_OnMouseMotion(ev.motion.xrel, ev.motion.yrel);
 			continue; // in the loop
 
 		case SDL_QUIT:
@@ -262,7 +258,6 @@ void SDLGuiThread::handleEvents()
 				switch(ev.window.event)
 				{
 				case SDL_WINDOWEVENT_SIZE_CHANGED:
-					imageToUpload = nullptr;
 					_disp->OnWindowResize(ev.window.data1, ev.window.data2);
 					_gui->_OnWindowResize(ev.window.data1, ev.window.data2);
 					break; // the innermost switch
@@ -273,53 +268,9 @@ void SDLGuiThread::handleEvents()
 			}
 			continue; // in the loop
 		}
-
-		// ---- CUSTOM EVENTS BELOW ----
-		switch (ev.type - customEventBase) {
-
-		case ResizeRequest:
-			resize(ev.window.data1, ev.window.data2);
-			continue; // in the loop
-
-		case ShowImage:
-		{
-			Image *img = static_cast<Image*>(ev.user.data1);
-			imageToUpload = img;
-			img->decref(); // it's out of the SDL event system now
-			continue; // in the loop
-		}
-
-		case ChangeTitle:
-		{
-			std::string *title = static_cast<std::string*>(ev.user.data1);
-			SDL_SetWindowTitle(_window, title->c_str());
-			delete title;
-			continue;
-		}
-
-		case SetGrabMouse:
-		{
-			MTGuard g(waiter);
-			const bool doGrab = ev.window.data1;
-			SDL_SetWindowGrab(_window, (SDL_bool)doGrab);
-			SDL_SetRelativeMouseMode((SDL_bool)doGrab);
-			continue;
-		}
-
-		}
 	}
 }
 
-bool SDLGuiThread::isGrabMouse()
-{
-	MTGuard g(waiter);
-	return SDL_GetWindowGrab(_window);
-}
-
-void SDLGuiThread::setRenderOn(bool on)
-{
-	_renderOn = (int)on;
-}
 
 
 } // end namespace rt

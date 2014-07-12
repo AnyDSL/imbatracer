@@ -75,7 +75,7 @@ void Thread::join()
 	}
 }
 
-static int _launchThread(void *p)
+int Thread::_launchThread(void *p)
 {
 	((Thread*)p)->run();
 	return 0;

@@ -46,11 +46,14 @@ class Thread
 public:
 	Thread();
 	~Thread();
-	virtual void run() = 0;
 	void launch();
 	void join();
+protected:
+    virtual void run() = 0;
 private:
 	void *_th;
+    
+    static int _launchThread(void*);
 };
 
 class AtomicInt

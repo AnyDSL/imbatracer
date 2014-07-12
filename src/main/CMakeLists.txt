@@ -1,4 +1,5 @@
 set(main_cpp_SRC
+scene.h
 scene.cpp
 extern_c.cpp
 main.cpp

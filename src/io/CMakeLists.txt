@@ -8,6 +8,8 @@ sdlguithread.h
 sdlguithread.cpp
 sdlrenderer.h
 sdlrenderer.cpp
+sdlbuffergui.h
+sdlbuffergui.cpp
 )
 
 
