@@ -4,7 +4,8 @@
 #include <core/threading.h>
 #include <io/image.h>
 #include <SDL_video.h>
-#include <core/threading.h>
+#include <mutex>
+#include <condition_variable>
 
 namespace rt {
 
@@ -29,7 +30,7 @@ public:
     // tell if the thread wants to quit
     bool waitingForQuit()
     {
-        MTGuard g(waiter);
+        std::lock_guard<std::mutex> lock(stateMutex);
         return threadState > READY;
     }
     
@@ -53,12 +54,13 @@ protected:
 		FAIL
 	};
 
-	Waitable waiter; // protects threadState, aboutToQuitTime
-	ReadyState threadState; // protected by waiter
-    unsigned aboutToQuitTime; // remember when we wanted to exit; protected by waiter
+	std::mutex stateMutex; // protects threadState, aboutToQuitTime
+	std::condition_variable stateChanged;
+	ReadyState threadState; // protected by stateMutex
+    unsigned aboutToQuitTime; // remember when we wanted to exit; protected by stateMutex
 
 	ReadyState getState() {
-		MTGuard g(waiter);
+		std::lock_guard<std::mutex> lock(stateMutex);
 		return threadState;
 	}
 	bool checkQuittingTooLong(unsigned nowTime);

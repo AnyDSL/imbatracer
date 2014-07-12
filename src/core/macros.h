@@ -3,10 +3,6 @@
 
 #include <stdlib.h>
 
-#if !defined(HAVE_CXX_11) && (!defined(_MSC_VER) || _MSC_VER < 1700)
-# define nullptr NULL
-#endif
-
 #if defined(_MSC_VER)
 #  define ALIGN(n) __declspec(align(n))
 #  define THREADLOCAL __declspec(thread)
@@ -33,7 +29,7 @@
 #endif
 
 #else
-# error unk compiler; fix this
+# warning unkown compiler; fix this
 # define ALIGN(n)
 # define THREADLOCAL
 # define NO_RETURN

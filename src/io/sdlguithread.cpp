@@ -23,9 +23,9 @@ void SDLGuiThread::launch()
     Thread::launch();
     {
         // Waiting for GUI thread to start
-        MTGuard g(waiter);
+        std::unique_lock<std::mutex> lock(stateMutex);
         while(threadState < SDLGuiThread::READY)
-            waiter.wait();
+            stateChanged.wait(lock);
     }
     if(getState() == SDLGuiThread::FAIL)
     {
@@ -39,9 +39,9 @@ void SDLGuiThread::run()
 {
 	bool success = init();
 	{
-		MTGuard g(waiter);
+		std::unique_lock<std::mutex> lock(stateMutex);
 		threadState = success ? READY : FAIL;
-		waiter.broadcast();
+		stateChanged.notify_all();
 	}
 	if(!success)
 		return;
@@ -54,31 +54,31 @@ void SDLGuiThread::run()
 
 	shutdown();
 	{
-		MTGuard g(waiter);
+		std::unique_lock<std::mutex> lock(stateMutex);
 		threadState = UNDEFINED; // reset back to inital state, thread can be re-launched
-		waiter.broadcast();
+		stateChanged.notify_all();
 	}
 }
 
 void SDLGuiThread::quitThreadNow()
 {
 	{
-		MTGuard g(waiter);
+		std::unique_lock<std::mutex> lock(stateMutex);
 		if (threadState < QUIT) threadState = QUIT;
-		waiter.broadcast();
+		stateChanged.notify_all();
 	}
 	join();
 }
 
 void SDLGuiThread::quitThreadASAP()
 {
-	MTGuard g(waiter);
+	std::unique_lock<std::mutex> lock(stateMutex);
 	if (threadState < ABOUT_TO_QUIT) {
 		std::cout << "SDLGuiThread: About to quit" << std::endl;
 		threadState = ABOUT_TO_QUIT;
 		aboutToQuitTime = SDL_GetTicks();
 	}
-	waiter.broadcast();
+	stateChanged.notify_all();
 }
 
 void SDLGuiThread::waitForQuit()
@@ -86,9 +86,9 @@ void SDLGuiThread::waitForQuit()
     std::cout << "SDLGuiThread::WaitForQuit" << std::endl;
     // wait till the thread does not want to run anymore
     {
-        MTGuard g(waiter);
+        std::unique_lock<std::mutex> lock(stateMutex);
         while(threadState <= SDLGuiThread::READY)
-            waiter.wait();
+            stateChanged.wait(lock);
     }
     // tell it that it's okay to go
     quitThreadNow();
@@ -193,7 +193,7 @@ void SDLGuiThread::resize(unsigned w, unsigned h)
 
 bool SDLGuiThread::checkQuittingTooLong(unsigned nowTime)
 {
-    MTGuard g(waiter);
+    std::lock_guard<std::mutex> lock(stateMutex);
     return threadState >= ABOUT_TO_QUIT && nowTime-aboutToQuitTime > forceCloseTime;
 }
 

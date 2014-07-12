@@ -1,8 +1,8 @@
 #ifndef CG_CORE_REFCOUNTED_H
 #define CG_CORE_REFCOUNTED_H
 
-#include <SDL_atomic.h>
 #include <algorithm>
+#include <atomic>
 #include <core/macros.h>
 #include <core/assert.h>
 
@@ -11,30 +11,28 @@ namespace rt {
 class Refcounted
 {
 public:
-	Refcounted()
-	{
-		_refcount.value = 0;
-	}
+	Refcounted() : _refcount(0)
+	{}
 
 	virtual ~Refcounted()
 	{
-		assert(_refcount.value == 0, "Object was deleted with refcount ", _refcount.value);
+		assert(_refcount == 0, "Object was deleted with refcount ", _refcount);
 	}
 
 	FORCE_INLINE void incref()
 	{
-		SDL_AtomicIncRef(&_refcount);
+		_refcount.fetch_add(1);
 	}
 	FORCE_INLINE void decref()
 	{
-		if (SDL_AtomicDecRef(&_refcount) == SDL_TRUE) {
-			// if the refcount is now zero, it will stay zero forever as nobody has a reference anymore
+		if (_refcount.fetch_sub(1) == 1) {
+			// if the refcount was 1, so it is now zero, it will stay zero forever as nobody has a reference anymore
 			delete this;
 		}
 	}
 
 private:
-	SDL_atomic_t _refcount;
+	std::atomic_uint _refcount;
 };
 
 
