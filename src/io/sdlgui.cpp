@@ -42,6 +42,11 @@ bool SDLGui::WaitingForQuit()
     return th->waitingForQuit();
 }
 
+void SDLGui::WaitForQuit()
+{
+    th->waitForQuit();
+}
+
 CountedPtr<Image> SDLGui::_Update(float /*dt*/)
 {
 	// don't spin in a too tight loop, better sleep a bit

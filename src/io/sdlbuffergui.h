@@ -3,6 +3,9 @@
 
 #include <io/sdlgui.h>
 #include <atomic>
+#include <mutex>
+#include <condition_variable>
+#include <tuple>
 
 namespace rt {
     const unsigned nBuffers = 2;
@@ -20,9 +23,16 @@ namespace rt {
         
         // implemented by us
         virtual CountedPtr<Image> _Update(float dt);
+    
+    private:
+        unsigned getFreeIdx(); // return an index we can use to draw into. call in main thread only [so nobody changes curBufferIdx while we are in here]
         
-        CountedPtr<Image> buffers[nBuffers];
-        std::atomic_uint curBuffer; // the latest complete, to-be-displayed buffer. Only main thread may change.
+        typedef std::tuple<unsigned, CountedPtr<Image>> Buffer; // the image together with its serial number.
+        Buffer buffers[nBuffers]; // current buffers. serial numbers will be ascending, with curBufferIdx being the largest and the next one being the lowest.
+        unsigned curBufferIdx; // index of most up-to-date complete buffer. protected by bufMutex.
+        unsigned displayBufferSerial; // serial number of the currently diplsayed buffer. Correpsonding image should not be written to! Protected by bufMutex.
+        std::mutex bufMutex;  // protects the current buffer
+        std::condition_variable bufChanged; // triggered when the current buffer or the displayed buffer changes. Protected by bufMutex.
         
         std::atomic<float> time; // the time, as seen by the GUI thread. Only GUI thread may change.
     };

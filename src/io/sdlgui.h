@@ -18,7 +18,8 @@ public:
 
 	void Init();
     
-	bool WaitingForQuit();
+	bool WaitingForQuit(); // do we want to quit?
+    void WaitForQuit(); // do the quitting
 
     // only call these functions from the GUI Thread!
     SDL_Window *GetWindow();
