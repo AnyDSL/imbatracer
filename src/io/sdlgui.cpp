@@ -37,8 +37,9 @@ void SDLGui::SetWindowTitle(const std::string &title)
 	SDL_SetWindowTitle(GetWindow(), title.c_str());
 }
 
-void SDLGui::_OnInit()
+bool SDLGui::WaitingForQuit()
 {
+    return th->waitingForQuit();
 }
 
 CountedPtr<Image> SDLGui::_Update(float /*dt*/)
