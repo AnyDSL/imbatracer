@@ -5,3 +5,13 @@ struct Scene
     verts : &[Point],
     triVerts : &[uint] // 3 successive entries are the three indices of the vertices of a triangle
 }
+
+fn compileScene(mut scene: Scene) -> fn(&Intersection) -> ()
+{
+    |isec: &Intersection|->() {
+        for tri in range(0, scene.nTris as int)
+        {
+            triIntersectFirst(tri as uint, &scene, isec)
+        }
+    }
+}

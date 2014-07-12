@@ -113,7 +113,7 @@ fn orthogonalize(ref : Vec, toOrtho : Vec) -> (Vec, Vec)
 {
     let third = normalize(cross(ref, toOrtho));
     let ortho = cross(third, ref);
-    assert(||{dot(toOrtho, ortho) > 0.0f});
+    assert(||{dot(toOrtho, ortho) > 0.0f}, 22);
     (ortho, third)
 }
 

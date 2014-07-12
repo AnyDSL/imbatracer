@@ -12,9 +12,7 @@ struct State
     scene : Scene
 }
 
-
-// TODO: passed state should be a struct
-extern fn impala_render(mut buf : &[u32], width : int, height : int, state : &State)
+extern fn impala_render(buf : &[u32], width : int, height : int, state : &State)
 -> ()
 {
     /*let ti = (*state).time as int;
@@ -30,16 +28,14 @@ extern fn impala_render(mut buf : &[u32], width : int, height : int, state : &St
         buf(y*width+x) = c as u32;
     }*/
 
-    let getray = getRayFn((*state).cam);
-    let getrad = getRadFn((*state).integrator, (*state).scene); // FIXME pass ptr to scene here
-    let rendercoord = |x:float, y:float|->Color {getrad(getray(x, y))};
+    let camera = compileCamera((*state).cam);
+    let scene = compileScene((*state).scene);
+    let integrator = compileIntegrator((*state).integrator, scene);
 
-    for x, y in iteration(width, height)
-    {
-        let c = @renderPixel(rendercoord, x, y, width, height);
-        let idx = y*width+x;
-        assert(||{idx >= 0 && idx < width*height});
-        buf(idx) = col_rgb2int(c)
-    }
+    renderImage(buf, width, height, |x:float, y:float| // FIXME: loop sugar does not work here; why can I mass a non-mut buf for mut buf here?
+        {
+            integrator(camera(x, y))
+        }
+    )
 }
 

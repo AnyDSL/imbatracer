@@ -67,7 +67,7 @@ fn environRay(v : View, x : float, y : float, vertical : float, horiz : float) -
     )
 }
 
-fn getRayFn(cam : Cam) -> (fn(float, float) -> Ray)
+fn compileCamera(cam : Cam) -> (fn(float, float) -> Ray)
 {
     let ty = cam.camtype;
     if      ty == 0 { |x:float, y:float| -> Ray perspectiveRay(cam.view, x, y) }

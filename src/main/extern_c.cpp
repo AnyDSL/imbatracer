@@ -28,11 +28,11 @@ extern "C"
         return FLT_MAX;
     }
 
-    void c_assert(bool cond)
+    void c_assert(bool cond, int i)
     {
         if(cond)
             return;
-        std::cerr << "IMBA ASSERTION FAILED" << std::endl;
+        std::cerr << "IMBA ASSERTION FAILED [" << i << "]" << std::endl;
         rt::debugAbort();
     }
 }

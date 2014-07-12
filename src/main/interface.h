@@ -68,8 +68,14 @@ namespace impala {
     extern "C" {
         void impala_render(unsigned *buf, int w, int h, State *state);
         Camera perspectiveCam(float cx, float cy, float cz, float atx, float aty, float atz,
-                              float upx, float upy, float upz, float verticalOpeningAngl, float horizontalOpeningAngle);
+                              float upx, float upy, float upz, float verticalOpeningAngle, float horizontalOpeningAngle);
         void imp_print_stuff(Point p, float x, float y, float z, Vec v, float a, float b, float c);
+    }
+    
+    // provide perspectiveCam the way we would want to use it...
+    inline Camera perspectiveCam(Point center, Point at, Vec up, float verticalOpeningAngle, float horizontalOpeningAngle)
+    {
+        return perspectiveCam(center.x, center.y, center.z, at.x, at.y, at.z, up.x, up.y, up.z, verticalOpeningAngle, horizontalOpeningAngle);
     }
 }
 

@@ -1,12 +1,12 @@
 
-fn triPoint(tri : uint, pt : uint, scene : Scene) -> Point
+fn triPoint(tri : uint, pt : uint, scene : &Scene) -> Point
 {
-    assert(||pt < 3u && tri < scene.nTris);
-    let idx = scene.triVerts(3u*tri + pt);
-    scene.verts(idx)
+    assert(||{pt < 3u && tri < (*scene).nTris}, 20);
+    let idx = (*scene).triVerts(3u*tri + pt);
+    (*scene).verts(idx)
 }
 
-fn triIntersectDistance(tri : uint, scene : Scene, ray : Ray, maxDistance : float) -> (float, Vec, Point) // t, barycentric coords
+fn triIntersectDistance(tri : uint, scene : &Scene, ray : Ray, maxDistance : float) -> (float, Vec, Point) // t, barycentric coords
 {
     /* Directly compute barycentric coordinates and t, and cancel early if we notice the ray is not going to hit
      * Surface parameterization: with barycentric coordinates b1, b2, it is p(b1, b2) = (1-b1-b2)*a + b1*b + b2*c
@@ -53,12 +53,12 @@ fn triIntersectDistance(tri : uint, scene : Scene, ray : Ray, maxDistance : floa
     }
 }
 
-fn triIntersectAny(tri : uint, scene : Scene, ray : Ray, maxDistance : float) -> bool
+fn triIntersectAny(tri : uint, scene : &Scene, ray : Ray, maxDistance : float) -> bool
 {
     @(triIntersectDistance(tri, scene, ray, maxDistance)(0)) >= 0.0f
 }
 
-fn triIntersectFirst(tri : uint, scene : Scene, isec : &Intersection) -> ()
+fn triIntersectFirst(tri : uint, scene : &Scene, isec : &Intersection) -> ()
 {
     let res = @triIntersectDistance(tri, scene, (*isec).ray, (*isec).dist);
     let t = res(0); // TODO: would be nice to have syntax for tuple unpacking
@@ -68,13 +68,4 @@ fn triIntersectFirst(tri : uint, scene : Scene, isec : &Intersection) -> ()
         improveIntersection(isec, t, tri, normal, defaultEps()); // FIXME
     }
 }
-
-fn triIntersectScene(scene : Scene, isec : &Intersection) -> ()
-{
-    for tri in range(0, scene.nTris as int)
-    {
-        triIntersectFirst(tri as uint, scene, isec)
-    }
-}
-
 

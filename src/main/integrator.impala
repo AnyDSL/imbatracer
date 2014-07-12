@@ -77,18 +77,16 @@ fn getRadianceForHitFn(integr : Integrator) -> fn(Intersection) -> Color
     else            { debuggerRadiance(integr.mode, integr.minDist, integr.maxDist) }
 }
 
-fn getRadiance(ray : Ray, scene : Scene, hit : fn(Intersection) -> Color, nohit : Color) -> Color
+fn getRadiance(ray : Ray, scene : fn(&Intersection) -> (), hit : fn(Intersection) -> Color, nohit : Color) -> Color
 {
     let mut isec = @beginIntersection(ray);
 
-    //intersectWithScene(scene, &isec);
-    triIntersectScene(scene, &isec);
+    scene(&isec);
 
     if isec.obj == @noObj() { nohit } else { hit(isec) }
 }
 
-
-fn getRadFn(integr : Integrator, scene : Scene) -> fn(Ray) -> Color
+fn compileIntegrator(integr : Integrator, scene : fn(&Intersection) -> ()) -> fn(Ray) -> Color
 {
     let hit = getRadianceForHitFn(integr);
     let nohit = color(1.0f, 0.0f, 0.0f);

@@ -1,10 +1,17 @@
-
-fn renderPixel(getcol : fn(float, float) -> Color, x : int, y : int, w : int, h : int) -> Color
+fn renderImage(mut buf : &[u32], width : int, height : int, body : fn(float, float) -> Color) -> ()
 {
-    // render in the center of the pixel
-    let nx = (x as float + 0.5f) / (w as float);
-    let ny = (y as float + 0.5f) / (h as float);
-    renderCoords(getcol, nx, ny)
+    let wf = width as float;
+    let hf = height as float;
+    for x, y in iteration(width, height)
+    {
+        // render in the center of the pixel
+        let nx = (x as float + 0.5f) / wf;
+        let ny = (y as float + 0.5f) / hf;
+        // put color into index
+        let idx = y*width+x;
+        assert(||{idx >= 0 && idx < width*height}, 50);
+        buf(idx) = col_rgb2int(renderCoords(body, nx, ny));
+    }
 }
 
 fn renderCoords(getcol : fn(float, float) -> Color, x : float, y : float) -> Color
