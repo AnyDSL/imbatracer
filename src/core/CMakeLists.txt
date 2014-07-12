@@ -2,8 +2,6 @@ set(core_SRC
 assert.h
 macros.h
 refcounted.h
-threading.h
-threading.cpp
 util.h
 util.cpp
 )

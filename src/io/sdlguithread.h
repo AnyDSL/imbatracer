@@ -1,10 +1,10 @@
 #ifndef CG_IO_SDLGUI_THREAD_H
 #define CG_IO_SDLGUI_THREAD_H
 
-#include <core/threading.h>
 #include <io/image.h>
 #include <SDL_video.h>
 #include <mutex>
+#include <thread>
 #include <condition_variable>
 
 namespace rt {
@@ -12,7 +12,7 @@ namespace rt {
 class SDLGui;
 class SDLRenderer;
 
-class SDLGuiThread : public Thread
+class SDLGuiThread
 {
 public:
 	SDLGuiThread(SDLGui *gui);
@@ -30,8 +30,7 @@ public:
     // tell if the thread wants to quit
     bool waitingForQuit()
     {
-        std::lock_guard<std::mutex> lock(stateMutex);
-        return threadState > READY;
+        return getState() > READY;
     }
     
     // wait till the thread was quit
@@ -41,7 +40,7 @@ public:
     SDL_Window *getWindow() { return _window; }
 
 protected:
-	virtual void run();
+	void run();
 
 
 	// while the thread is running, the state is only ever increased
@@ -68,6 +67,7 @@ protected:
 private:
 
 	SDLGui *_gui;
+    std::thread _th;
 
 	// SDL stuff
 	SDL_Window *_window;

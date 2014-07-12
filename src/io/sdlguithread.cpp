@@ -20,7 +20,7 @@ SDLGuiThread::~SDLGuiThread()
 
 void SDLGuiThread::launch()
 {
-    Thread::launch();
+    _th = std::thread(&SDLGuiThread::run, this);
     {
         // Waiting for GUI thread to start
         std::unique_lock<std::mutex> lock(stateMutex);
@@ -67,7 +67,7 @@ void SDLGuiThread::quitThreadNow()
 		if (threadState < QUIT) threadState = QUIT;
 		stateChanged.notify_all();
 	}
-	join();
+	_th.join();
 }
 
 void SDLGuiThread::quitThreadASAP()
