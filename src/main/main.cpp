@@ -13,7 +13,7 @@ class ImpalaGui : public SDLBufferGui
 {
 public:
     ImpalaGui(unsigned w, unsigned h)
-        : SDLBufferGui(w, h)
+        : SDLBufferGui(w, h, "ImbaTracer")
     {
         state.time = 0;
     }

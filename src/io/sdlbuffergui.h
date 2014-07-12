@@ -13,7 +13,7 @@ namespace rt {
     // This adds Image-buffers to the GUI that are filled in the main thread, and displayed from the render thread
     class SDLBufferGui : public SDLGui {
     public:
-        SDLBufferGui(unsigned w, unsigned h);
+        SDLBufferGui(unsigned w, unsigned h, const char *title);
         
         virtual int main();
         
@@ -23,6 +23,8 @@ namespace rt {
         
         // implemented by us
         virtual CountedPtr<Image> _Update(float dt);
+        
+        std::string title;
     
     private:
         unsigned getFreeIdx(); // return an index we can use to draw into. call in main thread only [so nobody changes curBufferIdx while we are in here]
@@ -35,6 +37,7 @@ namespace rt {
         std::condition_variable bufChanged; // triggered when the current buffer or the displayed buffer changes. Protected by bufMutex.
         
         std::atomic<float> time; // the time, as seen by the GUI thread. Only GUI thread may change.
+        float lastDispTime; // time the last image update was done. GUI thread only.
     };
 }
 
