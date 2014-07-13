@@ -64,8 +64,7 @@ fn triIntersectFirst(tri : uint, scene : &Scene, isec : &Intersection) -> ()
     let t = res(0); // TODO: would be nice to have syntax for tuple unpacking
     if t >= 0.0f
     {
-        let normal = res(1);
-        improveIntersection(isec, t, tri, normal, defaultEps());
+        improveIntersection(isec, t, tri, res(1), res(2), defaultEps());
     }
 }
 

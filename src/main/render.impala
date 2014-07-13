@@ -9,7 +9,6 @@ fn renderImage(mut buf : &[u32], width : int, height : int, body : fn(float, flo
         let ny = (y as float + 0.5f) / hf;
         // put color into index
         let idx = y*width+x;
-        assert(||{idx >= 0 && idx < width*height}, 50);
         buf(idx) = col_rgb2int(renderCoords(body, nx, ny));
     }
 }

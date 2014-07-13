@@ -68,7 +68,6 @@ fn compileCamera(mut cam : &Cam) -> (fn(float, float) -> Ray)
     if      ty == 0 { |x, y| perspectiveRay(&(*cam).view, x, y) }
     else if ty == 1 { |x, y| orthoRay(&(*cam).view, x, y) }
     else if ty == 2 { |x, y| fisheyeRay(&(*cam).view, x, y, (*cam).param1) }
-    else if ty == 3 { |x, y| environRay(&(*cam).view, x, y, (*cam).param1, (*cam).param2) }
-    else            { |x, y| ray0() } // TODO: static assert?
+    else            { |x, y| environRay(&(*cam).view, x, y, (*cam).param1, (*cam).param2) }
 }
 

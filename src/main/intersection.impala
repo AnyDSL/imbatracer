@@ -13,33 +13,25 @@ struct Intersection
     obj : uint,
     ray : Ray,
     norm : Vec,
-//    uv : Point,
+    uv : Point,
     eps : float
-}
-
-fn noIntersection() -> Intersection
-{
-    // TODO: there is no need to init anything but obj
-    Intersection{ obj:noObj(),
-        dist:-1.0f, ray:ray0(), norm:vec0(), eps:0.0f
-    }
 }
 
 fn beginIntersection(ray : Ray) -> Intersection
 {
-    // TODO: only dist & obj needed
-    Intersection{ dist:FLT_MAX_fn(), obj:noObj(),
-        ray:ray, norm:vec0(), eps:0.0f }
+    // TODO: only dist obj & ray needed
+    Intersection{ dist:FLT_MAX_fn(), obj:noObj(), ray:ray,
+            norm:vec0(), uv:point0(), eps:0.0f }
 }
 
 
-fn improveIntersection(mut isec : &Intersection, dist : float, obj : uint, norm : Vec, eps : float) -> ()
+fn improveIntersection(mut isec : &Intersection, dist : float, obj : uint, norm : Vec, uv : Point, eps : float) -> ()
 {
-    // TODO: various assertions
-
+    @assert(||dist < (*isec).dist && obj != noObj(), 23);
     (*isec).dist = dist;
     (*isec).obj = obj;
     (*isec).norm = norm;
+    (*isec).uv = uv;
     (*isec).eps = eps;
 }
 
