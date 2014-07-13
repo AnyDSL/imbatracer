@@ -25,7 +25,7 @@ protected:
     virtual void _Render(CountedPtr<Image> img, float time)
     {
         state.time = time;
-        state.cam = perspectiveCam(impala::Point(-3.5f*sinf(time), 1.2f*sinf(0.2f*time), 3.7f*cosf(time)), impala::Point(0, 0, 0), 
+        state.cam = perspectiveCam(impala::Point(-3.5f*sinf(time), 1.2f*sinf(0.2f*time), 3.7f*cosf(time)), impala::Point(0, 0, 0),
                                    impala::Vec(0, 1.0f, 0), M_PI/4, M_PI/3);
         state.integrator.itype = 0;
         //std::cout << "Origin: " << state.cam.view.origin << ", Fwd: " << state.cam.view.forward << ", Up: " << state.cam.view.up << ", Right: " << state.cam.view.right << std::endl;
