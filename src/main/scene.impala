@@ -8,7 +8,7 @@ struct Scene
 
 fn compileScene(scene: &Scene) -> fn(&Intersection) -> ()
 {
-    |isec: &Intersection|->() {
+    |isec: &Intersection| {
         for tri in range(0, (*scene).nTris as int)
         {
             triIntersectFirst(tri as uint, scene, isec)

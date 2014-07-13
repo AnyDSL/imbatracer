@@ -29,7 +29,7 @@ fn assert(f : fn() -> bool, i : int) -> ()
 {
     if isDebug()
     {
-        if f() && false // FIXME if I negate f(), impala crashes...?
+        if !f()
         {
             assert_failed(i)
         }

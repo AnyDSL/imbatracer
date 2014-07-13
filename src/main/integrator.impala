@@ -51,7 +51,7 @@ fn makeDistanceScaled(minDist: float, maxDist: float, getcol: fn(Intersection) -
     { getcol }
     else
     {
-        |isec : Intersection| -> Color
+        |isec : Intersection|
         {
             let t = scaleLin(isec.dist, minDist, maxDist, 1.0f, 0.0f);
             clerp(getcol(isec), color0(), t)
@@ -91,6 +91,6 @@ fn compileIntegrator(integr : &Integrator, scene : fn(&Intersection) -> ()) -> f
     let hit = getRadianceForHitFn(integr);
     let nohit = color(1.0f, 0.0f, 0.0f);
 
-    |ray : Ray| -> Color { getRadiance(ray, scene, hit, nohit) }
+    |ray| { getRadiance(ray, scene, hit, nohit) }
 }
 
