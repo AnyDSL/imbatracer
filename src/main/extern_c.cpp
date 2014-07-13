@@ -18,21 +18,14 @@ extern "C"
       std::cout << "Impala print [" << i << "] " << x << ", " << y << ", " << z << std::endl;
     }
 
-    unsigned char *HACK_NULL()
-    {
-        return nullptr;
-    }
-
     float FLT_MAX_fn()
     {
         return FLT_MAX;
     }
 
-    void c_assert(bool cond, int i)
+    void assert_failed(int i)
     {
-        if(cond)
-            return;
-        std::cerr << "IMBA ASSERTION FAILED [" << i << "]" << std::endl;
+        std::cerr << "Impala assertion failed [" << i << "]" << std::endl;
         rt::debugAbort();
     }
 }

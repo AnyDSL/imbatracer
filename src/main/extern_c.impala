@@ -15,9 +15,8 @@ extern "C"
     fn print_ii(int, int) -> ();
     fn print_if(int, float) -> ();
     fn print_ifff(int, float, float, float) -> ();
-    fn HACK_NULL() -> &u8;
     fn FLT_MAX_fn() -> float;
-    fn c_assert(bool, int) -> (); // FIXME
+    fn assert_failed(int) -> ();
 }
 
 
@@ -30,7 +29,10 @@ fn assert(f : fn() -> bool, i : int) -> ()
 {
     if isDebug()
     {
-        c_assert(@f(), i)
+        if f() && false // FIXME if I negate f(), impala crashes...?
+        {
+            assert_failed(i)
+        }
     }
 }
 

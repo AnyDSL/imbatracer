@@ -14,7 +14,7 @@ extern fn impala_render(buf : &[u32], width : int, height : int, mut state : &St
     let scene = @compileScene(&(*state).scene);
     let integrator = @compileIntegrator(&(*state).integrator, scene);
 
-    renderImage(buf, width, height, |x:float, y:float| // FIXME: loop sugar does not work here; why can I pass a non-mut buf for mut buf here?
+    renderImage(buf, width, height, |x:float, y:float| // FIXME: loop sugar does not work here
         {
             integrator(camera(x, y))
         }
