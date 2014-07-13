@@ -1,6 +1,6 @@
 CMAKE_MINIMUM_REQUIRED(VERSION 2.8.5 FATAL_ERROR)
 
-PROJECT ( IMBATRACER CXX )
+PROJECT ( ImbaTracer CXX )
 
 include(FindPkgConfig)
 
@@ -28,15 +28,13 @@ link_directories(${SDL2_LIBRARY_DIRS})
 #link_directories(${PNG_LIBRARY_DIRS})
 
 
-set(CUDA_DIR "/opt/cuda6.0" CACHE STRING "The directory containing the CUDA toolkit")
 FIND_PACKAGE ( THORIN REQUIRED )
-message("Using THORIN at ${THORIN_RUNTIME_DIR}, CUDA at ${CUDA_DIR}")
+message(STATUS "Using THORIN at ${THORIN_RUNTIME_DIR}")
 include(${THORIN_RUNTIME_DIR}/cmake/ThorinRuntime.cmake)
 include_directories(${THORIN_RUNTIME_INCLUDE_DIR})
 
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -Wall -Wextra")
-set(CMAKE_CXX_FLAGS_RELEASE "-O3 -DNDEBUG")
 
 
 add_subdirectory(src)

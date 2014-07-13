@@ -1,6 +1,7 @@
 set(main_cpp_SRC
 scene.h
 scene.cpp
+interface.h
 extern_c.cpp
 main.cpp
 )

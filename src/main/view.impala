@@ -9,18 +9,18 @@ struct View
     upFactor : float
 }
 
-fn view(origin : Point, forward : Vec, up : Vec) -> View
-{
-    viewEx(origin, forward, up, 1.0f, 1.0f)
-}
-
 fn viewEx(origin : Point, forward : Vec, up : Vec, upFactor : float, rightFactor : float) -> View
 {
     let mut v = View{ origin : origin, forward : forward, up : up, upFactor : upFactor, rightFactor : rightFactor,
         right : vec0(), originalUp : up
     };
-    @viewSetForwardUp(&v, forward, up);
+    @viewNormalize(&v);
     v
+}
+
+fn view(origin : Point, forward : Vec, up : Vec) -> View
+{
+    viewEx(origin, forward, up, 1.0f, 1.0f)
 }
 
 fn view1(pos : Point) -> View
@@ -33,10 +33,11 @@ fn view0() -> View
     view1(point0())
 }
 
-fn viewSetForwardUp(mut v : &View, f : Vec, u : Vec) -> ()
+// re-establish the invariants of the view, by computing the up and right vector appropriately
+fn viewNormalize(mut v : &View) -> ()
 {
-    (*v).originalUp = u;
-    let fnorm = normalize(f);
+    let u = (*v).originalUp;
+    let fnorm = normalize((*v).forward);
     (*v).forward = fnorm;
 
     let t = orthogonalize(fnorm, u); // (ortho, third)
@@ -44,10 +45,10 @@ fn viewSetForwardUp(mut v : &View, f : Vec, u : Vec) -> ()
     (*v).right = vfmul(t(1), (*v).rightFactor);
 }
 
-
-fn viewSetForward(v : &View, f : Vec) -> ()
+fn viewSetForward(mut v : &View, f : Vec) -> ()
 {
-    viewSetForwardUp(v, f, (*v).originalUp)
+    (*v).forward = f;
+    viewNormalize(v)
 }
 
 fn viewSetLookAt(v : &View, at : Point) -> ()
@@ -55,16 +56,17 @@ fn viewSetLookAt(v : &View, at : Point) -> ()
     viewSetForward(v, to((*v).origin, at))
 }
 
-fn viewSetUp(v : &View, up : Vec) -> ()
+fn viewSetUp(mut v : &View, up : Vec) -> ()
 {
-    viewSetForwardUp(v, (*v).forward, up)
+    (*v).originalUp = up;
+    viewNormalize(v)
 }
 
 fn viewSetScale(mut v : &View, upFactor : float, rightFactor : float) -> ()
 {
     (*v).rightFactor = rightFactor;
     (*v).upFactor = upFactor;
-    viewSetForwardUp(v, (*v).forward, (*v).originalUp);
+    viewNormalize(v);
 }
 
 fn viewSetOpeningAngle(v : &View, vertical : float, horiz : float) -> ()
