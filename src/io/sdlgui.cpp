@@ -16,7 +16,6 @@ SDLGui::SDLGui(unsigned width, unsigned height)
 
 SDLGui::~SDLGui()
 {
-	th->quitThreadNow();
 	delete th;
 }
 

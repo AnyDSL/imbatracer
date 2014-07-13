@@ -16,10 +16,14 @@ SDLGuiThread::SDLGuiThread(SDLGui *gui)
 
 SDLGuiThread::~SDLGuiThread()
 {
+    if (_th.joinable())
+        quitThreadNow();
 }
 
 void SDLGuiThread::launch()
 {
+    assert(!_th.joinable(), "Thread is already running?");
+    
     _th = std::thread(&SDLGuiThread::run, this);
     {
         // Waiting for GUI thread to start
@@ -62,6 +66,7 @@ void SDLGuiThread::run()
 
 void SDLGuiThread::quitThreadNow()
 {
+    assert(_th.joinable(), "Thread is already gone?");
 	{
 		std::unique_lock<std::mutex> lock(stateMutex);
 		if (threadState < QUIT) threadState = QUIT;

@@ -1,9 +1,4 @@
 
-extern "C"
-{
-    fn callbackTest(x : int, y : int) -> ();
-}
-
 struct State
 {
     time : float,
@@ -15,24 +10,11 @@ struct State
 extern fn impala_render(buf : &[u32], width : int, height : int, state : &State)
 -> ()
 {
-    /*let ti = (*state).time as int;
-    for x, y in iteration(width, height)
-    {
-        let c = (0
-            | 0xff000000 //(0x80 << 24) // alpha // FIXME: shift term still generates invalid code
-            | (ti+(x^y^(rand()&0x40)) << 16) // blue
-            | (y << 8) // green
-            | x // red
-            );
-
-        buf(y*width+x) = c as u32;
-    }*/
-
     let camera = compileCamera((*state).cam);
-    let scene = compileScene((*state).scene);
+    let scene = compileScene((*state).scene); // FIXME cannot take address here
     let integrator = compileIntegrator((*state).integrator, scene);
 
-    renderImage(buf, width, height, |x:float, y:float| // FIXME: loop sugar does not work here; why can I mass a non-mut buf for mut buf here?
+    renderImage(buf, width, height, |x:float, y:float| // FIXME: loop sugar does not work here; why can I pass a non-mut buf for mut buf here?
         {
             integrator(camera(x, y))
         }
