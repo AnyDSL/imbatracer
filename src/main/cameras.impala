@@ -70,10 +70,10 @@ fn environRay(v : &View, x : float, y : float, vertical : float, horiz : float) 
 fn compileCamera(mut cam : &Cam) -> (fn(float, float) -> Ray)
 {
     let ty = (*cam).camtype;
-    if      ty == 0 { |x:float, y:float| -> Ray perspectiveRay(&(*cam).view, x, y) }
-    else if ty == 1 { |x:float, y:float| -> Ray orthoRay(&(*cam).view, x, y) }
-    else if ty == 2 { |x:float, y:float| -> Ray fisheyeRay(&(*cam).view, x, y, (*cam).param1) }
-    else if ty == 3 { |x:float, y:float| -> Ray environRay(&(*cam).view, x, y, (*cam).param1, (*cam).param2) }
-    else            { |x:float, y:float| -> Ray ray0() } // TODO: static assert?
+    if      ty == 0 { |x, y| perspectiveRay(&(*cam).view, x, y) }
+    else if ty == 1 { |x, y| orthoRay(&(*cam).view, x, y) }
+    else if ty == 2 { |x, y| fisheyeRay(&(*cam).view, x, y, (*cam).param1) }
+    else if ty == 3 { |x, y| environRay(&(*cam).view, x, y, (*cam).param1, (*cam).param2) }
+    else            { |x, y| ray0() } // TODO: static assert?
 }
 
