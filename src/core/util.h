@@ -12,23 +12,23 @@ Measure the execution time, RIAA-style
 */
 class Timer {
 public:
-	Timer(const std::string &note);
-	Timer();
-	~Timer();
+    Timer(const std::string &note);
+    Timer();
+    ~Timer();
 
-	void setNote(const std::string & note)
-	{
-		_note = note;
-	}
+    void setNote(const std::string & note)
+    {
+        _note = note;
+    }
 
-	void restart(void);
-	void stop();
-	void dontPrint();
+    void restart(void);
+    void stop();
+    void dontPrint();
 
 private:
-	unsigned _start_time;
-	std::string _note;
-	bool _stopped;
+    unsigned _start_time;
+    std::string _note;
+    bool _stopped;
 };
 
 
@@ -39,7 +39,7 @@ private:
 template <typename T>
 FORCE_INLINE void freeContainer(T& v)
 {
-	T().swap(v); // "swap trick"
+    T().swap(v); // "swap trick"
 }
 
 

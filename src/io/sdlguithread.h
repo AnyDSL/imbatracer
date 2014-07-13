@@ -15,8 +15,8 @@ class SDLRenderer;
 class SDLGuiThread
 {
 public:
-	SDLGuiThread(SDLGui *gui);
-	virtual ~SDLGuiThread();
+    SDLGuiThread(SDLGui *gui);
+    virtual ~SDLGuiThread();
     
     // start the thread
     void launch();
@@ -40,47 +40,47 @@ public:
     SDL_Window *getWindow() { return _window; }
 
 protected:
-	void run();
+    void run();
 
 
-	// while the thread is running, the state is only ever increased
-	enum ReadyState
-	{
-		UNDEFINED,
-		READY,
-		ABOUT_TO_QUIT,
-		QUIT,
-		FAIL
-	};
+    // while the thread is running, the state is only ever increased
+    enum ReadyState
+    {
+        UNDEFINED,
+        READY,
+        ABOUT_TO_QUIT,
+        QUIT,
+        FAIL
+    };
 
-	std::mutex stateMutex; // protects threadState, aboutToQuitTime
-	std::condition_variable stateChanged;
-	ReadyState threadState; // protected by stateMutex
+    std::mutex stateMutex; // protects threadState, aboutToQuitTime
+    std::condition_variable stateChanged;
+    ReadyState threadState; // protected by stateMutex
     unsigned aboutToQuitTime; // remember when we wanted to exit; protected by stateMutex
 
-	ReadyState getState() {
-		std::lock_guard<std::mutex> lock(stateMutex);
-		return threadState;
-	}
-	bool checkQuittingTooLong(unsigned nowTime);
+    ReadyState getState() {
+        std::lock_guard<std::mutex> lock(stateMutex);
+        return threadState;
+    }
+    bool checkQuittingTooLong(unsigned nowTime);
 
 private:
 
-	SDLGui *_gui;
+    SDLGui *_gui;
     std::thread _th;
 
-	// SDL stuff
-	SDL_Window *_window;
-	SDL_GLContext _glctx;
-	SDLRenderer *_disp;
+    // SDL stuff
+    SDL_Window *_window;
+    SDL_GLContext _glctx;
+    SDLRenderer *_disp;
 
-	bool init();
-	void threadMain();
-	void shutdown();
-	void render(float dt);
-	void resize(unsigned w, unsigned h);
-	void handleEvents();
-	bool createWindow(unsigned w, unsigned h, const char *title);
+    bool init();
+    void threadMain();
+    void shutdown();
+    void render(float dt);
+    void resize(unsigned w, unsigned h);
+    void handleEvents();
+    bool createWindow(unsigned w, unsigned h, const char *title);
 };
 
 } // end namespace rt

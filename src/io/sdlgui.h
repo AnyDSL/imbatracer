@@ -14,36 +14,36 @@ class Image;
 class SDLGui
 {
 public:
-	SDLGui(unsigned width, unsigned height);
-	virtual ~SDLGui();
+    SDLGui(unsigned width, unsigned height);
+    virtual ~SDLGui();
 
-	void Init();
+    void Init();
     
-	bool WaitingForQuit(); // do we want to quit?
+    bool WaitingForQuit(); // do we want to quit?
     void WaitForQuit(); // do the quitting
 
     // only call these functions from the GUI Thread!
     SDL_Window *GetWindow();
-	void SetWindowTitle(const std::string &title);
+    void SetWindowTitle(const std::string &title);
 
 protected:
-	// called asynchronously, from GUI thread. Overload in children to react.
-	virtual void _OnInit() {}
-	virtual CountedPtr<Image> _Update(float dt);
-	virtual bool _OnKey(int scancode, int key, int mod, bool down); //!< returns whether the keypress was handled
-	virtual void _OnMouseButton(int /*button*/, int /*state*/, int /*x*/, int /*y*/) {}
-	virtual void _OnMouseMotion(int /*xrel*/, int /*yrel*/) {}
-	virtual void _OnMouseWheel(int /*x*/, int /*y*/) {}
-	virtual void _OnWindowResize(int w, int h);
-	virtual void _OnShutdown() {}
+    // called asynchronously, from GUI thread. Overload in children to react.
+    virtual void _OnInit() {}
+    virtual CountedPtr<Image> _Update(float dt);
+    virtual bool _OnKey(int scancode, int key, int mod, bool down); //!< returns whether the keypress was handled
+    virtual void _OnMouseButton(int /*button*/, int /*state*/, int /*x*/, int /*y*/) {}
+    virtual void _OnMouseMotion(int /*xrel*/, int /*yrel*/) {}
+    virtual void _OnMouseWheel(int /*x*/, int /*y*/) {}
+    virtual void _OnWindowResize(int w, int h);
+    virtual void _OnShutdown() {}
 
-	// write only by GUI thread!
-	std::atomic_uint windowW, windowH;
+    // write only by GUI thread!
+    std::atomic_uint windowW, windowH;
 
 private:
-	SDLGuiThread *th;
+    SDLGuiThread *th;
 
-	friend class SDLGuiThread; // it must trigger above events
+    friend class SDLGuiThread; // it must trigger above events
 };
 
 

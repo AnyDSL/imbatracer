@@ -10,13 +10,13 @@ namespace rt {
 
 
 SDLGui::SDLGui(unsigned width, unsigned height)
-	: windowW(width), windowH(height), th(nullptr)
+    : windowW(width), windowH(height), th(nullptr)
 {
 }
 
 SDLGui::~SDLGui()
 {
-	delete th;
+    delete th;
 }
 
 void SDLGui::Init()
@@ -33,7 +33,7 @@ SDL_Window *SDLGui::GetWindow()
 
 void SDLGui::SetWindowTitle(const std::string &title)
 {
-	SDL_SetWindowTitle(GetWindow(), title.c_str());
+    SDL_SetWindowTitle(GetWindow(), title.c_str());
 }
 
 bool SDLGui::WaitingForQuit()
@@ -48,32 +48,32 @@ void SDLGui::WaitForQuit()
 
 CountedPtr<Image> SDLGui::_Update(float /*dt*/)
 {
-	// don't spin in a too tight loop, better sleep a bit
-	SDL_Delay(50);
-	return nullptr;
+    // don't spin in a too tight loop, better sleep a bit
+    SDL_Delay(50);
+    return nullptr;
 }
 
 bool SDLGui::_OnKey(int /*scancode*/, int key, int /*mod*/, bool state)
 {
-	if(state)
-	{
-		switch(key)
-		{
-			case SDLK_ESCAPE:
-			{
-				th->quitThreadASAP();
-				return true;
-			}
-		}
-	}
+    if(state)
+    {
+        switch(key)
+        {
+            case SDLK_ESCAPE:
+            {
+                th->quitThreadASAP();
+                return true;
+            }
+        }
+    }
 
-	return false;
+    return false;
 }
 
 void SDLGui::_OnWindowResize(int w, int h)
 {
-	windowW = w;
-	windowH = h;
+    windowW = w;
+    windowH = h;
 }
 
 

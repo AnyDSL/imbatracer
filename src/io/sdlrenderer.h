@@ -11,25 +11,25 @@ class SDLRenderer
 {
 public:
 
-	SDLRenderer(SDL_Window *window);
-	~SDLRenderer();
+    SDLRenderer(SDL_Window *window);
+    ~SDLRenderer();
 
-	bool Init();
-	void Shutdown();
+    bool Init();
+    void Shutdown();
 
-	void OnWindowResize(unsigned w, unsigned h);
+    void OnWindowResize(unsigned w, unsigned h);
 
-	void BeginFrame();
-	void EndFrame();
+    void BeginFrame();
+    void EndFrame();
 
-	void uploadImage(const Image *img);
-	void render();
+    void uploadImage(const Image *img);
+    void render();
 
 private:
 
-	SDL_Renderer *_renderer;
-	SDL_Texture *_tex;
-	SDL_Window *_window;
+    SDL_Renderer *_renderer;
+    SDL_Texture *_tex;
+    SDL_Window *_window;
 
 };
 

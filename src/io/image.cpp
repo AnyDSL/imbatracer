@@ -9,7 +9,7 @@ Image::Image(unsigned w, unsigned h)
 
 Image::~Image()
 {
-	SDL_FreeSurface(surface);
+    SDL_FreeSurface(surface);
 }
 
 } // end namespace rt
