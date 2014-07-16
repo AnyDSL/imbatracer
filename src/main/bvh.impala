@@ -1,0 +1,19 @@
+
+struct BVHNode
+{
+    bbox : BBox,
+    sndChildFirstPrim : uint, // for an inner node, the second child. for a leaf, the first primitive.
+    nPrim : u16, // number of primitives in child. 0 for inner node.
+    axis: u16,
+}
+
+fn bvhIntersectFirst(root: uint, scene : &Scene, isec : &Intersection) -> ()
+{
+    let todoMaxLen = 16;
+    let mut todo = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let mut todoIdx = 0;
+    let mut curNode = 0;
+    fwhile(|b|{
+        false
+    })
+}

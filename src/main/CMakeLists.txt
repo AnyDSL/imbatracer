@@ -15,8 +15,9 @@ util.impala
 color.impala
 vector.impala
 ray.impala
-scene.impala
 tri.impala
+bvh.impala
+scene.impala
 light.impala
 intersection.impala
 view.impala

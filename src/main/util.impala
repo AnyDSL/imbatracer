@@ -9,6 +9,11 @@ fn range(a : int, b : int, yield : fn(int, fn()))
     }
 }
 
+fn fwhile(yield: fn() -> bool) -> ()
+{
+    if yield() { fwhile(yield) } else {}
+}
+
 fn min(a : float, b : float) -> float
 {
     if a < b { a } else { b }

@@ -30,7 +30,8 @@ fn impala_update(mut state : &State, dt : float) -> ()
 {
     let time = (*state).time;
     (*state).time = time + dt;
-    let pos = point(-3.5f*sinf(time), 1.2f*sinf(0.2f*time), 3.7f*cosf(time));
+    let scale = 10.0f;
+    let pos = point(-3.5f*scale*sinf(time), 1.2f*scale*sinf(0.2f*time), 3.7f*scale*cosf(time));
     let at = point0();
     let up = vec(0.0f, 1.0f, 0.0f);
     let horzOpenAngle = M_PI() / 4.0f;
