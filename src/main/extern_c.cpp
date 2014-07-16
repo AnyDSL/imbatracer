@@ -2,6 +2,7 @@
 #include <float.h>
 #include <limits.h>
 #include <core/util.h>
+#include "scene.h"
 
 extern "C"
 {
@@ -27,5 +28,16 @@ extern "C"
     {
         std::cerr << "Impala assertion failed [" << i << "]" << std::endl;
         rt::debugAbort();
+    }
+
+    void scene_load_cube(impala::Scene *scene)
+    {
+        delete scene->sceneMgr;
+        scene->sceneMgr = new rt::CubeScene(scene);
+    }
+
+    void scene_free(impala::Scene *scene)
+    {
+        delete scene->sceneMgr;
     }
 }

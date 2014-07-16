@@ -17,6 +17,10 @@ extern "C"
     fn print_ifff(int, float, float, float) -> ();
     fn FLT_MAX_fn() -> float;
     fn assert_failed(int) -> ();
+
+    // scene creation functions
+    fn scene_load_cube(&Scene) -> ();
+    fn scene_free(&Scene) -> ();
 }
 
 
@@ -35,23 +39,6 @@ fn assert(f : fn() -> bool, i : int) -> ()
         }
     }
 }
-
-fn pos_infinity() -> float
-{
-    1.0f/0.0f
-}
-
-fn neg_infinity() -> float
-{
-    -1.0f/0.0f
-}
-
-fn M_PI() -> float
-{
-    3.141592653589793f
-}
-
-
 
 
 

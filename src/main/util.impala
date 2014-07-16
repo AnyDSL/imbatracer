@@ -66,3 +66,22 @@ fn scaleLin(v : float, vMin : float, vMax : float, targetMin : float, targetMax 
 }
 
 
+fn pos_infinity() -> float
+{
+    1.0f/0.0f
+}
+
+fn neg_infinity() -> float
+{
+    -1.0f/0.0f
+}
+
+fn M_PI() -> float
+{
+    3.141592653589793f
+}
+
+
+
+
+

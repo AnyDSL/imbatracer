@@ -4,6 +4,10 @@
 #include <math.h>
 #include <iostream>
 
+namespace rt {
+    class Scene;
+}
+
 namespace impala {
     // C-side of the Impala structs
     struct Point
@@ -32,9 +36,12 @@ namespace impala {
 
     struct Scene
     {
+        Scene() : sceneMgr(nullptr) {}
+
         unsigned nTris;
         Point *verts;
         unsigned *triVerts;
+        rt::Scene *sceneMgr;
     };
 
     struct View
@@ -69,8 +76,8 @@ namespace impala {
 
     extern "C" {
         void impala_init(State *state);
-        void impala_update(State *state, float dt);
-        void impala_render(unsigned *buf, int w, int h, State *state);
+        void impala_deinit(State *state);
+        void impala_render(unsigned *buf, int w, int h, State *state, float dt);
     }
 
 }

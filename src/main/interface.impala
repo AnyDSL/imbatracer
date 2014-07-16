@@ -5,16 +5,23 @@ struct State
     cam : Cam,
     integrator : Integrator,
     scene : Scene,
+
 }
 
 extern fn impala_init(mut state : &State) -> ()
 {
     (*state).time = 0.0f;
+    scene_load_cube(&(*state).scene);
 
     impala_update(state, 0.0f); // force first update cycle to init camera values and everything
 }
 
-extern fn impala_update(mut state : &State, dt : float) -> ()
+extern fn impala_deinit(mut state : &State) -> ()
+{
+    scene_free(&(*state).scene);
+}
+
+fn impala_update(mut state : &State, dt : float) -> ()
 {
     let time = (*state).time;
     (*state).time = time + dt;
@@ -28,13 +35,13 @@ extern fn impala_update(mut state : &State, dt : float) -> ()
     (*state).integrator.itype = 0;
 }
 
-extern fn impala_render(buf : &[u32], width : int, height : int, mut state : &State)
+extern fn impala_render(buf : &[u32], width : int, height : int, mut state : &State, dt : float)
 -> ()
 {
+    @impala_update(state, dt);
     let camera = @compileCamera(&(*state).cam);
     let scene = @compileScene(&(*state).scene);
     let integrator = @compileIntegrator(&(*state).integrator, scene);
 
     renderImage(buf, width, height, |x, y| { integrator(camera(x, y)) } )
 }
-

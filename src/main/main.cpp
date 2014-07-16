@@ -17,6 +17,10 @@ public:
     {
         impala_init(&state);
     }
+    ~ImpalaGui()
+    {
+        impala_deinit(&state);
+    }
 
     impala::State *getState() { return &state; }
 
@@ -24,13 +28,11 @@ protected:
 
     virtual void _Render(CountedPtr<Image> img, float dt)
     {
-        impala_update(&state, dt);
-
         #ifndef NDEBUG
         Timer timer("Rendering image");
         #endif
 
-        impala_render(img->getPtr(), img->width(), img->height(), &state);
+        impala_render(img->getPtr(), img->width(), img->height(), &state, dt);
     }
 
     impala::State state;
@@ -43,7 +45,6 @@ int main(int /*argc*/, char */*argv*/[])
     atexit(SDL_Quit);
 
     ImpalaGui gui(640/2, 480/2);
-    CubeScene scene(&gui.getState()->scene);
     return gui.main();
 
     return 0;

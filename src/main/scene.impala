@@ -1,9 +1,12 @@
 
+struct SceneMgr {} // opaque pointer, C++ puts stuff here
+
 struct Scene
 {
     nTris : uint,
     verts : &[Point],
-    triVerts : &[uint] // 3 successive entries are the three indices of the vertices of a triangle
+    triVerts : &[uint], // 3 successive entries are the three indices of the vertices of a triangle
+    sceneMgr : &SceneMgr
 }
 
 fn compileScene(scene: &Scene) -> fn(&Intersection) -> ()
