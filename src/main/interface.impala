@@ -35,7 +35,7 @@ fn impala_update(mut state : &State, dt : float) -> ()
     let up = vec(0.0f, 1.0f, 0.0f);
     let horzOpenAngle = M_PI() / 4.0f;
     let vertOpenAngle = M_PI() / 3.0f;
-    camInitPerspectiveLookAt(&(*state).cam, pos, at, up, horzOpenAngle, vertOpenAngle);
+    (*state).cam = camPerspectiveLookAt(pos, at, up, horzOpenAngle, vertOpenAngle);
 }
 
 extern fn impala_render(buf : &[u32], width : int, height : int, mut state : &State, dt : float)
