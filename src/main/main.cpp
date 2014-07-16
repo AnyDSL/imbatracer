@@ -22,14 +22,10 @@ public:
 
 protected:
 
-    virtual CountedPtr<Image> _Update(float dt)
+    virtual void _Render(CountedPtr<Image> img, float dt)
     {
         impala_update(&state, dt);
-        return SDLBufferGui::_Update(dt);
-    }
 
-    virtual void _Render(CountedPtr<Image> img)
-    {
         #ifndef NDEBUG
         Timer timer("Rendering image");
         #endif

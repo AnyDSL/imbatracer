@@ -6,7 +6,7 @@
 namespace rt {
 
     SDLBufferGui::SDLBufferGui(unsigned w, unsigned h, const char *title)
-     : SDLGui(w, h), title(title), curBufferIdx(0), displayBufferSerial(0)
+     : SDLGui(w, h), title(title), curBufferIdx(0), displayBufferSerial(0), curDispTime(0), lastDispTime(0)
     {
         for (unsigned i = 0; i < nBuffers; ++i) {
             buffers[i] = std::make_tuple(i, CountedPtr<Image>(nullptr));
@@ -34,6 +34,7 @@ namespace rt {
         Init();
         // now let's render
         unsigned serial = 1;
+        Uint32 lastUpdateTime = SDL_GetTicks();
         while (!WaitingForQuit()) {
             // get a free image
             const unsigned nextIdx = getFreeIdx();
@@ -43,14 +44,17 @@ namespace rt {
                 img = new Image(windowW, windowH);
             }
             // render into it!
-            _Render(img);
+            Uint32 nowTime = SDL_GetTicks();
+            Uint32 diffTime = nowTime - lastUpdateTime;
+            lastUpdateTime = nowTime;
+            _Render(img, diffTime / 1000.0f);
             // this is the new "now"
             buffers[nextIdx] = std::make_tuple(serial, img);
             //std::cout << "Rendered serial " << serial << " into index " << nextIdx << std::endl;
-            std::unique_lock<std::mutex> lock(bufMutex);
+            ++serial;
+            std::lock_guard<std::mutex> lock(bufMutex);
             curBufferIdx = nextIdx;
             bufChanged.notify_all();
-            ++serial;
         }
         WaitForQuit();
         return 0;
@@ -58,6 +62,7 @@ namespace rt {
 
     CountedPtr<Image> SDLBufferGui::_Update(float dt)
     {
+        curDispTime += dt;
         // check the next image to display
         CountedPtr<Image> img = nullptr;
         {
@@ -77,9 +82,11 @@ namespace rt {
             //std::cout << "Displaying serial " << nextSerial << " from index " << curBufferIdx << std::endl;
             img = std::get<1>(buffers[curBufferIdx]);
         }
-         // is this image usable?
+        // is this image usable?
         if (img && img->width() == windowW && img->height() == windowH) {
-            SetWindowTitle(title + " ("+std::to_string(1/dt)+"fps)");
+            float timeDiff = curDispTime - lastDispTime;
+            SetWindowTitle(title + " ("+std::to_string(1/timeDiff)+"fps)");
+            lastDispTime = curDispTime;
             return img;
         }
         // we don't have anything useful

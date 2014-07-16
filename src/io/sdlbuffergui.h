@@ -19,7 +19,7 @@ namespace rt {
 
     protected:
         // called in the main thread
-        virtual void _Render(CountedPtr<Image> img) = 0;
+        virtual void _Render(CountedPtr<Image> img, float dt) = 0;
 
         // implemented by us
         virtual CountedPtr<Image> _Update(float dt);
@@ -35,6 +35,9 @@ namespace rt {
         unsigned displayBufferSerial; // serial number of the currently diplsayed buffer. Correpsonding image should not be written to! Protected by bufMutex.
         std::mutex bufMutex;  // protects the current buffer
         std::condition_variable bufChanged; // triggered when the current buffer or the displayed buffer changes. Protected by bufMutex.
+
+        float curDispTime;
+        float lastDispTime; // time the last image update was done. GUI thread only.
     };
 }
 
