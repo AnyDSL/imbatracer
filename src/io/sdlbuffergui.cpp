@@ -4,17 +4,17 @@
 #include "sdlbuffergui.h"
 
 namespace rt {
-    
+
     SDLBufferGui::SDLBufferGui(unsigned w, unsigned h, const char *title)
-     : SDLGui(w, h), title(title), curBufferIdx(0), displayBufferSerial(0), time(0)
+     : SDLGui(w, h), title(title), curBufferIdx(0), displayBufferSerial(0)
     {
         for (unsigned i = 0; i < nBuffers; ++i) {
             buffers[i] = std::make_tuple(i, CountedPtr<Image>(nullptr));
         }
     }
-    
+
     // FIXME: do some kind of throttling?
-    
+
     unsigned SDLBufferGui::getFreeIdx()
     {
         std::unique_lock<std::mutex> lock(bufMutex);
@@ -28,7 +28,7 @@ namespace rt {
          * updated to curBufferIdx, and not to this position. */
         return nextIdx;
     }
-     
+
     int SDLBufferGui::main()
     {
         Init();
@@ -43,7 +43,7 @@ namespace rt {
                 img = new Image(windowW, windowH);
             }
             // render into it!
-            _Render(img, time);
+            _Render(img);
             // this is the new "now"
             buffers[nextIdx] = std::make_tuple(serial, img);
             //std::cout << "Rendered serial " << serial << " into index " << nextIdx << std::endl;
@@ -55,11 +55,9 @@ namespace rt {
         WaitForQuit();
         return 0;
     }
-    
+
     CountedPtr<Image> SDLBufferGui::_Update(float dt)
     {
-        // some time passed
-        time = time + dt;
         // check the next image to display
         CountedPtr<Image> img = nullptr;
         {
@@ -81,13 +79,11 @@ namespace rt {
         }
          // is this image usable?
         if (img && img->width() == windowW && img->height() == windowH) {
-            float diffTime = time-lastDispTime;
-            lastDispTime = time;
-            SetWindowTitle(title + " ("+std::to_string(1/diffTime)+"fps)");
+            SetWindowTitle(title + " ("+std::to_string(1/dt)+"fps)");
             return img;
         }
         // we don't have anything useful
         return nullptr;
     }
-    
+
 }

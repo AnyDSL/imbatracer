@@ -68,19 +68,11 @@ namespace impala {
 
 
     extern "C" {
+        void impala_init(State *state);
+        void impala_update(State *state, float dt);
         void impala_render(unsigned *buf, int w, int h, State *state);
-        void impala_camInitPerspectiveLookAt(Cam *cam,
-                                             float cx, float cy, float cz, float atx, float aty, float atz,
-                                             float upx, float upy, float upz, float verticalOpeningAngle, float horizontalOpeningAngle);
     }
 
-    // provide perspectiveCam the way we would want to use it...
-    inline Cam perspectiveCam(Point center, Point at, Vec up, float verticalOpeningAngle, float horizontalOpeningAngle)
-    {
-        Cam c;
-        impala_camInitPerspectiveLookAt(&c, center.x, center.y, center.z, at.x, at.y, at.z, up.x, up.y, up.z, verticalOpeningAngle, horizontalOpeningAngle);
-        return c;
-    }
 }
 
 #endif
