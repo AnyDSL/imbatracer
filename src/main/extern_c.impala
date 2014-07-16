@@ -18,7 +18,10 @@ extern "C"
     fn assert_failed(int) -> ();
 
     // scene creation functions
-    fn scene_load_cube(&Scene) -> ();
+    fn scene_init_cube(&Scene) -> ();
+    fn scene_init_objloader(&Scene) -> ();
+    fn scene_add_obj(&Scene, int) -> bool;
+    fn scene_build(&Scene) -> ();
     fn scene_free(&Scene) -> ();
 
     // thorin internal runtime

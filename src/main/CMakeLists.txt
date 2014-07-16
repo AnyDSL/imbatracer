@@ -1,4 +1,6 @@
 set(main_cpp_SRC
+objloader.h
+objloader.cpp
 scene.h
 scene.cpp
 interface.h
@@ -14,6 +16,7 @@ vector.impala
 ray.impala
 scene.impala
 tri.impala
+light.impala
 intersection.impala
 view.impala
 cameras.impala

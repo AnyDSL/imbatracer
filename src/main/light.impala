@@ -1,0 +1,13 @@
+
+struct Light
+{
+    intensity : Color,
+    view : View, // position, direction, etc
+}
+
+/*
+fn pointLightHit(p : Point)
+{
+
+}
+*/

@@ -34,6 +34,12 @@ namespace impala {
         return o << "(" << v.x << ", " << v.y << ", " << v.z << ")";
     }
 
+    struct TexCoord
+    {
+        TexCoord(float u, float v) : u(u), v(v) {}
+        float u, v;
+    };
+
     struct Scene
     {
         Scene() : sceneMgr(nullptr) {}

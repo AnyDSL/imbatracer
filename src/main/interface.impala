@@ -12,7 +12,13 @@ extern fn impala_init(mut state : &State) -> ()
 {
     (*state).time = 0.0f;
     (*state).integrator.itype = 0;
-    scene_load_cube(&(*state).scene);
+    //scene_init_cube(&(*state).scene);
+
+    let mut scene = &(*state).scene;
+    scene_init_objloader(scene);
+    let ok = scene_add_obj(scene, 1);
+    assert(||{ok}, 700);
+    scene_build(scene);
 }
 
 extern fn impala_deinit(mut state : &State) -> ()

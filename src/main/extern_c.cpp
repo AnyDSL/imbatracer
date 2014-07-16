@@ -2,7 +2,9 @@
 #include <float.h>
 #include <limits.h>
 #include <core/util.h>
+#include <core/assert.h>
 #include "scene.h"
+#include "objloader.h"
 
 extern "C"
 {
@@ -30,10 +32,28 @@ extern "C"
         rt::debugAbort();
     }
 
-    void scene_load_cube(impala::Scene *scene)
+    void scene_init_cube(impala::Scene *scene)
     {
         delete scene->sceneMgr;
         scene->sceneMgr = new rt::CubeScene(scene);
+    }
+
+    void scene_init_objloader(impala::Scene *scene)
+    {
+        delete scene->sceneMgr;
+        scene->sceneMgr = new rt::ObjLoader(scene);
+    }
+
+    bool scene_add_obj(impala::Scene *scene, int id)
+    {
+        rt::ObjLoader *objloader = dynamic_cast<rt::ObjLoader*>(scene->sceneMgr);
+        assert(objloader, "ObjLoader is b0rked");
+        return objloader->addObj("models/" + std::to_string(id) + ".obj");
+    }
+
+    void scene_build(impala::Scene *scene)
+    {
+        scene->sceneMgr->build();
     }
 
     void scene_free(impala::Scene *scene)

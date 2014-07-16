@@ -18,12 +18,14 @@ public:
     Scene(impala::Scene *scene);
     virtual ~Scene(void);
 
+    void build();
+
 protected:
     impala::Scene *scene; //!< the Impala Scene. We *own* its dynamically allocated parts!
     std::vector<impala::Point> verts;
     std::vector<Tri> tris;
-
-    void build();
+    std::vector<impala::Vec> normals;
+    std::vector<impala::TexCoord> texcoords;
 };
 
 /** Test scenes */

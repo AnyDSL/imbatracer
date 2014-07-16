@@ -25,6 +25,14 @@ fn cclamp01(c : Color) -> Color
     color(clamp01f(c.r), clamp01f(c.g), clamp01f(c.b))
 }
 
+fn cfapply2(c: Color, v : float, f: fn(float, float) -> float) -> Color
+{
+    color(f(c.r, v), f(c.g, v), f(c.b, v))
+}
+
+fn cmul(a : Color, v : float) -> Color { cfapply2(a, v, mul) }
+fn cadd(a : Color, v : float) -> Color { cfapply2(a, v, add) }
+
 fn clerp(c1 : Color, c2 : Color, t : float) -> Color
 {
     color(lerp(c1.r, c2.r, t),
