@@ -9,16 +9,6 @@ fn range(a : int, b : int, yield : fn(int, fn()))
     }
 }
 
-fn iteration(width : int, height : int, body : fn(int, int) -> () )
--> ()
-{
-    for y in $range(0, height) {
-        for x in $range(0, width) {
-            body(x, y);
-        }
-    }
-}
-
 fn min(a : float, b : float) -> float
 {
     if a < b { a } else { b }

@@ -1,0 +1,12 @@
+
+fn iteration(width : int, height : int, body : fn(int, int) -> () ) -> ()
+{
+    get_micro_time();
+    for y in $range(0, height) {
+        for x in $range(0, width) {
+            body(x, y);
+        }
+    };
+    get_micro_time();
+}
+

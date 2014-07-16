@@ -28,10 +28,6 @@ protected:
 
     virtual void _Render(CountedPtr<Image> img, float dt)
     {
-        #ifndef NDEBUG
-        Timer timer("Rendering image");
-        #endif
-
         impala_render(img->getPtr(), img->width(), img->height(), &state, dt);
     }
 

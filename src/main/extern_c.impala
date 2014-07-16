@@ -1,7 +1,7 @@
 
-// Standard C math & library function decls
 extern "C"
 {
+    // Standard C math & library function decls. CPU side.
     fn fabsf(float) -> float;
     fn tanf(float) -> float;
     fn rand() -> int;
@@ -9,7 +9,6 @@ extern "C"
     fn atan2f(float, float) -> float;
     fn sinf(float) -> float;
     fn cosf(float) -> float;
-
 
     // some custom stuff / various hacks
     fn print_ii(int, int) -> ();
@@ -21,6 +20,11 @@ extern "C"
     // scene creation functions
     fn scene_load_cube(&Scene) -> ();
     fn scene_free(&Scene) -> ();
+
+    // thorin internal runtime
+    fn random_val(int) -> float;
+    fn get_micro_time() -> i64;
+    fn print_gflops(float) -> ();
 }
 
 
@@ -31,7 +35,7 @@ fn isDebug() -> bool
 
 fn assert(f : fn() -> bool, i : int) -> ()
 {
-    if isDebug()
+    if @isDebug()
     {
         if !f() // TODO do we have short-circuit evaluation?
         {
@@ -40,5 +44,12 @@ fn assert(f : fn() -> bool, i : int) -> ()
     }
 }
 
+fn timer() -> ()
+{
+    if @isDebug()
+    {
+        get_micro_time();
+    }
+}
 
 
