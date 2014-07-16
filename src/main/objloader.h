@@ -24,17 +24,17 @@ class ObjLoader : public Scene
 {
 public:
 
-	enum Flags
-	{
-	    None = 0,
-	    IgnoreNormals = 1 << 0,
+    enum Flags
+    {
+        None = 0,
+        IgnoreNormals = 1 << 0,
         IgnoreTexCoord = 1 << 1,
         IgnoreMatLibs = 1 << 2
     };
 
-	ObjLoader(impala::Scene *iscene);
-	bool addObj(const std::string &filename, MatLib *inmats = nullptr, Flags flags = None);
-	//void updateMaterials(MatLib *matlib); // may act weird if you added multiple objects...
+    ObjLoader(impala::Scene *iscene);
+    bool addObj(const std::string &filename, MatLib *inmats = nullptr, Flags flags = None);
+    //void updateMaterials(MatLib *matlib); // may act weird if you added multiple objects...
 };
 
 }

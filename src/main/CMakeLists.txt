@@ -9,6 +9,7 @@ main.cpp
 )
 
 set(main_impala_SRC
+mapping_${DEVICE}.impala
 extern_c.impala
 util.impala
 color.impala
@@ -28,7 +29,7 @@ interface.impala
 
 THORIN_RUNTIME_WRAP(main_impala_OBJ main_impala_LIB
     RTTYPE ${RTTYPE}
-    FILES mapping_${DEVICE}.impala ${main_impala_SRC})
+    FILES ${main_impala_SRC})
 
 set(main_SRC ${main_cpp_SRC} ${main_impala_OBJ} ${main_impala_SRC})
 

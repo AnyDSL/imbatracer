@@ -35,7 +35,7 @@ void Scene::build()
         scene->triVerts[i++] = tri.p2;
         scene->triVerts[i++] = tri.p3;
     }
-    //std::cout << tris.size() << ", " << i << std::endl;
+    std::cout << "Scene::build(): Tris: " << tris.size() << ", " << i << std::endl;
 }
 
 /** CubeScene */

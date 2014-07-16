@@ -260,24 +260,24 @@ Int3 FileLine::fetchVertex() {
 
 ObjLoader::ObjLoader(impala::Scene *iscene) : Scene(iscene)
 {
-	//theMapper = new LocalMapper();
+    //theMapper = new LocalMapper();
 }
 
 bool ObjLoader::addObj(const std::string &filename, MatLib */*inmats*/, Flags flags)
 {
-	/*MatLib* matlib;
+    /*MatLib* matlib;
     if (inmats)
         matlib = inmats;
     else
         matlib = new MatLib;*/
 
-	std::map<std::string, unsigned> materialToSurface;
-	//unsigned surface = 0; // initially use dummy surface
+    std::map<std::string, unsigned> materialToSurface;
+    //unsigned surface = 0; // initially use dummy surface
 
-	size_t vertices_base = verts.size(), normals_base = normals.size(), texcoord_base = texcoords.size();
+    size_t vertices_base = verts.size(), normals_base = normals.size(), texcoord_base = texcoords.size();
 
     std::set<Instruction> unsupportedEncounters;
-	std::set<std::string> unknownMaterialEncounters;
+    std::set<std::string> unknownMaterialEncounters;
 
     FileLine fileline;
     if(!fileline.open(filename))
@@ -310,85 +310,89 @@ bool ObjLoader::addObj(const std::string &filename, MatLib */*inmats*/, Flags fl
                 texcoords.push_back(v);
                 break;
             }
-			case Obj_Face: {
-				bool skiptex = (flags & IgnoreTexCoord);
-				bool skipnormal = (flags & IgnoreNormals);
+            case Obj_Face: {
+                bool skiptex = (flags & IgnoreTexCoord);
+                bool skipnormal = (flags & IgnoreNormals);
 
-				Int3 v[3];
+                Int3 v[3];
 
-				v[0] = fileline.fetchVertex();
-				release_assert(v[0].vidx != 0, "Error in file ", fileline.filename, ":", fileline.lineIdx, ".", fileline.pos, " : Vertex index cannot be 0");
-				if (v[0].vidx<0) v[0].vidx = verts.size() - v[0].vidx; else { --v[0].vidx; v[0].vidx += vertices_base; }
-				if (v[0].tidx == 0) skiptex=true;
-				else if (v[0].tidx<0) v[0].tidx = texcoords.size() - v[0].tidx; else { --v[0].tidx; v[0].tidx += texcoord_base; }
-				if (v[0].nidx == 0) skipnormal=true;
-				else if (v[0].nidx<0) v[0].nidx = normals.size() - v[0].nidx; else { --v[0].nidx; v[0].nidx += normals_base; }
+                v[0] = fileline.fetchVertex();
+                release_assert(v[0].vidx != 0, "Error in file ", fileline.filename, ":", fileline.lineIdx, ".", fileline.pos, " : Vertex index cannot be 0");
+                if (v[0].vidx<0) v[0].vidx = verts.size() - v[0].vidx; else { --v[0].vidx; v[0].vidx += vertices_base; }
+                if (v[0].tidx == 0) skiptex=true;
+                else if (v[0].tidx<0) v[0].tidx = texcoords.size() - v[0].tidx; else { --v[0].tidx; v[0].tidx += texcoord_base; }
+                if (v[0].nidx == 0) skipnormal=true;
+                else if (v[0].nidx<0) v[0].nidx = normals.size() - v[0].nidx; else { --v[0].nidx; v[0].nidx += normals_base; }
 
 
-				v[1] = fileline.fetchVertex();
-				release_assert(v[1].vidx != 0, "Error in file ", fileline.filename, ":", fileline.lineIdx, ".", fileline.pos, " : Vertex index cannot be 0");
-				if (v[1].vidx<0) v[1].vidx = verts.size() - v[1].vidx; else { --v[1].vidx; v[1].vidx += vertices_base; }
-				if (v[1].tidx == 0) skiptex=true;
-				else if (v[1].tidx<0) v[1].tidx = texcoords.size() - v[1].tidx; else { --v[1].tidx; v[1].tidx += texcoord_base; }
-				if (v[1].nidx == 0) skipnormal=true;
-				else if (v[1].nidx<0) v[1].nidx = normals.size() - v[1].nidx; else { --v[1].nidx; v[1].nidx += normals_base; }
+                v[1] = fileline.fetchVertex();
+                release_assert(v[1].vidx != 0, "Error in file ", fileline.filename, ":", fileline.lineIdx, ".", fileline.pos, " : Vertex index cannot be 0");
+                if (v[1].vidx<0) v[1].vidx = verts.size() - v[1].vidx; else { --v[1].vidx; v[1].vidx += vertices_base; }
+                if (v[1].tidx == 0) skiptex=true;
+                else if (v[1].tidx<0) v[1].tidx = texcoords.size() - v[1].tidx; else { --v[1].tidx; v[1].tidx += texcoord_base; }
+                if (v[1].nidx == 0) skipnormal=true;
+                else if (v[1].nidx<0) v[1].nidx = normals.size() - v[1].nidx; else { --v[1].nidx; v[1].nidx += normals_base; }
 
-				v[2] = fileline.fetchVertex();
-				release_assert(v[2].vidx != 0, "Error in file ", fileline.filename, ":", fileline.lineIdx, ".", fileline.pos, " : Vertex index cannot be 0");
-				if (v[2].vidx<0) v[2].vidx = verts.size() - v[2].vidx; else { --v[2].vidx; v[2].vidx += vertices_base; }
-				if (v[2].tidx == 0) skiptex=true;
-				else if (v[2].tidx<0) v[2].tidx = texcoords.size() - v[2].tidx; else { --v[2].tidx; v[2].tidx += texcoord_base; }
-				if (v[2].nidx == 0) skipnormal=true;
-				else if (v[2].nidx<0) v[2].nidx = normals.size() - v[2].nidx; else { --v[2].nidx; v[2].nidx += normals_base; }
+                v[2] = fileline.fetchVertex();
+                release_assert(v[2].vidx != 0, "Error in file ", fileline.filename, ":", fileline.lineIdx, ".", fileline.pos, " : Vertex index cannot be 0");
+                if (v[2].vidx<0) v[2].vidx = verts.size() - v[2].vidx; else { --v[2].vidx; v[2].vidx += vertices_base; }
+                if (v[2].tidx == 0) skiptex=true;
+                else if (v[2].tidx<0) v[2].tidx = texcoords.size() - v[2].tidx; else { --v[2].tidx; v[2].tidx += texcoord_base; }
+                if (v[2].nidx == 0) skipnormal=true;
+                else if (v[2].nidx<0) v[2].nidx = normals.size() - v[2].nidx; else { --v[2].nidx; v[2].nidx += normals_base; }
 
-				while(true) {
-					/*allPrimitives.push_back(MeshTriangle(this, v[0].vidx, v[1].vidx, v[2].vidx,
-							skipnormal ? NoIdx : v[0].nidx, skipnormal ? NoIdx : v[1].nidx, skipnormal ? NoIdx : v[2].nidx,
-							skiptex ? NoIdx : v[0].tidx, skiptex ? NoIdx : v[1].tidx, skiptex ? NoIdx : v[2].tidx, surface));*/
+                while(true) {
+                    /*allPrimitives.push_back(MeshTriangle(this, v[0].vidx, v[1].vidx, v[2].vidx,
+                            skipnormal ? NoIdx : v[0].nidx, skipnormal ? NoIdx : v[1].nidx, skipnormal ? NoIdx : v[2].nidx,
+                            skiptex ? NoIdx : v[0].tidx, skiptex ? NoIdx : v[1].tidx, skiptex ? NoIdx : v[2].tidx, surface));*/
 
-					// advance to next vertex
-					v[1] = v[2];
-					v[2] = fileline.fetchVertex();
-					if (v[2].vidx == 0) break;
-					if (v[2].vidx<0) v[2].vidx = verts.size() - v[2].vidx; else { --v[2].vidx; v[2].vidx += vertices_base; }
-					if (v[2].tidx == 0) skiptex=true;
-					else if (v[2].tidx<0) v[2].tidx = texcoords.size() - v[2].tidx; else { --v[2].tidx; v[2].tidx += texcoord_base; }
-					if (v[2].nidx == 0) skipnormal=true;
-					else if (v[2].nidx<0) v[2].nidx = normals.size() - v[2].nidx; else { --v[2].nidx; v[2].nidx += normals_base; }
-				}
-				break;
-			}
+                    tris.push_back(Tri(v[0].vidx, v[1].vidx, v[2].vidx));
+                    // TODO: normals
+                    // TODO: texcoords
+
+                    // advance to next vertex
+                    v[1] = v[2];
+                    v[2] = fileline.fetchVertex();
+                    if (v[2].vidx == 0) break;
+                    if (v[2].vidx<0) v[2].vidx = verts.size() - v[2].vidx; else { --v[2].vidx; v[2].vidx += vertices_base; }
+                    if (v[2].tidx == 0) skiptex=true;
+                    else if (v[2].tidx<0) v[2].tidx = texcoords.size() - v[2].tidx; else { --v[2].tidx; v[2].tidx += texcoord_base; }
+                    if (v[2].nidx == 0) skipnormal=true;
+                    else if (v[2].nidx<0) v[2].nidx = normals.size() - v[2].nidx; else { --v[2].nidx; v[2].nidx += normals_base; }
+                }
+                break;
+            }
             case Obj_MaterialLibrary: {
-				/*if (!(flags & IgnoreMatLibs)) {
-					std::string libname = fileline.fetchString();
-					loadOBJMat(matlib, path, libname);
-				}*/
+                /*if (!(flags & IgnoreMatLibs)) {
+                    std::string libname = fileline.fetchString();
+                    loadOBJMat(matlib, path, libname);
+                }*/
                 break;
             }
             case Obj_Material: {
                 /*std::string matname = fileline.fetchString();
                 MatLib::iterator i = matlib->find(matname);
-				if (i != matlib->end()) {
-					// check if we already created a surface for this material
-					std::map<std::string, unsigned>::iterator j = materialToSurface.find(matname);
-					if (j != materialToSurface.end()) {
-						surface = j->second; // we have the surface index here
-						//assert(surface->name == matname, "Wrong material?!??"); // FIXME: this does not compile
-					}
-					else {
-						// create new surface, and store its index in the map
-						surface = surfaces.size();
-						surfaces.push_back(new MeshSurface(theMapper, i->second, matname));
-						materialToSurface.insert(std::make_pair(matname, surface));
-					}
-				}
-				else {
-					if (unknownMaterialEncounters.find(matname) == unknownMaterialEncounters.end()) {
-						std::cerr << "Warning: Material \'" << matname << "\' not found in material library at " << fileline.filename << ":" << fileline.lineIdx << "." << fileline.pos << ". Using dummy material." << std::endl;
-						unknownMaterialEncounters.insert(matname);
-					}
+                if (i != matlib->end()) {
+                    // check if we already created a surface for this material
+                    std::map<std::string, unsigned>::iterator j = materialToSurface.find(matname);
+                    if (j != materialToSurface.end()) {
+                        surface = j->second; // we have the surface index here
+                        //assert(surface->name == matname, "Wrong material?!??"); // FIXME: this does not compile
+                    }
+                    else {
+                        // create new surface, and store its index in the map
+                        surface = surfaces.size();
+                        surfaces.push_back(new MeshSurface(theMapper, i->second, matname));
+                        materialToSurface.insert(std::make_pair(matname, surface));
+                    }
+                }
+                else {
+                    if (unknownMaterialEncounters.find(matname) == unknownMaterialEncounters.end()) {
+                        std::cerr << "Warning: Material \'" << matname << "\' not found in material library at " << fileline.filename << ":" << fileline.lineIdx << "." << fileline.pos << ". Using dummy material." << std::endl;
+                        unknownMaterialEncounters.insert(matname);
+                    }
                     surface = 0; // the default surface
-				}*/
+                }*/
                 break;
             }
             case Obj_None: break; //empty line
@@ -400,8 +404,8 @@ bool ObjLoader::addObj(const std::string &filename, MatLib */*inmats*/, Flags fl
         }
     }
     fileline.close();
-	/*if (!inmats)
-		delete matlib;*/
+    /*if (!inmats)
+        delete matlib;*/
 
     std::cout << "ObjLoader: Loaded " << (verts.size() - vertices_base) << " verts" << std::endl;
 
@@ -411,13 +415,13 @@ bool ObjLoader::addObj(const std::string &filename, MatLib */*inmats*/, Flags fl
 /*
 void ObjLoader::updateMaterials(MatLib *matlib)
 {
-	// for all out surfaces, maybe we have to update them
-	for (std::vector<CountedPtr<MeshSurface> >::iterator it = surfaces.begin(); it != surfaces.end(); ++it) {
-		MatLib::iterator matit = matlib->find((*it)->name);
-		if (matit != matlib->end()) {
-			(*it)->material = matit->second;
-		}
-	}
+    // for all out surfaces, maybe we have to update them
+    for (std::vector<CountedPtr<MeshSurface> >::iterator it = surfaces.begin(); it != surfaces.end(); ++it) {
+        MatLib::iterator matit = matlib->find((*it)->name);
+        if (matit != matlib->end()) {
+            (*it)->material = matit->second;
+        }
+    }
 }
 */
 
