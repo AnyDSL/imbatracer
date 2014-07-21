@@ -7,13 +7,89 @@ struct BVHNode
     axis: u16,
 }
 
+fn bvhBBoxComp(bounds : BBox, comp : bool) -> Point
+{
+    if comp { bounds.cmin } else { bounds.cmax }
+}
+
+fn bvhIntersectNode(bounds : BBox, ray : Ray, maxDist : float, invDir : Vec, dirIsNeg: [bool*3]) -> bool
+{
+    // Check for ray intersection against x and y slabs
+    let txmin = (@bvhBBoxComp(bounds,  dirIsNeg(0)).x - ray.o.x) * invDir.x;
+    let txmax = (@bvhBBoxComp(bounds, !dirIsNeg(0)).x - ray.o.x) * invDir.x;
+    let tymin = (@bvhBBoxComp(bounds,  dirIsNeg(1)).y - ray.o.y) * invDir.y;
+    let tymax = (@bvhBBoxComp(bounds, !dirIsNeg(1)).y - ray.o.y) * invDir.y;
+    if (txmin > tymax) || (tymin > txmax)
+    { false }
+    else {
+        let tmin = max(txmin, tymin);
+        let tmax = min(txmax, tymax);
+        // Check for ray intersection against z slab
+        let tzmin = (@bvhBBoxComp(bounds,  dirIsNeg(2)).z - ray.o.z) * invDir.z;
+        let tzmax = (@bvhBBoxComp(bounds, !dirIsNeg(2)).z - ray.o.z) * invDir.z;
+        if  (tmin > tzmax) || (tzmin > tmax)
+        { false }
+        else
+        {
+            max(tmin, tzmin) < maxDist && min(tmax, tzmax) >= 0.0f
+        }
+    }
+}
+
 fn bvhIntersectFirst(root: uint, scene : &Scene, isec : &Intersection) -> ()
 {
+    let invDir = vapply1((*isec).ray.d, |f|1.0f/f);
+    let dirIsNeg = [invDir.x < 0.0f, invDir.y < 0.0f, invDir.z < 0.0f];
     let todoMaxLen = 16;
-    let mut todo = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-    let mut todoIdx = 0;
-    let mut curNode = 0;
-    fwhile(|b|{
-        false
+    let mut todo = [0u, 0u, 0u, 0u, 0u, 0u, 0u, 0u, 0u, 0u, 0u, 0u, 0u, 0u, 0u, 0u]; // FIXME make sure this is of length 16
+    let mut todoIdx = 0; // the first *free* index
+    let mut curNode = root;
+    fwhile(||{
+        let node = (*scene).bvhNodes(curNode);
+        if @bvhIntersectNode(node.bbox, (*isec).ray, (*isec).dist, invDir, dirIsNeg)
+        {
+            if (node.nPrim > 0u16) {
+                // a leaf
+                for tri in urange(node.sndChildFirstPrim, node.sndChildFirstPrim+(node.nPrim as uint)) {
+                    triIntersectFirst(tri, scene, isec);
+                }
+                // done with this node, pop one off the stack
+                if todoIdx == 0 {
+                    false // DONE!
+                }
+                else {
+                    todoIdx = todoIdx-1;
+                    curNode = todo(todoIdx);
+                    true // go to curNode
+                }
+            }
+            else {
+                // an inner node, which child do we get to first?
+                if dirIsNeg(node.axis) {
+                    todo(todoIdx) = curNode+1u; // do the left child later
+                    todoIdx = todoIdx+1;
+                    curNode = node.sndChildFirstPrim; // do the right child now
+                    true // go curNode
+                }
+                else {
+                    todo(todoIdx) = node.sndChildFirstPrim; // do the right child later
+                    todoIdx = todoIdx+1;
+                    curNode = curNode+1u; // do the left child now
+                    true // go curNode
+                }
+            }
+        }
+        else
+        {
+            // we missed this node, pop one off the stack
+            if todoIdx == 0 {
+                false // DONE!
+            }
+            else {
+                todoIdx = todoIdx-1;
+                curNode = todo(todoIdx);
+                true // go to curNode
+            }
+        }
     })
 }

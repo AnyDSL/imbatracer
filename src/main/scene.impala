@@ -15,7 +15,7 @@ struct Scene
     sceneMgr : &SceneMgr
 }
 
-
+// TODO: Figure out the best way to pass around stuff. Scene as pointer or as copy? Intersection as pointer, or as function from Ray to isect?
 fn compileScene(scene: &Scene) -> fn(&Intersection) -> ()
 {
     |isec: &Intersection| {

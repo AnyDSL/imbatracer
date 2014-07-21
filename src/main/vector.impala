@@ -149,6 +149,11 @@ fn pvadd(p : Point, v : Vec) -> Point
     point(p.x+v.x, p.y+v.y, p.z+v.z)
 }
 
+fn pvsub(p : Point, v : Vec) -> Point
+{
+    point(p.x-v.x, p.y-v.y, p.z-v.z)
+}
+
 fn to(src : Point, dst : Point) -> Vec
 {
     vec(dst.x - src.x, dst.y - src.y, dst.z - src.z)

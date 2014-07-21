@@ -14,7 +14,7 @@ extern fn impala_init(mut state : &State) -> ()
     (*state).integrator.itype = 0;
     //scene_init_cube(&(*state).scene);
 
-    let mut scene = &(*state).scene;
+    let scene = &(*state).scene;
     scene_init_objloader(scene);
     let ok = scene_add_obj(scene, 1);
     assert(||{ok}, 700);
