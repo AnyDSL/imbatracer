@@ -14,11 +14,6 @@ fn bbox(a : Point, b : Point) -> BBox
     bboxUnsafe(@ppmin(a, b), @ppmax(a, b))
 }
 
-fn failbox() -> BBox
-{
-    @bbox(@point1(@pos_infinity()), @point1(@neg_infinity()))
-}
-
 fn bbextend(bb : BBox, p : Point) -> BBox
 {
     bbox(ppmin(bb.cmin, p), ppmax(bb.cmax, p))

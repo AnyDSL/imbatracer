@@ -35,7 +35,6 @@ fn max(a : float, b : float) -> float
     if a < b { b } else { a }
 }
 
-
 fn clamp(lower : float, val : float, upper : float) -> float
 {
     min(upper, max(lower, val))
@@ -71,7 +70,7 @@ fn scaleLin(v : float, vMin : float, vMax : float, targetMin : float, targetMax 
 	if d == 0.0f { vMin } else { lerp((f-vMin)/d, targetMin, targetMax) }
 }
 
-
+/*
 fn pos_infinity() -> float
 {
     1.0f/0.0f
@@ -81,6 +80,7 @@ fn neg_infinity() -> float
 {
     -1.0f/0.0f
 }
+*/
 
 fn M_PI() -> float
 {

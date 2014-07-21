@@ -20,7 +20,8 @@ struct Intersection
 fn beginIntersection(ray : Ray) -> Intersection
 {
     // TODO: only dist obj & ray needed
-    Intersection{ dist:FLT_MAX_fn(), obj:noObj(), ray:ray,
+    // FIXME: FLT_MAX?
+    Intersection{ dist:1e10f, obj:noObj(), ray:ray,
             norm:vec0(), uv:point0(), eps:0.0f }
 }
 

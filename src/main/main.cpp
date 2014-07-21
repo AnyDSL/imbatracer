@@ -27,7 +27,8 @@ protected:
 
     virtual void _Render(CountedPtr<Image> img, float dt)
     {
-        impala_render(img->getPtr(), img->width(), img->height(), &state, dt);
+        impala_update(&state, dt);
+        impala_render(img->getPtr(), img->width(), img->height(), &state);
     }
 
     impala::State state;

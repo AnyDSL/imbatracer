@@ -1,11 +1,10 @@
 
+// CPU-specific functions, mostly for debugging
 extern "C"
 {
     // Standard C math & library function decls. CPU side.
     fn fabsf(float) -> float;
     fn tanf(float) -> float;
-    fn rand() -> int;
-    fn srand(int) -> ();
     fn atan2f(float, float) -> float;
     fn sinf(float) -> float;
     fn cosf(float) -> float;
@@ -14,7 +13,6 @@ extern "C"
     fn print_ii(int, int) -> ();
     fn print_if(int, float) -> ();
     fn print_ifff(int, float, float, float) -> ();
-    fn FLT_MAX_fn() -> float;
     fn assert_failed(int) -> ();
 
     // scene creation functions
@@ -34,17 +32,6 @@ fn isDebug() -> bool
     true
 }
 
-fn assert(f : fn() -> bool, i : int) -> ()
-{
-    if @isDebug()
-    {
-        if !f() // TODO do we have short-circuit evaluation?
-        {
-            assert_failed(i)
-        }
-    }
-}
-
 fn timer() -> ()
 {
     if @isDebug()
@@ -54,3 +41,13 @@ fn timer() -> ()
 }
 
 
+fn print_iv(i : int, v : Vec) -> ()
+{
+    print_ifff(i, v.x, v.y, v.z);
+}
+
+
+fn print_ip(i : int, p : Point) -> ()
+{
+    print_ifff(i, p.x, p.y, p.z);
+}

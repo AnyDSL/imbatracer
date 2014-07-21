@@ -13,3 +13,20 @@ fn iteration(width : int, height : int, body : fn(int, int) -> () ) -> ()
         }
     });
 }
+
+fn assert(f : fn() -> bool, i : int) -> ()
+{
+}
+
+
+// substitutions for stuff that's not available on accelerated devices currently
+// FIXME need proper implementation of the below
+fn fabsf(a: float) -> float
+{
+    if a < 0.0f { -a } else { a }
+}
+fn tanf(x: float) -> float { x }
+fn atan2f(x: float, y: float) -> float { x/y }
+fn sinf(x: float) -> float { x }
+fn cosf(x: float) -> float { x }
+

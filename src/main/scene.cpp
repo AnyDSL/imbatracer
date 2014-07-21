@@ -58,7 +58,7 @@ size_t Object::buildBVH(unsigned *triBuf, unsigned triBufOff, std::vector<impala
 size_t Object::buildBVHNode(unsigned *splitTris, unsigned nTris, unsigned depth, unsigned *leftTris, unsigned *rightTris)
 {
     // compute bounds of this node
-    impala::BBox centroidBounds, triBounds;
+    impala::BBox centroidBounds = impala::BBox::empty(), triBounds = impala::BBox::empty();
     for (unsigned i = 0; i < nTris; ++i) {
         centroidBounds.extend(std::get<1>(triData[splitTris[i]]));
         triBounds.extend(std::get<0>(triData[splitTris[i]]));
