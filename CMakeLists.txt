@@ -38,7 +38,7 @@ include_directories(${THORIN_RUNTIME_INCLUDE_DIR})
 
 # which run-time do we use?
 set(RTTYPE "nvvm" CACHE STRING "The runtime-type of the tests")
-message("Using runtime-type ${RTTYPE}")
+message(STATUS "Using runtime-type ${RTTYPE}")
 if(RTTYPE STREQUAL "cpu" OR RTTYPE STREQUAL "avx")
     set(DEVICE "cpu")
 else()

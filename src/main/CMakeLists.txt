@@ -15,10 +15,11 @@ util.impala
 color.impala
 vector.impala
 ray.impala
-scene.impala
 bbox.impala
-tri.impala
 object.impala
+tri.impala
+bvh.impala
+scene.impala
 light.impala
 intersection.impala
 view.impala
