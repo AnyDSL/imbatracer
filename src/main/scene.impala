@@ -7,11 +7,11 @@ struct Scene
 {
     verts : &[Point],
     triVerts : &[uint], // 3 successive entries are the three indices of the vertices of a triangle
-
     bvhNodes: &[BVHNode],
-    objs: &[Object],
 
+    objs: &[Object],
     nObjs : uint,
+
     sceneMgr : &SceneMgr
 }
 
@@ -19,7 +19,7 @@ struct Scene
 fn compileScene(scene: &Scene) -> fn(&Intersection) -> ()
 {
     |isec: &Intersection| {
-        for obj in range(0, (*scene).nObjs as int)
+        for obj in urange(0u, (*scene).nObjs)
         {
             @objIntersectFirst(obj, scene, isec)
         }

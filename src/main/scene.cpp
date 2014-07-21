@@ -8,7 +8,6 @@ namespace rt {
 Scene::Scene(impala::Scene *scene) : scene(scene)
 {
     scene->verts = nullptr;
-    scene->nTris = 0;
     scene->triVerts = nullptr;
 }
 
@@ -26,7 +25,6 @@ void Scene::build()
     scene->verts = (impala::Point*)thorin_malloc(verts.size()*sizeof(impala::Point));
     std::copy(verts.begin(), verts.end(), scene->verts);
     // copy tris
-    scene->nTris = tris.size();
     scene->triVerts = (unsigned*)thorin_malloc(tris.size()*3*sizeof(unsigned));
     unsigned i = 0;
     for (auto& tri : tris) {
@@ -35,6 +33,7 @@ void Scene::build()
         scene->triVerts[i++] = tri.p2;
         scene->triVerts[i++] = tri.p3;
     }
+    // FIXME do objects
     std::cout << "Scene::build(): Tris: " << tris.size() << ", " << i << std::endl;
 }
 

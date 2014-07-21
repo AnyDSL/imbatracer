@@ -5,11 +5,11 @@ struct Object
     // TODO: instance matrix?
 }
 
-fn objIntersectFirst(objidx : uint, scene : &Scene)
+fn objIntersectFirst(objidx : uint, scene : &Scene, isec : &Intersection) -> ()
 {
-    let obj = (*scene).objs;
-    for tri in range(obj.triVertsBegin, obj.nTriVerts)
+    let obj = (*scene).objs(objidx);
+    for tri in urange(obj.triVertsBegin, obj.triVertsBegin+obj.nTriVerts)
     {
-        triIntersectFirst(tri as uint, scene, isec)
+        triIntersectFirst(tri, scene, isec)
     }
 }

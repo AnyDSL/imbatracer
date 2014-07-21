@@ -159,12 +159,12 @@ fn print_ip(i : int, p : Point) -> ()
     print_ifff(i, p.x, p.y, p.z);
 }
 
-fn ppmin(a : Point, b : Point)
+fn ppmin(a : Point, b : Point) -> Point
 {
     ppapply2(a, b, min)
 }
 
-fn ppmax(a : Point, b : Point)
+fn ppmax(a : Point, b : Point) -> Point
 {
     ppapply2(a, b, max)
 }

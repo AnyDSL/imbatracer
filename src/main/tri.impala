@@ -1,7 +1,6 @@
 
 fn triPoint(tri : uint, pt : uint, scene : &Scene) -> Point
 {
-    @assert(||{pt < 3u && tri < (*scene).nTris}, 20);
     let idx = (*scene).triVerts(3u*tri + pt);
     (*scene).verts(idx)
 }

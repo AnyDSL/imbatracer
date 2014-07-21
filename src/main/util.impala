@@ -9,6 +9,15 @@ fn range(a : int, b : int, yield : fn(int, fn()))
     }
 }
 
+fn urange(a : uint, b : uint, yield : fn(uint, fn()))
+-> ()
+{
+    if a < b {
+        yield(a);
+        urange(a+1u, b, yield, return)
+    }
+}
+
 fn fwhile(yield: fn() -> bool) -> ()
 {
     if yield() { fwhile(yield) } else {}

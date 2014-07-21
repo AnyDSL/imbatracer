@@ -4,12 +4,12 @@ struct BBox
     cmax : Point
 }
 
-fn bboxUnsafe(a : Point, b : Point)
+fn bboxUnsafe(a : Point, b : Point) -> BBox
 {
     BBox{ cmin:a, cmax:b }
 }
 
-fn bbox(a : Point, b : Point)
+fn bbox(a : Point, b : Point) -> BBox
 {
     bboxUnsafe(@ppmin(a, b), @ppmax(a, b))
 }
@@ -19,7 +19,7 @@ fn failbox() -> BBox
     @bbox(@point1(@pos_infinity()), @point1(@neg_infinity()))
 }
 
-fn bbextend(BBox bb, p : Point) -> BBox
+fn bbextend(bb : BBox, p : Point) -> BBox
 {
     bbox(ppmin(bb.cmin, p), ppmax(bb.cmax, p))
 }

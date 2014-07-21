@@ -40,21 +40,23 @@ namespace impala {
         float u, v;
     };
 
+    struct Object
+    {
+        unsigned nTriVerts;
+        unsigned triVertsBegin;
+    };
+
     struct Scene
     {
         Scene() : sceneMgr(nullptr) {}
 
         Point *verts;
         unsigned *triVerts;
-        unsigned nTris;
+        void *bvhNodes;
+        Object *objs;
+        unsigned nObjs;
         rt::Scene *sceneMgr;
     };
-
-    struct Object
-    {
-        unsigned nTriVerts;
-        unsigned triVertsBegin;
-    }
 
     struct View
     {
