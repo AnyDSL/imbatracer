@@ -15,22 +15,15 @@ extern fn impala_init(mut state : &State) -> ()
     //scene_init_cube(&(*state).scene);
 
     let scene = &(*state).scene;
-    scene_init_objloader(scene);
-    let ok = scene_add_obj(scene, 1);
-    assert(||{ok}, 700);
+    scene_add_cube(scene);
     scene_build(scene);
-}
-
-extern fn impala_deinit(mut state : &State) -> ()
-{
-    scene_free(&(*state).scene);
 }
 
 fn impala_update(mut state : &State, dt : float) -> ()
 {
     let time = (*state).time;
     (*state).time = time + dt;
-    let scale = 10.0f;
+    let scale = 1.0f;
     let pos = point(-3.5f*scale*sinf(time), 1.2f*scale*sinf(0.2f*time), 3.7f*scale*cosf(time));
     let at = point0();
     let up = vec(0.0f, 1.0f, 0.0f);

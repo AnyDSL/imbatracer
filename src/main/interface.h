@@ -156,7 +156,6 @@ namespace impala {
 
     extern "C" {
         void impala_init(State *state);
-        void impala_deinit(State *state);
         void impala_render(unsigned *buf, int w, int h, State *state, float dt);
     }
 

@@ -258,12 +258,7 @@ Int3 FileLine::fetchVertex() {
 }
 }
 
-ObjLoader::ObjLoader(impala::Scene *iscene) : Scene(iscene)
-{
-    //theMapper = new LocalMapper();
-}
-
-bool ObjLoader::addObj(const std::string &filename, MatLib */*inmats*/, Flags flags)
+FileObject::FileObject(const std::string &filename, MatLib */*inmats*/, Flags flags)
 {
     /*MatLib* matlib;
     if (inmats)
@@ -273,15 +268,14 @@ bool ObjLoader::addObj(const std::string &filename, MatLib */*inmats*/, Flags fl
 
     std::map<std::string, unsigned> materialToSurface;
     //unsigned surface = 0; // initially use dummy surface
-
-    size_t vertices_base = verts.size(), normals_base = normals.size(), texcoord_base = texcoords.size();
-
     std::set<Instruction> unsupportedEncounters;
     std::set<std::string> unknownMaterialEncounters;
 
     FileLine fileline;
-    if(!fileline.open(filename))
-        return false;
+    if(!fileline.open(filename)) {
+        std::cerr << "ERROR: Cannot open " << filename << std::endl;
+        return;
+    }
 
     while (!fileline.eof()) {
         fileline.nextLine();
@@ -318,34 +312,30 @@ bool ObjLoader::addObj(const std::string &filename, MatLib */*inmats*/, Flags fl
 
                 v[0] = fileline.fetchVertex();
                 release_assert(v[0].vidx != 0, "Error in file ", fileline.filename, ":", fileline.lineIdx, ".", fileline.pos, " : Vertex index cannot be 0");
-                if (v[0].vidx<0) v[0].vidx = verts.size() - v[0].vidx; else { --v[0].vidx; v[0].vidx += vertices_base; }
+                if (v[0].vidx<0) v[0].vidx = verts.size() - v[0].vidx; else { --v[0].vidx; }
                 if (v[0].tidx == 0) skiptex=true;
-                else if (v[0].tidx<0) v[0].tidx = texcoords.size() - v[0].tidx; else { --v[0].tidx; v[0].tidx += texcoord_base; }
+                else if (v[0].tidx<0) v[0].tidx = texcoords.size() - v[0].tidx; else { --v[0].tidx; }
                 if (v[0].nidx == 0) skipnormal=true;
-                else if (v[0].nidx<0) v[0].nidx = normals.size() - v[0].nidx; else { --v[0].nidx; v[0].nidx += normals_base; }
+                else if (v[0].nidx<0) v[0].nidx = normals.size() - v[0].nidx; else { --v[0].nidx; }
 
 
                 v[1] = fileline.fetchVertex();
                 release_assert(v[1].vidx != 0, "Error in file ", fileline.filename, ":", fileline.lineIdx, ".", fileline.pos, " : Vertex index cannot be 0");
-                if (v[1].vidx<0) v[1].vidx = verts.size() - v[1].vidx; else { --v[1].vidx; v[1].vidx += vertices_base; }
+                if (v[1].vidx<0) v[1].vidx = verts.size() - v[1].vidx; else { --v[1].vidx; }
                 if (v[1].tidx == 0) skiptex=true;
-                else if (v[1].tidx<0) v[1].tidx = texcoords.size() - v[1].tidx; else { --v[1].tidx; v[1].tidx += texcoord_base; }
+                else if (v[1].tidx<0) v[1].tidx = texcoords.size() - v[1].tidx; else { --v[1].tidx; }
                 if (v[1].nidx == 0) skipnormal=true;
-                else if (v[1].nidx<0) v[1].nidx = normals.size() - v[1].nidx; else { --v[1].nidx; v[1].nidx += normals_base; }
+                else if (v[1].nidx<0) v[1].nidx = normals.size() - v[1].nidx; else { --v[1].nidx; }
 
                 v[2] = fileline.fetchVertex();
                 release_assert(v[2].vidx != 0, "Error in file ", fileline.filename, ":", fileline.lineIdx, ".", fileline.pos, " : Vertex index cannot be 0");
-                if (v[2].vidx<0) v[2].vidx = verts.size() - v[2].vidx; else { --v[2].vidx; v[2].vidx += vertices_base; }
+                if (v[2].vidx<0) v[2].vidx = verts.size() - v[2].vidx; else { --v[2].vidx; }
                 if (v[2].tidx == 0) skiptex=true;
-                else if (v[2].tidx<0) v[2].tidx = texcoords.size() - v[2].tidx; else { --v[2].tidx; v[2].tidx += texcoord_base; }
+                else if (v[2].tidx<0) v[2].tidx = texcoords.size() - v[2].tidx; else { --v[2].tidx; }
                 if (v[2].nidx == 0) skipnormal=true;
-                else if (v[2].nidx<0) v[2].nidx = normals.size() - v[2].nidx; else { --v[2].nidx; v[2].nidx += normals_base; }
+                else if (v[2].nidx<0) v[2].nidx = normals.size() - v[2].nidx; else { --v[2].nidx; }
 
                 while(true) {
-                    /*allPrimitives.push_back(MeshTriangle(this, v[0].vidx, v[1].vidx, v[2].vidx,
-                            skipnormal ? NoIdx : v[0].nidx, skipnormal ? NoIdx : v[1].nidx, skipnormal ? NoIdx : v[2].nidx,
-                            skiptex ? NoIdx : v[0].tidx, skiptex ? NoIdx : v[1].tidx, skiptex ? NoIdx : v[2].tidx, surface));*/
-
                     tris.push_back(Tri(v[0].vidx, v[1].vidx, v[2].vidx));
                     // TODO: normals
                     // TODO: texcoords
@@ -354,11 +344,11 @@ bool ObjLoader::addObj(const std::string &filename, MatLib */*inmats*/, Flags fl
                     v[1] = v[2];
                     v[2] = fileline.fetchVertex();
                     if (v[2].vidx == 0) break;
-                    if (v[2].vidx<0) v[2].vidx = verts.size() - v[2].vidx; else { --v[2].vidx; v[2].vidx += vertices_base; }
+                    if (v[2].vidx<0) v[2].vidx = verts.size() - v[2].vidx; else { --v[2].vidx; }
                     if (v[2].tidx == 0) skiptex=true;
-                    else if (v[2].tidx<0) v[2].tidx = texcoords.size() - v[2].tidx; else { --v[2].tidx; v[2].tidx += texcoord_base; }
+                    else if (v[2].tidx<0) v[2].tidx = texcoords.size() - v[2].tidx; else { --v[2].tidx; }
                     if (v[2].nidx == 0) skipnormal=true;
-                    else if (v[2].nidx<0) v[2].nidx = normals.size() - v[2].nidx; else { --v[2].nidx; v[2].nidx += normals_base; }
+                    else if (v[2].nidx<0) v[2].nidx = normals.size() - v[2].nidx; else { --v[2].nidx; }
                 }
                 break;
             }
@@ -407,9 +397,7 @@ bool ObjLoader::addObj(const std::string &filename, MatLib */*inmats*/, Flags fl
     /*if (!inmats)
         delete matlib;*/
 
-    std::cout << "ObjLoader: Loaded " << (verts.size() - vertices_base) << " verts" << std::endl;
-
-    return true;
+    std::cout << "ObjLoader: Loaded " << verts.size() << " verts" << std::endl;
 }
 
 /*

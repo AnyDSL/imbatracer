@@ -13,14 +13,12 @@ class ImpalaGui : public SDLBufferGui
 {
 public:
     ImpalaGui(unsigned w, unsigned h)
-        : SDLBufferGui(w, h, "ImbaTracer")
+        : SDLBufferGui(w, h, "ImbaTracer"), scene(&state.scene)
     {
+        // impala_init may call functions that add objects to the scene
         impala_init(&state);
     }
-    ~ImpalaGui()
-    {
-        impala_deinit(&state);
-    }
+    virtual ~ImpalaGui() {}
 
     impala::State *getState() { return &state; }
 
@@ -32,6 +30,7 @@ protected:
     }
 
     impala::State state;
+    rt::Scene scene;
 };
 
 int main(int /*argc*/, char */*argv*/[])

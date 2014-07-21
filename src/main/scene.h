@@ -18,7 +18,7 @@ struct Tri {
 /** C++-side representation of an object. */
 class Object {
 public:
-    Object();
+    Object() {}
 
     friend class Scene;
 protected:
@@ -70,6 +70,7 @@ public:
     Scene(impala::Scene *scene);
     virtual ~Scene(void);
 
+    void add(Object &&obj) { free(); objects.push_back(obj); }
     void build();
 
 protected:
@@ -77,7 +78,7 @@ protected:
     std::vector<Object> objects;
 
 private:
-
+    void free();
 };
 
 /** Test objects */

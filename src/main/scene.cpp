@@ -141,6 +141,11 @@ Scene::Scene(impala::Scene *scene) : scene(scene)
 
 Scene::~Scene(void)
 {
+    free();
+}
+
+void Scene::free(void)
+{
     thorin_free(scene->verts);
     thorin_free(scene->triVerts);
     thorin_free(scene->bvhNodes);
@@ -149,10 +154,7 @@ Scene::~Scene(void)
 
 void Scene::build()
 {
-    thorin_free(scene->verts);
-    thorin_free(scene->triVerts);
-    thorin_free(scene->bvhNodes);
-    thorin_free(scene->objs);
+    free();
 
     // how many vertices and triangles are there overall?
     unsigned totalVerts = 0, totalTris = 0;

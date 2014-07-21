@@ -20,7 +20,7 @@ typedef void MatLib; // TEMP
 
 
 
-class ObjLoader : public Scene
+class FileObject : public Object
 {
 public:
 
@@ -32,9 +32,7 @@ public:
         IgnoreMatLibs = 1 << 2
     };
 
-    ObjLoader(impala::Scene *iscene);
-    bool addObj(const std::string &filename, MatLib *inmats = nullptr, Flags flags = None);
-    //void updateMaterials(MatLib *matlib); // may act weird if you added multiple objects...
+    FileObject(const std::string &filename, MatLib *inmats = nullptr, Flags flags = None);
 };
 
 }

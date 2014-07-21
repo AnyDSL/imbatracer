@@ -32,32 +32,19 @@ extern "C"
         rt::debugAbort();
     }
 
-    void scene_init_cube(impala::Scene *scene)
+    // Scene interface
+    void scene_add_cube(impala::Scene *scene)
     {
-        delete scene->sceneMgr;
-        scene->sceneMgr = new rt::CubeScene(scene);
+        scene->sceneMgr->add(rt::Cube());
     }
 
-    void scene_init_objloader(impala::Scene *scene)
+    void scene_add_file(impala::Scene *scene, int id)
     {
-        delete scene->sceneMgr;
-        scene->sceneMgr = new rt::ObjLoader(scene);
-    }
-
-    bool scene_add_obj(impala::Scene *scene, int id)
-    {
-        rt::ObjLoader *objloader = dynamic_cast<rt::ObjLoader*>(scene->sceneMgr);
-        assert(objloader, "ObjLoader is b0rked");
-        return objloader->addObj("models/" + std::to_string(id) + ".obj");
+        scene->sceneMgr->add(rt::FileObject("models/" + std::to_string(id) + ".obj"));
     }
 
     void scene_build(impala::Scene *scene)
     {
         scene->sceneMgr->build();
-    }
-
-    void scene_free(impala::Scene *scene)
-    {
-        delete scene->sceneMgr;
     }
 }
