@@ -20,7 +20,9 @@ fn urange(a : uint, b : uint, yield : fn(uint, fn()))
 
 fn fwhile(yield: fn() -> bool) -> ()
 {
-    if yield() { fwhile(yield) } else {}
+    if yield() {
+        fwhile(yield, return)
+    }
 }
 
 fn min(a : float, b : float) -> float

@@ -1,15 +1,11 @@
 struct Object
 {
-    nTriVerts : uint,
-    triVertsBegin : uint,
+    bvhRoot : uint,
     // TODO: instance matrix?
 }
 
 fn objIntersectFirst(objidx : uint, scene : &Scene, isec : &Intersection) -> ()
 {
-    let obj = (*scene).objs(objidx);
-    for tri in urange(obj.triVertsBegin, obj.triVertsBegin+obj.nTriVerts)
-    {
-        triIntersectFirst(tri, scene, isec)
-    }
+    // FIXME without the $, stuff gets slow in compilation, and emits even more "warning: slow"
+    $bvhIntersectFirst((*scene).objs(objidx).bvhRoot, scene, isec)
 }
