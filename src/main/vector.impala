@@ -139,6 +139,11 @@ fn point0() -> Point
     point1(0.0f)
 }
 
+fn ppapply2(a : Point, b : Point, f: fn(float, float) -> float) -> Point
+{
+    point(f(a.x, b.x), f(a.y, b.y), f(a.z, b.z))
+}
+
 fn pvadd(p : Point, v : Vec) -> Point
 {
     point(p.x+v.x, p.y+v.y, p.z+v.z)
@@ -153,6 +158,17 @@ fn print_ip(i : int, p : Point) -> ()
 {
     print_ifff(i, p.x, p.y, p.z);
 }
+
+fn ppmin(a : Point, b : Point)
+{
+    ppapply2(a, b, min)
+}
+
+fn ppmax(a : Point, b : Point)
+{
+    ppapply2(a, b, max)
+}
+
 
 
 

@@ -1,0 +1,15 @@
+struct Object
+{
+    nTriVerts : uint,
+    triVertsBegin : uint,
+    // TODO: instance matrix?
+}
+
+fn objIntersectFirst(objidx : uint, scene : &Scene)
+{
+    let obj = (*scene).objs;
+    for tri in range(obj.triVertsBegin, obj.nTriVerts)
+    {
+        triIntersectFirst(tri as uint, scene, isec)
+    }
+}

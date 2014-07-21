@@ -68,3 +68,11 @@ fn triIntersectFirst(tri : uint, scene : &Scene, isec : &Intersection) -> ()
     }
 }
 
+fn triBBox(tri : uint, scene : &Scene) -> BBox
+{
+    let a = @triPoint(tri, 0u, scene);
+    let b = @triPoint(tri, 1u, scene);
+    let c = @triPoint(tri, 2u, scene);
+    bbextend(bbox(a, b), c)
+}
+

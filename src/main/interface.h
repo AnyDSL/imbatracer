@@ -44,11 +44,17 @@ namespace impala {
     {
         Scene() : sceneMgr(nullptr) {}
 
-        unsigned nTris;
         Point *verts;
         unsigned *triVerts;
+        unsigned nTris;
         rt::Scene *sceneMgr;
     };
+
+    struct Object
+    {
+        unsigned nTriVerts;
+        unsigned triVertsBegin;
+    }
 
     struct View
     {
