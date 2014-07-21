@@ -1,8 +1,8 @@
 set(main_cpp_SRC
-objloader.h
-objloader.cpp
 scene.h
 scene.cpp
+objloader.h
+objloader.cpp
 interface.h
 extern_c.cpp
 main.cpp
