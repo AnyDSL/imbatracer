@@ -15,6 +15,7 @@ public:
     ImpalaGui(unsigned w, unsigned h)
         : SDLBufferGui(w, h, "ImbaTracer"), scene(&state.scene)
     {
+        state.scene.sceneMgr = &scene;
         // impala_init may call functions that add objects to the scene
         impala_init(&state);
     }

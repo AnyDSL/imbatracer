@@ -42,7 +42,7 @@ private:
 
 		unsigned nLeft;
 		unsigned *left, *right;
-		float bestCost, bestPos;
+		//float bestCost, bestPos;
 		int bestAxis;
 	};
 

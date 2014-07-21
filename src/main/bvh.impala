@@ -9,7 +9,7 @@ struct BVHNode
 
 fn bvhBBoxComp(bounds : BBox, comp : bool) -> Point
 {
-    if comp { bounds.cmin } else { bounds.cmax }
+    if comp { bounds.cmax } else { bounds.cmin }
 }
 
 fn bvhIntersectNode(bounds : BBox, ray : Ray, maxDist : float, invDir : Vec, dirIsNeg: [bool*3]) -> bool
@@ -38,7 +38,7 @@ fn bvhIntersectNode(bounds : BBox, ray : Ray, maxDist : float, invDir : Vec, dir
 
 fn bvhIntersectFirst(root: uint, scene : &Scene, isec : &Intersection) -> ()
 {
-    let invDir = vapply1((*isec).ray.d, |f|1.0f/f);
+    let invDir = @vapply1((*isec).ray.d, |f|1.0f/f);
     let dirIsNeg = [invDir.x < 0.0f, invDir.y < 0.0f, invDir.z < 0.0f];
     let todoMaxLen = 16;
     let mut todo = [0u, 0u, 0u, 0u, 0u, 0u, 0u, 0u, 0u, 0u, 0u, 0u, 0u, 0u, 0u, 0u]; // FIXME make sure this is of length 16

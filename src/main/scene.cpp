@@ -19,6 +19,7 @@ static T* thorin_new(unsigned n)
 /** Object */
 size_t Object::buildBVH(unsigned *triBuf, unsigned triBufOff, std::vector<impala::BVHNode> *nodeBuf)
 {
+    auto nodeBufOrigSize = nodeBuf->size();
     this->nodeBuf = nodeBuf;
     this->triBuf = triBuf;
     this->triBufOff = triBufOff;
@@ -49,6 +50,8 @@ size_t Object::buildBVH(unsigned *triBuf, unsigned triBufOff, std::vector<impala
     delete[] primsToSplit;
 
     // done!
+    std::cout << "BVH construction finished: " << (nodeBuf->size()-nodeBufOrigSize) << " nodes, "
+              << tris.size() << " primitives in tree." << std::endl;
     return rootIdx;
 }
 
@@ -110,7 +113,7 @@ void Object::split(unsigned *splitTris, unsigned nTris, unsigned depth, const im
     }
 
     // sort objects by centroid, along longest axis
-    unsigned longestAxis = centroidBounds.longestAxis();
+    unsigned longestAxis = splitInfo->bestAxis = centroidBounds.longestAxis();
     std::sort(splitTris, splitTris+nTris,
               [this,longestAxis](unsigned tri1, unsigned tri2)
               { return std::get<1>(triData[tri1])[longestAxis] < std::get<1>(triData[tri2])[longestAxis]; });
@@ -182,6 +185,7 @@ void Scene::build()
         scene->objs[curObj].bvhRoot = rootIdx;
         curObj += 1;
     }
+    scene->nObjs = curObj;
 
     // finally, copy the BVH nodes
     scene->bvhNodes = thorin_new<impala::BVHNode>(nodeBuf.size());
