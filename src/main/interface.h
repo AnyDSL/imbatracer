@@ -15,7 +15,7 @@ namespace impala {
     {
         float x, y, z;
 
-        Point() {}
+        Point() = default;
         Point(float x, float y, float z) : x(x), y(y), z(z) {}
 
         float operator[](unsigned i) const {
@@ -35,7 +35,7 @@ namespace impala {
     {
         float x, y, z;
 
-        Vec() {}
+        Vec() = default;
         Vec(float x, float y, float z) : x(x), y(y), z(z) {}
 
         float operator[](unsigned i) const {
@@ -55,6 +55,7 @@ namespace impala {
     {
         float u, v;
 
+        TexCoord() = default;
         TexCoord(float u, float v) : u(u), v(v) {}
     };
 
@@ -67,8 +68,15 @@ namespace impala {
     {
         Point cmin, cmax;
 
-        BBox() : cmin(Point(FLT_MAX, FLT_MAX, FLT_MAX)), cmax(Point(FLT_MIN, FLT_MIN, FLT_MIN)) {}
+        BBox() = default;
         BBox(const Point &p) : cmin(p), cmax(p) {}
+        static BBox empty()
+        {
+            BBox b;
+            b.cmin = Point(FLT_MAX, FLT_MAX, FLT_MAX);
+            b.cmax = Point(FLT_MIN, FLT_MIN, FLT_MIN);
+            return b;
+        }
 
         Point centroid() const
         {
@@ -108,7 +116,7 @@ namespace impala {
         unsigned sndChildFirstPrim;
         uint16_t nPrim, axis;
 
-        BVHNode() {}
+        BVHNode() = default;
         BVHNode(const BBox &bbox) : bbox(bbox) {}
     };
 
@@ -121,7 +129,7 @@ namespace impala {
         unsigned nObjs;
         rt::Scene *sceneMgr;
 
-        Scene() : sceneMgr(nullptr) {}
+        Scene() = default;
     };
 
     struct View

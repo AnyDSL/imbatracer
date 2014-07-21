@@ -99,7 +99,5 @@ inline void errprint(const T1& a1, const T2& a2, const T3& a3, const T4& a4, con
 
 #define DIE(...) do { errprint(__VA_ARGS__); exit(1); } while(false)
 
-#define COMPILE_ASSERT(cond) do {switch(0) { case 0:; case cond:; }} while(false)
-
 
 #endif
