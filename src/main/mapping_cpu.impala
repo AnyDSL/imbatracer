@@ -21,3 +21,13 @@ fn assert(f : fn() -> bool, i : int) -> ()
         }
     }
 }
+
+extern "C"
+{
+    // Standard C math & library function decls. CPU side.
+    fn fabsf(float) -> float;
+    fn tanf(float) -> float;
+    fn atan2f(float, float) -> float;
+    fn sinf(float) -> float;
+    fn cosf(float) -> float;
+}

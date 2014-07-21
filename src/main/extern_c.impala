@@ -2,13 +2,6 @@
 // CPU-specific functions, mostly for debugging
 extern "C"
 {
-    // Standard C math & library function decls. CPU side.
-    fn fabsf(float) -> float;
-    fn tanf(float) -> float;
-    fn atan2f(float, float) -> float;
-    fn sinf(float) -> float;
-    fn cosf(float) -> float;
-
     // some custom stuff / various hacks
     fn print_ii(int, int) -> ();
     fn print_if(int, float) -> ();
