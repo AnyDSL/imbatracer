@@ -24,15 +24,15 @@ class FileObject : public Object
 {
 public:
 
-    enum Flags
+    enum Flags : unsigned
     {
         None = 0,
         IgnoreNormals = 1 << 0,
         IgnoreTexCoord = 1 << 1,
-        IgnoreMatLibs = 1 << 2
+        //IgnoreMatLibs = 1 << 2,
     };
 
-    FileObject(const std::string &filename, MatLib *inmats = nullptr, Flags flags = None);
+    FileObject(const std::string &filename, /*MatLib *inmats = nullptr, */unsigned flags = None);
 };
 
 }

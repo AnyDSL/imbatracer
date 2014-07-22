@@ -15,6 +15,10 @@ struct Scene
     sceneMgr : &SceneMgr
 }
 
+
+fn noIdx() -> uint // the ID to be used when "nothing" is referenced (not valid for vertices; either one normal/texCoord or all of them must be absent)
+{ 0xFFFFFFFFu }
+
 // TODO: Figure out the best way to pass around stuff. Scene as pointer or as copy? Intersection as pointer, or as function from Ray to isect?
 fn compileScene(scene: &Scene) -> fn(&Intersection) -> ()
 {

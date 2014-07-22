@@ -252,7 +252,7 @@ Int3 FileLine::fetchVertex() {
 }
 }
 
-FileObject::FileObject(const std::string &filename, MatLib */*inmats*/, Flags flags)
+FileObject::FileObject(const std::string &filename, /*MatLib *inmats,*/ unsigned flags)
 {
     /*MatLib* matlib;
     if (inmats)
@@ -260,10 +260,10 @@ FileObject::FileObject(const std::string &filename, MatLib */*inmats*/, Flags fl
     else
         matlib = new MatLib;*/
 
-    std::map<std::string, unsigned> materialToSurface;
+    //std::map<std::string, unsigned> materialToSurface;
     //unsigned surface = 0; // initially use dummy surface
     std::set<Instruction> unsupportedEncounters;
-    std::set<std::string> unknownMaterialEncounters;
+    //std::set<std::string> unknownMaterialEncounters;
 
     FileLine fileline;
     if(!fileline.open(filename)) {
@@ -330,9 +330,10 @@ FileObject::FileObject(const std::string &filename, MatLib */*inmats*/, Flags fl
                 else if (v[2].nidx<0) v[2].nidx = normals.size() - v[2].nidx; else { --v[2].nidx; }
 
                 while(true) {
-                    tris.push_back(Tri(v[0].vidx, v[1].vidx, v[2].vidx));
-                    // TODO: normals
-                    // TODO: texcoords
+                    // TODO: Surface/material ID
+                    tris.push_back(Tri(v[0].vidx, v[1].vidx, v[2].vidx,
+                                       skipnormal ? NoIdx : v[0].nidx, skipnormal ? NoIdx : v[1].nidx, skipnormal ? NoIdx : v[2].nidx,
+                                       skiptex ? NoIdx : v[0].tidx, skiptex ? NoIdx : v[1].tidx, skiptex ? NoIdx : v[2].tidx));
 
                     // advance to next vertex
                     v[1] = v[2];

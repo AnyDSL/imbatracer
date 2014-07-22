@@ -10,10 +10,19 @@ namespace rt {
 class Scene;
 struct BuildState;
 
+const unsigned NoIdx = 0xFFFFFFFF;
+
 /** Collect all the data for a Tri - this is not the form in which it is sent to Impala! */
 struct Tri {
-    Tri(unsigned p1, unsigned p2, unsigned p3) : p1(p1), p2(p2), p3(p3) {}
-    unsigned p1, p2, p3;
+    Tri(unsigned p1, unsigned p2, unsigned p3,
+        unsigned n1 = NoIdx, unsigned n2 = NoIdx, unsigned n3 = NoIdx,
+        unsigned t1 = NoIdx, unsigned t2 = NoIdx, unsigned t3 = NoIdx,
+        unsigned surface = NoIdx)
+        : p1(p1), p2(p2), p3(p3), n1(n1), n2(n2), n3(n3), t1(t1), t2(t2), t3(t3), surface(surface) {}
+    unsigned p1, p2, p3; // vertex indices
+    unsigned n1, n2, n3; // normal indices
+    unsigned t1, t2, t3; // texCoord indices
+    unsigned surface;    // material index
 };
 
 /** C++-side representation of an object. */

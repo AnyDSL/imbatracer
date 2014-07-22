@@ -45,7 +45,8 @@ extern "C"
 
     void scene_add_file(impala::Scene *scene, int id)
     {
-        scene->sceneMgr->add(rt::FileObject("models/" + std::to_string(id) + ".obj"));
+        scene->sceneMgr->add(rt::FileObject("models/" + std::to_string(id) + ".obj",
+                                            rt::FileObject::IgnoreNormals | rt::FileObject::IgnoreTexCoord));
     }
 
     void scene_build(impala::Scene *scene)

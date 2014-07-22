@@ -53,6 +53,9 @@ public:
         scene->triVerts[nTris*3 + 0] = t.p1 + nVerts;
         scene->triVerts[nTris*3 + 1] = t.p2 + nVerts;
         scene->triVerts[nTris*3 + 2] = t.p3 + nVerts;
+        assert(t.n1 == NoIdx && t.n2 == NoIdx && t.n3 == NoIdx, "Normals not yet supported");
+        assert(t.t1 == NoIdx && t.t2 == NoIdx && t.t3 == NoIdx, "TexCoords not yet supported");
+        assert(t.surface == NoIdx, "Materials not yet supported");
         ++nTris;
     }
     /** Add vertices (etc.) to the corresponding lists */
