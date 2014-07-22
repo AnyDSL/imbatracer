@@ -10,7 +10,7 @@ extern "C"
 
     // scene creation functions
     fn scene_clear(&Scene) -> ();
-    fn scene_add_cube(&Scene) -> ();
+    fn scene_add_cube(&Scene, float) -> ();
     fn scene_add_file(&Scene, int) -> bool;
     fn scene_build(&Scene) -> ();
 

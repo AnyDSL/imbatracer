@@ -17,12 +17,13 @@ static T* thorin_new(unsigned n)
 }
 
 /** Object */
-size_t Object::buildBVH(unsigned *triBuf, unsigned triBufOff, std::vector<impala::BVHNode> *nodeBuf)
+size_t Object::buildBVH(unsigned vertBufBase, unsigned *triBuf, unsigned triBufOff, std::vector<impala::BVHNode> *nodeBuf)
 {
     auto nodeBufOrigSize = nodeBuf->size();
     this->nodeBuf = nodeBuf;
     this->triBuf = triBuf;
     this->triBufOff = triBufOff;
+    this->vertBufBase = vertBufBase;
     // compute bounds of all triangles
     triData.clear();
     triData.reserve(tris.size());
@@ -77,9 +78,10 @@ size_t Object::buildBVHNode(unsigned *splitTris, unsigned nTris, unsigned depth,
         node.nPrim = nTris;
         node.sndChildFirstPrim = triBufOff;
         for (unsigned i = 0; i < nTris; ++i) {
-            triBuf[triBufOff*3 + 0] = tris[splitTris[i]].p1;
-            triBuf[triBufOff*3 + 1] = tris[splitTris[i]].p2;
-            triBuf[triBufOff*3 + 2] = tris[splitTris[i]].p3;
+            // add references from tri buf to vert buf in appropriate position
+            triBuf[triBufOff*3 + 0] = tris[splitTris[i]].p1 + vertBufBase;
+            triBuf[triBufOff*3 + 1] = tris[splitTris[i]].p2 + vertBufBase;
+            triBuf[triBufOff*3 + 2] = tris[splitTris[i]].p3 + vertBufBase;
             ++triBufOff;
         }
         nodeBuf->push_back(node);
@@ -186,12 +188,12 @@ void Scene::build()
     std::vector<impala::BVHNode> nodeBuf;
     nodeBuf.reserve(totalTris/2); // just a wild guess
     for (auto& obj : objects) {
+        // build BVH. This will copy the triangles and fix up the vertex IDs.
+        auto rootIdx = obj.buildBVH(curVert, scene->triVerts, curTri, &nodeBuf);
+        curTri += obj.tris.size();
         // copy vertex data
         std::copy(obj.verts.begin(), obj.verts.end(), scene->verts+curVert);
         curVert += obj.verts.size();
-        // build BVH. This will copy the triangles.
-        auto rootIdx = obj.buildBVH(scene->triVerts, curTri, &nodeBuf);
-        curTri += obj.tris.size();
         // set object stuff
         scene->objs[curObj].bvhRoot = rootIdx;
         curObj += 1;
@@ -204,16 +206,17 @@ void Scene::build()
 }
 
 /** CubeScene */
-Cube::Cube()
+Cube::Cube(float size)
 {
-    verts.push_back(impala::Point(-1, -1, -1));
-    verts.push_back(impala::Point( 1, -1, -1));
-    verts.push_back(impala::Point(-1,  1, -1));
-    verts.push_back(impala::Point(-1, -1,  1));
-    verts.push_back(impala::Point(-1,  1,  1));
-    verts.push_back(impala::Point( 1, -1,  1));
-    verts.push_back(impala::Point( 1,  1, -1));
-    verts.push_back(impala::Point( 1,  1,  1));
+    float halfSize = size/2;
+    verts.push_back(impala::Point(-halfSize, -halfSize, -halfSize));
+    verts.push_back(impala::Point( halfSize, -halfSize, -halfSize));
+    verts.push_back(impala::Point(-halfSize,  halfSize, -halfSize));
+    verts.push_back(impala::Point(-halfSize, -halfSize,  halfSize));
+    verts.push_back(impala::Point(-halfSize,  halfSize,  halfSize));
+    verts.push_back(impala::Point( halfSize, -halfSize,  halfSize));
+    verts.push_back(impala::Point( halfSize,  halfSize, -halfSize));
+    verts.push_back(impala::Point( halfSize,  halfSize,  halfSize));
 
     tris.push_back(Tri(0, 1, 2));
     tris.push_back(Tri(6, 1, 2));

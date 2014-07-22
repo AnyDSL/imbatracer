@@ -38,9 +38,9 @@ extern "C"
         scene->sceneMgr->clear();
     }
 
-    void scene_add_cube(impala::Scene *scene)
+    void scene_add_cube(impala::Scene *scene, float size)
     {
-        scene->sceneMgr->add(rt::Cube());
+        scene->sceneMgr->add(rt::Cube(size));
     }
 
     void scene_add_file(impala::Scene *scene, int id)

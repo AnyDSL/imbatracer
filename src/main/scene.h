@@ -28,7 +28,7 @@ protected:
     std::vector<Tri> tris;
 
     // Build the BVH tree. Put primitives into triBuf (starting at offset triBufOff), and the flattened nodes into nodeBuf.
-    size_t buildBVH(unsigned *triBuf, unsigned triBufOff, std::vector<impala::BVHNode> *nodeBuf);
+    size_t buildBVH(unsigned vertBufBase, unsigned *triBuf, unsigned triBufOff, std::vector<impala::BVHNode> *nodeBuf);
 
 private:
 
@@ -53,6 +53,7 @@ private:
     std::vector<impala::BVHNode> *nodeBuf;
     unsigned *triBuf;
     unsigned triBufOff;
+    unsigned vertBufBase;
 
     /* Build a BVH node from the triangles (in tris). These are indices into the tris vector above!
      * Put primitives into triBuf (starting at offset triBufOff), and the flattened nodes into nodeBuf.
@@ -86,7 +87,7 @@ private:
 class Cube : public Object
 {
 public:
-    Cube();
+    Cube(float size = 1.0f);
 };
 
 

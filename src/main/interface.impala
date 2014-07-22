@@ -14,8 +14,8 @@ extern fn impala_init(mut state : &State) -> ()
     (*state).integrator.itype = 0;
 
     let scene = &(*state).scene;
-    //scene_add_cube(scene);
     scene_add_file(scene, 3);
+    scene_add_cube(scene, 40.0f);
     scene_build(scene);
 }
 
