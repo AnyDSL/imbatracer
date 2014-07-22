@@ -165,7 +165,10 @@ namespace impala {
     extern "C" {
         void impala_init(State *state);
         void impala_update(State *state, float dt);
-        void impala_render(unsigned *buf, int w, int h, State *state);
+
+        void impala_init_bench1(State *state);
+
+        void impala_render(unsigned *buf, int w, int h, bool measureTime, State *state);
     }
 
 }

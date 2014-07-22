@@ -1,14 +1,14 @@
 
-fn iteration(width : int, height : int, body : fn(int, int, &Intersection) -> () ) -> ()
+fn iteration(width : int, height : int, measureTime : bool, body : fn(int, int, &Intersection) -> () ) -> ()
 {
     let mut isec = emptyIntersection(); // scratch space for the current intersection (TODO is this better than passing it around?)
-    //timer();
+    if measureTime { timer(); };
     for y in $range(0, height) {
         for x in $range(0, width) {
             body(x, y, &isec);
         }
     };
-    //timer();
+    if measureTime { timer(); };
 }
 
 

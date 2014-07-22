@@ -1,14 +1,13 @@
-set(main_cpp_SRC
+set(cpp_SRC
     scene.h
     scene.cpp
     objloader.h
     objloader.cpp
     interface.h
     extern_c.cpp
-    main.cpp
 )
 
-set(main_impala_SRC
+set(impala_SRC
     util.impala
     extern_c.impala
     color.impala
@@ -28,12 +27,14 @@ set(main_impala_SRC
     interface.impala
 )
 
-THORIN_RUNTIME_WRAP(main_impala_OBJ main_impala_LIB
+THORIN_RUNTIME_WRAP(impala_OBJ impala_LIB
     RTTYPE ${RTTYPE}
-    FILES ${main_impala_SRC})
+    FILES ${impala_SRC})
 
-set(main_SRC ${main_cpp_SRC} ${main_impala_SRC} ${main_impala_OBJ})
 
-add_executable(main ${main_SRC})
-target_link_libraries(main io ${main_impala_LIB})
+add_executable(main main.cpp ${cpp_SRC} ${impala_SRC} ${impala_OBJ})
+target_link_libraries(main io ${impala_LIB})
+
+add_executable(bench bench.cpp ${cpp_SRC} ${impala_SRC} ${impala_OBJ})
+target_link_libraries(bench core ${impala_LIB})
 

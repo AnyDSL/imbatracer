@@ -32,11 +32,28 @@ extern fn impala_update(mut state : &State, dt : float) -> ()
     (*state).cam = camPerspectiveLookAt(pos, at, up, horzOpenAngle, vertOpenAngle);
 }
 
-fn renderImage(mut buf : &[u32], width : int, height : int, body : fn(float, float, &Intersection) -> Color) -> ()
+extern fn impala_init_bench1(mut state : &State) -> ()
+{
+    (*state).integrator.itype = 0;
+
+    let scene = &(*state).scene;
+    scene_add_file(scene, 3);
+    scene_build(scene);
+
+    let scale = 40.0f;
+    let pos = point(-3.5f*scale, 1.2f*scale, 3.7f*scale);
+    let at = point0();
+    let up = vec(0.0f, 1.0f, 0.0f);
+    let horzOpenAngle = pi() / 4.0f;
+    let vertOpenAngle = pi() / 3.0f;
+    (*state).cam = camPerspectiveLookAt(pos, at, up, horzOpenAngle, vertOpenAngle);
+}
+
+fn renderImage(mut buf : &[u32], width : int, height : int, measureTime : bool, body : fn(float, float, &Intersection) -> Color) -> ()
 {
     let wf = width as float;
     let hf = height as float;
-    for x, y, isec in iteration(width, height)
+    for x, y, isec in iteration(width, height, measureTime)
     {
         // render in the center of the pixel
         let nx = (x as float + 0.5f) / wf;
@@ -50,15 +67,14 @@ fn renderImage(mut buf : &[u32], width : int, height : int, body : fn(float, flo
     }
 }
 
-extern fn impala_render(buf : &[u32], width : int, height : int, mut state : &State) -> ()
+extern fn impala_render(buf : &[u32], width : int, height : int, measureTime : bool, mut state : &State) -> ()
 {
     // FIXME maybe closures aren't the best idea, after all...
     let camera = @compileCamera(&(*state).cam);
     let scene = @compileScene(&(*state).scene);
     let integrator = @compileIntegrator(&(*state).integrator, scene);
 
-    renderImage(buf, width, height, |x, y, isec| {
+    renderImage(buf, width, height, measureTime, |x, y, isec| {
         integrator(camera(x, y), isec)
     } )
 }
-

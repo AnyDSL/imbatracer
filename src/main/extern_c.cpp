@@ -33,6 +33,11 @@ extern "C"
     }
 
     // Scene interface
+    void scene_clear(impala::Scene *scene)
+    {
+        scene->sceneMgr->clear();
+    }
+
     void scene_add_cube(impala::Scene *scene)
     {
         scene->sceneMgr->add(rt::Cube());

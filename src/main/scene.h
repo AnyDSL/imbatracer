@@ -72,6 +72,7 @@ public:
 
     void add(Object &&obj) { free(); objects.push_back(obj); }
     void build();
+    void clear();
 
 protected:
     impala::Scene *scene; //!< the Impala Scene. We *own* its dynamically allocated parts!

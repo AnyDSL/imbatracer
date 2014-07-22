@@ -140,6 +140,7 @@ Scene::Scene(impala::Scene *scene) : scene(scene)
     scene->bvhNodes = nullptr;
     scene->objs = nullptr;
     scene->nObjs = 0;
+    scene->sceneMgr = this;
 }
 
 Scene::~Scene(void)
@@ -150,9 +151,19 @@ Scene::~Scene(void)
 void Scene::free(void)
 {
     thorin_free(scene->verts);
+    scene->verts = nullptr;
     thorin_free(scene->triVerts);
+    scene->triVerts = nullptr;
     thorin_free(scene->bvhNodes);
+    scene->bvhNodes = nullptr;
     thorin_free(scene->objs);
+    scene->objs = nullptr;
+}
+
+void Scene::clear()
+{
+    free();
+    freeContainer(objects);
 }
 
 void Scene::build()
