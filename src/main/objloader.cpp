@@ -70,12 +70,6 @@ struct Int3 {
 };
 struct Float2 {
     float x, y;
-    operator Point() {
-        return Point(x,y,0.0f);
-    }
-    operator Vector() {
-        return Vector(x,y,0.0f);
-    }
     operator TexCoord() {
         return TexCoord(x,y);
     }
@@ -301,7 +295,7 @@ FileObject::FileObject(const std::string &filename, MatLib */*inmats*/, Flags fl
                 v.x = fileline.fetchFloat();
                 v.y = 1-fileline.fetchFloat(0.0f);
                 fileline.fetchFloat(0.0f); //u, v, w. Ignore w
-                texcoords.push_back(v);
+                texCoords.push_back(v);
                 break;
             }
             case Obj_Face: {
@@ -314,7 +308,7 @@ FileObject::FileObject(const std::string &filename, MatLib */*inmats*/, Flags fl
                 release_assert(v[0].vidx != 0, "Error in file ", fileline.filename, ":", fileline.lineIdx, ".", fileline.pos, " : Vertex index cannot be 0");
                 if (v[0].vidx<0) v[0].vidx = verts.size() - v[0].vidx; else { --v[0].vidx; }
                 if (v[0].tidx == 0) skiptex=true;
-                else if (v[0].tidx<0) v[0].tidx = texcoords.size() - v[0].tidx; else { --v[0].tidx; }
+                else if (v[0].tidx<0) v[0].tidx = texCoords.size() - v[0].tidx; else { --v[0].tidx; }
                 if (v[0].nidx == 0) skipnormal=true;
                 else if (v[0].nidx<0) v[0].nidx = normals.size() - v[0].nidx; else { --v[0].nidx; }
 
@@ -323,7 +317,7 @@ FileObject::FileObject(const std::string &filename, MatLib */*inmats*/, Flags fl
                 release_assert(v[1].vidx != 0, "Error in file ", fileline.filename, ":", fileline.lineIdx, ".", fileline.pos, " : Vertex index cannot be 0");
                 if (v[1].vidx<0) v[1].vidx = verts.size() - v[1].vidx; else { --v[1].vidx; }
                 if (v[1].tidx == 0) skiptex=true;
-                else if (v[1].tidx<0) v[1].tidx = texcoords.size() - v[1].tidx; else { --v[1].tidx; }
+                else if (v[1].tidx<0) v[1].tidx = texCoords.size() - v[1].tidx; else { --v[1].tidx; }
                 if (v[1].nidx == 0) skipnormal=true;
                 else if (v[1].nidx<0) v[1].nidx = normals.size() - v[1].nidx; else { --v[1].nidx; }
 
@@ -331,7 +325,7 @@ FileObject::FileObject(const std::string &filename, MatLib */*inmats*/, Flags fl
                 release_assert(v[2].vidx != 0, "Error in file ", fileline.filename, ":", fileline.lineIdx, ".", fileline.pos, " : Vertex index cannot be 0");
                 if (v[2].vidx<0) v[2].vidx = verts.size() - v[2].vidx; else { --v[2].vidx; }
                 if (v[2].tidx == 0) skiptex=true;
-                else if (v[2].tidx<0) v[2].tidx = texcoords.size() - v[2].tidx; else { --v[2].tidx; }
+                else if (v[2].tidx<0) v[2].tidx = texCoords.size() - v[2].tidx; else { --v[2].tidx; }
                 if (v[2].nidx == 0) skipnormal=true;
                 else if (v[2].nidx<0) v[2].nidx = normals.size() - v[2].nidx; else { --v[2].nidx; }
 
@@ -346,7 +340,7 @@ FileObject::FileObject(const std::string &filename, MatLib */*inmats*/, Flags fl
                     if (v[2].vidx == 0) break;
                     if (v[2].vidx<0) v[2].vidx = verts.size() - v[2].vidx; else { --v[2].vidx; }
                     if (v[2].tidx == 0) skiptex=true;
-                    else if (v[2].tidx<0) v[2].tidx = texcoords.size() - v[2].tidx; else { --v[2].tidx; }
+                    else if (v[2].tidx<0) v[2].tidx = texCoords.size() - v[2].tidx; else { --v[2].tidx; }
                     if (v[2].nidx == 0) skipnormal=true;
                     else if (v[2].nidx<0) v[2].nidx = normals.size() - v[2].nidx; else { --v[2].nidx; }
                 }

@@ -8,6 +8,7 @@
 namespace rt {
 
 class Scene;
+struct BuildState;
 
 /** Collect all the data for a Tri - this is not the form in which it is sent to Impala! */
 struct Tri {
@@ -24,11 +25,11 @@ public:
 protected:
     std::vector<impala::Point> verts;
     std::vector<impala::Vec> normals; // FIXME these are currently ignored
-    std::vector<impala::TexCoord> texcoords; // FIXME these are currently ignored
+    std::vector<impala::TexCoord> texCoords; // FIXME these are currently ignored
     std::vector<Tri> tris;
 
     // Build the BVH tree. Put primitives into triBuf (starting at offset triBufOff), and the flattened nodes into nodeBuf.
-    size_t buildBVH(unsigned vertBufBase, unsigned *triBuf, unsigned triBufOff, std::vector<impala::BVHNode> *nodeBuf);
+    size_t buildBVH(BuildState *state);
 
 private:
 
@@ -49,11 +50,8 @@ private:
     // extra info about tris: bounds, and centroid
     std::vector<std::tuple<impala::BBox, impala::Point>> triData;
 
-    // target buffers
-    std::vector<impala::BVHNode> *nodeBuf;
-    unsigned *triBuf;
-    unsigned triBufOff;
-    unsigned vertBufBase;
+    // target buffers for building Impala data
+    BuildState *state;
 
     /* Build a BVH node from the triangles (in tris). These are indices into the tris vector above!
      * Put primitives into triBuf (starting at offset triBufOff), and the flattened nodes into nodeBuf.
