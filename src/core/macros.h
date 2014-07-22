@@ -1,7 +1,7 @@
 #ifndef CG1RAYTRACER_MACROS_HEADER
 #define CG1RAYTRACER_MACROS_HEADER
 
-#include <stdlib.h>
+#include <cstdlib>
 
 #if defined(_MSC_VER)
 #  define ALIGN(n) __declspec(align(n))
