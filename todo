@@ -1,0 +1,5 @@
+#!/bin/sh
+set -e
+cd $(dirname "$(readlink -e "$0")")
+
+fgrep -e FIXME -e TODO -e XXX *.txt -R src --include "*.cpp" --include "*.h" --include "*.impala" --include "*.txt"
