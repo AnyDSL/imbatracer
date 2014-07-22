@@ -10,12 +10,6 @@ namespace rt {
 const unsigned depthLimit = 16; // this is also set in impala!
 const unsigned maxPrimsPerLeaf = 4;
 
-template<typename T>
-static T* thorin_new(unsigned n)
-{
-    return (T*)thorin_malloc(n*sizeof(T));
-}
-
 /** The state of transforming the C++-side representation to the Impala one */
 struct BuildState {
 private:

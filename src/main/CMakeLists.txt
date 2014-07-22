@@ -32,7 +32,7 @@ THORIN_RUNTIME_WRAP(impala_OBJ impala_LIB
     FILES ${impala_SRC})
 
 add_library(rt ${cpp_SRC} ${impala_SRC} ${impala_OBJ})
-target_link_libraries(rt core)
+target_link_libraries(rt core ${impala_LIB})
 
 add_executable(main main.cpp)
 target_link_libraries(main rt io)
