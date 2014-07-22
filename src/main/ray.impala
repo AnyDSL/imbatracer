@@ -21,6 +21,11 @@ fn rayNormalize(o : Point, d : Vec) -> Ray
     ray(o, normalize(d))
 }
 
+fn acc_rayNormalize(o : Point, d : Vec) -> Ray
+{
+    ray(o, acc_normalize(d))
+}
+
 fn rayP(r : Ray, dist : float) -> Point
 {
     pvadd(r.o, vfmul(r.d, dist))

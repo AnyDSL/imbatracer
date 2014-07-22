@@ -1,5 +1,5 @@
 
-// CPU-specific functions, mostly for debugging
+// CPU-only functions
 extern "C"
 {
     // some custom stuff / various hacks
@@ -19,21 +19,7 @@ extern "C"
     fn print_gflops(float) -> ();
 }
 
-
-fn isDebug() -> bool
-{
-    true
-}
-
-fn timer() -> ()
-{
-    if @isDebug()
-    {
-        get_micro_time();
-    }
-}
-
-
+// some derived forms
 fn print_iv(i : int, v : Vec) -> ()
 {
     print_ifff(i, v.x, v.y, v.z);

@@ -47,7 +47,7 @@ fn triIntersectDistance(tri : uint, scene : &Scene, ray : Ray, maxDistance : flo
             if t >= maxDistance
             { (-1.0f, vec0(), point0()) }
             else
-            { (t, normalize(cross(e1, e2)), point(1.0f-b1-b2, b1, b2)) }
+            { (t, acc_normalize(cross(e1, e2)), point(1.0f-b1-b2, b1, b2)) }
         }
     }
 }

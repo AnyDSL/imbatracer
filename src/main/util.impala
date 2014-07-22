@@ -88,6 +88,20 @@ fn M_PI() -> float
 }
 
 
+fn isDebug() -> bool
+{
+    true
+}
+
+fn timer() -> ()
+{
+    if @isDebug()
+    {
+        get_micro_time();
+    }
+}
+
+
 
 
 
