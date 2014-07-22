@@ -1,0 +1,56 @@
+= Ralf's Machine =
+
+== e69235f0 (2014-07-21) ==
+
+Running Bench 1, Config 1
+BVH construction finished: 767 nodes, 1152 primitives in tree.
+   timing: 89.817(ms)
+   timing: 65.067(ms)
+   timing: 63.842(ms)
+   timing: 62.898(ms)
+   timing: 64.183(ms)
+   timing: 72.05(ms)
+   timing: 68.759(ms)
+   timing: 66.865(ms)
+   timing: 65.214(ms)
+   timing: 65.07(ms)
+
+== 091226fe (2014-07-22) ==
+
+Running Bench 1, Config 1
+BVH construction finished: 767 nodes, 1152 primitives in tree.
+   timing: 75.098(ms)
+   timing: 63.748(ms)
+   timing: 62.09(ms)
+   timing: 61.941(ms)
+   timing: 62.094(ms)
+   timing: 62.388(ms)
+   timing: 64.626(ms)
+   timing: 68.72(ms)
+   timing: 68.016(ms)
+   timing: 68.385(ms)
+Running Bench 1, Config 2
+BVH construction finished: 767 nodes, 1152 primitives in tree.
+   timing: 241.375(ms)
+   timing: 241.772(ms)
+   timing: 236.935(ms)
+   timing: 239.433(ms)
+   timing: 247.261(ms)
+   timing: 243.227(ms)
+   timing: 239.142(ms)
+   timing: 237.047(ms)
+   timing: 239.609(ms)
+   timing: 236.063(ms)
+Running Bench 1, Config 3
+Warning: Unsupported OBJ instruction encountered at models/3.obj:8.1, ignoring.
+BVH construction finished: 767 nodes, 1152 primitives in tree.
+   timing: 3674.7(ms)
+   timing: 3915.4(ms)
+   timing: 3803.54(ms)
+   timing: 3685.59(ms)
+   timing: 3690.01(ms)
+   timing: 3817.36(ms)
+   timing: 3755.69(ms)
+   timing: 3839.19(ms)
+   timing: 3741.41(ms)
+   timing: 3829.39(ms)
