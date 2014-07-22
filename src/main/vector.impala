@@ -91,8 +91,6 @@ fn cross(a : Vec, b : Vec) -> Vec { Vec { x : a.y*b.z - a.z*b.y, y : a.z*b.x - a
 
 fn vequals(a : Vec, b : Vec) -> bool {  a.x==b.x && a.y==b.y && a.z==b.z }
 
-fn valmost(a : Vec, b : Vec) -> bool { vlensq(vsub(a, b)) < epsilon() } // TODO: need to use vlen() instead?
-
 fn vminaxis(a : Vec) -> int
 {
     if a.x < a.y { if a.x < a.z { 0 } else { 2 } } else { if a.y < a.z { 1 } else { 2 } }
