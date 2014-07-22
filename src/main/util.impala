@@ -54,7 +54,7 @@ fn less(a : float, b : float) -> bool { a < b }
 
 fn almost(a : float, b : float) -> bool
 {
-    fabsf(a - b) < 0.00001f
+    fabsf(a - b) < epsilon()
 }
 
 fn lerp(a : float, b : float, t : float) -> float
@@ -82,9 +82,14 @@ fn neg_infinity() -> float
 }
 */
 
-fn M_PI() -> float
+fn pi() -> float
 {
     3.141592653589793f
+}
+
+fn epsilon() -> float
+{
+    1e-5f
 }
 
 

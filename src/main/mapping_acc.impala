@@ -1,4 +1,4 @@
-fn iteration(width : int, height : int, body : fn(int, int) -> () ) -> ()
+fn iteration(width : int, height : int, body : fn(int, int, &Intersection) -> () ) -> ()
 {
     let unroll = 1;
     let dim = (width, height/unroll, 1);
@@ -7,9 +7,10 @@ fn iteration(width : int, height : int, body : fn(int, int) -> () ) -> ()
     acc(acc_dev(), dim, block, || -> () {
         let gid_x = acc_gidx();
         let gid_y = acc_tidy() + acc_bdimy() * acc_bidy() * unroll;
+        let mut isec = emptyIntersection(); // scratch space for the current intersection (TODO is this better than passing it around?)
 
         for i in @range(0, unroll) {
-            body(gid_x, gid_y + i * acc_bdimy());
+            body(gid_x, gid_y + i * acc_bdimy(), &isec);
         }
     });
 }

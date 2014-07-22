@@ -11,55 +11,55 @@ struct Integrator
 
 
 // return a gray color whose value is the cosine between the ray direction and the hit surface normal
-fn cosineRadiance(isec : Intersection) -> Color
+fn cosineRadiance(isec : &Intersection) -> Color
 {
-    color1(acc_absdot(isec.norm, isec.ray.d)) // ignore normal direction by abs()ing
+    color1(acc_absdot((*isec).norm, (*isec).ray.d)) // ignore normal direction by abs()ing
 }
 
-fn debugRadianceNormalDir(isec : Intersection) -> Color
+fn debugRadianceNormalDir(isec : &Intersection) -> Color
 {
-    let n = isec.norm;
+    let n = (*isec).norm;
     color(n.x, n.y, n.z)
 }
 
-fn debugRadianceNormalSign(isec : Intersection) -> Color
+fn debugRadianceNormalSign(isec : &Intersection) -> Color
 {
-    let n = isec.norm;
+    let n = (*isec).norm;
     @color(@scaleLin(n.x, -1.f, 1.f, 0.f, 1.f),
            @scaleLin(n.y, -1.f, 1.f, 0.f, 1.f),
            @scaleLin(n.z, -1.f, 1.f, 0.f, 1.f))
 }
 
-fn debugRadianceDepth(isec : Intersection) -> Color
+fn debugRadianceDepth(isec : &Intersection) -> Color
 {
     color1(1.0f)
 }
 
-fn raytraceRadiance(isec : Intersection) -> Color
+fn raytraceRadiance(isec : &Intersection) -> Color
 {
     color0() // TODO
 }
 
-fn recraytraceRadiance(isec : Intersection) -> Color
+fn recraytraceRadiance(isec : &Intersection) -> Color
 {
     color0() // TODO
 }
 
-fn makeDistanceScaled(minDist: float, maxDist: float, getcol: fn(Intersection) -> Color) -> fn(Intersection) -> Color
+fn makeDistanceScaled(minDist: float, maxDist: float, getcol: fn(&Intersection) -> Color) -> fn(&Intersection) -> Color
 {
     if maxDist <= minDist
     { getcol }
     else
     {
-        |isec : Intersection|
+        |isec : &Intersection|
         {
-            let t = scaleLin(isec.dist, minDist, maxDist, 1.0f, 0.0f);
+            let t = scaleLin((*isec).dist, minDist, maxDist, 1.0f, 0.0f);
             clerp(getcol(isec), color0(), t)
         }
     }
 }
 
-fn debuggerRadiance(mode: int, minDist: float, maxDist: float) -> fn(Intersection) -> Color
+fn debuggerRadiance(mode: int, minDist: float, maxDist: float) -> fn(&Intersection) -> Color
 {
     makeDistanceScaled(minDist, maxDist,
             if      mode == 0 { debugRadianceNormalDir }
@@ -68,7 +68,7 @@ fn debuggerRadiance(mode: int, minDist: float, maxDist: float) -> fn(Intersectio
         )
 }
 
-fn getRadianceForHitFn(integr : &Integrator) -> fn(Intersection) -> Color
+fn getRadianceForHitFn(integr : &Integrator) -> fn(&Intersection) -> Color
 {
     let ty = (*integr).itype;
          if ty == 0 { cosineRadiance }  // Cosine shading
@@ -77,20 +77,19 @@ fn getRadianceForHitFn(integr : &Integrator) -> fn(Intersection) -> Color
     else            { debuggerRadiance((*integr).mode, (*integr).minDist, (*integr).maxDist) }
 }
 
-fn getRadiance(ray : Ray, scene : fn(&Intersection) -> (), hit : fn(Intersection) -> Color, nohit : Color) -> Color
+fn getRadiance(ray : Ray, scene : fn(&Intersection) -> (), isec : &Intersection, hit : fn(&Intersection) -> Color, nohit : Color) -> Color
 {
-    let mut isec = @beginIntersection(ray);
+    @beginIntersection(ray, isec);
+    scene(isec);
 
-    scene(&isec);
-
-    if isec.obj == @noObj() { nohit } else { hit(isec) }
+    if (*isec).obj == @noObj() { nohit } else { hit(isec) }
 }
 
-fn compileIntegrator(integr : &Integrator, scene : fn(&Intersection) -> ()) -> fn(Ray) -> Color
+fn compileIntegrator(integr : &Integrator, scene : fn(&Intersection) -> ()) -> fn(Ray, &Intersection) -> Color
 {
     let hit = getRadianceForHitFn(integr);
     let nohit = color(1.0f, 0.0f, 0.0f);
 
-    |ray| { getRadiance(ray, scene, hit, nohit) }
+    |ray, isec| { getRadiance(ray, scene, isec, hit, nohit) }
 }
 

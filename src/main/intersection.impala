@@ -1,7 +1,7 @@
 
 fn defaultEps() -> float
 {
-    2.0f*0.00001f // FIXME: value + this should be static variable (as soon as compiler supports it)
+    2.0f*epsilon()
 }
 
 fn noObj() -> uint
@@ -17,14 +17,18 @@ struct Intersection
     eps : float
 }
 
-fn beginIntersection(ray : Ray) -> Intersection
+fn emptyIntersection() -> Intersection
 {
-    // TODO: only dist obj & ray needed
-    // FIXME: FLT_MAX?
-    Intersection{ dist:1e10f, obj:noObj(), ray:ray,
-            norm:vec0(), uv:point0(), eps:0.0f }
+    Intersection{ dist:-1.0f, obj:noObj(),
+        ray:ray0(), norm:vec0(), uv:point0(), eps:0.0f }
 }
 
+fn beginIntersection(ray : Ray, mut isec: &Intersection) -> ()
+{
+    (*isec).dist = 1e10f; // max. drawing distance
+    (*isec).obj = noObj();
+    (*isec).ray = ray;
+}
 
 fn improveIntersection(mut isec : &Intersection, dist : float, obj : uint, norm : Vec, uv : Point, eps : float) -> ()
 {
