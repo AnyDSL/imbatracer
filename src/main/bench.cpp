@@ -27,4 +27,5 @@ int main(int /*argc*/, char */*argv*/[])
 {
     run_bench(impala::impala_init_bench1, "Bench 1, Config 1", 10, 640/2, 480/2);
     run_bench(impala::impala_init_bench1, "Bench 1, Config 2", 10, 640, 480);
+    run_bench(impala::impala_init_bench1, "Bench 1, Config 3", 10, 640*4, 480*4);
 }
