@@ -31,10 +31,12 @@ THORIN_RUNTIME_WRAP(impala_OBJ impala_LIB
     RTTYPE ${RTTYPE}
     FILES ${impala_SRC})
 
+add_library(rt ${cpp_SRC} ${impala_SRC} ${impala_OBJ})
+target_link_libraries(rt core)
 
-add_executable(main main.cpp ${cpp_SRC} ${impala_SRC} ${impala_OBJ})
-target_link_libraries(main io ${impala_LIB})
+add_executable(main main.cpp)
+target_link_libraries(main rt io)
 
-add_executable(bench bench.cpp ${cpp_SRC} ${impala_SRC} ${impala_OBJ})
-target_link_libraries(bench core ${impala_LIB})
+add_executable(bench bench.cpp)
+target_link_libraries(bench rt)
 

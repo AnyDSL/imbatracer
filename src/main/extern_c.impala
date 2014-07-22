@@ -2,7 +2,7 @@
 // CPU-only functions
 extern "C"
 {
-    // some custom stuff / various hacks
+    // Debugging
     fn print_ii(int, int) -> ();
     fn print_if(int, float) -> ();
     fn print_ifff(int, float, float, float) -> ();
@@ -13,11 +13,6 @@ extern "C"
     fn scene_add_cube(&Scene, float) -> ();
     fn scene_add_file(&Scene, int) -> bool;
     fn scene_build(&Scene) -> ();
-
-    // thorin internal runtime
-    fn random_val(int) -> float;
-    fn get_micro_time() -> i64;
-    fn print_gflops(float) -> ();
 }
 
 // some derived forms
@@ -25,8 +20,6 @@ fn print_iv(i : int, v : Vec) -> ()
 {
     print_ifff(i, v.x, v.y, v.z);
 }
-
-
 fn print_ip(i : int, p : Point) -> ()
 {
     print_ifff(i, p.x, p.y, p.z);
