@@ -69,12 +69,12 @@ fn renderImage(mut buf : &[u32], width : int, height : int, measureTime : bool, 
 
 extern fn impala_render(buf : &[u32], width : int, height : int, measureTime : bool, mut state : &State) -> ()
 {
-    // FIXME maybe closures aren't the best idea, after all...
-    let camera = @compileCamera(&(*state).cam);
-    let scene = @compileScene(&(*state).scene);
-    let integrator = @compileIntegrator(&(*state).integrator, scene);
-
     renderImage(buf, width, height, measureTime, |x, y, isec| {
+        // FIXME maybe closures aren't the best idea, after all...
+        let camera = @compileCamera(&(*state).cam);
+        let scene = @compileScene(&(*state).scene);
+        let integrator = @compileIntegrator(&(*state).integrator, scene);
+
         integrator(camera(x, y), isec)
     } )
 }
