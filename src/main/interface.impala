@@ -55,7 +55,7 @@ fn renderImage(mut buf : &[u32], width : int, height : int, measureTime : bool, 
 {
     let wf = width as float;
     let hf = height as float;
-    for x, y, cam, integrator, scene, isec in iteration(width, height, measureTime, state)
+    for x, y, cam, integrator, scene, isec in renderIteration(width, height, measureTime, state)
     {
         // render in the center of the pixel
         let nx = (x as float + 0.5f) / wf;
