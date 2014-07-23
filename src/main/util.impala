@@ -64,9 +64,8 @@ fn lerp(a : float, b : float, t : float) -> float
 // Scale a range to a range, linearly
 fn scaleLin(v : float, vMin : float, vMax : float, targetMin : float, targetMax : float) -> float
 {
-	let f = clamp(vMin, v, vMax);
 	let d = vMax-vMin;
-	if d == 0.0f { vMin } else { lerp((f-vMin)/d, targetMin, targetMax) }
+	if d == 0.0f { vMin } else { @lerp(targetMin, targetMax, (@clamp(vMin, v, vMax)-vMin)/d) }
 }
 
 /*

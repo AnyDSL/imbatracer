@@ -31,8 +31,8 @@ fn emptyScratch() -> RTScratch
 extern fn impala_init(mut state : &State) -> ()
 {
     (*state).time = 0.0f;
-    (*state).integrator.itype = 0;
-    // (*state).integrator.mode = 1;
+    (*state).integrator.itype = 4;
+    (*state).integrator.mode = 1;
 
     //scene_add_cube(state, 40.0f);
     scene_add_file(state, 2);
@@ -44,11 +44,11 @@ extern fn impala_update(mut state : &State, dt : float) -> ()
     let time = (*state).time;
     (*state).time = time + dt;
     let scale = 10.0f;
-    let pos = point(-3.5f*scale*sinf(time), 1.2f*scale*sinf(0.2f*time), 3.7f*scale*cosf(time));
-    let at = point0();
-    let up = vec(0.0f, 1.0f, 0.0f);
-    let horzOpenAngle = pi() / 4.0f;
-    let vertOpenAngle = pi() / 3.0f;
+    let pos = @point(-3.5f*scale*sinf(time), 1.2f*scale*sinf(0.2f*time), 3.7f*scale*cosf(time));
+    let at = @point0();
+    let up = @vec(0.0f, 1.0f, 0.0f);
+    let horzOpenAngle = @pi() / 4.0f;
+    let vertOpenAngle = @pi() / 3.0f;
     (*state).cam = @camPerspectiveLookAt(pos, at, up, horzOpenAngle, vertOpenAngle);
 }
 
@@ -60,11 +60,11 @@ extern fn impala_init_bench1(mut state : &State) -> ()
     scene_build(state);
 
     let scale = 40.0f;
-    let pos = point(-3.5f*scale, 1.2f*scale, 3.7f*scale);
-    let at = point0();
-    let up = vec(0.0f, 1.0f, 0.0f);
-    let horzOpenAngle = pi() / 4.0f;
-    let vertOpenAngle = pi() / 3.0f;
+    let pos = @point(-3.5f*scale, 1.2f*scale, 3.7f*scale);
+    let at = @point0();
+    let up = @vec(0.0f, 1.0f, 0.0f);
+    let horzOpenAngle = @pi() / 4.0f;
+    let vertOpenAngle = @pi() / 3.0f;
     (*state).cam = @camPerspectiveLookAt(pos, at, up, horzOpenAngle, vertOpenAngle);
 }
 

@@ -41,18 +41,18 @@ fn vapply1(a : Vec, f: fn(float) -> float) -> Vec
 
 fn vvapply2(a : Vec, b : Vec, f: fn(float, float) -> float) -> Vec
 {
-    Vec{ x : f(a.x, b.x), y : f(a.y, b.y), z : f(a.z, b.z) }
+    @Vec{ x : f(a.x, b.x), y : f(a.y, b.y), z : f(a.z, b.z) }
 }
 fn vfapply2(a : Vec, b : float, f: fn(float, float) -> float) -> Vec
 {
-    Vec{ x : f(a.x, b), y : f(a.y, b), z : f(a.z, b) }
+    @Vec{ x : f(a.x, b), y : f(a.y, b), z : f(a.z, b) }
 }
 fn fvapply2(a : float, b : Vec, f: fn(float, float) -> float) -> Vec
 {
-    Vec{ x : f(a, b.x), y : f(a, b.y), z : f(a, b.z) }
+    @Vec{ x : f(a, b.x), y : f(a, b.y), z : f(a, b.z) }
 }
 
-fn vclamp(v : Vec, mi : Vec, ma : Vec) -> Vec { vmin(ma, vmax(mi, v)) }
+fn vclamp(v : Vec, mi : Vec, ma : Vec) -> Vec { @vmin(ma, vmax(mi, v)) }
 
 fn vmin(a : Vec, b : Vec) -> Vec { vvapply2(a, b, min) }
 fn vmax(a : Vec, b : Vec) -> Vec { vvapply2(a, b, max) }
@@ -78,7 +78,7 @@ fn vlensq(v : Vec) -> float { v.x*v.x + v.y*v.y + v.z*v.z }
 fn vlen(v : Vec) -> float { sqrtf(vlensq(v)) }
 fn acc_vlen(v : Vec) -> float { acc_sqrtf(vlensq(v)) }
 
-fn normalize(v : Vec) -> Vec { vfdiv(v, vlen(v)) }
+fn normalize(v : Vec) -> Vec { vfmul(v, 1.0f/vlen(v)) }
 fn acc_normalize(v : Vec) -> Vec { vfdiv(v, acc_vlen(v)) }
 
 fn vmaxf(v : Vec) -> float { max(v.x, max(v.y, v.z)) }
