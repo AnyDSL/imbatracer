@@ -68,13 +68,13 @@ fn debuggerRadiance(mode: int, minDist: float, maxDist: float) -> fn(&Intersecti
         )
 }
 
-fn getRadianceForHitFn(integr : &Integrator) -> fn(&Intersection) -> Color
+fn getRadianceForHitFn(integr : Integrator) -> fn(&Intersection) -> Color
 {
-    let ty = (*integr).itype;
+    let ty = integr.itype;
          if ty == 0 { cosineRadiance }  // Cosine shading
     else if ty == 1 { raytraceRadiance }
     else if ty == 2 { recraytraceRadiance }
-    else            { debuggerRadiance((*integr).mode, (*integr).minDist, (*integr).maxDist) }
+    else            { debuggerRadiance(integr.mode, integr.minDist, integr.maxDist) }
 }
 
 fn getRadiance(ray : Ray, scene : fn(&Intersection) -> (), isec : &Intersection, hit : fn(&Intersection) -> Color, nohit : Color) -> Color
@@ -85,11 +85,20 @@ fn getRadiance(ray : Ray, scene : fn(&Intersection) -> (), isec : &Intersection,
     if (*isec).obj == @noObj() { nohit } else { hit(isec) }
 }
 
-fn compileIntegrator(integr : &Integrator, scene : fn(&Intersection) -> ()) -> fn(Ray, &Intersection) -> Color
+fn compileIntegrator(integr : Integrator, scene : fn(&Intersection) -> ()) -> fn(Ray, &Intersection) -> Color
 {
     let hit = getRadianceForHitFn(integr);
     let nohit = color(1.0f, 0.0f, 0.0f);
 
     |ray, isec| { getRadiance(ray, scene, isec, hit, nohit) }
+}
+
+fn runIntegrator(integr : Integrator, scene : Scene, ray : Ray, isec : &Intersection) -> Color
+{
+    // FIXME de-functionalize more!
+    let hit = getRadianceForHitFn(integr);
+    let nohit = color(1.0f, 0.0f, 0.0f);
+
+    getRadiance(ray, compileScene(scene), isec, hit, nohit)
 }
 

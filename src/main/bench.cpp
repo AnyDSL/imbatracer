@@ -13,6 +13,7 @@ void run_bench(InitBenchFun initBenchFun, const char *name, unsigned n, int w, i
     impala::State *state = thorin_new<impala::State>(1);
     {
         rt::Scene scene(&state->scene);
+        state->sceneMgr = &scene;
         initBenchFun(state);
 
         unsigned *buf = thorin_new<unsigned>(w*h);

@@ -29,24 +29,24 @@ extern "C"
     }
 
     // Scene interface
-    void scene_clear(impala::Scene *scene)
+    void scene_clear(impala::State *state)
     {
-        scene->sceneMgr->clear();
+        state->sceneMgr->clear();
     }
 
-    void scene_add_cube(impala::Scene *scene, float size)
+    void scene_add_cube(impala::State *state, float size)
     {
-        scene->sceneMgr->add(rt::Cube(size));
+        state->sceneMgr->add(rt::Cube(size));
     }
 
-    void scene_add_file(impala::Scene *scene, int id)
+    void scene_add_file(impala::State *state, int id)
     {
-        scene->sceneMgr->add(rt::FileObject("models/" + std::to_string(id) + ".obj",
+        state->sceneMgr->add(rt::FileObject("models/" + std::to_string(id) + ".obj",
                                             rt::FileObject::IgnoreNormals | rt::FileObject::IgnoreTexCoord));
     }
 
-    void scene_build(impala::Scene *scene)
+    void scene_build(impala::State *state)
     {
-        scene->sceneMgr->build();
+        state->sceneMgr->build();
     }
 }

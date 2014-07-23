@@ -36,7 +36,7 @@ fn bvhIntersectNode(bounds : BBox, ray : Ray, maxDist : float, invDir : Vec, dir
     }
 }
 
-fn bvhIntersectFirst(root: uint, scene : &Scene, isec : &Intersection) -> ()
+fn bvhIntersectFirst(root: uint, scene : Scene, isec : &Intersection) -> ()
 {
     let invDir = @vapply1((*isec).ray.d, |f|1.0f/f);
     let dirIsNeg = [invDir.x < 0.0f, invDir.y < 0.0f, invDir.z < 0.0f];
@@ -46,7 +46,7 @@ fn bvhIntersectFirst(root: uint, scene : &Scene, isec : &Intersection) -> ()
     let mut curNode = root;
     for ever()
     {
-        let node = (*scene).bvhNodes(curNode);
+        let node = scene.bvhNodes(curNode);
         if @bvhIntersectNode(node.bbox, (*isec).ray, (*isec).dist, invDir, dirIsNeg)
         {
             if (node.nPrim > 0u16) {
