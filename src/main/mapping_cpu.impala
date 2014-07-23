@@ -1,5 +1,5 @@
 
-fn renderIteration(width : int, height : int, measureTime : bool, state : &State, body : fn(int, int, int, int, RTState, &RTScratch) -> () ) -> ()
+fn renderIteration(width : int, height : int, measureTime : bool, state : &State, body : fn(int, int, RTState, &RTScratch) -> () ) -> ()
 {
     let mut scratch = emptyScratch(); // scratch space for the current intersection (TODO is this better than passing it around?)
     if measureTime { timer(); };
