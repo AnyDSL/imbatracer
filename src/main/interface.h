@@ -128,8 +128,6 @@ namespace impala {
         Object *objs;
         unsigned nObjs;
         rt::Scene *sceneMgr;
-
-        Scene() = default;
     };
 
     struct View
@@ -169,6 +167,22 @@ namespace impala {
         void impala_init_bench1(State *state);
 
         void impala_render(unsigned *buf, int w, int h, bool measureTime, State *state);
+    }
+
+    // test that these are all POD
+    inline static void test_for_pod()
+    {
+        static_assert(std::is_pod<impala::Point>::value, "impala::Point must be a POD");
+        static_assert(std::is_pod<impala::Vec>::value, "impala::Vec must be a POD");
+        static_assert(std::is_pod<impala::TexCoord>::value, "impala::TexCoord must be a POD");
+        static_assert(std::is_pod<impala::Object>::value, "impala::Object must be a POD");
+        static_assert(std::is_pod<impala::BBox>::value, "impala::BBox must be a POD");
+        static_assert(std::is_pod<impala::BVHNode>::value, "impala::BVHNode must be a POD");
+        static_assert(std::is_pod<impala::Scene>::value, "impala::Scene must be a POD");
+        static_assert(std::is_pod<impala::View>::value, "impala::View must be a POD");
+        static_assert(std::is_pod<impala::Cam>::value, "impala::Cam must be a POD");
+        static_assert(std::is_pod<impala::Integrator>::value, "impala::Integrator must be a POD");
+        static_assert(std::is_pod<impala::State>::value, "impala::State must be a POD");
     }
 
 }
