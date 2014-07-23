@@ -23,7 +23,7 @@ fn bvhBBoxComp(bounds : BBox, comp : bool) -> Point
 
 fn bvhDirIsNeg(neg : uint, axis : uint) -> bool
 {
-    (neg & (1u << (axis as uint))) != 0u
+    (neg & (1u << axis)) != 0u
 }
 
 fn bvhMakeNeg(invDir : Vec) -> uint
@@ -65,7 +65,7 @@ fn bvhIntersectFirst(root: uint, scene : &Scene, mut scratch : &RTScratch) -> ()
     let neg = @bvhMakeNeg(invDir);
     let mut todoIdx = 0; // the first *free* index
     let mut curNode = root;
-    for ever()
+    for ever() // we shouldn't unroll this, but adding a $ here makes stuff go slower
     {
         let node = (*scene).bvhNodes(curNode);
         if @bvhIntersectNode(node.bbox, (*isec).ray, (*isec).dist, invDir, neg)
@@ -86,7 +86,7 @@ fn bvhIntersectFirst(root: uint, scene : &Scene, mut scratch : &RTScratch) -> ()
             }
             else {
                 // an inner node, which child do we get to first?
-                if bvhDirIsNeg(neg, node.axis as uint) {
+                if @bvhDirIsNeg(neg, node.axis as uint) {
                     (*todo)(todoIdx) = curNode+1u; // do the left child later
                     todoIdx = todoIdx+1;
                     curNode = node.sndChildFirstPrim; // do the right child now

@@ -82,7 +82,7 @@ fn renderImage(mut buf : &[u32], width : int, height : int, measureTime : bool, 
         let sy = -(ny - 0.5f) * 2.0f;
         // put color into index
         let idx = y*width+x;
-        buf(idx) = col_rgb2int(body(sx, sy, rtstate, scratch));
+        buf(idx) = col_rgb2int(body(sx, sy, rtstate, scratch)); // TODO adding @ in front of the body makes compilation take... eh, long^^
     }
 }
 
