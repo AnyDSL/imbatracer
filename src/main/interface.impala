@@ -23,6 +23,10 @@ struct RTScratch
     isec : Intersection,
     bvh  : BVHTraversal,
 }
+fn emptyScratch() -> RTScratch
+{
+    @RTScratch{ isec:emptyIntersection(), bvh:emptyBVHTraversal() }
+}
 
 extern fn impala_init(mut state : &State) -> ()
 {
@@ -44,7 +48,7 @@ extern fn impala_update(mut state : &State, dt : float) -> ()
     let up = vec(0.0f, 1.0f, 0.0f);
     let horzOpenAngle = pi() / 4.0f;
     let vertOpenAngle = pi() / 3.0f;
-    (*state).cam = camPerspectiveLookAt(pos, at, up, horzOpenAngle, vertOpenAngle);
+    (*state).cam = @camPerspectiveLookAt(pos, at, up, horzOpenAngle, vertOpenAngle);
 }
 
 extern fn impala_init_bench1(mut state : &State) -> ()
@@ -60,7 +64,7 @@ extern fn impala_init_bench1(mut state : &State) -> ()
     let up = vec(0.0f, 1.0f, 0.0f);
     let horzOpenAngle = pi() / 4.0f;
     let vertOpenAngle = pi() / 3.0f;
-    (*state).cam = camPerspectiveLookAt(pos, at, up, horzOpenAngle, vertOpenAngle);
+    (*state).cam = @camPerspectiveLookAt(pos, at, up, horzOpenAngle, vertOpenAngle);
 }
 
 fn renderImage(mut buf : &[u32], width : int, height : int, measureTime : bool, state : &State) -> ()
@@ -77,7 +81,7 @@ fn renderImage(mut buf : &[u32], width : int, height : int, measureTime : bool, 
         let sy = -(ny - 0.5f) * 2.0f;
         // put color into index
         let idx = y*width+x;
-        buf(idx) = col_rgb2int(runIntegrator(integrator, scene, runCamera(cam, sx, sy), isec));
+        buf(idx) = @col_rgb2int(runIntegrator(integrator, scene, runCamera(cam, sx, sy), isec));
     }
 }
 
