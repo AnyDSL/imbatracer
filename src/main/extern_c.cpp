@@ -39,10 +39,9 @@ extern "C"
         state->sceneMgr->add(rt::Cube(size));
     }
 
-    void scene_add_file(impala::State *state, int id)
+    void scene_add_file(impala::State *state, int id, int flags)
     {
-        state->sceneMgr->add(rt::FileObject("models/" + std::to_string(id) + ".obj",
-                                            rt::FileObject::IgnoreTexCoord));
+        state->sceneMgr->add(rt::FileObject("models/" + std::to_string(id) + ".obj", flags));
     }
 
     void scene_build(impala::State *state)

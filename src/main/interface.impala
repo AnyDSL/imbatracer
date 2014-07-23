@@ -35,7 +35,7 @@ extern fn impala_init(mut state : &State) -> ()
     (*state).integrator.mode = 1;
 
     //scene_add_cube(state, 40.0f);
-    scene_add_file(state, 2);
+    scene_add_file(state, 2, /*IgnoreTexCoord*/2);
     scene_build(state);
 }
 
@@ -56,7 +56,7 @@ extern fn impala_init_bench1(mut state : &State) -> ()
 {
     (*state).integrator.itype = 0;
 
-    scene_add_file(state, 3);
+    scene_add_file(state, 3, /*IgnoreTexCoord | IgnoreNormals*/2);
     scene_build(state);
 
     let scale = 40.0f;
