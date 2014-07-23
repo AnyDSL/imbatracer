@@ -15,11 +15,7 @@ fn renderIteration(width : int, height : int, measureTime : bool, state : &State
 
 fn assert(f : fn() -> bool, i : int) -> ()
 {
-    if @isDebug()
-    {
-        if !f() // TODO do we have short-circuit evaluation?
-        {
-            assert_failed(i)
-        }
+    if @isDebug() && !f() {
+        assert_failed(i)
     }
 }
