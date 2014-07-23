@@ -17,11 +17,11 @@ fn renderIteration(width : int, height : int, measureTime : bool, state : &State
     acc(@acc_dev(), dim, block, || -> () {
         let gid_x = acc_gidx();
         let gid_y = acc_tidy() + acc_bdimy() * acc_bidy() * unroll;
-        let mut isec = emptyIntersection(); // scratch space for the current intersection
+        let mut scratch = emptyScratch(); // scratch space for the current intersection
 
         for i in @range(0, unroll) {
             let scene = Scene { verts:verts, triVerts:triVerts, bvhNodes:bvhNodes, objs:objs, nObjs:nObjs };
-            @body(gid_x, gid_y + i * acc_bdimy(), cam, integrator, scene, &isec);
+            @body(gid_x, gid_y + i * acc_bdimy(), RTSTate { cam:cam, integrator:integrator, scene:scene }, &scratch);
         }
     });
 }
