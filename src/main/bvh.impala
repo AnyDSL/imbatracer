@@ -23,14 +23,14 @@ fn bvhBBoxComp(bounds : BBox, comp : bool) -> Point
 
 fn bvhDirIsNeg(neg : uint, axis : uint) -> bool
 {
-    (neg & (axis as uint)) != 0u
+    (neg & (1u << (axis as uint))) != 0u
 }
 
 fn bvhMakeNeg(invDir : Vec) -> uint
 {
-    ((invDir.x < 0.0f) as uint) |
-    (((invDir.y < 0.0f) as uint) << 1u) |
-    (((invDir.z < 0.0f) as uint) << 2u)
+    (bool2uint(invDir.x < 0.0f)      ) |
+    (bool2uint(invDir.y < 0.0f) << 1u) |
+    (bool2uint(invDir.z < 0.0f) << 2u)
 }
 
 fn bvhIntersectNode(bounds : BBox, ray : Ray, maxDist : float, invDir : Vec, neg: uint) -> bool

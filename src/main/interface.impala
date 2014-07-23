@@ -67,7 +67,7 @@ extern fn impala_init_bench1(mut state : &State) -> ()
     (*state).cam = @camPerspectiveLookAt(pos, at, up, horzOpenAngle, vertOpenAngle);
 }
 
-fn renderImage(mut buf : &[u32], width : int, height : int, measureTime : bool, state : &State, body : fn(float, float, RTSTate, &RTScratch) -> Color) -> ()
+fn renderImage(mut buf : &[u32], width : int, height : int, measureTime : bool, state : &State, body : fn(float, float, RTState, &RTScratch) -> Color) -> ()
 {
     let wf = width as float;
     let hf = height as float;
