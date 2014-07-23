@@ -13,23 +13,23 @@ fn camPerspectiveLookAt(center : Point, at : Point, up : Vec, verticalOpeningAng
     Cam { camtype : 0, view : view, param1: 0.0f, param2: 0.0f }
 }
 
-fn perspectiveRay(v : View, x : float, y : float) -> Ray
+fn perspectiveRay(v : &View, x : float, y : float) -> Ray
 {
     @acc_rayNormalize(
-        v.origin,
-        vadd(v.forward, vadd(vfmul(v.up, y), vfmul(v.right, x)))
+        (*v).origin,
+        vadd((*v).forward, vadd(vfmul((*v).up, y), vfmul((*v).right, x)))
     )
 }
 
-fn orthoRay(v : View, x : float, y : float) -> Ray
+fn orthoRay(v : &View, x : float, y : float) -> Ray
 {
     @ray(
-        pvadd(v.origin, vadd(vfmul(v.up, y), vfmul(v.right, x))),
-        v.forward // already normalized
+        pvadd((*v).origin, vadd(vfmul((*v).up, y), vfmul((*v).right, x))),
+        (*v).forward // already normalized
     )
 }
 
-fn fisheyeRay(v : View, x : float, y : float, fov : float) -> Ray
+fn fisheyeRay(v : &View, x : float, y : float, fov : float) -> Ray
 {
     let r = acc_sqrtf(x*x + y*y);
     let phi = acc_atan2f(y, x);
@@ -37,46 +37,37 @@ fn fisheyeRay(v : View, x : float, y : float, fov : float) -> Ray
     let costheta = acc_cosf(theta);
     let sintheta = acc_sinf(theta);
 
-    let a = vfmul(v.forward, costheta);
-    let b = vfmul(v.up, sintheta*acc_sinf(phi));
-    let c = vfmul(v.right, sintheta*acc_cosf(phi));
+    let a = vfmul((*v).forward, costheta);
+    let b = vfmul((*v).up, sintheta*acc_sinf(phi));
+    let c = vfmul((*v).right, sintheta*acc_cosf(phi));
     ray(
-        v.origin,
+        (*v).origin,
         vadd(a, vadd(b, c)) // known to be normal
     )
 }
 
-fn environRay(v : View, x : float, y : float, vertical : float, horiz : float) -> Ray
+fn environRay(v : &View, x : float, y : float, vertical : float, horiz : float) -> Ray
 {
     let theta = y * (vertical / 2.0f);
     let phi = x * (horiz / 2.0f);
     let costheta = acc_cosf(theta);
     let sintheta = acc_sinf(theta);
 
-    let a = vfmul(v.up, sintheta);
-    let b = vfmul(v.right, costheta*acc_sinf(phi));
-    let c = vfmul(v.forward, costheta*acc_cosf(phi));
+    let a = vfmul((*v).up, sintheta);
+    let b = vfmul((*v).right, costheta*acc_sinf(phi));
+    let c = vfmul((*v).forward, costheta*acc_cosf(phi));
     ray(
-        v.origin,
+        (*v).origin,
         vadd(a, vadd(b, c)) // known to be normal
     )
 }
 
-fn compileCamera(cam : Cam) -> (fn(float, float) -> Ray)
+fn runCamera(mut cam : &Cam, x : float, y : float) -> Ray
 {
-    let ty = cam.camtype;
-    if      ty == 0 { |x, y| perspectiveRay(cam.view, x, y) }
-    else if ty == 1 { |x, y| orthoRay(cam.view, x, y) }
-    else if ty == 2 { |x, y| fisheyeRay(cam.view, x, y, cam.param1) }
-    else            { |x, y| environRay(cam.view, x, y, cam.param1, cam.param2) }
-}
-
-fn runCamera(cam : Cam, x : float, y : float) -> Ray
-{
-    let ty = cam.camtype;
-    if      ty == 0 { perspectiveRay(cam.view, x, y) }
-    else if ty == 1 { orthoRay(cam.view, x, y) }
-    else if ty == 2 { fisheyeRay(cam.view, x, y, cam.param1) }
-    else            { environRay(cam.view, x, y, cam.param1, cam.param2) }
+    let ty = (*cam).camtype;
+    if      ty == 0 { @perspectiveRay(&(*cam).view, x, y) }
+    else if ty == 1 { @orthoRay(&(*cam).view, x, y) }
+    else if ty == 2 { @fisheyeRay(&(*cam).view, x, y, (*cam).param1) }
+    else            { @environRay(&(*cam).view, x, y, (*cam).param1, (*cam).param2) }
 }
 

@@ -1,8 +1,8 @@
 fn renderIteration(width : int, height : int, measureTime : bool, state : &State, body : fn(int, int, &RTState, &RTScratch) -> () ) -> ()
 {
     let unroll = 1;
-    let dim = (width, height/unroll, 1);
-    let block = (128, 1, 1);
+    let block = (32, 4, 1);
+    let dim = (width, height/unroll, 1); // TODO proper rounding
 
     // extract the stuff we need
     let cam = (*state).cam;
@@ -18,9 +18,10 @@ fn renderIteration(width : int, height : int, measureTime : bool, state : &State
         let gid_x = acc_gidx();
         let gid_y = acc_tidy() + acc_bdimy() * acc_bidy() * unroll;
         let mut scratch = emptyScratch(); // scratch space for the current intersection
-        let mut rtstate = RTSTate { cam:cam, integrator:integrator, scene:Scene { verts:verts, triVerts:triVerts, bvhNodes:bvhNodes, objs:objs, nObjs:nObjs } };
+        let mut rtstate = RTState { cam:cam, integrator:integrator, scene:Scene { verts:verts, triVerts:triVerts, bvhNodes:bvhNodes, objs:objs, nObjs:nObjs } };
 
         for i in @range(0, unroll) {
+            // TODO bounds check
             @body(gid_x, gid_y + i * acc_bdimy(), &rtstate, &scratch);
         }
     });
