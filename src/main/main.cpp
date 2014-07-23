@@ -41,7 +41,7 @@ int main(int /*argc*/, char */*argv*/[])
     SDL_Init(0);
     atexit(SDL_Quit);
 
-    ImpalaGui gui(640/2, 480/2);
+    ImpalaGui gui(640/4, 480/4);
     return gui.main();
 
     return 0;

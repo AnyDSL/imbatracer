@@ -1,4 +1,4 @@
-fn renderIteration(width : int, height : int, measureTime : bool, state : &State, body : fn(int, int, Cam, Integrator, Scene, &Intersection) -> () ) -> ()
+fn renderIteration(width : int, height : int, measureTime : bool, state : &State, body : fn(int, int, RTState, &RTScratch) -> () ) -> ()
 {
     let unroll = 1;
     let dim = (width, height/unroll, 1);

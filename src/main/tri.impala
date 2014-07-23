@@ -77,7 +77,7 @@ fn triBBox(tri : uint, scene : Scene) -> BBox
     bbextend(bbox(a, b), c)
 }
 
-fn triArea(tri : uint, scene : &Scene) -> float
+fn triArea(tri : uint, scene : Scene) -> float
 {
     let a = @triPoint(tri, 0u, scene);
     let e1 = to(a, @triPoint(tri, 1u, scene));

@@ -12,6 +12,18 @@ struct State
     sceneMgr : &SceneMgr
 }
 
+struct RTState
+{
+    cam : Cam,
+    integrator : Integrator,
+    scene : Scene,
+}
+struct RTScratch
+{
+    isec : Intersection,
+    bvh  : BVHTraversal,
+}
+
 extern fn impala_init(mut state : &State) -> ()
 {
     (*state).time = 0.0f;

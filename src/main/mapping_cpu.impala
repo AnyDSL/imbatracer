@@ -1,11 +1,11 @@
 
-fn renderIteration(width : int, height : int, measureTime : bool, state : &State, body : fn(int, int, Cam, Integrator, Scene, &Intersection) -> () ) -> ()
+fn renderIteration(width : int, height : int, measureTime : bool, state : &State, body : fn(int, int, int, int, RTState, &RTScratch) -> () ) -> ()
 {
-    let mut isec = emptyIntersection(); // scratch space for the current intersection (TODO is this better than passing it around?)
+    let mut scratch = emptyScratch(); // scratch space for the current intersection (TODO is this better than passing it around?)
     if measureTime { timer(); };
     for y in $range(0, height) {
         for x in $range(0, width) {
-            body(x, y, (*state).cam, (*state).integrator, (*state).scene, &isec);
+            body(x, y, RTState{ cam: (*state).cam, integrator: (*state).integrator, scene: (*state).scene }, &scratch);
         }
     };
     if measureTime { timer(); };
