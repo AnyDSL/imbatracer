@@ -7,26 +7,47 @@ struct BVHNode
     axis: u16,
 }
 
+struct BVHTraversal
+{
+    todo : [uint*16],
+}
+fn emptyBVHTraversal() -> BVHTraversal
+{
+    @BVHTraversal { todo:[0u,0u,0u,0u, 0u,0u,0u,0u, 0u,0u,0u,0u, 0u,0u,0u,0u] }
+}
+
 fn bvhBBoxComp(bounds : BBox, comp : bool) -> Point
 {
     if comp { bounds.cmax } else { bounds.cmin }
 }
 
-fn bvhIntersectNode(bounds : BBox, ray : Ray, maxDist : float, invDir : Vec, dirIsNeg: [bool*3]) -> bool
+fn bvhDirIsNeg(neg : uint, axis : uint) -> bool
+{
+    (neg & (1u << (axis as uint))) != 0u
+}
+
+fn bvhMakeNeg(invDir : Vec) -> uint
+{
+    (bool2uint(invDir.x < 0.0f)      ) |
+    (bool2uint(invDir.y < 0.0f) << 1u) |
+    (bool2uint(invDir.z < 0.0f) << 2u)
+}
+
+fn bvhIntersectNode(bounds : BBox, ray : Ray, maxDist : float, invDir : Vec, neg: uint) -> bool
 {
     // Check for ray intersection against x and y slabs
-    let txmin = (@bvhBBoxComp(bounds,  dirIsNeg(0)).x - ray.o.x) * invDir.x;
-    let txmax = (@bvhBBoxComp(bounds, !dirIsNeg(0)).x - ray.o.x) * invDir.x;
-    let tymin = (@bvhBBoxComp(bounds,  dirIsNeg(1)).y - ray.o.y) * invDir.y;
-    let tymax = (@bvhBBoxComp(bounds, !dirIsNeg(1)).y - ray.o.y) * invDir.y;
+    let txmin = (@bvhBBoxComp(bounds,  @bvhDirIsNeg(neg, 0u)).x - ray.o.x) * invDir.x;
+    let txmax = (@bvhBBoxComp(bounds, !@bvhDirIsNeg(neg, 0u)).x - ray.o.x) * invDir.x;
+    let tymin = (@bvhBBoxComp(bounds,  @bvhDirIsNeg(neg, 1u)).y - ray.o.y) * invDir.y;
+    let tymax = (@bvhBBoxComp(bounds, !@bvhDirIsNeg(neg, 1u)).y - ray.o.y) * invDir.y;
     if (txmin > tymax) || (tymin > txmax)
     { false }
     else {
         let tmin = max(txmin, tymin);
         let tmax = min(txmax, tymax);
         // Check for ray intersection against z slab
-        let tzmin = (@bvhBBoxComp(bounds,  dirIsNeg(2)).z - ray.o.z) * invDir.z;
-        let tzmax = (@bvhBBoxComp(bounds, !dirIsNeg(2)).z - ray.o.z) * invDir.z;
+        let tzmin = (@bvhBBoxComp(bounds,  @bvhDirIsNeg(neg, 2u)).z - ray.o.z) * invDir.z;
+        let tzmax = (@bvhBBoxComp(bounds, !@bvhDirIsNeg(neg, 2u)).z - ray.o.z) * invDir.z;
         if  (tmin > tzmax) || (tzmin > tmax)
         { false }
         else
@@ -36,18 +57,18 @@ fn bvhIntersectNode(bounds : BBox, ray : Ray, maxDist : float, invDir : Vec, dir
     }
 }
 
-fn bvhIntersectFirst(root: uint, scene : Scene, isec : &Intersection) -> ()
+fn bvhIntersectFirst(root: uint, scene : Scene, mut scratch : &RTScratch) -> ()
 {
+    let isec = &(*scratch).isec;
+    let mut todo = &(*scratch).bvh.todo;
     let invDir = @vapply1((*isec).ray.d, |f|1.0f/f);
-    let dirIsNeg = [invDir.x < 0.0f, invDir.y < 0.0f, invDir.z < 0.0f];
-    let todoMaxLen = 16;
-    let mut todo = [0u, 0u, 0u, 0u, 0u, 0u, 0u, 0u, 0u, 0u, 0u, 0u, 0u, 0u, 0u, 0u]; // FIXME make sure this is of length 16
+    let neg = @bvhMakeNeg(invDir);
     let mut todoIdx = 0; // the first *free* index
     let mut curNode = root;
     for ever()
     {
         let node = scene.bvhNodes(curNode);
-        if @bvhIntersectNode(node.bbox, (*isec).ray, (*isec).dist, invDir, dirIsNeg)
+        if @bvhIntersectNode(node.bbox, (*isec).ray, (*isec).dist, invDir, neg)
         {
             if (node.nPrim > 0u16) {
                 // a leaf
@@ -60,18 +81,18 @@ fn bvhIntersectFirst(root: uint, scene : Scene, isec : &Intersection) -> ()
                 }
                 else {
                     todoIdx = todoIdx-1;
-                    curNode = todo(todoIdx);
+                    curNode = (*todo)(todoIdx);
                 }
             }
             else {
                 // an inner node, which child do we get to first?
-                if dirIsNeg(node.axis) {
-                    todo(todoIdx) = curNode+1u; // do the left child later
+                if bvhDirIsNeg(neg, node.axis as uint) {
+                    (*todo)(todoIdx) = curNode+1u; // do the left child later
                     todoIdx = todoIdx+1;
                     curNode = node.sndChildFirstPrim; // do the right child now
                 }
                 else {
-                    todo(todoIdx) = node.sndChildFirstPrim; // do the right child later
+                    (*todo)(todoIdx) = node.sndChildFirstPrim; // do the right child later
                     todoIdx = todoIdx+1;
                     curNode = curNode+1u; // do the left child now
                 }
@@ -85,7 +106,7 @@ fn bvhIntersectFirst(root: uint, scene : Scene, isec : &Intersection) -> ()
             }
             else {
                 todoIdx = todoIdx-1;
-                curNode = todo(todoIdx);
+                curNode = (*todo)(todoIdx);
             }
         }
     }

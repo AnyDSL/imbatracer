@@ -2,7 +2,11 @@
 struct Light
 {
     intensity : Color,
-    view : View, // position, direction, etc
+    pos : Point,
+    dir : Vec,
+    exp : float,
+    falloff : float,
+    cutAngle : float,
 }
 
 /*

@@ -106,6 +106,12 @@ fn timer() -> ()
 }
 
 
+fn bool2int(b : bool) -> int
+{
+    if b {1} else {0}
+}
 
-
-
+fn bool2uint(b : bool) -> uint
+{
+    if b {1u} else {0u}
+}

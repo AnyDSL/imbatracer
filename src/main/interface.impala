@@ -23,6 +23,10 @@ struct RTScratch
     isec : Intersection,
     bvh  : BVHTraversal,
 }
+fn emptyScratch() -> RTScratch
+{
+    @RTScratch{ isec:emptyIntersection(), bvh:emptyBVHTraversal() }
+}
 
 extern fn impala_init(mut state : &State) -> ()
 {
@@ -44,7 +48,7 @@ extern fn impala_update(mut state : &State, dt : float) -> ()
     let up = vec(0.0f, 1.0f, 0.0f);
     let horzOpenAngle = pi() / 4.0f;
     let vertOpenAngle = pi() / 3.0f;
-    (*state).cam = camPerspectiveLookAt(pos, at, up, horzOpenAngle, vertOpenAngle);
+    (*state).cam = @camPerspectiveLookAt(pos, at, up, horzOpenAngle, vertOpenAngle);
 }
 
 extern fn impala_init_bench1(mut state : &State) -> ()
@@ -60,10 +64,10 @@ extern fn impala_init_bench1(mut state : &State) -> ()
     let up = vec(0.0f, 1.0f, 0.0f);
     let horzOpenAngle = pi() / 4.0f;
     let vertOpenAngle = pi() / 3.0f;
-    (*state).cam = camPerspectiveLookAt(pos, at, up, horzOpenAngle, vertOpenAngle);
+    (*state).cam = @camPerspectiveLookAt(pos, at, up, horzOpenAngle, vertOpenAngle);
 }
 
-fn renderImage(mut buf : &[u32], width : int, height : int, measureTime : bool, state : &State, body : fn(float, float, RTSTate, &RTScratch) -> Color) -> ()
+fn renderImage(mut buf : &[u32], width : int, height : int, measureTime : bool, state : &State, body : fn(float, float, RTState, &RTScratch) -> Color) -> ()
 {
     let wf = width as float;
     let hf = height as float;
