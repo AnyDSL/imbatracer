@@ -1,4 +1,4 @@
-= Ralf's Machine =
+= Ralf's Machine, CPU =
 
 == e69235f0 (2014-07-21) ==
 
@@ -54,3 +54,45 @@ BVH construction finished: 767 nodes, 1152 primitives in tree.
    timing: 3839.19(ms)
    timing: 3741.41(ms)
    timing: 3829.39(ms)
+
+== c3e4878f (2014-07-23) ==
+
+Running Bench 1, Config 1
+BVH construction finished: 767 nodes, 1152 primitives in tree.
+   timing: 79.837(ms)
+   timing: 52.965(ms)
+   timing: 51.566(ms)
+   timing: 51.586(ms)
+   timing: 51.504(ms)
+   timing: 51.597(ms)
+   timing: 51.556(ms)
+   timing: 51.513(ms)
+   timing: 54.277(ms)
+   timing: 54.298(ms)
+
+Running Bench 1, Config 2
+BVH construction finished: 767 nodes, 1152 primitives in tree.
+   timing: 203.492(ms)
+   timing: 192.318(ms)
+   timing: 192.105(ms)
+   timing: 191.348(ms)
+   timing: 193.761(ms)
+   timing: 209.752(ms)
+   timing: 189.84(ms)
+   timing: 189.729(ms)
+   timing: 188.874(ms)
+   timing: 189.892(ms)
+
+Running Bench 1, Config 3
+BVH construction finished: 767 nodes, 1152 primitives in tree.
+   timing: 2914.13(ms)
+   timing: 2960.44(ms)
+   timing: 2909.59(ms)
+   timing: 3007.4(ms)
+   timing: 2987.28(ms)
+   timing: 2914.9(ms)
+   timing: 2894.32(ms)
+   timing: 2908.46(ms)
+   timing: 2917.39(ms)
+   timing: 2917.97(ms)
+
