@@ -4,7 +4,7 @@ fn range(a : int, b : int, yield : fn(int, fn()))
 -> ()
 {
     if a < b {
-        @yield(a);
+        yield(a); // TODO adding an @ here OR below makes stuff go SLOWER! ?!?
         range(a+1, b, yield, return)
     }
 }
@@ -13,7 +13,7 @@ fn urange(a : uint, b : uint, yield : fn(uint, fn()))
 -> ()
 {
     if a < b {
-        @yield(a);
+        yield(a); // TODO adding an @ here OR above makes stuff go SLOWER! ?!?
         urange(a+1u, b, yield, return)
     }
 }
