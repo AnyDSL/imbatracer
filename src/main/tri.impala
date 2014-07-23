@@ -5,7 +5,12 @@ fn triPoint(tri : uint, pt : uint, scene : &Scene) -> Point
     (*scene).verts(idx)
 }
 
-fn triNormal(tri : uint, n : uint, scene : &Scene) -> Vec
+fn triHasNormal(tri : uint, scene : &Scene) -> bool
+{
+    (*scene).triNormals(3u*tri) != noIdx()
+}
+
+fn triVertNormal(tri : uint, n : uint, scene : &Scene) -> Vec
 {
     let idx = (*scene).triNormals(3u*tri + n);
     (*scene).normals(idx)
@@ -71,10 +76,16 @@ fn triIntersectFirst(tri : uint, scene : &Scene, isec : &Intersection) -> ()
     let t = res(0); // TODO: would be nice to have syntax for tuple unpacking
     if t >= 0.0f
     {
-        let n1 = @triNormal(tri, 0u, scene);
-        let n2 = @triNormal(tri, 1u, scene);
-        let n3 = @triNormal(tri, 2u, scene);
-        let shadingNormal = @acc_normalize(vlerpbarp(n1, n2, n3, res(2)));
+        let shadingNormal =
+            if @triHasNormal(tri, scene) {
+                let n1 = @triVertNormal(tri, 0u, scene);
+                let n2 = @triVertNormal(tri, 1u, scene);
+                let n3 = @triVertNormal(tri, 2u, scene);
+                @acc_normalize(@vlerpbarp(n1, n2, n3, res(2)))
+            }
+            else {
+                res(1) // surfce normal, already normalized
+            };
         @improveIntersection(isec, t, tri, res(1), shadingNormal, res(2), @defaultEps());
     }
 }
