@@ -127,7 +127,6 @@ namespace impala {
         BVHNode *bvhNodes;
         Object *objs;
         unsigned nObjs;
-        rt::Scene *sceneMgr;
     };
 
     struct View
@@ -157,6 +156,7 @@ namespace impala {
         Cam cam;
         Integrator integrator;
         Scene scene;
+        rt::Scene *sceneMgr;
     };
 
 

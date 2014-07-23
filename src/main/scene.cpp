@@ -194,7 +194,6 @@ Scene::Scene(impala::Scene *scene) : scene(scene)
     scene->bvhNodes = nullptr;
     scene->objs = nullptr;
     scene->nObjs = 0;
-    scene->sceneMgr = this;
 }
 
 Scene::~Scene(void)

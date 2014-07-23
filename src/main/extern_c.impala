@@ -9,10 +9,10 @@ extern "C"
     fn assert_failed(int) -> ();
 
     // scene creation functions
-    fn scene_clear(&Scene) -> ();
-    fn scene_add_cube(&Scene, float) -> ();
-    fn scene_add_file(&Scene, int) -> bool;
-    fn scene_build(&Scene) -> ();
+    fn scene_clear(&State) -> ();
+    fn scene_add_cube(&State, float) -> ();
+    fn scene_add_file(&State, int) -> bool;
+    fn scene_build(&State) -> ();
 }
 
 // some derived forms

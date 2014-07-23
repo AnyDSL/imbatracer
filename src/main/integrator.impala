@@ -93,3 +93,12 @@ fn compileIntegrator(integr : Integrator, scene : fn(&Intersection) -> ()) -> fn
     |ray, isec| { getRadiance(ray, scene, isec, hit, nohit) }
 }
 
+fn runIntegrator(integr : Integrator, scene : Scene, ray : Ray, isec : &Intersection) -> Color
+{
+    // FIXME de-functionalize more!
+    let hit = getRadianceForHitFn(integr);
+    let nohit = color(1.0f, 0.0f, 0.0f);
+
+    getRadiance(ray, compileScene(scene), isec, hit, nohit)
+}
+

@@ -71,7 +71,7 @@ fn compileCamera(cam : Cam) -> (fn(float, float) -> Ray)
     else            { |x, y| environRay(cam.view, x, y, cam.param1, cam.param2) }
 }
 
-fn cameraRay(cam : Cam, x : float, y : float) -> Ray
+fn runCamera(cam : Cam, x : float, y : float) -> Ray
 {
     let ty = cam.camtype;
     if      ty == 0 { perspectiveRay(cam.view, x, y) }

@@ -1,4 +1,7 @@
 
+struct SceneMgr {} // opaque pointer, C++ puts stuff here
+
+
 struct State
 {
     time : float,
@@ -6,6 +9,7 @@ struct State
     integrator : Integrator,
     scene : Scene,
 
+    sceneMgr : &SceneMgr
 }
 
 extern fn impala_init(mut state : &State) -> ()
@@ -13,10 +17,9 @@ extern fn impala_init(mut state : &State) -> ()
     (*state).time = 0.0f;
     (*state).integrator.itype = 0;
 
-    let scene = &(*state).scene;
-    scene_add_cube(scene, 40.0f);
-    scene_add_file(scene, 3);
-    scene_build(scene);
+    scene_add_cube(state, 40.0f);
+    scene_add_file(state, 3);
+    scene_build(state);
 }
 
 extern fn impala_update(mut state : &State, dt : float) -> ()
@@ -36,9 +39,8 @@ extern fn impala_init_bench1(mut state : &State) -> ()
 {
     (*state).integrator.itype = 0;
 
-    let scene = &(*state).scene;
-    scene_add_file(scene, 3);
-    scene_build(scene);
+    scene_add_file(state, 3);
+    scene_build(state);
 
     let scale = 40.0f;
     let pos = point(-3.5f*scale, 1.2f*scale, 3.7f*scale);
@@ -49,11 +51,11 @@ extern fn impala_init_bench1(mut state : &State) -> ()
     (*state).cam = camPerspectiveLookAt(pos, at, up, horzOpenAngle, vertOpenAngle);
 }
 
-fn renderImage(mut buf : &[u32], width : int, height : int, measureTime : bool, body : fn(float, float, &Intersection) -> Color) -> ()
+fn renderImage(mut buf : &[u32], width : int, height : int, measureTime : bool, state : &State) -> ()
 {
     let wf = width as float;
     let hf = height as float;
-    for x, y, isec in iteration(width, height, measureTime)
+    for x, y, cam, integrator, scene, isec in iteration(width, height, measureTime, state)
     {
         // render in the center of the pixel
         let nx = (x as float + 0.5f) / wf;
@@ -63,20 +65,11 @@ fn renderImage(mut buf : &[u32], width : int, height : int, measureTime : bool, 
         let sy = -(ny - 0.5f) * 2.0f;
         // put color into index
         let idx = y*width+x;
-        buf(idx) = col_rgb2int(body(sx, sy, isec));
+        buf(idx) = col_rgb2int(runIntegrator(integrator, scene, runCamera(cam, sx, sy), isec));
     }
 }
 
-extern fn impala_render(buf : &[u32], width : int, height : int, measureTime : bool, statep : &State) -> ()
+extern fn impala_render(buf : &[u32], width : int, height : int, measureTime : bool, state : &State) -> ()
 {
-    let state = *statep;
-            let camera = @compileCamera(state.cam);
-        let scene = @compileScene(state.scene);
-        let integrator = @compileIntegrator(state.integrator, scene);
-    renderImage(buf, width, height, measureTime, |x, y, isec| {
-        // FIXME maybe closures aren't the best idea, after all...
-
-
-        integrator(camera(x, y), isec)
-    } )
+    renderImage(buf, width, height, measureTime, state);
 }
