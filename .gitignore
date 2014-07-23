@@ -1,5 +1,6 @@
 *.ll
 *.txt.user
+.~lock*
 build*/
 3rdparty/*
 bin/*
