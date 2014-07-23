@@ -51,7 +51,6 @@ public:
         scene->triVerts[nTris*3 + 1] = t.p2 + nVerts;
         scene->triVerts[nTris*3 + 2] = t.p3 + nVerts;
 
-        // FIXME: support NoIdx
         scene->triNormals[nTris*3 + 0] = t.n1 + nNorms;
         scene->triNormals[nTris*3 + 1] = t.n2 + nNorms;
         scene->triNormals[nTris*3 + 2] = t.n3 + nNorms;
