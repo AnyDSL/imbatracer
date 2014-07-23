@@ -44,7 +44,8 @@ fn bvhIntersectFirst(root: uint, scene : &Scene, isec : &Intersection) -> ()
     let mut todo = [0u, 0u, 0u, 0u, 0u, 0u, 0u, 0u, 0u, 0u, 0u, 0u, 0u, 0u, 0u, 0u]; // FIXME make sure this is of length 16
     let mut todoIdx = 0; // the first *free* index
     let mut curNode = root;
-    fwhile(||{
+    for ever()
+    {
         let node = (*scene).bvhNodes(curNode);
         if @bvhIntersectNode(node.bbox, (*isec).ray, (*isec).dist, invDir, dirIsNeg)
         {
@@ -55,12 +56,11 @@ fn bvhIntersectFirst(root: uint, scene : &Scene, isec : &Intersection) -> ()
                 }
                 // done with this node, pop one off the stack
                 if todoIdx == 0 {
-                    false // DONE!
+                    break() // DONE!
                 }
                 else {
                     todoIdx = todoIdx-1;
                     curNode = todo(todoIdx);
-                    true // go to curNode
                 }
             }
             else {
@@ -69,13 +69,11 @@ fn bvhIntersectFirst(root: uint, scene : &Scene, isec : &Intersection) -> ()
                     todo(todoIdx) = curNode+1u; // do the left child later
                     todoIdx = todoIdx+1;
                     curNode = node.sndChildFirstPrim; // do the right child now
-                    true // go curNode
                 }
                 else {
                     todo(todoIdx) = node.sndChildFirstPrim; // do the right child later
                     todoIdx = todoIdx+1;
                     curNode = curNode+1u; // do the left child now
-                    true // go curNode
                 }
             }
         }
@@ -83,13 +81,12 @@ fn bvhIntersectFirst(root: uint, scene : &Scene, isec : &Intersection) -> ()
         {
             // we missed this node, pop one off the stack
             if todoIdx == 0 {
-                false // DONE!
+                break() // DONE!
             }
             else {
                 todoIdx = todoIdx-1;
                 curNode = todo(todoIdx);
-                true // go to curNode
             }
         }
-    })
+    }
 }

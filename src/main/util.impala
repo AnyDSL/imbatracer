@@ -18,11 +18,10 @@ fn urange(a : uint, b : uint, yield : fn(uint, fn()))
     }
 }
 
-fn fwhile(yield: fn() -> bool) -> ()
+fn ever(yield: fn(fn()) ) -> ()
 {
-    if yield() {
-        fwhile(yield, return)
-    }
+    yield();
+    ever(yield, return)
 }
 
 fn min(a : float, b : float) -> float

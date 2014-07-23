@@ -69,7 +69,7 @@ fn renderImage(mut buf : &[u32], width : int, height : int, measureTime : bool, 
 
 extern fn impala_render(buf : &[u32], width : int, height : int, measureTime : bool, mut state : &State) -> ()
 {
-    renderImage(buf, width, height, measureTime, |x, y, isec| {
+    @renderImage(buf, width, height, measureTime, |x, y, isec| {
         // FIXME maybe closures aren't the best idea, after all...
         let camera = @compileCamera(&(*state).cam);
         let scene = @compileScene(&(*state).scene);
