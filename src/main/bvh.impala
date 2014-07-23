@@ -9,7 +9,7 @@ struct BVHNode
 
 struct BVHTraversal
 {
-    todo : [uint*16],
+    todo : [uint*16], // sync this with BVH construction in C++!
 }
 fn emptyBVHTraversal() -> BVHTraversal
 {
@@ -57,7 +57,7 @@ fn bvhIntersectNode(bounds : BBox, ray : Ray, maxDist : float, invDir : Vec, neg
     }
 }
 
-fn bvhIntersectFirst(root: uint, scene : Scene, mut scratch : &RTScratch) -> ()
+fn bvhIntersectFirst(root: uint, scene : &Scene, mut scratch : &RTScratch) -> ()
 {
     let isec = &(*scratch).isec;
     let mut todo = &(*scratch).bvh.todo;
@@ -67,7 +67,7 @@ fn bvhIntersectFirst(root: uint, scene : Scene, mut scratch : &RTScratch) -> ()
     let mut curNode = root;
     for ever()
     {
-        let node = scene.bvhNodes(curNode);
+        let node = (*scene).bvhNodes(curNode);
         if @bvhIntersectNode(node.bbox, (*isec).ray, (*isec).dist, invDir, neg)
         {
             if (node.nPrim > 0u16) {

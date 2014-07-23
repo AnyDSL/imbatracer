@@ -67,11 +67,11 @@ extern fn impala_init_bench1(mut state : &State) -> ()
     (*state).cam = @camPerspectiveLookAt(pos, at, up, horzOpenAngle, vertOpenAngle);
 }
 
-fn renderImage(mut buf : &[u32], width : int, height : int, measureTime : bool, state : &State, body : fn(float, float, RTState, &RTScratch) -> Color) -> ()
+fn renderImage(mut buf : &[u32], width : int, height : int, measureTime : bool, state : &State, body : fn(float, float, &RTState, &RTScratch) -> Color) -> ()
 {
     let wf = width as float;
     let hf = height as float;
-    for x, y, state, scratch in renderIteration(width, height, measureTime, state)
+    for x, y, rtstate, scratch in renderIteration(width, height, measureTime, state)
     {
         // render in the center of the pixel
         let nx = (x as float + 0.5f) / wf;
@@ -81,13 +81,13 @@ fn renderImage(mut buf : &[u32], width : int, height : int, measureTime : bool, 
         let sy = -(ny - 0.5f) * 2.0f;
         // put color into index
         let idx = y*width+x;
-        buf(idx) = col_rgb2int(body(sx, sy, state, scratch));
+        buf(idx) = col_rgb2int(body(sx, sy, rtstate, scratch));
     }
 }
 
 extern fn impala_render(buf : &[u32], width : int, height : int, measureTime : bool, state : &State) -> ()
 {
-    @renderImage(buf, width, height, measureTime, state, |x, y, state, scratch|{
-        runIntegrator(state.integrator, state.scene, runCamera(state.cam, x, y), scratch)
+    @renderImage(buf, width, height, measureTime, state, |x, y, mut rtstate, scratch|{
+        runIntegrator((*rtstate).integrator, &(*rtstate).scene, runCamera((*rtstate).cam, x, y), scratch)
     });
 }

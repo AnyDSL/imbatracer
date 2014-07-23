@@ -15,9 +15,9 @@ fn noIdx() -> uint // the ID to be used when "nothing" is referenced (not valid 
 { 0xFFFFFFFFu }
 
 // TODO: Figure out the best way to pass around stuff. Scene as pointer or as copy? Intersection as pointer, or as function from Ray to isect?
-fn sceneIntersectFirst(scene: Scene, scratch : &RTScratch) -> ()
+fn sceneIntersectFirst(scene: &Scene, scratch : &RTScratch) -> ()
 {
-    for obj in urange(0u, scene.nObjs)
+    for obj in urange(0u, (*scene).nObjs)
     {
         @objIntersectFirst(obj, scene, scratch)
     }
