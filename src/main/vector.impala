@@ -124,6 +124,14 @@ fn acc_orthogonalize(ref : Vec, toOrtho : Vec) -> (Vec, Vec)
     (ortho, third)
 }
 
+fn vlerpbarp(a : Vec, b : Vec, c : Vec, w : Point) -> Vec
+{
+    let ap = @vfapply2(a, w.x, mul);
+    let bp = @vfapply2(b, w.y, mul);
+    let cp = @vfapply2(c, w.z, mul);
+	@vvapply2(ap, @vvapply2(bp, cp, add), add)
+}
+
 
 
 fn point(x : float, y : float, z : float) -> Point
@@ -144,6 +152,11 @@ fn point0() -> Point
 fn ppapply2(a : Point, b : Point, f: fn(float, float) -> float) -> Point
 {
     point(f(a.x, b.x), f(a.y, b.y), f(a.z, b.z))
+}
+
+fn pfapply2(a : Point, b : float, f: fn(float, float) -> float) -> Point
+{
+    point(f(a.x, b), f(a.y, b), f(a.z, b))
 }
 
 fn pvadd(p : Point, v : Vec) -> Point
@@ -171,6 +184,13 @@ fn ppmax(a : Point, b : Point) -> Point
     ppapply2(a, b, max)
 }
 
+fn plerpbarp(a : Point, b : Point, c : Point, w : Point) -> Point
+{
+    let ap = @pfapply2(a, w.x, mul);
+    let bp = @pfapply2(b, w.y, mul);
+    let cp = @pfapply2(c, w.z, mul);
+	@ppapply2(ap, @ppapply2(bp, cp, add), add)
+}
 
 
 

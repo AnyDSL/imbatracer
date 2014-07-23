@@ -2,9 +2,13 @@
 
 struct Scene
 {
+    bvhNodes: &[BVHNode],
+
     verts : &[Point],
     triVerts : &[uint], // 3 successive entries are the three indices of the vertices of a triangle
-    bvhNodes: &[BVHNode],
+
+    normals : &[Vec],
+    triNormals : &[uint],
 
     objs: &[Object],
     nObjs : uint,

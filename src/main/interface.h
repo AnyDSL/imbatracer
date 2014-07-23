@@ -45,6 +45,8 @@ namespace impala {
             default: return z;
             }
         }
+        float len() const { return sqrtf(x*x + y*y + z*z); }
+        Vec normal() const { if(!x && !y && !z) return Vec(0,0,0); float il=1/len(); return Vec(il*x, il*y, il*z); }
     };
     inline std::ostream &operator<<(std::ostream &o, const Vec &v)
     {
@@ -122,9 +124,11 @@ namespace impala {
 
     struct Scene
     {
+        BVHNode *bvhNodes;
         Point *verts;
         unsigned *triVerts;
-        BVHNode *bvhNodes;
+        Vec *normals;
+        unsigned *triNormals;
         Object *objs;
         unsigned nObjs;
     };

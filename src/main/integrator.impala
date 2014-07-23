@@ -13,18 +13,18 @@ struct Integrator
 // return a gray color whose value is the cosine between the ray direction and the hit surface normal
 fn cosineRadiance(isec : &Intersection) -> Color
 {
-    color1(acc_absdot((*isec).norm, (*isec).ray.d)) // ignore normal direction by abs()ing
+    color1(acc_absdot((*isec).shadingNormal, (*isec).ray.d)) // ignore normal direction by abs()ing
 }
 
 fn debugRadianceNormalDir(isec : &Intersection) -> Color
 {
-    let n = (*isec).norm;
+    let n = (*isec).shadingNormal;
     color(n.x, n.y, n.z)
 }
 
 fn debugRadianceNormalSign(isec : &Intersection) -> Color
 {
-    let n = (*isec).norm;
+    let n = (*isec).shadingNormal;
     @color(@scaleLin(n.x, -1.f, 1.f, 0.f, 1.f),
            @scaleLin(n.y, -1.f, 1.f, 0.f, 1.f),
            @scaleLin(n.z, -1.f, 1.f, 0.f, 1.f))

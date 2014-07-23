@@ -5,6 +5,12 @@ fn triPoint(tri : uint, pt : uint, scene : &Scene) -> Point
     (*scene).verts(idx)
 }
 
+fn triNormal(tri : uint, n : uint, scene : &Scene) -> Vec
+{
+    let idx = (*scene).triNormals(3u*tri + n);
+    (*scene).normals(idx)
+}
+
 fn triIntersectDistance(tri : uint, scene : &Scene, ray : Ray, maxDistance : float, distOnly : bool) -> (float, Vec, Point) // t, barycentric coords
 {
     /* Directly compute barycentric coordinates and t, and cancel early if we notice the ray is not going to hit
@@ -32,23 +38,23 @@ fn triIntersectDistance(tri : uint, scene : &Scene, ray : Ray, maxDistance : flo
     let s = to(a, ray.o);
     let b1 = dot(s, f1) * invDetA;
     if b1 < 0.0f || b1 > 1.0f
-    { (-1.0f, vec0(), point0()) }
+    { (-1.0f, @vec0(), @point0()) }
     else
     {
         // compute b2
         let f2 = cross(s, e1);
         let b2 = dot(ray.d, f2) * invDetA;
         if b2 < 0.0f || b1+b2 > 1.0f
-        { (-1.0f, vec0(), point0()) }
+        { (-1.0f, @vec0(), @point0()) }
         else
         {
             // compute t
             let t = dot(e2, f2) * invDetA;
             if t >= maxDistance
-            { (-1.0f, vec0(), point0()) }
+            { (-1.0f, @vec0(), @point0()) }
             else {
-                if distOnly { (t, vec0(), point0()) }
-                else { (t, acc_normalize(cross(e1, e2)), point(1.0f-b1-b2, b1, b2)) }
+                if distOnly { (t, @vec0(), @point0()) }
+                else { (t, acc_normalize(cross(e1, e2)), @point(1.0f-b1-b2, b1, b2)) }
             }
         }
     }
@@ -65,7 +71,11 @@ fn triIntersectFirst(tri : uint, scene : &Scene, isec : &Intersection) -> ()
     let t = res(0); // TODO: would be nice to have syntax for tuple unpacking
     if t >= 0.0f
     {
-        improveIntersection(isec, t, tri, res(1), res(2), @defaultEps());
+        let n1 = @triNormal(tri, 0u, scene);
+        let n2 = @triNormal(tri, 1u, scene);
+        let n3 = @triNormal(tri, 2u, scene);
+        let shadingNormal = @acc_normalize(vlerpbarp(n1, n2, n3, res(2)));
+        @improveIntersection(isec, t, tri, res(1), shadingNormal, res(2), @defaultEps());
     }
 }
 
@@ -74,7 +84,7 @@ fn triBBox(tri : uint, scene : &Scene) -> BBox
     let a = @triPoint(tri, 0u, scene);
     let b = @triPoint(tri, 1u, scene);
     let c = @triPoint(tri, 2u, scene);
-    bbextend(bbox(a, b), c)
+    @bbextend(bbox(a, b), c)
 }
 
 fn triArea(tri : uint, scene : &Scene) -> float
@@ -82,5 +92,5 @@ fn triArea(tri : uint, scene : &Scene) -> float
     let a = @triPoint(tri, 0u, scene);
     let e1 = to(a, @triPoint(tri, 1u, scene));
     let e2 = to(a, @triPoint(tri, 2u, scene));
-    vlen(cross(e1, e2))*0.5f
+    @vlen(cross(e1, e2))*0.5f
 }

@@ -287,7 +287,7 @@ FileObject::FileObject(const std::string &filename, /*MatLib *inmats,*/ unsigned
                 if (i == Obj_Vertex)
                     verts.push_back(v);
                 else
-                    normals.push_back(Vector(v)/*.normalize()*/);
+                    normals.push_back(Vector(v).normal());
                 break;
             }
             case Obj_TexVertex: {
@@ -392,7 +392,7 @@ FileObject::FileObject(const std::string &filename, /*MatLib *inmats,*/ unsigned
     /*if (!inmats)
         delete matlib;*/
 
-    std::cout << "ObjLoader: Loaded " << verts.size() << " verts" << std::endl;
+    std::cout << "ObjLoader: Loaded " << verts.size() << " verts, " << normals.size() << " normals, " << texCoords.size() << " texcoords" << std::endl;
 }
 
 /*
