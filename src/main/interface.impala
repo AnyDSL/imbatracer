@@ -88,6 +88,6 @@ fn renderImage(mut buf : &[u32], width : int, height : int, measureTime : bool, 
 extern fn impala_render(buf : &[u32], width : int, height : int, measureTime : bool, state : &State) -> ()
 {
     @renderImage(buf, width, height, measureTime, state, |x, y, mut rtstate, scratch|{
-        @runIntegrator((*rtstate).integrator, &(*rtstate).scene, runCamera(&(*rtstate).cam, x, y), scratch)
+        @runIntegrator(&(*rtstate).integrator, &(*rtstate).scene, runCamera(&(*rtstate).cam, x, y), scratch)
     });
 }
