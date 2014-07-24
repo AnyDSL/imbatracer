@@ -32,21 +32,21 @@ fn bvhMakeNeg(invDir : Vec) -> uint
     (bool2uint(invDir.z < 0.0f) << 2u)
 }
 
-fn bvhIntersectNode(bounds : BBox, ray : Ray, maxDist : float, invDir : Vec, neg: uint) -> bool
+fn bvhIntersectNode(bounds : BBox, o : Point, maxDist : float, invDir : Vec, neg: uint) -> bool
 {
     // Check for ray intersection against x and y slabs
-    let txmin = (@bvhBBoxComp(bounds,  @bvhDirIsNeg(neg, 0u)).x - ray.o.x) * invDir.x;
-    let txmax = (@bvhBBoxComp(bounds, !@bvhDirIsNeg(neg, 0u)).x - ray.o.x) * invDir.x;
-    let tymin = (@bvhBBoxComp(bounds,  @bvhDirIsNeg(neg, 1u)).y - ray.o.y) * invDir.y;
-    let tymax = (@bvhBBoxComp(bounds, !@bvhDirIsNeg(neg, 1u)).y - ray.o.y) * invDir.y;
+    let txmin = (@bvhBBoxComp(bounds,  @bvhDirIsNeg(neg, 0u)).x - o.x) * invDir.x;
+    let txmax = (@bvhBBoxComp(bounds, !@bvhDirIsNeg(neg, 0u)).x - o.x) * invDir.x;
+    let tymin = (@bvhBBoxComp(bounds,  @bvhDirIsNeg(neg, 1u)).y - o.y) * invDir.y;
+    let tymax = (@bvhBBoxComp(bounds, !@bvhDirIsNeg(neg, 1u)).y - o.y) * invDir.y;
     if (txmin > tymax) || (tymin > txmax)
     { false }
     else {
         let tmin = max(txmin, tymin);
         let tmax = min(txmax, tymax);
         // Check for ray intersection against z slab
-        let tzmin = (@bvhBBoxComp(bounds,  @bvhDirIsNeg(neg, 2u)).z - ray.o.z) * invDir.z;
-        let tzmax = (@bvhBBoxComp(bounds, !@bvhDirIsNeg(neg, 2u)).z - ray.o.z) * invDir.z;
+        let tzmin = (@bvhBBoxComp(bounds,  @bvhDirIsNeg(neg, 2u)).z - o.z) * invDir.z;
+        let tzmax = (@bvhBBoxComp(bounds, !@bvhDirIsNeg(neg, 2u)).z - o.z) * invDir.z;
         if  (tmin > tzmax) || (tzmin > tmax)
         { false }
         else
@@ -61,59 +61,68 @@ fn bvhIntersectFirst(root: uint, scene : &Scene, mut scratch : &RTScratch) -> ()
     let isec = &(*scratch).isec;
     let invDir = @vapply1((*isec).ray.d, |f|1.0f/f);
     let neg = @bvhMakeNeg(invDir);
-    let mut curNode = root;
-
-    // we run our own stack
     let mut todo = &(*scratch).bvh.todo;
-    let mut todoIdx = 0u; // the first *free* index
-    fn pushStack(nodeIdx : uint) -> ()
-    {
-        @assert(||todoIdx < 16u, 33);
-        (*todo)(todoIdx) = nodeIdx;
-        todoIdx = todoIdx+1u;
-    }
     let done = return;
-    fn popStack() -> uint
+
+    fn rayIntersects(node : uint) -> bool {
+        @bvhIntersectNode((*scene).bvhNodes(node).bbox, (*isec).ray.o, (*isec).dist, invDir, neg)
+    }
+
+    // Invariant: The ray hits curNode and everything in the stack
+    fn checkAndTraverseNode(curNode : uint, todoIdx : uint)
     {
-        if todoIdx == 0u {
-            done() // DONE!
+        if @rayIntersects(curNode) {
+            @traverseNode(curNode, todoIdx)
         }
         else {
-            todoIdx = todoIdx-1u;
-            (*todo)(todoIdx)
+            @popStack(todoIdx)
+        }
+    }
+    fn popStack(todoIdx : uint)
+    {
+        if todoIdx == 0u {
+            @done() // DONE!
+        }
+        else {
+            // loop with topost element popped off. this may be non-intersecting, so be sure to check.
+            let todoIdxNew = todoIdx-1u;
+            @checkAndTraverseNode((*todo)(todoIdxNew), todoIdxNew)
+        }
+    }
+    fn descend(fstNode : uint, sndNode : uint, todoIdx : uint)
+    {
+        if @rayIntersects(fstNode) {
+            // push onto stack
+            (*todo)(todoIdx) = fstNode;
+            @traverseNode(fstNode, todoIdx+1u) // we can immediately traverse the first node as we know it intersects
+        }
+        else {
+            // go to 2nd node, and don't even touch the stack
+            @checkAndTraverseNode(sndNode, todoIdx)
+        }
+    }
+    fn traverseNode(curNode : uint, todoIdx : uint)
+    {
+        let node = (*scene).bvhNodes(curNode);
+        if (node.nPrim > 0u16) {
+            // a leaf
+            for tri in urange(node.sndChildFirstPrim, node.sndChildFirstPrim+(node.nPrim as uint)) {
+                triIntersectFirst(tri, scene, isec);
+            }
+            // done with this node, pop one off the stack
+            @popStack(todoIdx)
+        }
+        else {
+
+            // an inner node, which child do we get to first?
+            if @bvhDirIsNeg(neg, node.axis as uint) {
+                @descend(node.sndChildFirstPrim, curNode+1u) // do the left child later, the right child now
+            }
+            else {
+                @descend(curNode+1u, node.sndChildFirstPrim) // do the right child later, the left child now
+            }
         }
     }
 
-    for ever() // we shouldn't unroll this, but adding a $ here makes stuff go slower
-    {
-        // TODO play with only ever putting intersection stuff on the stack, so we do less unnecessary memory writes
-        let node = (*scene).bvhNodes(curNode);
-        if @bvhIntersectNode(node.bbox, (*isec).ray, (*isec).dist, invDir, neg)
-        {
-            if (node.nPrim > 0u16) {
-                // a leaf
-                for tri in urange(node.sndChildFirstPrim, node.sndChildFirstPrim+(node.nPrim as uint)) {
-                    triIntersectFirst(tri, scene, isec);
-                }
-                // done with this node, pop one off the stack
-                curNode = popStack();
-            }
-            else {
-                // an inner node, which child do we get to first?
-                if @bvhDirIsNeg(neg, node.axis as uint) {
-                    pushStack(curNode+1u); // do the left child later
-                    curNode = node.sndChildFirstPrim; // do the right child now
-                }
-                else {
-                    pushStack(node.sndChildFirstPrim); // do the right child later
-                    curNode = curNode+1u; // do the left child now
-                }
-            }
-        }
-        else
-        {
-            // we missed this node, pop one off the stack
-            curNode = popStack();
-        }
-    }
+    checkAndTraverseNode(root, 0u)
 }

@@ -72,6 +72,7 @@ bool SDLGui::_OnKey(int /*scancode*/, int key, int /*mod*/, bool state)
 
 void SDLGui::_OnWindowResize(int w, int h)
 {
+    std::cout << "New window size: " << w << "x" << h << std::endl;
     windowW = w;
     windowH = h;
 }
