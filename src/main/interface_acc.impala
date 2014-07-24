@@ -1,7 +1,9 @@
 
 extern fn impala_render(buf : &[u32], width : int, height : int, measureTime : bool, state : &State) -> ()
 {
-    renderImage(buf, width, height, measureTime, state, |x, y, mut rtstate, scratch| {
+    // FIXME sometimes the complete scene (except for the background) goes all black?!?
+    for x, y, mut rtstate, scratch in renderImage(buf, width, height, measureTime, state) {
         @runIntegrator(&(*rtstate).integrator, &(*rtstate).scene, runCamera(&(*rtstate).cam, x, y), scratch)
-    })
+    }
 }
+
