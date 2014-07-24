@@ -60,11 +60,31 @@ fn bvhIntersectNode(bounds : BBox, ray : Ray, maxDist : float, invDir : Vec, neg
 fn bvhIntersectFirst(root: uint, scene : &Scene, mut scratch : &RTScratch) -> ()
 {
     let isec = &(*scratch).isec;
-    let mut todo = &(*scratch).bvh.todo;
     let invDir = @vapply1((*isec).ray.d, |f|1.0f/f);
     let neg = @bvhMakeNeg(invDir);
-    let mut todoIdx = 0; // the first *free* index
     let mut curNode = root;
+
+    // we run our own stack
+    let mut todo = &(*scratch).bvh.todo;
+    let mut todoIdx = 0u; // the first *free* index
+    fn pushStack(nodeIdx : uint) -> ()
+    {
+        @assert(||todoIdx < 16u, 33);
+        (*todo)(todoIdx) = nodeIdx;
+        todoIdx = todoIdx+1u;
+    }
+    let done = return;
+    fn popStack() -> uint
+    {
+        if todoIdx == 0u {
+            done() // DONE!
+        }
+        else {
+            todoIdx = todoIdx-1u;
+            (*todo)(todoIdx)
+        }
+    }
+
     for ever() // we shouldn't unroll this, but adding a $ here makes stuff go slower
     {
         let node = (*scene).bvhNodes(curNode);
@@ -76,24 +96,16 @@ fn bvhIntersectFirst(root: uint, scene : &Scene, mut scratch : &RTScratch) -> ()
                     triIntersectFirst(tri, scene, isec);
                 }
                 // done with this node, pop one off the stack
-                if todoIdx == 0 {
-                    break() // DONE!
-                }
-                else {
-                    todoIdx = todoIdx-1;
-                    curNode = (*todo)(todoIdx);
-                }
+                curNode = popStack();
             }
             else {
                 // an inner node, which child do we get to first?
                 if @bvhDirIsNeg(neg, node.axis as uint) {
-                    (*todo)(todoIdx) = curNode+1u; // do the left child later
-                    todoIdx = todoIdx+1;
+                    pushStack(curNode+1u); // do the left child later
                     curNode = node.sndChildFirstPrim; // do the right child now
                 }
                 else {
-                    (*todo)(todoIdx) = node.sndChildFirstPrim; // do the right child later
-                    todoIdx = todoIdx+1;
+                    pushStack(node.sndChildFirstPrim); // do the right child later
                     curNode = curNode+1u; // do the left child now
                 }
             }
@@ -101,13 +113,7 @@ fn bvhIntersectFirst(root: uint, scene : &Scene, mut scratch : &RTScratch) -> ()
         else
         {
             // we missed this node, pop one off the stack
-            if todoIdx == 0 {
-                break() // DONE!
-            }
-            else {
-                todoIdx = todoIdx-1;
-                curNode = (*todo)(todoIdx);
-            }
+            curNode = popStack();
         }
     }
 }

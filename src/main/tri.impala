@@ -42,26 +42,25 @@ fn triIntersectDistance(tri : uint, scene : &Scene, ray : Ray, maxDistance : flo
     // compute b1
     let s = to(a, ray.o);
     let b1 = dot(s, f1) * invDetA;
-    if b1 < 0.0f || b1 > 1.0f
-    { (-1.0f, @vec0(), @point0()) }
-    else
-    {
-        // compute b2
-        let f2 = cross(s, e1);
-        let b2 = dot(ray.d, f2) * invDetA;
-        if b2 < 0.0f || b1+b2 > 1.0f
-        { (-1.0f, @vec0(), @point0()) }
-        else
-        {
-            // compute t
-            let t = dot(e2, f2) * invDetA;
-            if t >= maxDistance
-            { (-1.0f, @vec0(), @point0()) }
-            else {
-                if distOnly { (t, @vec0(), @point0()) }
-                else { (t, @acc_normalize(cross(e1, e2)), @point(1.0f-b1-b2, b1, b2)) }
-            }
-        }
+    if b1 < 0.0f || b1 > 1.0f {
+        return (-1.0f, @vec0(), @point0())
+    }
+    // compute b2
+    let f2 = cross(s, e1);
+    let b2 = dot(ray.d, f2) * invDetA;
+    if b2 < 0.0f || b1+b2 > 1.0f {
+        return (-1.0f, @vec0(), @point0())
+    }
+    // compute t
+    let t = dot(e2, f2) * invDetA;
+    if t >= maxDistance {
+        return (-1.0f, @vec0(), @point0())
+    }
+    else if distOnly {
+        return (t, @vec0(), @point0())
+    }
+    else {
+        return (t, @acc_normalize(cross(e1, e2)), @point(1.0f-b1-b2, b1, b2))
     }
 }
 

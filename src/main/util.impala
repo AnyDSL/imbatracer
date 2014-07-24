@@ -93,15 +93,7 @@ fn epsilon() -> float
 
 fn isDebug() -> bool
 {
-    true
-}
-
-fn timer() -> ()
-{
-    if @isDebug()
-    {
-        get_micro_time();
-    }
+    false
 }
 
 
