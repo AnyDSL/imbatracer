@@ -86,6 +86,7 @@ fn bvhIntersectFirst(root: uint, scene : &Scene, mut scratch : &RTScratch) -> ()
 
     for ever() // we shouldn't unroll this, but adding a $ here makes stuff go slower
     {
+        // TODO play with only ever putting intersection stuff on the stack, so we do less unnecessary memory writes
         let node = (*scene).bvhNodes(curNode);
         if @bvhIntersectNode(node.bbox, (*isec).ray, (*isec).dist, invDir, neg)
         {
