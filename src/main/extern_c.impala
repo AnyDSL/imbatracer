@@ -15,6 +15,13 @@ extern "C"
     fn scene_build(&State) -> ();
 }
 
+// FIXME functions from the throin runtime, we really shouldn't import them here...
+extern "C" {
+    fn random_val(int) -> float;
+    fn get_micro_time() -> i64;
+    fn print_gflops(float) -> ();
+}
+
 // some derived forms
 fn print_iv(i : int, v : Vec) -> ()
 {

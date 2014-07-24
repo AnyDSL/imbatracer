@@ -7,7 +7,7 @@ struct Ray
 
 fn ray(o : Point, d : Vec) -> Ray
 {
-    @assert(||almost(acc_vlen(d), 1.0f), 13);
+    @assert(||almost(vlen(d), 1.0f), 13);
     Ray{ o:o, d:d }
 }
 
@@ -23,7 +23,7 @@ fn rayNormalize(o : Point, d : Vec) -> Ray
 
 fn acc_rayNormalize(o : Point, d : Vec) -> Ray
 {
-    ray(o, acc_normalize(d))
+    ray(o, normalize(d))
 }
 
 fn rayP(r : Ray, dist : float) -> Point

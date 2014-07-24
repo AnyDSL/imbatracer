@@ -15,7 +15,7 @@ fn camPerspectiveLookAt(center : Point, at : Point, up : Vec, verticalOpeningAng
 
 fn perspectiveRay(v : &View, x : float, y : float) -> Ray
 {
-    @acc_rayNormalize(
+    @rayNormalize(
         (*v).origin,
         vadd((*v).forward, vadd(vfmul((*v).up, y), vfmul((*v).right, x)))
     )
@@ -31,15 +31,15 @@ fn orthoRay(v : &View, x : float, y : float) -> Ray
 
 fn fisheyeRay(v : &View, x : float, y : float, fov : float) -> Ray
 {
-    let r = acc_sqrtf(x*x + y*y);
-    let phi = acc_atan2f(y, x);
+    let r = sqrtf(x*x + y*y);
+    let phi = atan2f(y, x);
     let theta = r * fov / 2.0f;
-    let costheta = acc_cosf(theta);
-    let sintheta = acc_sinf(theta);
+    let costheta = cosf(theta);
+    let sintheta = sinf(theta);
 
     let a = vfmul((*v).forward, costheta);
-    let b = vfmul((*v).up, sintheta*acc_sinf(phi));
-    let c = vfmul((*v).right, sintheta*acc_cosf(phi));
+    let b = vfmul((*v).up, sintheta*sinf(phi));
+    let c = vfmul((*v).right, sintheta*cosf(phi));
     ray(
         (*v).origin,
         vadd(a, vadd(b, c)) // known to be normal
@@ -50,12 +50,12 @@ fn environRay(v : &View, x : float, y : float, vertical : float, horiz : float) 
 {
     let theta = y * (vertical / 2.0f);
     let phi = x * (horiz / 2.0f);
-    let costheta = acc_cosf(theta);
-    let sintheta = acc_sinf(theta);
+    let costheta = cosf(theta);
+    let sintheta = sinf(theta);
 
     let a = vfmul((*v).up, sintheta);
-    let b = vfmul((*v).right, costheta*acc_sinf(phi));
-    let c = vfmul((*v).forward, costheta*acc_cosf(phi));
+    let b = vfmul((*v).right, costheta*sinf(phi));
+    let c = vfmul((*v).forward, costheta*cosf(phi));
     ray(
         (*v).origin,
         vadd(a, vadd(b, c)) // known to be normal

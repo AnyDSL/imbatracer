@@ -7,7 +7,7 @@ set(cpp_SRC
     extern_c.cpp
 )
 
-set(impala_SRC
+set(impala_shared_SRC
     util.impala
     extern_c.impala
     color.impala
@@ -15,24 +15,35 @@ set(impala_SRC
     ray.impala
     bbox.impala
     object.impala
-    tri.impala
-    bvh.impala
     scene.impala
+    state.impala
     light.impala
     intersection.impala
     view.impala
     cameras.impala
     integrator.impala
+    tri.impala
+    bvh.impala
+)
+set(impala_loc_SRC
+    mapping_cpu.impala
+    interface_loc.impala
+)
+set(impala_acc_SRC
+    render.impala
     mapping_${DEVICE}.impala
-    interface.impala
+    interface_acc.impala
 )
 
-THORIN_RUNTIME_WRAP(impala_OBJ impala_LIB
+THORIN_RUNTIME_WRAP(impala_acc_OBJ impala_acc_LIB
     RTTYPE ${RTTYPE}
-    FILES ${impala_SRC})
+    FILES ${impala_shared_SRC} ${impala_acc_SRC})
+THORIN_RUNTIME_WRAP(impala_loc_OBJ impala_loc_LIB
+    RTTYPE none
+    FILES ${impala_shared_SRC} ${impala_loc_SRC})
 
-add_library(rt ${cpp_SRC} ${impala_SRC} ${impala_OBJ})
-target_link_libraries(rt core ${impala_LIB})
+add_library(rt ${cpp_SRC} ${impala_shared_SRC} ${impala_loc_SRC} ${impala_acc_SRC} ${impala_loc_OBJ} ${impala_acc_OBJ})
+target_link_libraries(rt core ${impala_loc_LIB} ${impala_acc_LIB})
 
 add_executable(main main.cpp)
 target_link_libraries(main rt io)

@@ -69,24 +69,20 @@ fn fvmul(a : float, b : Vec) -> Vec { fvapply2(a, b, mul) }
 fn fvdiv(a : float, b : Vec) -> Vec { fvapply2(a, b, div) }
 
 fn vabs(a : Vec) -> Vec { vapply1(a, fabsf) }
-fn acc_vabs(a : Vec) -> Vec { vapply1(a, acc_fabsf) }
 
 fn vdiff(a : Vec, b : Vec) -> Vec { vabs(vsub(a, b)) }
 
 fn vlensq(v : Vec) -> float { v.x*v.x + v.y*v.y + v.z*v.z }
 
 fn vlen(v : Vec) -> float { sqrtf(vlensq(v)) }
-fn acc_vlen(v : Vec) -> float { acc_sqrtf(vlensq(v)) }
 
 fn normalize(v : Vec) -> Vec { vfmul(v, 1.0f/vlen(v)) }
-fn acc_normalize(v : Vec) -> Vec { vfdiv(v, acc_vlen(v)) }
 
 fn vmaxf(v : Vec) -> float { max(v.x, max(v.y, v.z)) }
 fn vminf(v : Vec) -> float { min(v.x, min(v.y, v.z))}
 
 fn dot(a : Vec, b : Vec) -> float { a.x*b.x + a.y*b.y + a.z*b.z }
 fn absdot(a : Vec, b : Vec) -> float { fabsf(dot(a, b)) }
-fn acc_absdot(a : Vec, b : Vec) -> float { acc_fabsf(dot(a, b)) }
 fn cross(a : Vec, b : Vec) -> Vec { Vec { x : a.y*b.z - a.z*b.y, y : a.z*b.x - a.x*b.z, z : a.x*b.y - a.y*b.x } }
 
 fn vequals(a : Vec, b : Vec) -> bool {  a.x==b.x && a.y==b.y && a.z==b.z }
@@ -112,13 +108,6 @@ fn vorthogonal(a : Vec) -> Vec
 fn orthogonalize(ref : Vec, toOrtho : Vec) -> (Vec, Vec)
 {
     let third = normalize(cross(ref, toOrtho));
-    let ortho = cross(third, ref);
-    @assert(||dot(toOrtho, ortho) > 0.0f, 22);
-    (ortho, third)
-}
-fn acc_orthogonalize(ref : Vec, toOrtho : Vec) -> (Vec, Vec)
-{
-    let third = acc_normalize(cross(ref, toOrtho));
     let ortho = cross(third, ref);
     @assert(||dot(toOrtho, ortho) > 0.0f, 22);
     (ortho, third)

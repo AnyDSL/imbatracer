@@ -1,0 +1,17 @@
+fn renderImage(mut buf : &[u32], width : int, height : int, measureTime : bool, state : &State, body : fn(float, float, &RTState, &RTScratch) -> Color) -> ()
+{
+    let wf = width as float;
+    let hf = height as float;
+    for x, y, rtstate, scratch in renderIteration(width, height, measureTime, state)
+    {
+        // render in the center of the pixel
+        let nx = (x as float + 0.5f) / wf;
+        let ny = (y as float + 0.5f) / hf;
+        // convert to screen coordinates (remember to swap y axis)
+        let sx =  (nx - 0.5f) * 2.0f;
+        let sy = -(ny - 0.5f) * 2.0f;
+        // put color into index
+        let idx = y*width+x;
+        buf(idx) = col_rgb2int(body(sx, sy, rtstate, scratch)); // TODO adding @ in front of the body makes compilation take... eh, long^^
+    }
+}

@@ -60,7 +60,7 @@ fn triIntersectDistance(tri : uint, scene : &Scene, ray : Ray, maxDistance : flo
         return (t, @vec0(), @point0())
     }
     else {
-        return (t, @acc_normalize(cross(e1, e2)), @point(1.0f-b1-b2, b1, b2))
+        return (t, @normalize(cross(e1, e2)), @point(1.0f-b1-b2, b1, b2))
     }
 }
 
@@ -80,7 +80,7 @@ fn triIntersectFirst(tri : uint, scene : &Scene, isec : &Intersection) -> ()
                 let n1 = @triVertNormal(tri, 0u, scene);
                 let n2 = @triVertNormal(tri, 1u, scene);
                 let n3 = @triVertNormal(tri, 2u, scene);
-                @acc_normalize(@vlerpbarp(n1, n2, n3, res(2)))
+                @normalize(@vlerpbarp(n1, n2, n3, res(2)))
             }
             else {
                 res(1) // surfce normal, already normalized

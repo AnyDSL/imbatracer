@@ -42,7 +42,7 @@ message(STATUS "Using runtime-type ${RTTYPE}")
 if(RTTYPE STREQUAL "cpu" OR RTTYPE STREQUAL "avx")
     set(DEVICE "cpu")
 else()
-    set(DEVICE "acc")
+    set(DEVICE "gpu")
 endif()
 
 
