@@ -16,7 +16,7 @@ public:
 
     virtual ~Refcounted()
     {
-        assert(_refcount == 0, "Object was deleted with refcount ", _refcount);
+        assert(_refcount == 0, "Object was deleted with refcount ", (unsigned)_refcount);
     }
 
     FORCE_INLINE void incref()
