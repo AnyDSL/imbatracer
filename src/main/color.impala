@@ -20,11 +20,6 @@ fn color0() -> Color
     color1(0.0f)
 }
 
-fn cclamp01(c : Color) -> Color
-{
-    color(clamp01f(c.r), clamp01f(c.g), clamp01f(c.b))
-}
-
 fn cfapply2(c: Color, v : float, f: fn(float, float) -> float) -> Color
 {
     color(f(c.r, v), f(c.g, v), f(c.b, v))
@@ -41,11 +36,10 @@ fn clerp(c1 : Color, c2 : Color, t : float) -> Color
 }
 
 
-fn col_rgb2int(cc : Color) -> u32
+fn col_rgb2int(c : Color) -> u32
 {
-    let c = cclamp01(cc);
      0xff000000u32
-     | ((((c.b*255.0f) as int) as u32) << 16u32)
-     | ((((c.g*255.0f) as int) as u32) << 8u32 )
-     | ((((c.r*255.0f) as int) as u32)         )
+     | ((((clamp01f(c.b)*255.0f) as int) as u32)<< 16u32)
+     | ((((clamp01f(c.g)*255.0f) as int) as u32)<< 8u32 )
+     | ((((clamp01f(c.r)*255.0f) as int) as u32)        )
 }

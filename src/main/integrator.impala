@@ -1,10 +1,10 @@
 
 struct Integrator
 {
+    // for debugger
     minDist : float,
     maxDist : float,
-    maxRecDepth : float,
-    mode : int, // for debugger
+    mode : int,
 
     itype : int
 }
