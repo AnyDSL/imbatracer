@@ -54,27 +54,27 @@ fn fvapply2(a : float, b : Vec, f: fn(float, float) -> float) -> Vec
 
 fn vclamp(v : Vec, mi : Vec, ma : Vec) -> Vec { @vmin(ma, vmax(mi, v)) }
 
-fn vmin(a : Vec, b : Vec) -> Vec { vvapply2(a, b, min) }
-fn vmax(a : Vec, b : Vec) -> Vec { vvapply2(a, b, max) }
+fn vmin(a : Vec, b : Vec) -> Vec { @vvapply2(a, b, min) }
+fn vmax(a : Vec, b : Vec) -> Vec { @vvapply2(a, b, max) }
 
-fn vmul(a : Vec, b : Vec) -> Vec { vvapply2(a, b, mul) }
-fn vdiv(a : Vec, b : Vec) -> Vec { vvapply2(a, b, div) }
-fn vadd(a : Vec, b : Vec) -> Vec { vvapply2(a, b, add) }
-fn vsub(a : Vec, b : Vec) -> Vec { vvapply2(a, b, sub) }
+fn vmul(a : Vec, b : Vec) -> Vec { @vvapply2(a, b, mul) }
+fn vdiv(a : Vec, b : Vec) -> Vec { @vvapply2(a, b, div) }
+fn vadd(a : Vec, b : Vec) -> Vec { @vvapply2(a, b, add) }
+fn vsub(a : Vec, b : Vec) -> Vec { @vvapply2(a, b, sub) }
 
-fn vfmul(a : Vec, b : float) -> Vec { vfapply2(a, b, mul) }
-fn vfdiv(a : Vec, b : float) -> Vec { vfapply2(a, b, div) }
+fn vfmul(a : Vec, b : float) -> Vec { @vfapply2(a, b, mul) }
+fn vfdiv(a : Vec, b : float) -> Vec { @vfapply2(a, b, div) }
 
-fn fvmul(a : float, b : Vec) -> Vec { fvapply2(a, b, mul) }
-fn fvdiv(a : float, b : Vec) -> Vec { fvapply2(a, b, div) }
+fn fvmul(a : float, b : Vec) -> Vec { @fvapply2(a, b, mul) }
+fn fvdiv(a : float, b : Vec) -> Vec { @fvapply2(a, b, div) }
 
-fn vabs(a : Vec) -> Vec { vapply1(a, fabsf) }
+fn vabs(a : Vec) -> Vec { @vapply1(a, fabsf) }
 
-fn vdiff(a : Vec, b : Vec) -> Vec { vabs(vsub(a, b)) }
+fn vdiff(a : Vec, b : Vec) -> Vec { @vabs(@vsub(a, b)) }
 
 fn vlensq(v : Vec) -> float { v.x*v.x + v.y*v.y + v.z*v.z }
 
-fn vlen(v : Vec) -> float { sqrtf(vlensq(v)) }
+fn vlen(v : Vec) -> float { @sqrtf(@vlensq(v)) }
 
 fn normalize(v : Vec) -> Vec { vfmul(v, 1.0f/vlen(v)) }
 
