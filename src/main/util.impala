@@ -106,3 +106,15 @@ fn bool2uint(b : bool) -> uint
 {
     if b {1u} else {0u}
 }
+
+// only works for positive numbers!
+fn div_round_up(a : int, b : int) -> int
+{
+    (a+b-1)/b
+}
+
+// only works for positive numbers!
+fn round_up(a : int, b : int) -> int
+{
+    div_round_up(a, b)*b
+}

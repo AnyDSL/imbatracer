@@ -2,7 +2,7 @@ fn renderIteration(width : int, height : int, measureTime : bool, state : &State
 {
     let unroll = 1;
     let block = (32, 4, 1);
-    let dim = (width, height/unroll, 1); // TODO proper rounding
+    let dim = (@round_up(width, block(0)), @round_up(div_round_up(height, unroll), block(1)), 1);
 
     // extract the stuff we need
     let cam = (*state).cam;
@@ -24,8 +24,11 @@ fn renderIteration(width : int, height : int, measureTime : bool, state : &State
                                     scene:Scene { verts:verts, normals:normals, triVerts:triVerts, triNormals:triNormals, bvhNodes:bvhNodes, objs:objs, nObjs:nObjs } };
 
         for i in @range(0, unroll) {
-            // TODO bounds check
-            @body(gid_x, gid_y + i * acc_bdimy(), &rtstate, &scratch);
+            let x = gid_x;
+            let y = gid_y + i * acc_bdimy();
+            if x < width && y < height {
+                @body(x, y, &rtstate, &scratch);
+            }
         }
     });
 }
