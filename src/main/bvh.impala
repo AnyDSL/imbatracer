@@ -1,3 +1,4 @@
+
 struct BVHNode
 {
     bbox : BBox,
@@ -61,68 +62,65 @@ fn bvhIntersectFirst(root: uint, scene : &Scene, mut scratch : &RTScratch) -> ()
     let isec = &(*scratch).isec;
     let invDir = @vapply1((*isec).ray.d, |f|1.0f/f);
     let neg = @bvhMakeNeg(invDir);
-    let mut todo = &(*scratch).bvh.todo;
+
+    // we roll our own stack
     let done = return;
+    let mut todo = &(*scratch).bvh.todo;
+    let mut todoIdx = 0; // the first *free* index
 
-    fn rayIntersects(node : uint) -> bool {
-        @bvhIntersectNode((*scene).bvhNodes(node).bbox, (*isec).ray.o, (*isec).dist, invDir, neg)
-    }
-
-    // Invariant: The ray hits curNode and everything in the stack
-    fn checkAndTraverseNode(curNode : uint, todoIdx : uint)
-    {
-        if @rayIntersects(curNode) {
-            @traverseNode(curNode, todoIdx)
+    // CPS fun while passing the current node around as argument :-)
+    for curNode in ever1(root) { // we shouldn't unroll this, but adding a $ here makes stuff go slower
+        // stack helper functions
+        fn pushNode(node : uint) -> ()
+        {
+            (*todo)(todoIdx) = node; // do the left child later
+            todoIdx = todoIdx+1;
         }
-        else {
-            @popStack(todoIdx)
-        }
-    }
-    fn popStack(todoIdx : uint)
-    {
-        if todoIdx == 0u {
-            @done() // DONE!
-        }
-        else {
-            // loop with topost element popped off. this may be non-intersecting, so be sure to check.
-            let todoIdxNew = todoIdx-1u;
-            @checkAndTraverseNode((*todo)(todoIdxNew), todoIdxNew)
-        }
-    }
-    fn descend(fstNode : uint, sndNode : uint, todoIdx : uint)
-    {
-        if @rayIntersects(fstNode) {
-            // push onto stack
-            (*todo)(todoIdx) = fstNode;
-            @traverseNode(fstNode, todoIdx+1u) // we can immediately traverse the first node as we know it intersects
-        }
-        else {
-            // go to 2nd node, and don't even touch the stack
-            @checkAndTraverseNode(sndNode, todoIdx)
-        }
-    }
-    fn traverseNode(curNode : uint, todoIdx : uint)
-    {
-        let node = (*scene).bvhNodes(curNode);
-        if (node.nPrim > 0u16) {
-            // a leaf
-            for tri in urange(node.sndChildFirstPrim, node.sndChildFirstPrim+(node.nPrim as uint)) {
-                triIntersectFirst(tri, scene, isec);
-            }
-            // done with this node, pop one off the stack
-            @popStack(todoIdx)
-        }
-        else {
-
-            // an inner node, which child do we get to first?
-            if @bvhDirIsNeg(neg, node.axis as uint) {
-                @descend(node.sndChildFirstPrim, curNode+1u) // do the left child later, the right child now
+        fn popNode()
+        {
+            if todoIdx == 0 {
+                done() // DONE!
             }
             else {
-                @descend(curNode+1u, node.sndChildFirstPrim) // do the right child later, the left child now
+                // continue with stack element
+                todoIdx = todoIdx-1;
+                continue((*todo)(todoIdx))
             }
         }
-    }
 
-    checkAndTraverseNode(root, 0u)
+        if @bvhIntersectNode((*scene).bvhNodes(curNode).bbox, (*isec).ray.o, (*isec).dist, invDir, neg)
+        {
+            // inner loop: we assume the current node does not intersect
+            let inner = continue;
+
+            let nPrim = (*scene).bvhNodes(curNode).nPrim;
+            let sndChildFirstPrim = (*scene).bvhNodes(curNode).sndChildFirstPrim;
+            if (nPrim > 0u16) {
+                // a leaf
+                for tri in urange(sndChildFirstPrim, sndChildFirstPrim+(nPrim as uint)) {
+                    triIntersectFirst(tri, scene, isec);
+                }
+                // done with this node, pop one off the stack
+                @popNode()
+            }
+            else {
+                fn descend(fstNode : uint, sndNode : uint) {
+                    @pushNode(sndNode);
+                    continue(fstNode)
+                }
+                // an inner node, which child do we get to first?
+                if @bvhDirIsNeg(neg, (*scene).bvhNodes(curNode).axis as uint) {
+                    @descend(sndChildFirstPrim, curNode+1u) // do the left child later
+                }
+                else {
+                    @descend(curNode+1u, sndChildFirstPrim) // do the right child later
+                }
+            }
+        }
+        else
+        {
+            // we missed this node, pop one off the stack
+            @popNode()
+        }
+    };
 }
