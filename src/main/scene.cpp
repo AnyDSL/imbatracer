@@ -1,4 +1,4 @@
-#include <thorin_ext_runtime.h>
+#include <thorin_runtime.h>
 #include <iostream>
 #include <core/util.h>
 #include <core/assert.h>

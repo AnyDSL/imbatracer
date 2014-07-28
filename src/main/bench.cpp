@@ -1,4 +1,4 @@
-#include <thorin_ext_runtime.h>
+#include <thorin_runtime.h>
 #include <core/util.h>
 
 #include "interface.h"

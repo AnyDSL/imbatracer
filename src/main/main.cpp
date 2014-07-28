@@ -1,7 +1,7 @@
 #include <io/sdlbuffergui.h>
 #include <io/image.h>
 #include <SDL.h>
-#include <thorin_ext_runtime.h>
+#include <thorin_runtime.h>
 #include <core/util.h>
 
 #include "interface.h"
