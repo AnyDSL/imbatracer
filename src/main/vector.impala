@@ -76,6 +76,8 @@ fn fvdiv(a : float, b : Vec) -> Vec { @fvapply2(a, b, div) }
 
 fn vabs(a : Vec) -> Vec { @vapply1(a, fabsf) }
 
+fn vflip(a : Vec) -> Vec { @vapply1(a, neg) }
+
 fn vdiff(a : Vec, b : Vec) -> Vec { @vabs(@vsub(a, b)) }
 
 fn vlensq(v : Vec) -> float { v.x*v.x + v.y*v.y + v.z*v.z }

@@ -4,13 +4,20 @@ extern fn impala_init(mut state : &State) -> ()
 {
     (*state).time = 0.0f;
     (*state).integrator.itype = 1; //4:debug, 1:raytrace
-    (*state).integrator.mode = 2;
+    (*state).integrator.mode = 1;
     (*state).integrator.minDist = 0.0f;
     (*state).integrator.maxDist = 0.0f;
 
     //scene_add_cube(state, 40.0f);
-    scene_add_file(state, 2, /*IgnoreTexCoord*/2);
+    scene_add_file(state, 2, 0);
     scene_build(state);
+
+    // HACK: add point light
+    let mut lights = ~[1:Light];
+    lights(0) = @pointLight(point0(), color(1000.0f, 1000.0f, 500.0f));
+    (*state).scene.nLights = 1u;
+    (*state).scene.lights = lights;
+
 }
 
 extern fn impala_update(mut state : &State, dt : float) -> ()
@@ -24,6 +31,12 @@ extern fn impala_update(mut state : &State, dt : float) -> ()
     let horzOpenAngle = @pi() / 4.0f;
     let vertOpenAngle = @pi() / 3.0f;
     (*state).cam = @camPerspectiveLookAt(pos, at, up, horzOpenAngle, vertOpenAngle);
+
+    // HACK: put light right where the cam was shortly ago
+    for i in urange(0u, (*state).scene.nLights)
+    {
+        (*state).scene.lights(i).pos = @point(-3.5f*scale*sinf(time-0.5f), 1.2f*scale*sinf(0.2f*time-0.5f), 3.7f*scale*cosf(time-0.5f));
+    }
 }
 
 extern fn impala_init_bench1(mut state : &State) -> ()
@@ -40,4 +53,7 @@ extern fn impala_init_bench1(mut state : &State) -> ()
     let horzOpenAngle = @pi() / 4.0f;
     let vertOpenAngle = @pi() / 3.0f;
     (*state).cam = @camPerspectiveLookAt(pos, at, up, horzOpenAngle, vertOpenAngle);
+
+    // HACK: scene.lights is a wild pointer, make sure it's not accessed
+    (*state).scene.nLights = 0u;
 }

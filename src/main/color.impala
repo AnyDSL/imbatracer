@@ -25,8 +25,14 @@ fn cfapply2(c: Color, v : float, f: fn(float, float) -> float) -> Color
     color(f(c.r, v), f(c.g, v), f(c.b, v))
 }
 
+fn ccapply2(c: Color, d : Color, f: fn(float, float) -> float) -> Color
+{
+    color(f(c.r, d.r), f(c.g, d.g), f(c.b, d.b))
+}
+
 fn cmul(a : Color, v : float) -> Color { cfapply2(a, v, mul) }
 fn cadd(a : Color, v : float) -> Color { cfapply2(a, v, add) }
+fn ccadd(a : Color, b : Color) -> Color { ccapply2(a, b, add) }
 
 fn clerp(c1 : Color, c2 : Color, t : float) -> Color
 {
@@ -34,6 +40,12 @@ fn clerp(c1 : Color, c2 : Color, t : float) -> Color
           lerp(c1.g, c2.g, t),
           lerp(c1.b, c2.b, t))
 }
+
+fn cAny(c : Color, f : fn(float) -> bool) -> bool
+{
+    f(c.r) || f(c.g) || f(c.b) // FIXME: the sequential-or semantics might be a problem here. Maybe faster if just evaluating all.
+}
+
 
 
 fn col_rgb2int(c : Color) -> u32

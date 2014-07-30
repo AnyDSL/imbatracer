@@ -133,6 +133,8 @@ namespace impala {
         unsigned *triTexcoords;
         Object *objs;
         unsigned nObjs;
+        void *lights; // HACK: currently only used inside impala
+        unsigned nLights;
     };
 
     struct View

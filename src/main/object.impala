@@ -7,7 +7,10 @@ struct Object
 
 fn objIntersectFirst(objidx : uint, scene : &Scene, scratch : &RTScratch) -> ()
 {
-    // FIXME without the $, stuff gets slow in compilation, and emits even more "warning: slow"
     bvhIntersectFirst((*scene).objs(objidx).bvhRoot, scene, scratch)
 }
 
+fn objIntersectAny(objidx : uint, scene : &Scene, scratch : &RTScratch, ray : Ray, maxdist : float) -> bool
+{
+    bvhIntersectAny((*scene).objs(objidx).bvhRoot, scene, scratch, ray, maxdist)
+}

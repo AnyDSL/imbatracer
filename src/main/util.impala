@@ -56,6 +56,10 @@ fn div(a : float, b : float) -> float { a / b }
 fn add(a : float, b : float) -> float { a + b }
 fn sub(a : float, b : float) -> float { a - b }
 fn less(a : float, b : float) -> bool { a < b }
+fn neg(a : float) -> float { -a }
+fn sqr(a : float) -> float { a*a }
+fn isneg(a : float) -> bool { a < 0.0f }
+fn isstrictpos(a : float) -> bool { a > 0.0f }
 
 fn almost(a : float, b : float) -> bool
 {

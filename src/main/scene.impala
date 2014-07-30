@@ -15,6 +15,9 @@ struct Scene
 
     objs: &[Object],
     nObjs : uint,
+
+    lights: &[Light],
+    nLights : uint,
 }
 
 
@@ -28,4 +31,17 @@ fn sceneIntersectFirst(scene: &Scene, scratch : &RTScratch) -> ()
     {
         @objIntersectFirst(obj, scene, scratch)
     }
+}
+
+fn sceneIntersectAny(scene: &Scene, scratch : &RTScratch, ray : Ray, maxdist : float) -> bool
+{
+    let done = return;
+    for obj in urange(0u, (*scene).nObjs)
+    {
+        if @objIntersectAny(obj, scene, scratch, ray, maxdist)
+        {
+            done(true)
+        }
+    }
+    false
 }

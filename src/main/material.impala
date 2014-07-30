@@ -29,7 +29,8 @@ fn buildDummyMaterial(mat : MaterialInfo) -> (fn(Point, Vec, Vec, Vec) -> Color,
 
     let emission = |texPoint:Point, normal:Vec, outDir:Vec| -> Color
     {
-        @color0()
+        //@color0()
+        @color(0.0f, 0.2f, 0.0f)
     };
 
     (reflectance, emission)

@@ -10,6 +10,11 @@ fn triHasNormal(tri : uint, scene : &Scene) -> bool
     (*scene).triNormals(3u*tri) != noIdx()
 }
 
+fn triHasTexcoord(tri : uint, scene : &Scene) -> bool
+{
+    (*scene).triTexcoords(3u*tri) != noIdx()
+}
+
 fn triVertNormal(tri : uint, n : uint, scene : &Scene) -> Vec
 {
     let idx = (*scene).triNormals(3u*tri + n);
@@ -141,7 +146,8 @@ fn triIntersectFirst(tri : uint, scene : &Scene, isec : &Intersection) -> ()
             else {
                 res(1) // surfce normal, already normalized
             };
-        @improveIntersection(isec, t, tri, res(1), shadingNormal, res(2), @defaultEps());
+        let uv = @triTexPoint(res(2), tri, scene);
+        @improveIntersection(isec, t, tri, res(1), shadingNormal, uv, @defaultEps());
     }
 }
 
@@ -164,13 +170,20 @@ fn triArea(tri : uint, scene : &Scene) -> float
 // map hit point to triangle texture coord
 fn triTexPoint(isecUV : Point, tri : uint, scene : &Scene) -> Point
 {
-    let t1 = @triTexCoord(tri, 0u, scene);
-    let t2 = @triTexCoord(tri, 1u, scene);
-    let t3 = @triTexCoord(tri, 2u, scene);
+    if triHasTexcoord(tri, scene)
+    {
+        let t1 = @triTexCoord(tri, 0u, scene);
+        let t2 = @triTexCoord(tri, 1u, scene);
+        let t3 = @triTexCoord(tri, 2u, scene);
 
-    let p1 = point(t1.u, t1.v, 0.0f);
-    let p2 = point(t2.u, t2.v, 0.0f);
-    let p3 = point(t3.u, t3.v, 0.0f);
+        let p1 = point(t1.u, t1.v, 0.0f);
+        let p2 = point(t2.u, t2.v, 0.0f);
+        let p3 = point(t3.u, t3.v, 0.0f);
 
-    plerpbarp(p1, p2, p3, isecUV)
+        plerpbarp(p1, p2, p3, isecUV)
+    }
+    else
+    {
+        isecUV // can't map global to local coords, so use global
+    }
 }

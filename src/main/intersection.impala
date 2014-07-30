@@ -42,5 +42,9 @@ fn improveIntersection(mut isec : &Intersection, dist : float, obj : uint, surfa
     (*isec).eps = eps;
 }
 
+fn intersectionHitPoint(isec : &Intersection) -> Point
+{
+    @rayP((*isec).ray,  (*isec).dist)
+}
 
 
