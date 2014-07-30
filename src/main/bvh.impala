@@ -142,13 +142,14 @@ fn bvhIntersectAny(root: uint, scene : &Scene, scratch : &RTScratch, ray : Ray, 
 {
     let success = return; // jump out once we hit anything
 
-    @bvhIntersectGeneric(scratch, root, scene, ray, maxdist,
+
+    bvhIntersectGeneric(scratch, root, scene, ray, maxdist,
         |tri, _|
         {
-            if triIntersectAny(tri, scene, ray, maxdist)
+            /*if triIntersectAny(tri, scene, ray, maxdist)
             {
                 success(true)
-            }
+            }*/
         }
     );
 

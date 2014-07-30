@@ -47,24 +47,24 @@ fn integrateLightSources(scratch : &RTScratch, scene : &Scene, hitP : Point, out
     {
         let lF = @buildLight((*scene).lights(i));
         let hitF = lF(0);
-        let intensityF = lF(1);
 
         let mut lhit = hitF(hitP);
         @assert(||{almost(vlensq(lhit.dir), 1.0f)}, 1001);
 
         if @dot(lhit.dir, shadingN) > 0.0f // light comes towards us, on same side of surface?
         {
+            let intensityF = lF(1);
             let irrIntensity = @intensityF(lhit);
             let reflected = @matReflectance(local, shadingN, outDir, lhit.dir);
             let contrib = @ccapply2(irrIntensity, reflected, mul);
 
             @assert(||{!cAny(contrib, isneg)}, 1002);
 
-            if cAny(contrib, isstrictpos)
+            if @cAny(contrib, isstrictpos)
             {
                 let shadowRay = @ray(pvadd(hitP, vfmul(lhit.dir, rayEps)), lhit.dir);
                 lhit.dist = lhit.dist - 2.0f*rayEps; // we substract rayEps at both ends
-                if true //@sceneIntersectAny(scene, scratch, shadowRay, lhit.dist-rayEps)
+                if @!sceneIntersectAny(scene, scratch, shadowRay, lhit.dist-rayEps)
                 {
                     c = @ccapply2(c, contrib, add); // light shines on hit point
                 }
