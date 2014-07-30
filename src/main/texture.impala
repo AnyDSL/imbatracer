@@ -1,0 +1,6 @@
+
+fn constantTexture(c : Color) -> fn(Point) -> Color
+{
+    |p:Point| { c }
+}
+

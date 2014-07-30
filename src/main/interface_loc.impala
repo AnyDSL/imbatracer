@@ -3,8 +3,8 @@
 extern fn impala_init(mut state : &State) -> ()
 {
     (*state).time = 0.0f;
-    (*state).integrator.itype = 4;
-    (*state).integrator.mode = 1;
+    (*state).integrator.itype = 1; //4:debug, 1:raytrace
+    (*state).integrator.mode = 2;
     (*state).integrator.minDist = 0.0f;
     (*state).integrator.maxDist = 0.0f;
 

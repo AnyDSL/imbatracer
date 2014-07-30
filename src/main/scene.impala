@@ -10,6 +10,9 @@ struct Scene
     normals : &[Vec],
     triNormals : &[uint],
 
+    texcoords: &[TexCoord],
+    triTexcoords : &[uint],
+
     objs: &[Object],
     nObjs : uint,
 }

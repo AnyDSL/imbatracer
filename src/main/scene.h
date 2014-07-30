@@ -33,8 +33,8 @@ public:
     friend class Scene;
 protected:
     std::vector<impala::Point> verts;
-    std::vector<impala::Vec> normals; // FIXME these are currently ignored
-    std::vector<impala::TexCoord> texCoords; // FIXME these are currently ignored
+    std::vector<impala::Vec> normals;
+    std::vector<impala::TexCoord> texCoords;
     std::vector<Tri> tris;
 
     // Build the BVH tree. Put primitives into triBuf (starting at offset triBufOff), and the flattened nodes into nodeBuf.

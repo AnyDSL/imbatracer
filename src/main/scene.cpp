@@ -16,21 +16,23 @@ private:
     // holder of buffers
     impala::Scene *scene;
 #ifndef NDEBUG
-    unsigned totalVerts, totalNorms, totalTris, totalObjects;
+    unsigned totalVerts, totalNorms, totalTris, totalTexcoords, totalObjects;
 #endif
 public:
     // number of already used vertices, triangles, ...
-    unsigned nVerts, nNorms, nTris, nObjs;
+    unsigned nVerts, nNorms, nTris, nTexCoords, nObjs;
     // growing buffer of BVH nodes
     std::vector<impala::BVHNode> bvhNodes;
 
-    BuildState(impala::Scene *scene, unsigned totalVerts, unsigned totalNorms, unsigned totalTris, unsigned totalObjects)
-        : scene(scene), nVerts(0), nNorms(0), nTris(0), nObjs(0)
+    BuildState(impala::Scene *scene, unsigned totalVerts, unsigned totalNorms, unsigned totalTexcoords, unsigned totalTris, unsigned totalObjects)
+        : scene(scene), nVerts(0), nNorms(0), nTris(0), nTexCoords(0), nObjs(0)
     {
         scene->verts = thorin_new<impala::Point>(totalVerts);
         scene->normals = thorin_new<impala::Vec>(totalNorms);
+        scene->texcoords = thorin_new<impala::TexCoord>(totalTexcoords);
         scene->triVerts = thorin_new<unsigned>(3*totalTris);
         scene->triNormals = thorin_new<unsigned>(3*totalTris);
+        scene->triTexcoords = thorin_new<unsigned>(3*totalTris);
         scene->objs = thorin_new<impala::Object>(totalObjects);
         scene->nObjs = totalObjects;
 
@@ -39,6 +41,7 @@ public:
 #ifndef NDEBUG
         this->totalVerts = totalVerts;
         this->totalNorms = totalNorms;
+        this->totalTexcoords = totalTexcoords;
         this->totalTris = totalTris;
         this->totalObjects = totalObjects;
 #endif
@@ -55,18 +58,24 @@ public:
         scene->triNormals[nTris*3 + 1] = t.n2 + nNorms;
         scene->triNormals[nTris*3 + 2] = t.n3 + nNorms;
 
-        assert(t.t1 == NoIdx && t.t2 == NoIdx && t.t3 == NoIdx, "TexCoords not yet supported");
+        scene->triTexcoords[nTris*3 + 0] = t.t1 + nTexCoords;
+        scene->triTexcoords[nTris*3 + 1] = t.t2 + nTexCoords;
+        scene->triTexcoords[nTris*3 + 2] = t.t3 + nTexCoords;
+
         assert(t.surface == NoIdx, "Materials not yet supported");
         ++nTris;
     }
     /** Add vertices (etc.) to the corresponding lists */
-    void addVerts(const std::vector<impala::Point> &verts, const std::vector<impala::Vec> &normals, const std::vector<impala::TexCoord> /*texcoords*/)
+    void addVerts(const std::vector<impala::Point> &verts, const std::vector<impala::Vec> &normals, const std::vector<impala::TexCoord>& texcoords)
     {
         std::copy(verts.begin(), verts.end(), scene->verts+nVerts);
         nVerts += verts.size();
 
         std::copy(normals.begin(), normals.end(), scene->normals+nNorms);
         nNorms += normals.size();
+
+        std::copy(texcoords.begin(), texcoords.end(), scene->texcoords+nTexCoords);
+        nTexCoords += texcoords.size();
     }
     /** Add an objects */
     void addObj(unsigned rootIdx)
@@ -77,7 +86,7 @@ public:
     /** Dump BVH nodes to Impala */
     void copyNodes()
     {
-        assert(nVerts == totalVerts && nNorms == totalNorms && nTris == totalTris && nObjs == totalObjects, "Wrong number of things added");
+        assert(nVerts == totalVerts && nNorms == totalNorms && nTexCoords == totalTexcoords && nTris == totalTris && nObjs == totalObjects, "Wrong number of things added");
         scene->bvhNodes = thorin_new<impala::BVHNode>(bvhNodes.size());
         std::copy(bvhNodes.begin(), bvhNodes.end(), scene->bvhNodes);
     }
@@ -203,6 +212,8 @@ Scene::Scene(impala::Scene *scene) : scene(scene)
     scene->normals = nullptr;
     scene->triVerts = nullptr;
     scene->triNormals = nullptr;
+    scene->texcoords = nullptr;
+    scene->triTexcoords = nullptr;
     scene->bvhNodes = nullptr;
     scene->objs = nullptr;
     scene->nObjs = 0;
@@ -219,8 +230,14 @@ void Scene::free(void)
     scene->verts = nullptr;
     thorin_free(scene->triVerts);
     scene->triVerts = nullptr;
+    thorin_free(scene->normals);
+    scene->normals = nullptr;
     thorin_free(scene->triNormals);
     scene->triNormals = nullptr;
+    thorin_free(scene->texcoords);
+    scene->texcoords = nullptr;
+    thorin_free(scene->triTexcoords);
+    scene->triTexcoords = nullptr;
     thorin_free(scene->bvhNodes);
     scene->bvhNodes = nullptr;
     thorin_free(scene->objs);
@@ -238,14 +255,15 @@ void Scene::build()
     free();
 
     // how many vertices and triangles are there overall?
-    unsigned totalVerts = 0, totalTris = 0, totalNorms = 0;
+    unsigned totalVerts = 0, totalTris = 0, totalNorms = 0, totalTexcoords = 0;
     for (auto& obj : objects) {
         totalVerts += obj.verts.size();
         totalTris += obj.tris.size();
         totalNorms += obj.normals.size();
+        totalTexcoords += obj.texCoords.size();
     }
     // allocate appropiate build state
-    BuildState state(scene, totalVerts, totalNorms, totalTris, objects.size());
+    BuildState state(scene, totalVerts, totalNorms, totalTexcoords, totalTris, objects.size());
 
     // now for each object, build the BVH tree
     for (auto& obj : objects) {

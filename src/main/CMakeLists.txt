@@ -17,7 +17,9 @@ set(impala_shared_SRC
     object.impala
     scene.impala
     state.impala
+    texture.impala
     light.impala
+    material.impala
     intersection.impala
     view.impala
     cameras.impala

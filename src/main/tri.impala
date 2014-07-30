@@ -16,6 +16,12 @@ fn triVertNormal(tri : uint, n : uint, scene : &Scene) -> Vec
     (*scene).normals(idx)
 }
 
+fn triTexCoord(tri : uint, n : uint, scene : &Scene) -> TexCoord
+{
+    let idx = (*scene).triTexcoords(3u*tri + n);
+    (*scene).texcoords(idx)
+}
+
 
 fn triIntersectDistance_slow(tri : uint, scene : &Scene, ray : Ray, maxDistance : float, distOnly : bool) -> (float, Vec, Point) // t, barycentric coords
 {
@@ -153,4 +159,18 @@ fn triArea(tri : uint, scene : &Scene) -> float
     let e1 = to(a, @triPoint(tri, 1u, scene));
     let e2 = to(a, @triPoint(tri, 2u, scene));
     @vlen(cross(e1, e2))*0.5f
+}
+
+// map hit point to triangle texture coord
+fn triTexPoint(isecUV : Point, tri : uint, scene : &Scene) -> Point
+{
+    let t1 = @triTexCoord(tri, 0u, scene);
+    let t2 = @triTexCoord(tri, 1u, scene);
+    let t3 = @triTexCoord(tri, 2u, scene);
+
+    let p1 = point(t1.u, t1.v, 0.0f);
+    let p2 = point(t2.u, t2.v, 0.0f);
+    let p3 = point(t3.u, t3.v, 0.0f);
+
+    plerpbarp(p1, p2, p3, isecUV)
 }

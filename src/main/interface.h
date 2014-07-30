@@ -129,6 +129,8 @@ namespace impala {
         unsigned *triVerts;
         Vec *normals;
         unsigned *triNormals;
+        TexCoord *texcoords;
+        unsigned *triTexcoords;
         Object *objs;
         unsigned nObjs;
     };

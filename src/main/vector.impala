@@ -12,6 +12,12 @@ struct Point
     z : float
 }
 
+struct TexCoord
+{
+    u : float,
+    v : float,
+}
+
 fn vec(x : float, y : float, z : float) -> Vec
 {
     Vec{ x:x, y:y, z:z }
@@ -181,5 +187,10 @@ fn plerpbarp(a : Point, b : Point, c : Point, w : Point) -> Point
 	@ppapply2(ap, @ppapply2(bp, cp, add), add)
 }
 
+
+fn UV(u: float, v : float) -> TexCoord
+{
+    TexCoord{u:u, v:v}
+}
 
 

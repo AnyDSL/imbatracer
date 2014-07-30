@@ -32,12 +32,27 @@ fn debugRadianceNormalSign(isec : &Intersection) -> Color
 
 fn debugRadianceDepth(isec : &Intersection) -> Color
 {
-    color1(1.0f)
+    let mindist = 5.0f;
+    let maxdist = 100.0f;
+    let d = clamp(mindist, (*isec).dist, maxdist);
+    let v = @scaleLin(d, mindist, maxdist, 1.0f, 0.0f);
+    @color(v, v, v)
 }
 
 fn raytraceRadiance(isec : &Intersection) -> Color
 {
-    color0() // TODO
+    // TODO: respect lights
+
+    let matinfo = dummyMaterial();
+    let mat = buildMaterial(matinfo);
+    let reflectance = mat(0);
+    let emission = mat(1);
+
+    let uv = (*isec).uv;
+
+    //emission(
+
+    @color0()
 }
 
 fn recraytraceRadiance(isec : &Intersection) -> Color

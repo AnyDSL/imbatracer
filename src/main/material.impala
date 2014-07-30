@@ -1,0 +1,63 @@
+struct MaterialInfo
+{
+    ty : int,
+    //c1 : Color,
+    //c2 : Color,
+    //f1 : float,
+    //f2 : float,
+    //tex1 : fn(Point) -> Color,
+    //tex2 : Texture,
+}
+
+fn dummyMaterial() -> MaterialInfo
+{
+    MaterialInfo{ty:-1
+        //c1:@color0(), c2:@color0(),
+        //f1:0.0f, f2:0.0f,
+        //tex1:constantTexture(color0()),
+    }
+}
+
+
+fn buildDummyMaterial(mat : MaterialInfo) -> (fn(Point, Vec, Vec, Vec) -> Color, fn(Point, Vec, Vec) -> Color)
+{
+    let reflectance = |texPoint:Point, normal:Vec, outDir:Vec, inDir:Vec| -> Color
+    {
+        let v = @absdot(inDir, normal);
+        @color1(v)
+    };
+
+    let emission = |texPoint:Point, normal:Vec, outDir:Vec| -> Color
+    {
+        @color0()
+    };
+
+    (reflectance, emission)
+}
+/*
+fn buildLambertianMaterial(mat : MaterialInfo) -> (fn(Point, Vec, Vec, Vec) -> Color, fn(Point, Vec, Vec) -> Color)
+{
+    let diffuse = mat.tex1;
+    let reflectance = |texPoint:Point, normal:Vec, outDir:Vec, inDir:Vec| -> Color
+    {
+        let v = @absdot(inDir, normal) / @pi();
+        let c = @diffuse(texPoint);
+        @cmul(c, v)
+    };
+
+    let emission = |texPoint:Point, normal:Vec, outDir:Vec| -> Color
+    {
+        @diffuse(texPoint)
+    };
+
+    (reflectance, emission)
+}
+*/
+
+fn buildMaterial(mat : MaterialInfo) -> (fn(Point, Vec, Vec, Vec) -> Color, fn(Point, Vec, Vec) -> Color)
+{
+    //if(mat.ty == 0) {buildLambertianMaterial(mat) }
+    //else { buildDummyMaterial(mat) }
+
+    buildDummyMaterial(mat)
+}
