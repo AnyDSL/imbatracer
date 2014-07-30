@@ -39,7 +39,7 @@ fn debugRadianceDepth(isec : &Intersection) -> Color
     @color(v, v, v)
 }
 
-fn integrateLightSources(scratch : &RTScratch, scene : &Scene, hitP : Point, outDir : Vec, surfN : Vec, shadingN : Vec, local : Point, matReflectance : fn(Point, Vec, Vec, Vec) -> Color, rayEps : float) -> Color
+fn integrateLightSources(scratch : &RTScratch, scene : &Scene, hitP : Point, outDir : Vec, shadingN : Vec, local : Point, matReflectance : fn(Point, Vec, Vec, Vec) -> Color, rayEps : float) -> Color
 {
     let mut c = @color0();
 
@@ -52,7 +52,7 @@ fn integrateLightSources(scratch : &RTScratch, scene : &Scene, hitP : Point, out
         let mut lhit = hitF(hitP);
         @assert(||{almost(vlensq(lhit.dir), 1.0f)}, 1001);
 
-        if @dot(lhit.dir, surfN) > 0.0f // light comes towards us, on same side of surface?
+        if @dot(lhit.dir, shadingN) > 0.0f // light comes towards us, on same side of surface?
         {
             let irrIntensity = @intensityF(lhit);
             let reflected = @matReflectance(local, shadingN, outDir, lhit.dir);
@@ -64,7 +64,7 @@ fn integrateLightSources(scratch : &RTScratch, scene : &Scene, hitP : Point, out
             {
                 let shadowRay = @ray(pvadd(hitP, vfmul(lhit.dir, rayEps)), lhit.dir);
                 lhit.dist = lhit.dist - 2.0f*rayEps; // we substract rayEps at both ends
-                if @sceneIntersectAny(scene, scratch, shadowRay, lhit.dist-rayEps)
+                if true //@sceneIntersectAny(scene, scratch, shadowRay, lhit.dist-rayEps)
                 {
                     c = @ccapply2(c, contrib, add); // light shines on hit point
                 }
@@ -88,14 +88,12 @@ fn raytraceRadiance(isec : &Intersection, scene : &Scene, scratch : &RTScratch) 
     let local = (*isec).uv;
     let hitP = @intersectionHitPoint(isec);
 
-    // FIXME: enabling integrateLightSources() crashes impala
-
-	//@ccadd(
+	@ccadd(
         // we ignore any contribution not coming directly from a light source
-        //integrateLightSources(scratch, scene, hitP, outDir, (*isec).surfaceNormal, (*isec).shadingNormal, local, reflectance, (*isec).eps),
+        integrateLightSources(scratch, scene, hitP, outDir, (*isec).shadingNormal, local, reflectance, (*isec).eps),
         // and add the material's own light emission that is not dependent on light
         emission(local, (*isec).shadingNormal, outDir)
-    //)
+    )
 }
 
 
