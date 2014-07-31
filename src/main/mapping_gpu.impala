@@ -5,15 +5,19 @@ fn renderIteration(width : int, height : int, measureTime : bool, state : &State
     let dim = (@round_up(width, block(0)), @round_up(div_round_up(height, unroll), block(1)), 1);
 
     // extract the stuff we need
-    let cam = (*state).cam;
-    let integrator = (*state).integrator;
+    let cam:Cam = (*state).cam;
+    let integrator:Integrator = (*state).integrator;
     let verts = (*state).scene.verts;
     let normals = (*state).scene.normals;
+    let texcoords = (*state).scene.texcoords;
     let triVerts = (*state).scene.triVerts;
     let triNormals = (*state).scene.triNormals;
+    let triTexcoords = (*state).scene.triTexcoords;
     let bvhNodes = (*state).scene.bvhNodes;
     let objs = (*state).scene.objs;
     let nObjs = (*state).scene.nObjs;
+    let lights = (*state).scene.lights;
+    let nLights = (*state).scene.nLights;
 
     // FIXME measure rendering time
     acc(@acc_dev(), dim, block, || -> () {
@@ -21,7 +25,10 @@ fn renderIteration(width : int, height : int, measureTime : bool, state : &State
         let gid_y = acc_tidy() + acc_bdimy() * acc_bidy() * unroll;
         let mut scratch = @emptyScratch(); // scratch space for the current intersection
         let mut rtstate = RTState { cam:cam, integrator:integrator,
-                                    scene:Scene { verts:verts, normals:normals, triVerts:triVerts, triNormals:triNormals, bvhNodes:bvhNodes, objs:objs, nObjs:nObjs } };
+                                    scene:Scene { verts:verts, normals:normals, texcoords:texcoords,
+                                                  triVerts:triVerts, triNormals:triNormals, triTexcoords:triTexcoords,
+                                                  bvhNodes:bvhNodes, objs:objs, nObjs:nObjs,
+                                                  lights:lights, nLights:nLights} };
 
         for i in @range(0, unroll) {
             let x = gid_x;

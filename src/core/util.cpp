@@ -1,5 +1,3 @@
-#include <SDL.h>
-
 #include "util.h"
 #include <iostream>
 #include <signal.h>
@@ -7,9 +5,9 @@
 
 namespace rt {
 
-Timer::Timer(const std::string &note) : _start_time(SDL_GetTicks()), _note(note), _stopped(false) {}
+Timer::Timer(const std::string &note) : _start_time(std::chrono::steady_clock::now()), _note(note), _stopped(false) {}
 
-Timer::Timer() : _start_time(SDL_GetTicks()), _stopped(false) {}
+Timer::Timer() : _start_time(std::chrono::steady_clock::now()), _stopped(false) {}
 
 Timer::~Timer()
 {
@@ -20,15 +18,16 @@ Timer::~Timer()
 
 void Timer::restart()
 {
-    _start_time = SDL_GetTicks();
+    _start_time = std::chrono::steady_clock::now();
     _stopped = false;
 }
 
 void Timer::stop()
 {
     release_assert(!_stopped, "Cannot stop twice");
-    unsigned end_time = SDL_GetTicks();
-    std::cout << _note << " took " << (end_time-_start_time)/1000.0 << " seconds." << std::endl;
+    auto end_time = std::chrono::steady_clock::now();
+    auto diffMSec = std::chrono::duration_cast<std::chrono::milliseconds> (end_time-_start_time);
+    std::cout << _note << " took " << diffMSec.count() << " ms." << std::endl;
     _stopped = true;
 }
 

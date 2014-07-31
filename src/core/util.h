@@ -3,6 +3,7 @@
 
 #include <sstream>
 #include <core/macros.h>
+#include <chrono>
 
 
 namespace rt {
@@ -26,7 +27,7 @@ public:
     void dontPrint();
 
 private:
-    unsigned _start_time;
+    std::chrono::steady_clock::time_point _start_time;
     std::string _note;
     bool _stopped;
 };
