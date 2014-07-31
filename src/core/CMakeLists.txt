@@ -8,5 +8,5 @@ util.cpp
 
 
 add_library(core ${core_SRC})
-target_link_libraries(core ${PNG_LIBRARIES} ${SDL2_LIBRARIES})
+target_link_libraries(core)
 
