@@ -1,5 +1,5 @@
 
-fn defaultEps() -> float
+fn defaultRayEps() -> float
 {
     2.0f*epsilon()
 }
@@ -45,6 +45,16 @@ fn improveIntersection(mut isec : &Intersection, dist : float, obj : uint, surfa
 fn intersectionHitPoint(isec : &Intersection) -> Point
 {
     @rayP((*isec).ray,  (*isec).dist)
+}
+
+fn intersectionSurfaceNormalTowardsOrigin(isec : &Intersection) -> Vec
+{
+    if @dot((*isec).surfaceNormal, (*isec).ray.d) >= 0.0f {
+        @vflip((*isec).surfaceNormal)
+    }
+    else {
+        (*isec).surfaceNormal
+    }
 }
 
 

@@ -12,10 +12,12 @@ extern fn impala_init(mut state : &State) -> ()
     scene_add_file(state, 2, 0);
     scene_build(state);
 
-    // HACK: add point light
-    let mut lights = ~[1:Light];
-    lights(0) = @pointLight(point0(), color(1000.0f, 1000.0f, 500.0f));
-    (*state).scene.nLights = 1u;
+    // add point light
+    let mut lights = ~[2:Light];
+    let intens = 1.0f;
+    lights(0) = @pointLight(point0(), color(intens*500.0f, intens*500.0f, intens*200.0f));
+    lights(1) = @pointLight(point0(), color(intens*100.0f, intens*100.0f, intens*500.0f));
+    (*state).scene.nLights = 2u;
     (*state).scene.lights = lights;
 
 }
@@ -32,11 +34,9 @@ extern fn impala_update(mut state : &State, dt : float) -> ()
     let vertOpenAngle = @pi() / 3.0f;
     (*state).cam = @camPerspectiveLookAt(pos, at, up, horzOpenAngle, vertOpenAngle);
 
-    // HACK: put light right where the cam was shortly ago
-    for i in urange(0u, (*state).scene.nLights)
-    {
-        (*state).scene.lights(i).pos = @point(-3.5f*scale*sinf(time-0.5f), 1.2f*scale*sinf(0.2f*time-0.5f), 3.7f*scale*cosf(time-0.5f));
-    }
+    // put light right where the cam was shortly ago, and on the other side
+    (*state).scene.lights(0).pos = @point(-3.5f*scale*sinf(time-0.5f), +1.2f*scale*sinf(0.2f*time-0.5f), +3.7f*scale*cosf(time-0.5f));
+    (*state).scene.lights(1).pos = @point(-3.5f*scale*sinf(time+0.5f), +1.2f*scale*sinf(0.2f*time+0.5f), +3.7f*scale*cosf(time+0.5f));
 }
 
 extern fn impala_init_bench1(mut state : &State) -> ()
@@ -54,6 +54,6 @@ extern fn impala_init_bench1(mut state : &State) -> ()
     let vertOpenAngle = @pi() / 3.0f;
     (*state).cam = @camPerspectiveLookAt(pos, at, up, horzOpenAngle, vertOpenAngle);
 
-    // HACK: scene.lights is a wild pointer, make sure it's not accessed
+    // no lights
     (*state).scene.nLights = 0u;
 }

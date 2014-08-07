@@ -39,7 +39,7 @@ fn debugRadianceDepth(isec : &Intersection) -> Color
     @color(v, v, v)
 }
 
-fn integrateLightSources(scratch : &RTScratch, scene : &Scene, hitP : Point, outDir : Vec, shadingN : Vec, local : Point, matReflectance : fn(Point, Vec, Vec, Vec) -> Color, rayEps : float) -> Color
+fn integrateLightSources(scratch : &RTScratch, scene : &Scene, hitP : Point, outDir : Vec, surfaceN : Vec, shadingN : Vec, local : Point, matReflectance : fn(Point, Vec, Vec, Vec) -> Color, rayEps : float) -> Color
 {
     let mut c = @color0();
 
@@ -48,10 +48,10 @@ fn integrateLightSources(scratch : &RTScratch, scene : &Scene, hitP : Point, out
         let lF = @buildLight((*scene).lights(i));
         let hitF = lF(0);
 
-        let mut lhit = hitF(hitP);
-        @assert(||{almost(vlensq(lhit.dir), 1.0f)}, 1001);
+        let lhit = hitF(hitP);
+        @assert(||almost(vlensq(lhit.dir), 1.0f), 1001);
 
-        if @dot(lhit.dir, shadingN) > 0.0f // light comes towards us, on same side of surface?
+        if @dot(lhit.dir, surfaceN) >= 0.0f // light comes towards us, on same side of surface?
         {
             let intensityF = lF(1);
             let irrIntensity = @intensityF(lhit);
@@ -62,9 +62,9 @@ fn integrateLightSources(scratch : &RTScratch, scene : &Scene, hitP : Point, out
 
             if @cAny(contrib, isstrictpos)
             {
-                let shadowRay = @ray(pvadd(hitP, vfmul(lhit.dir, rayEps)), lhit.dir);
-                lhit.dist = lhit.dist - 2.0f*rayEps; // we substract rayEps at both ends
-                if @!sceneIntersectAny(scene, scratch, shadowRay, lhit.dist-rayEps)
+                let shadowRay = @ray(pvadd(hitP, vfmul(surfaceN, rayEps)), lhit.dir);
+                let dist = lhit.dist - 2.0f*rayEps; // we substract rayEps at both ends
+                if @!sceneIntersectAny(scene, scratch, shadowRay, dist)
                 {
                     c = @ccapply2(c, contrib, add); // light shines on hit point
                 }
@@ -77,7 +77,7 @@ fn integrateLightSources(scratch : &RTScratch, scene : &Scene, hitP : Point, out
 fn raytraceRadiance(isec : &Intersection, scene : &Scene, scratch : &RTScratch) -> Color
 {
     let outDir = @vflip((*isec).ray.d);
-    //let inDir =
+    let surfaceN = @intersectionSurfaceNormalTowardsOrigin(isec);
 
     // HACK: that there's some material to test
     let matinfo = @dummyMaterial();
@@ -90,9 +90,9 @@ fn raytraceRadiance(isec : &Intersection, scene : &Scene, scratch : &RTScratch) 
 
 	@ccadd(
         // we ignore any contribution not coming directly from a light source
-        integrateLightSources(scratch, scene, hitP, outDir, (*isec).shadingNormal, local, reflectance, (*isec).eps),
+        integrateLightSources(scratch, scene, hitP, outDir, surfaceN, (*isec).shadingNormal, local, reflectance, (*isec).eps),
         // and add the material's own light emission that is not dependent on light
-        emission(local, (*isec).shadingNormal, outDir)
+        emission(local, surfaceN, outDir)
     )
 }
 
