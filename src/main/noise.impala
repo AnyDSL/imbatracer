@@ -1,0 +1,66 @@
+
+fn noise(x : int, y : int, z : int) -> float
+{
+	let mut n = x + y * 57 + z * 997;
+	n = (n<<13) ^ n;
+	1.0f - ( (n * (n * n * 15731 + 789221) + 1376312589) & 0x7fffffff) as float / 1073741824.0f
+}
+
+fn smoothNoise3D(v : Point) -> float
+{
+	let x = floorf(v.x);
+	let y = floorf(v.y);
+	let z = floorf(v.z);
+	let fx = v.x - x;
+	let fy = v.y - y;
+	let fz = v.z - z;
+	let ix = x as int;
+	let iy = y as int;
+	let iz = z as int;
+
+	let x0y0z0 = noise(ix,   iy,   iz);
+	let x1y0z0 = noise(ix+1, iy,   iz);
+	let x0y1z0 = noise(ix,   iy+1, iz);
+	let x1y1z0 = noise(ix+1, iy+1, iz);
+	let x0y0z1 = noise(ix,   iy,   iz+1);
+	let x1y0z1 = noise(ix+1, iy,   iz+1);
+	let x0y1z1 = noise(ix,   iy+1, iz+1);
+	let x1y1z1 = noise(ix+1, iy+1, iz+1);
+
+	lerp3d(x0y0z0, x1y0z0, x0y1z0, x1y1z0, x0y0z1, x1y0z1, x0y1z1, x1y1z1, fx, fy, fz)
+}
+
+fn perlinbase(octaves : uint, mut amplitude : float, mut freq : float, persistence : float, modifier : fn(float)->float, finalmodifier : fn(float)->float) -> fn(Point) -> float
+{
+    |p:Point|
+    {
+        let mut sum = 0.0f;
+
+        for _ in @urange(0u, octaves)
+        {
+            sum = sum + @modifier(smoothNoise3D(pfapply2(p, freq * amplitude, mul)));
+            amplitude = amplitude * persistence;
+            freq = freq * 2.0f;
+        }
+
+        @finalmodifier(sum)
+    }
+}
+
+fn perlinfn(octaves : uint, amplitude : float, freq : float, persistence : float) -> fn(Point) -> float
+{
+    perlinbase(octaves, amplitude, freq, persistence, |x|x, |x|clamp(-1.0f, x, 1.0f))
+}
+
+fn perlin01fn(octaves : uint, amplitude : float, freq : float, persistence : float) -> fn(Point) -> float
+{
+    perlinbase(octaves, amplitude, freq, persistence, |x|x, |x|clamp(0.0f, x, 1.0f))
+}
+
+fn turbulence01fn(octaves : uint, amplitude : float, freq : float, persistence : float) -> fn(Point) -> float
+{
+    perlinbase(octaves, amplitude, freq, persistence, fabsf, |x|clamp(0.0f, x, 1.0f))
+}
+
+
+

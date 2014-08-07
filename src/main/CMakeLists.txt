@@ -12,6 +12,7 @@ set(impala_shared_SRC
     extern_c.impala
     color.impala
     vector.impala
+    noise.impala
     ray.impala
     bbox.impala
     object.impala

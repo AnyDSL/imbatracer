@@ -151,6 +151,11 @@ fn ppapply2(a : Point, b : Point, f: fn(float, float) -> float) -> Point
     point(f(a.x, b.x), f(a.y, b.y), f(a.z, b.z))
 }
 
+fn pfapply1(a : Point, b : float, f: fn(float) -> float) -> Point
+{
+    point(f(a.x), f(a.y), f(a.z))
+}
+
 fn pfapply2(a : Point, b : float, f: fn(float, float) -> float) -> Point
 {
     point(f(a.x, b), f(a.y, b), f(a.z, b))

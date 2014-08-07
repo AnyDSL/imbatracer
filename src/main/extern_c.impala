@@ -13,6 +13,8 @@ extern "C"
     fn scene_add_cube(&State, float) -> ();
     fn scene_add_file(&State, int, int) -> bool;
     fn scene_build(&State) -> ();
+
+    fn floorf(float) -> float;
 }
 
 // some derived forms

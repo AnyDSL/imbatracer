@@ -71,11 +71,36 @@ fn lerp(a : float, b : float, t : float) -> float
     a * (1.0f - t) + b * t
 }
 
+fn lerp2d(px0y0 : float, px1y0 : float, px0y1 : float, px1y1 : float, xWeight : float, yWeight : float) -> float
+{
+	let a = @lerp(px0y0, px1y0, xWeight);
+	let b = @lerp(px0y1, px1y1, xWeight);
+	@lerp(a, b, yWeight)
+}
+
+fn lerp3d(px0y0z0 : float, px1y0z0 : float, px0y1z0 : float, px1y1z0 : float, px0y0z1 : float, px1y0z1 : float, px0y1z1 : float, px1y1z1 : float,
+	xPoint : float, yPoint : float, zPoint : float) -> float
+{
+    let a = @lerp2d(px0y0z0, px1y0z0, px0y1z0, px1y1z0, xPoint, yPoint);
+    let b = @lerp2d(px0y0z1, px1y0z1, px0y1z1, px1y1z1, xPoint, yPoint);
+    @lerp(a, b, zPoint)
+}
+
 // Scale a range to a range, linearly
 fn scaleLin(v : float, vMin : float, vMax : float, targetMin : float, targetMax : float) -> float
 {
 	let d = vMax-vMin;
 	if d == 0.0f { vMin } else { @lerp(targetMin, targetMax, (@clamp(vMin, v, vMax)-vMin)/d) }
+}
+
+fn fractional(v : float) -> float
+{
+    v - floorf(v)
+}
+
+fn absfractional(v : float) -> float
+{
+    @fabsf(fractional(v))
 }
 
 /*
