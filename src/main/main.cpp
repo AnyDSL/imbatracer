@@ -12,6 +12,7 @@ using namespace rt;
 enum class SceneKind {
     Main,
     Bench1,
+    Bench2,
 };
 
 class ImpalaGui : public SDLBufferGui
@@ -24,11 +25,11 @@ public:
         // impala_init may call functions that add objects to the scene
         switch (sceneKind) {
         case SceneKind::Main:
-            impala_init(&state);
-            break;
+            impala_init(&state); break;
         case SceneKind::Bench1:
-            impala_init_bench1(&state);
-            break;
+            impala_init_bench1(&state); break;
+        case SceneKind::Bench2:
+            impala_init_bench2(&state); break;
         }
 
     }
@@ -56,6 +57,9 @@ int main(int argc, char *argv[])
     SceneKind scene = SceneKind::Main;
     if (argc > 1 && std::string(argv[1]) == "bench1") {
         scene = SceneKind::Bench1;
+    }
+    else if (argc > 1 && std::string(argv[1]) == "bench2") {
+        scene = SceneKind::Bench2;
     }
 
     // global initialisation

@@ -237,6 +237,7 @@ namespace impala {
         void impala_update(State *state, float dt);
 
         void impala_init_bench1(State *state);
+        void impala_init_bench2(State *state);
 
         void impala_render(unsigned *buf, int w, int h, bool measureTime, State *state);
     }
