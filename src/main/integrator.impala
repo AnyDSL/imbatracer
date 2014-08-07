@@ -39,7 +39,8 @@ fn debugRadianceDepth(isec : &Intersection) -> Color
     @color(v, v, v)
 }
 
-fn integrateLightSources(scratch : &RTScratch, scene : &Scene, hitP : Point, outDir : Vec, surfaceN : Vec, shadingN : Vec, local : Point, matReflectance : fn(Point, Vec, Vec, Vec) -> Color, rayEps : float) -> Color
+fn integrateLightSources(scratch : &RTScratch, scene : &Scene, hitP : Point, outDir : Vec, surfaceN : Vec, shadingN : Vec, local : TexCoord,
+                         matReflectance : fn(TexCoord, Vec, Vec, Vec) -> Color, rayEps : float) -> Color
 {
     let mut c = @color0();
 
@@ -80,7 +81,7 @@ fn raytraceRadiance(isec : &Intersection, scene : &Scene, scratch : &RTScratch) 
     let surfaceN = @intersectionSurfaceNormalTowardsOrigin(isec);
 
     // HACK: that there's some material to test
-    let matinfo = @dummyMaterial();
+    let matinfo = if @triHasMaterial((*isec).obj, scene) { @triMaterial((*isec).obj, scene) } else { @dummyMaterial() };
     let mat = @buildMaterial(matinfo);
     let reflectance = mat(0);
     let emission = mat(1);

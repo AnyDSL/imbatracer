@@ -14,14 +14,14 @@ struct Intersection
     ray : Ray,
     surfaceNormal : Vec,
     shadingNormal : Vec,
-    uv : Point,
+    uv : TexCoord,
     eps : float
 }
 
 fn emptyIntersection() -> Intersection
 {
     @Intersection{ dist:-1.0f, obj:noObj(),
-        ray:ray0(), surfaceNormal:vec0(), shadingNormal:vec0(), uv:point0(), eps:0.0f }
+        ray:ray0(), surfaceNormal:vec0(), shadingNormal:vec0(), uv:texCoord0(), eps:0.0f }
 }
 
 fn beginIntersection(ray : Ray, mut isec: &Intersection) -> ()
@@ -31,7 +31,7 @@ fn beginIntersection(ray : Ray, mut isec: &Intersection) -> ()
     (*isec).ray = ray;
 }
 
-fn improveIntersection(mut isec : &Intersection, dist : float, obj : uint, surfaceNormal : Vec, shadingNormal : Vec, uv : Point, eps : float) -> ()
+fn improveIntersection(mut isec : &Intersection, dist : float, obj : uint, surfaceNormal : Vec, shadingNormal : Vec, uv : TexCoord, eps : float) -> ()
 {
     @assert(||dist < (*isec).dist && obj != @noObj(), 23);
     (*isec).dist = dist;

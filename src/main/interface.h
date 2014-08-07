@@ -174,7 +174,7 @@ namespace impala {
             return (Material) {
                 .diffuse = Color(0, 0, 0),
                 .specular = Color(0, 0, 0),
-                .specExp = 0.0f,
+                .specExp = -1.0f,
                 .emissive = Color(0, 0, 0),
             };
         }

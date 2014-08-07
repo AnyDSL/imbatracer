@@ -195,9 +195,30 @@ fn plerpbarp(a : Point, b : Point, c : Point, w : Point) -> Point
 }
 
 
-fn UV(u: float, v : float) -> TexCoord
+fn texCoord(u: float, v : float) -> TexCoord
 {
     TexCoord{u:u, v:v}
+}
+fn texCoord0() -> TexCoord
+{ texCoord(0.0f, 0.0f) }
+
+
+fn tfapply2(a : TexCoord, b : float, f: fn(float, float) -> float) -> TexCoord
+{
+    texCoord(f(a.u, b), f(a.v, b))
+}
+
+fn ttapply2(a : TexCoord, b : TexCoord, f: fn(float, float) -> float) -> TexCoord
+{
+    texCoord(f(a.u, b.u), f(a.v, b.v))
+}
+
+fn plerpbart(a : TexCoord, b : TexCoord, c : TexCoord, w : Point) -> TexCoord
+{
+    let ap = @tfapply2(a, w.x, mul);
+    let bp = @tfapply2(b, w.y, mul);
+    let cp = @tfapply2(c, w.z, mul);
+	@ttapply2(ap, @ttapply2(bp, cp, add), add)
 }
 
 

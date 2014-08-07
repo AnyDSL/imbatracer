@@ -12,54 +12,37 @@ struct Material
 fn dummyMaterial() -> Material
 {
     Material {
-        diffuse:color0(),
-        specular:color0(),
-        specExp:0.0f,
-        emissive:color0()
+        diffuse:color1(1.0f),
+        specular:color1(0.0f),
+        specExp:-1.0f,
+        emissive:color1(0.0f)
     }
 }
 
-
-fn buildDummyMaterial(mat : Material) -> (fn(Point, Vec, Vec, Vec) -> Color, fn(Point, Vec, Vec) -> Color)
+fn phongFactor(normal:Vec, outDir:Vec, inDir:Vec, exponent:float) -> float
 {
-    let reflectance = |texPoint:Point, normal:Vec, outDir:Vec, inDir:Vec| -> Color
+    // compute cos with the reflected out dir
+    let mirroredOut = vsub(fvmul((2.0f * @dot(normal, outDir)), normal), outDir); // this works no matter how the normal is swapped
+    let cosReflIn = @dot(inDir, mirroredOut);
+    if (cosReflIn <= 0.0f) { return(0.0f) }
+    // use this to compute the final factor applied to the texture
+    powf(cosReflIn, exponent)*(exponent+2.0f)/(2.0f*pi()) // TODO don't compute normalisation factor all the time
+}
+
+fn buildMaterial(mat : Material) -> (fn(TexCoord, Vec, Vec, Vec) -> Color, fn(TexCoord, Vec, Vec) -> Color)
+{
+    let reflectance = |texPoint:TexCoord, normal:Vec, outDir:Vec, inDir:Vec| -> Color
     {
-        let v = @absdot(inDir, normal);
-        @color1(v)
+        let renderCos = @absdot(inDir, normal);
+        let lambertian = @cdiv(mat.diffuse, pi());
+        let phong = if mat.specExp >= 0.0f { @cmul(mat.specular, @phongFactor(normal, outDir, inDir, mat.specExp)) } else { color0() };
+        @cmul(@ccadd(lambertian, phong), renderCos)
     };
 
-    let emission = |texPoint:Point, normal:Vec, outDir:Vec| -> Color
+    let emission = |texPoint:TexCoord, normal:Vec, outDir:Vec| -> Color
     {
-        //@color0()
-        @color(0.0f, 0.2f, 0.0f)
+        mat.emissive
     };
 
     (reflectance, emission)
-}
-/*
-fn buildLambertianMaterial(mat : Material) -> (fn(Point, Vec, Vec, Vec) -> Color, fn(Point, Vec, Vec) -> Color)
-{
-    let diffuse = mat.tex1;
-    let reflectance = |texPoint:Point, normal:Vec, outDir:Vec, inDir:Vec| -> Color
-    {
-        let v = @absdot(inDir, normal) / @pi();
-        let c = @diffuse(texPoint);
-        @cmul(c, v)
-    };
-
-    let emission = |texPoint:Point, normal:Vec, outDir:Vec| -> Color
-    {
-        @diffuse(texPoint)
-    };
-
-    (reflectance, emission)
-}
-*/
-
-fn buildMaterial(mat : Material) -> (fn(Point, Vec, Vec, Vec) -> Color, fn(Point, Vec, Vec) -> Color)
-{
-    //if(mat.ty == 0) {buildLambertianMaterial(mat) }
-    //else { buildDummyMaterial(mat) }
-
-    buildDummyMaterial(mat)
 }

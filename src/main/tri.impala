@@ -140,7 +140,7 @@ fn triArea(tri : uint, scene : &Scene) -> float
 }
 
 // map hit point to triangle texture coord
-fn triTexPoint(isecUV : Point, tri : uint, scene : &Scene) -> Point
+fn triTexPoint(isecBar : Point, tri : uint, scene : &Scene) -> TexCoord
 {
     if triHasTexcoord(tri, scene)
     {
@@ -148,14 +148,10 @@ fn triTexPoint(isecUV : Point, tri : uint, scene : &Scene) -> Point
         let t2 = @triTexCoord(tri, 1u, scene);
         let t3 = @triTexCoord(tri, 2u, scene);
 
-        let p1 = point(t1.u, t1.v, 0.0f);
-        let p2 = point(t2.u, t2.v, 0.0f);
-        let p3 = point(t3.u, t3.v, 0.0f);
-
-        plerpbarp(p1, p2, p3, isecUV)
+        plerpbart(t1, t2, t3, isecBar)
     }
     else
     {
-        isecUV // can't map global to local coords, so use global
+        texCoord0()
     }
 }

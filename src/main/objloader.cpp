@@ -345,6 +345,7 @@ void loadOBJMat(MatLib* dest, const std::string& path, const std::string& filena
             case 'a':
                 material.mat.emissive = color; break;
             case 's':
+                if (material.mat.specExp < 0) material.mat.specExp = 1;
                 material.mat.specular = color; break;
             }
         }
@@ -448,10 +449,10 @@ FileObject::FileObject(const std::string &path, const std::string &filename, Sce
                 else if (v[2].nidx<0) v[2].nidx = normals.size() - v[2].nidx; else { --v[2].nidx; }
 
                 while(true) {
-                    // TODO: Surface/material ID
                     tris.push_back(Tri(v[0].vidx, v[1].vidx, v[2].vidx,
                                        skipnormal ? NoIdx : v[0].nidx, skipnormal ? NoIdx : v[1].nidx, skipnormal ? NoIdx : v[2].nidx,
-                                       skiptex ? NoIdx : v[0].tidx, skiptex ? NoIdx : v[1].tidx, skiptex ? NoIdx : v[2].tidx));
+                                       skiptex ? NoIdx : v[0].tidx, skiptex ? NoIdx : v[1].tidx, skiptex ? NoIdx : v[2].tidx,
+                                       curMatIdx));
 
                     // advance to next vertex
                     v[1] = v[2];
