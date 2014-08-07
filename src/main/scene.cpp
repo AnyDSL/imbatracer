@@ -24,17 +24,22 @@ public:
     // growing buffer of BVH nodes
     std::vector<impala::BVHNode> bvhNodes;
 
-    BuildState(impala::Scene *scene, unsigned totalVerts, unsigned totalNorms, unsigned totalTexcoords, unsigned totalTris, unsigned totalObjects)
+    BuildState(impala::Scene *scene, unsigned totalVerts, unsigned totalNorms, unsigned totalTexcoords, unsigned totalTris, unsigned totalObjects,
+               std::vector<impala::Material> &materials)
         : scene(scene), nVerts(0), nNorms(0), nTris(0), nTexCoords(0), nObjs(0)
     {
         scene->verts = thorin_new<impala::Point>(totalVerts);
+        scene->triVerts = thorin_new<unsigned>(3*totalTris);
+
         scene->normals = thorin_new<impala::Vec>(totalNorms);
         scene->texcoords = thorin_new<impala::TexCoord>(totalTexcoords);
-        scene->triVerts = thorin_new<unsigned>(3*totalTris);
-        scene->triNormals = thorin_new<unsigned>(3*totalTris);
-        scene->triTexcoords = thorin_new<unsigned>(3*totalTris);
+        scene->triData = thorin_new<unsigned>(7*totalTris);
+
         scene->objs = thorin_new<impala::Object>(totalObjects);
         scene->nObjs = totalObjects;
+
+        scene->materials = thorin_new<impala::Material>(materials.size());
+        std::copy(materials.begin(), materials.end(), scene->materials);
 
         bvhNodes.reserve(totalTris/2); // just a wild guess
 
@@ -54,15 +59,15 @@ public:
         scene->triVerts[nTris*3 + 1] = t.p2 + nVerts;
         scene->triVerts[nTris*3 + 2] = t.p3 + nVerts;
 
-        scene->triNormals[nTris*3 + 0] = t.n1 + nNorms;
-        scene->triNormals[nTris*3 + 1] = t.n2 + nNorms;
-        scene->triNormals[nTris*3 + 2] = t.n3 + nNorms;
+        scene->triData[nTris*7 + 0] = t.n1 == NoIdx ? NoIdx : t.n1 + nNorms;
+        scene->triData[nTris*7 + 1] = t.n2 == NoIdx ? NoIdx : t.n2 + nNorms;
+        scene->triData[nTris*7 + 2] = t.n3 == NoIdx ? NoIdx : t.n3 + nNorms;
 
-        scene->triTexcoords[nTris*3 + 0] = t.t1 + nTexCoords;
-        scene->triTexcoords[nTris*3 + 1] = t.t2 + nTexCoords;
-        scene->triTexcoords[nTris*3 + 2] = t.t3 + nTexCoords;
+        scene->triData[nTris*7 + 3] = t.t1 == NoIdx ? NoIdx : t.t1 + nTexCoords;
+        scene->triData[nTris*7 + 4] = t.t2 == NoIdx ? NoIdx : t.t2 + nTexCoords;
+        scene->triData[nTris*7 + 5] = t.t3 == NoIdx ? NoIdx : t.t3 + nTexCoords;
 
-        assert(t.surface == NoIdx, "Materials not yet supported");
+        scene->triData[nTris*7 + 6] = t.mat;
         ++nTris;
     }
     /** Add vertices (etc.) to the corresponding lists */
@@ -208,15 +213,21 @@ void Object::split(unsigned *splitTris, unsigned nTris, unsigned depth, const im
 /** Scene */
 Scene::Scene(impala::Scene *scene) : scene(scene)
 {
-    scene->verts = nullptr;
-    scene->normals = nullptr;
-    scene->triVerts = nullptr;
-    scene->triNormals = nullptr;
-    scene->texcoords = nullptr;
-    scene->triTexcoords = nullptr;
     scene->bvhNodes = nullptr;
+
+    scene->verts = nullptr;
+    scene->triVerts = nullptr;
+
+    scene->normals = nullptr;
+    scene->texcoords = nullptr;
+    scene->materials = nullptr;
+    scene->triData = nullptr;
+
     scene->objs = nullptr;
     scene->nObjs = 0;
+
+    scene->lights = nullptr;
+    scene->nLights = 0;
 }
 
 Scene::~Scene(void)
@@ -226,28 +237,37 @@ Scene::~Scene(void)
 
 void Scene::free(void)
 {
+    thorin_free(scene->bvhNodes);
+    scene->bvhNodes = nullptr;
+
     thorin_free(scene->verts);
     scene->verts = nullptr;
     thorin_free(scene->triVerts);
     scene->triVerts = nullptr;
+
     thorin_free(scene->normals);
     scene->normals = nullptr;
-    thorin_free(scene->triNormals);
-    scene->triNormals = nullptr;
     thorin_free(scene->texcoords);
     scene->texcoords = nullptr;
-    thorin_free(scene->triTexcoords);
-    scene->triTexcoords = nullptr;
-    thorin_free(scene->bvhNodes);
-    scene->bvhNodes = nullptr;
+    thorin_free(scene->materials);
+    scene->materials = nullptr;
+    thorin_free(scene->triData);
+    scene->triData = nullptr;
+
     thorin_free(scene->objs);
     scene->objs = nullptr;
+    scene->nObjs = 0;
+
+    thorin_free(scene->lights);
+    scene->lights = nullptr;
+    scene->nLights = 0;
 }
 
 void Scene::clear()
 {
     free();
     freeContainer(objects);
+    freeContainer(materials);
 }
 
 void Scene::build()
@@ -263,7 +283,7 @@ void Scene::build()
         totalTexcoords += obj.texCoords.size();
     }
     // allocate appropiate build state
-    BuildState state(scene, totalVerts, totalNorms, totalTexcoords, totalTris, objects.size());
+    BuildState state(scene, totalVerts, totalNorms, totalTexcoords, totalTris, objects.size(), materials);
 
     // now for each object, build the BVH tree
     for (auto& obj : objects) {

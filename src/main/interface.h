@@ -18,6 +18,13 @@ namespace impala {
         Point() = default;
         Point(float x, float y, float z) : x(x), y(y), z(z) {}
 
+        float &operator[](unsigned i) {
+            switch (i) {
+            case 0:  return x;
+            case 1:  return y;
+            default: return z;
+            }
+        }
         float operator[](unsigned i) const {
             switch (i) {
             case 0:  return x;
@@ -38,6 +45,13 @@ namespace impala {
         Vec() = default;
         Vec(float x, float y, float z) : x(x), y(y), z(z) {}
 
+        float &operator[](unsigned i) {
+            switch (i) {
+            case 0:  return x;
+            case 1:  return y;
+            default: return z;
+            }
+        }
         float operator[](unsigned i) const {
             switch (i) {
             case 0:  return x;
@@ -52,6 +66,29 @@ namespace impala {
     {
         return o << "(" << v.x << ", " << v.y << ", " << v.z << ")";
     }
+
+    struct Color
+    {
+        float r, g, b;
+
+        Color() = default;
+        Color(float r, float g, float b) : r(r), g(g), b(b) {}
+
+        float &operator[](unsigned i) {
+            switch (i) {
+            case 0:  return r;
+            case 1:  return g;
+            default: return b;
+            }
+        }
+        float operator[](unsigned i) const {
+            switch (i) {
+            case 0:  return r;
+            case 1:  return g;
+            default: return b;
+            }
+        }
+    };
 
     struct TexCoord
     {
@@ -122,18 +159,45 @@ namespace impala {
         BVHNode(const BBox &bbox) : bbox(bbox) {}
     };
 
+    struct Material
+    {
+        // diffuse
+        Color diffuse;
+        // specular (phong)
+        Color specular;
+        float specExp;
+        // ambient / emissive
+        Color emissive;
+
+        static Material init()
+        {
+            return (Material) {
+                .diffuse = Color(0, 0, 0),
+                .specular = Color(0, 0, 0),
+                .specExp = 0.0f,
+                .emissive = Color(0, 0, 0),
+            };
+        }
+    };
+
+    struct Light; // opaque to C++
+
     struct Scene
     {
         BVHNode *bvhNodes;
+
         Point *verts;
-        unsigned *triVerts;
+        unsigned *triVerts; // 3 successive entries are the three indices of the vertices of a triangle
+
         Vec *normals;
-        unsigned *triNormals;
         TexCoord *texcoords;
-        unsigned *triTexcoords;
+        Material *materials;
+        unsigned *triData; // 7 successive indices belong to one triangle: 3 normals, 2 texcoors, 1 material
+
         Object *objs;
         unsigned nObjs;
-        void *lights; // HACK: currently only used inside impala
+
+        Light *lights;
         unsigned nLights;
     };
 
@@ -182,10 +246,12 @@ namespace impala {
     {
         static_assert(std::is_pod<impala::Point>::value, "impala::Point must be a POD");
         static_assert(std::is_pod<impala::Vec>::value, "impala::Vec must be a POD");
+        static_assert(std::is_pod<impala::Color>::value, "impala::Color must be a POD");
         static_assert(std::is_pod<impala::TexCoord>::value, "impala::TexCoord must be a POD");
         static_assert(std::is_pod<impala::Object>::value, "impala::Object must be a POD");
         static_assert(std::is_pod<impala::BBox>::value, "impala::BBox must be a POD");
         static_assert(std::is_pod<impala::BVHNode>::value, "impala::BVHNode must be a POD");
+        static_assert(std::is_pod<impala::Material>::value, "impala::Material must be a POD");
         static_assert(std::is_pod<impala::Scene>::value, "impala::Scene must be a POD");
         static_assert(std::is_pod<impala::View>::value, "impala::View must be a POD");
         static_assert(std::is_pod<impala::Cam>::value, "impala::Cam must be a POD");

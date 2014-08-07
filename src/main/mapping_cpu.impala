@@ -5,7 +5,7 @@ fn renderIteration(width : int, height : int, measureTime : bool, state : &State
     let start = thorin_get_micro_time();
     let mut rtstate = RTState{ cam: (*state).cam, integrator: (*state).integrator, scene: (*state).scene };
     for y in $range(0, height) {
-        for x in $range(0, width) {
+        for x in $inner_loop(0, width) {
             @body(x, y, &rtstate, &scratch);
         }
     };

@@ -13,11 +13,7 @@
 namespace rt {
 
 
-//typedef std::map<std::string, CountedPtr<Material> > MatLib;
-typedef void MatLib; // TEMP
-
-//void loadOBJMat(MatLib* dest, const std::string& path, const std::string& filename);
-
+typedef std::map<std::string, impala::Material > MatLib;
 
 
 class FileObject : public Object
@@ -29,10 +25,10 @@ public:
         None = 0,
         IgnoreNormals = 1 << 0,
         IgnoreTexCoord = 1 << 1,
-        //IgnoreMatLibs = 1 << 2,
+        IgnoreMatLibs = 1 << 2,
     };
 
-    FileObject(const std::string &filename, /*MatLib *inmats = nullptr, */unsigned flags = None);
+    FileObject(const std::string &path, const std::string &filename, Scene *scene, MatLib *mats = nullptr, unsigned flags = None);
 };
 
 }

@@ -17,12 +17,12 @@ struct Tri {
     Tri(unsigned p1, unsigned p2, unsigned p3,
         unsigned n1 = NoIdx, unsigned n2 = NoIdx, unsigned n3 = NoIdx,
         unsigned t1 = NoIdx, unsigned t2 = NoIdx, unsigned t3 = NoIdx,
-        unsigned surface = NoIdx)
-        : p1(p1), p2(p2), p3(p3), n1(n1), n2(n2), n3(n3), t1(t1), t2(t2), t3(t3), surface(surface) {}
+        unsigned mat = NoIdx)
+        : p1(p1), p2(p2), p3(p3), n1(n1), n2(n2), n3(n3), t1(t1), t2(t2), t3(t3), mat(mat) {}
     unsigned p1, p2, p3; // vertex indices
     unsigned n1, n2, n3; // normal indices
     unsigned t1, t2, t3; // texCoord indices
-    unsigned surface;    // material index
+    unsigned mat;    // material index - this is global, not per-object
 };
 
 /** C++-side representation of an object. */
@@ -78,13 +78,20 @@ public:
     Scene(impala::Scene *scene);
     virtual ~Scene(void);
 
-    void add(Object &&obj) { free(); objects.push_back(obj); }
     void build();
     void clear();
+
+    void add(Object &&obj) { free(); objects.push_back(obj); }
+    void add(const Object &obj) { free(); objects.push_back(obj); }
+    size_t addMaterial(const impala::Material &mat) {
+        materials.push_back(mat);
+        return materials.size()-1;
+    }
 
 protected:
     impala::Scene *scene; //!< the Impala Scene. We *own* its dynamically allocated parts!
     std::vector<Object> objects;
+    std::vector<impala::Material> materials;
 
 private:
     void free();

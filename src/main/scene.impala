@@ -8,10 +8,9 @@ struct Scene
     triVerts : &[uint], // 3 successive entries are the three indices of the vertices of a triangle
 
     normals : &[Vec],
-    triNormals : &[uint],
-
     texcoords: &[TexCoord],
-    triTexcoords : &[uint],
+    materials: &[Material],
+    triData : &[uint], // 7 successive indices belong to one triangle: 3 normals, 2 texcoors, 1 material
 
     objs: &[Object],
     nObjs : uint,
@@ -23,6 +22,50 @@ struct Scene
 
 fn noIdx() -> uint // the ID to be used when "nothing" is referenced (not valid for vertices; either one normal/texCoord or all of them must be absent)
 { 0xFFFFFFFFu }
+
+// accessor functions
+fn triPoint(tri : uint, n : uint, scene : &Scene) -> Point
+{
+    @assert(||n < 3u, 1910);
+    let idx = (*scene).triVerts(3u*tri + n);
+    (*scene).verts(idx)
+}
+
+fn triHasNormals(tri : uint, scene : &Scene) -> bool
+{
+    (*scene).triData(7u*tri) != noIdx()
+}
+
+fn triVertNormal(tri : uint, n : uint, scene : &Scene) -> Vec
+{
+    @assert(||n < 3u, 1911);
+    let idx = (*scene).triData(7u*tri + n);
+    (*scene).normals(idx)
+}
+
+fn triHasTexcoord(tri : uint, scene : &Scene) -> bool
+{
+    (*scene).triData(7u*tri+3u) != noIdx()
+}
+
+fn triTexCoord(tri : uint, n : uint, scene : &Scene) -> TexCoord
+{
+    @assert(||n < 3u, 1912);
+    let idx = (*scene).triData(7u*tri + 3u + n);
+    (*scene).texcoords(idx)
+}
+
+fn triHasMaterial(tri : uint, scene : &Scene) -> bool
+{
+    (*scene).triData(7u*tri+6u) != noIdx()
+}
+
+fn triMaterial(tri : uint, scene : &Scene) -> Material
+{
+    let idx = (*scene).triData(7u*tri + 6u);
+    (*scene).materials(idx)
+}
+
 
 // TODO: Figure out the best way to pass around stuff. Scene as pointer or as copy? Intersection as pointer, or as function from Ray to isect?
 fn sceneIntersectFirst(scene: &Scene, scratch : &RTScratch) -> ()

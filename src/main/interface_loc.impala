@@ -15,8 +15,8 @@ extern fn impala_init(mut state : &State) -> ()
     // add point light
     let mut lights = ~[2:Light];
     let intens = 1.0f;
-    lights(0) = @pointLight(point0(), color(intens*500.0f, intens*500.0f, intens*200.0f));
-    lights(1) = @pointLight(point0(), color(intens*100.0f, intens*100.0f, intens*500.0f));
+    lights(0) = @pointLight(point0(), color(intens*500.0f, intens*500.0f, intens*400.0f));
+    lights(1) = @pointLight(point0(), color(intens*100.0f, intens*100.0f, intens*300.0f));
     (*state).scene.nLights = 2u;
     (*state).scene.lights = lights;
 
@@ -43,7 +43,7 @@ extern fn impala_init_bench1(mut state : &State) -> ()
 {
     (*state).integrator.itype = 0;
 
-    scene_add_file(state, 3, /*IgnoreTexCoord | IgnoreNormals*/3);
+    scene_add_file(state, 3, /*IgnoreTexCoord | IgnoreNormals | IgnoreMatLibs*/7);
     scene_build(state);
 
     let scale = 40.0f;
@@ -53,7 +53,4 @@ extern fn impala_init_bench1(mut state : &State) -> ()
     let horzOpenAngle = @pi() / 4.0f;
     let vertOpenAngle = @pi() / 3.0f;
     (*state).cam = @camPerspectiveLookAt(pos, at, up, horzOpenAngle, vertOpenAngle);
-
-    // no lights
-    (*state).scene.nLights = 0u;
 }

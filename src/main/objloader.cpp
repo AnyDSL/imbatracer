@@ -5,6 +5,7 @@
 #include <fstream>
 //#include <rt/solids/triangle.h>
 #include <set>
+#include <cstring>
 
 /*
 #include <rt/materials/material.h>
@@ -252,21 +253,138 @@ Int3 FileLine::fetchVertex() {
 }
 }
 
-FileObject::FileObject(const std::string &filename, /*MatLib *inmats,*/ unsigned flags)
-{
-    /*MatLib* matlib;
-    if (inmats)
-        matlib = inmats;
-    else
-        matlib = new MatLib;*/
 
-    //std::map<std::string, unsigned> materialToSurface;
-    //unsigned surface = 0; // initially use dummy surface
+namespace {
+
+    struct MaterialInfo {
+        std::string name;
+        impala::Material mat;
+
+        MaterialInfo() : mat(impala::Material::init()) {}
+    };
+
+    void skipWS(const char * &aStr)
+    {
+        while(isspace(*aStr))
+            aStr++;
+    }
+
+    std::string endSpaceTrimmed(const char* _str)
+    {
+        size_t len = std::strlen(_str);
+        const char *firstChar = _str;
+        const char *lastChar = firstChar + len - 1;
+        while(lastChar >= firstChar && isspace(*lastChar))
+            lastChar--;
+
+        return std::string(firstChar, lastChar + 1);
+    }
+
+    void matCreate(MatLib* dest, MaterialInfo& matinfo) {
+		if (matinfo.name != "" && dest->find(matinfo.name) == dest->end()) { // do not overwrite stuff
+            std::cerr << "creating material " << matinfo.name << "\n";
+            dest->insert(make_pair(matinfo.name, matinfo.mat));
+        }
+        matinfo = MaterialInfo();
+    }
+}
+
+
+void loadOBJMat(MatLib* dest, const std::string& path, const std::string& filename) {
+    std::string fullname = path + filename;
+    std::ifstream matInput(fullname.c_str(), std::ios_base::in);
+    std::string buf;
+    MaterialInfo material;
+
+
+    if(matInput.fail()) {
+        std::cerr << "Failed to open file " << fullname << "\n";
+        return;
+    }
+
+    size_t curLine = 0;
+
+    while(!matInput.eof())
+    {
+        std::getline(matInput, buf);
+        curLine++;
+        const char* cmd = buf.c_str();
+        skipWS(cmd);
+
+        if(std::strncmp(cmd, "newmtl", 6) == 0)
+        {
+            matCreate(dest, material); //create the previous material (if it exists) and clear the material info
+            cmd += 6;
+
+            skipWS(cmd);
+            material.name = endSpaceTrimmed(cmd);
+        }
+        else if(
+            std::strncmp(cmd, "Kd", 2) == 0 || std::strncmp(cmd, "Ks", 2) == 0
+            || std::strncmp(cmd, "Ka", 2) == 0)
+        {
+            char coeffType = *(cmd + 1);
+
+            impala::Color color;
+            cmd += 2;
+
+            char *newCmdString;
+            for(int i = 0; i < 3; i++)
+            {
+                skipWS(cmd);
+                color[i] = (float)strtod(cmd, &newCmdString);
+                if(newCmdString == cmd) goto parse_err_found;
+                cmd = newCmdString;
+            }
+
+
+            switch (coeffType)
+            {
+            case 'd':
+                material.mat.diffuse = color; break;
+            case 'a':
+                material.mat.emissive = color; break;
+            case 's':
+                material.mat.specular = color; break;
+            }
+        }
+        else if(std::strncmp(cmd,  "Ns", 2) == 0)
+        {
+            cmd += 2;
+
+            char *newCmdString;
+            skipWS(cmd);
+            float coeff = (float)strtod(cmd, &newCmdString);
+            if(newCmdString == cmd) goto parse_err_found;
+            cmd = newCmdString;
+            material.mat.specExp = coeff;
+        }
+        else if(
+            std::strncmp(cmd, "map_Kd", 6) == 0 || std::strncmp(cmd, "map_Ks", 6) == 0
+            || std::strncmp(cmd, "map_Ka", 6) == 0) {
+                std::cerr << "Image textures not supported in " << fullname << std::endl;
+        }
+
+        continue;
+parse_err_found:
+        std::cerr << "Error at line " << curLine << "in " << fullname <<std::endl;
+    }
+    matCreate(dest, material);
+}
+
+
+FileObject::FileObject(const std::string &path, const std::string &filename, Scene *scene, MatLib *mats, unsigned flags)
+{
+    MatLib* matlib = mats ? mats : new MatLib;
+
+    std::map<std::string, unsigned> materialName2Idx;
     std::set<Instruction> unsupportedEncounters;
-    //std::set<std::string> unknownMaterialEncounters;
+    std::set<std::string> unknownMaterialEncounters;
+
+    unsigned curMatIdx = NoIdx;
 
     FileLine fileline;
-    if(!fileline.open(filename)) {
+    if(!fileline.open(path+filename)) {
         std::cerr << "ERROR: Cannot open " << filename << std::endl;
         return;
     }
@@ -348,27 +466,25 @@ FileObject::FileObject(const std::string &filename, /*MatLib *inmats,*/ unsigned
                 break;
             }
             case Obj_MaterialLibrary: {
-                /*if (!(flags & IgnoreMatLibs)) {
+                if (!(flags & IgnoreMatLibs)) {
                     std::string libname = fileline.fetchString();
                     loadOBJMat(matlib, path, libname);
-                }*/
+                }
                 break;
             }
             case Obj_Material: {
-                /*std::string matname = fileline.fetchString();
+                std::string matname = fileline.fetchString();
                 MatLib::iterator i = matlib->find(matname);
                 if (i != matlib->end()) {
-                    // check if we already created a surface for this material
-                    std::map<std::string, unsigned>::iterator j = materialToSurface.find(matname);
-                    if (j != materialToSurface.end()) {
-                        surface = j->second; // we have the surface index here
-                        //assert(surface->name == matname, "Wrong material?!??"); // FIXME: this does not compile
+                    // check if we already registered this material
+                    std::map<std::string, unsigned>::iterator j = materialName2Idx.find(matname);
+                    if (j != materialName2Idx.end()) {
+                        curMatIdx = j->second; // we have the surface index here
                     }
                     else {
-                        // create new surface, and store its index in the map
-                        surface = surfaces.size();
-                        surfaces.push_back(new MeshSurface(theMapper, i->second, matname));
-                        materialToSurface.insert(std::make_pair(matname, surface));
+                        // register material
+                        curMatIdx = scene->addMaterial(i->second);
+                        materialName2Idx.insert(std::make_pair(matname, curMatIdx));
                     }
                 }
                 else {
@@ -376,8 +492,8 @@ FileObject::FileObject(const std::string &filename, /*MatLib *inmats,*/ unsigned
                         std::cerr << "Warning: Material \'" << matname << "\' not found in material library at " << fileline.filename << ":" << fileline.lineIdx << "." << fileline.pos << ". Using dummy material." << std::endl;
                         unknownMaterialEncounters.insert(matname);
                     }
-                    surface = 0; // the default surface
-                }*/
+                    curMatIdx = NoIdx;
+                }
                 break;
             }
             case Obj_None: break; //empty line
@@ -389,8 +505,8 @@ FileObject::FileObject(const std::string &filename, /*MatLib *inmats,*/ unsigned
         }
     }
     fileline.close();
-    /*if (!inmats)
-        delete matlib;*/
+    if (matlib != mats)
+        delete matlib;
 
     std::cout << "ObjLoader: Loaded " << verts.size() << " verts, " << normals.size() << " normals, " << texCoords.size() << " texcoords" << std::endl;
 }

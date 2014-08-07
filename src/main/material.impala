@@ -1,20 +1,21 @@
 struct Material
 {
-    ty : int,
-    //c1 : Color,
-    //c2 : Color,
-    //f1 : float,
-    //f2 : float,
-    //tex1 : fn(Point) -> Color,
-    //tex2 : Texture,
+    // diffuse
+    diffuse : Color,
+    // specular (phong)
+    specular : Color,
+    specExp : float,
+    // ambient / emissive
+    emissive : Color,
 }
 
 fn dummyMaterial() -> Material
 {
-    Material{ty:-1
-        //c1:@color0(), c2:@color0(),
-        //f1:0.0f, f2:0.0f,
-        //tex1:constantTexture(color0()),
+    Material {
+        diffuse:color0(),
+        specular:color0(),
+        specExp:0.0f,
+        emissive:color0()
     }
 }
 
