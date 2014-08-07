@@ -33,9 +33,9 @@ fn buildMaterial(mat : Material) -> (fn(TexCoord, Vec, Vec, Vec) -> Color, fn(Te
 {
     let reflectance = |texPoint:TexCoord, normal:Vec, outDir:Vec, inDir:Vec| -> Color
     {
-        let renderCos = @absdot(inDir, normal);
         let lambertian = @cdiv(mat.diffuse, pi());
-        let phong = if mat.specExp >= 0.0f { @cmul(mat.specular, @phongFactor(normal, outDir, inDir, mat.specExp)) } else { color0() };
+        let phong = if mat.specExp > 0.0f { @cmul(mat.specular, @phongFactor(normal, outDir, inDir, mat.specExp)) } else { color0() };
+        let renderCos = @absdot(inDir, normal);
         @cmul(@ccadd(lambertian, phong), renderCos)
     };
 
