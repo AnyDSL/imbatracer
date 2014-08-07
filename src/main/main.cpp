@@ -9,15 +9,28 @@
 
 using namespace rt;
 
+enum class SceneKind {
+    Main,
+    Bench1,
+};
+
 class ImpalaGui : public SDLBufferGui
 {
 public:
-    ImpalaGui(unsigned w, unsigned h)
-        : SDLBufferGui(w, h, "ImbaTracer"), scene(&state.scene)
+    ImpalaGui(unsigned w, unsigned h, SceneKind sceneKind)
+        : SDLBufferGui(w, h, "ImbaTracer"), sceneKind(sceneKind), scene(&state.scene)
     {
         state.sceneMgr = &scene;
         // impala_init may call functions that add objects to the scene
-        impala_init(&state);
+        switch (sceneKind) {
+        case SceneKind::Main:
+            impala_init(&state);
+            break;
+        case SceneKind::Bench1:
+            impala_init_bench1(&state);
+            break;
+        }
+
     }
     virtual ~ImpalaGui() {}
 
@@ -27,22 +40,30 @@ protected:
 
     virtual void _Render(CountedPtr<Image> img, float dt)
     {
-        impala_update(&state, dt);
+        if (sceneKind == SceneKind::Main)
+            impala_update(&state, dt);
         impala_render(img->getPtr(), img->width(), img->height(), false, &state);
     }
 
+    SceneKind sceneKind;
     impala::State state;
     rt::Scene scene;
 };
 
-int main(int /*argc*/, char */*argv*/[])
+int main(int argc, char *argv[])
 {
+    // which scene to show?
+    SceneKind scene = SceneKind::Main;
+    if (argc > 1 && std::string(argv[1]) == "bench1") {
+        scene = SceneKind::Bench1;
+    }
+
+    // global initialisation
     thorin_init();
     SDL_Init(0);
     atexit(SDL_Quit);
 
-    ImpalaGui gui(640, 480);
+    // run the thing
+    ImpalaGui gui(640, 480, scene);
     return gui.main();
-
-    return 0;
 }
