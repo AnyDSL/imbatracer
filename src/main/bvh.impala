@@ -133,6 +133,7 @@ fn bvhIntersectFirst(root: uint, scene : &Scene, mut scratch : &RTScratch) -> ()
         |tri, mut pmaxdist|
         {
             triIntersectFirst(tri, scene, isec); // triIntersectFirst() updates maxdist, re-assign afterwards
+            // update the pointer used by traversal. for some reason, letting traversal directly access the isec dist via pointer or function makes it way slower.
             *pmaxdist = (*isec).dist;
         }
     )
