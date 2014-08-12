@@ -1,11 +1,11 @@
 
 fn renderIteration(width : int, height : int, measureTime : bool, state : &State, body : fn(int, int, &RTState, &RTScratch) -> () ) -> ()
 {
-    let mut scratch = emptyScratch(); // scratch space for the current intersection (TODO is this better than passing it around?)
     let start = thorin_get_micro_time();
     let mut rtstate = RTState{ cam: (*state).cam, integrator: (*state).integrator, scene: (*state).scene };
     for y in $range(0, height) {
         for x in $inner_loop(0, width) {
+            let mut scratch = emptyScratch(); // scratch space for the current intersection (TODO is this better than passing it around?)
             @body(x, y, &rtstate, &scratch);
         }
     };
