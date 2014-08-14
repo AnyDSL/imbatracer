@@ -475,10 +475,10 @@ FileObject::FileObject(const std::string &path, const std::string &filename, Sce
             }
             case Obj_Material: {
                 std::string matname = fileline.fetchString();
-                MatLib::iterator i = matlib->find(matname);
+                auto i = matlib->find(matname);
                 if (i != matlib->end()) {
                     // check if we already registered this material
-                    std::map<std::string, unsigned>::iterator j = materialName2Idx.find(matname);
+                    auto j = materialName2Idx.find(matname);
                     if (j != materialName2Idx.end()) {
                         curMatIdx = j->second; // we have the surface index here
                     }
