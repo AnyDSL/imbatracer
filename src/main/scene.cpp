@@ -9,7 +9,7 @@ namespace rt {
 
 static const unsigned depthLimit = 16; // this is also set in impala!
 static const unsigned maxPrimsPerLeaf = 4;
-static const float isectCost = 10.0f;
+static const float isectCost = 7.0f;
 static const float traversalCost = 1.0f;
 
 /** The state of transforming the C++-side representation to the Impala one */
