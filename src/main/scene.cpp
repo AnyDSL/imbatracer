@@ -7,8 +7,10 @@
 
 namespace rt {
 
-const unsigned depthLimit = 16; // this is also set in impala!
-const unsigned maxPrimsPerLeaf = 4;
+static const unsigned depthLimit = 16; // this is also set in impala!
+static const unsigned maxPrimsPerLeaf = 4;
+static const float isectCost = 10.0f;
+static const float traversalCost = 1.0f;
 
 /** The state of transforming the C++-side representation to the Impala one */
 struct BuildState {
@@ -98,20 +100,24 @@ public:
 };
 
 /** Object */
-size_t Object::buildBVH(BuildState *state)
+size_t Object::buildBVH(BuildState *state, BVHMode bvhMode)
 {
     this->state = state;
+    this->bvhMode = bvhMode;
     auto nTrisOld = state->nTris;
     auto nNodesOld = state->bvhNodes.size();
     // compute bounds of all triangles
     triData.clear();
     triData.reserve(tris.size());
+    impala::BBox totalBounds = impala::BBox::empty();
     for (auto &tri: tris) {
         auto bounds = impala::BBox(verts[tri.p1]).extend(verts[tri.p2]).extend(verts[tri.p3]);
+        totalBounds.extend(bounds);
         triData.push_back(std::make_tuple(bounds, bounds.centroid()));
     }
 
-    // get space for the index lists we create
+    // get space for the index lists we create, and other lists
+    splitPlaneCands = new SplitPlaneCandidate[tris.size()];
     unsigned *leftPrims = new unsigned[tris.size()*depthLimit];
     unsigned *rightPrims = new unsigned[tris.size()*depthLimit];
     unsigned *primsToSplit = new unsigned[tris.size()];
@@ -120,11 +126,12 @@ size_t Object::buildBVH(BuildState *state)
     }
 
     // build the tree
-    auto rootIdx = buildBVHNode(primsToSplit, tris.size(), 0, leftPrims, rightPrims);
+    auto rootIdx = buildBVHNode(primsToSplit, tris.size(), totalBounds, 0, leftPrims, rightPrims);
     assert(state->nTris == nTrisOld+tris.size(), "Wrong number of triangles added?");
 
     // free space
     freeContainer(triData);
+    delete[] splitPlaneCands;
     delete[] leftPrims;
     delete[] rightPrims;
     delete[] primsToSplit;
@@ -135,23 +142,17 @@ size_t Object::buildBVH(BuildState *state)
     return rootIdx;
 }
 
-size_t Object::buildBVHNode(unsigned *splitTris, unsigned nTris, unsigned depth, unsigned *leftTris, unsigned *rightTris)
+size_t Object::buildBVHNode(unsigned *splitTris, unsigned nTris, impala::BBox triBounds, unsigned depth, unsigned *leftTris, unsigned *rightTris)
 {
-    // compute bounds of this node
-    impala::BBox centroidBounds = impala::BBox::empty(), triBounds = impala::BBox::empty();
-    for (unsigned i = 0; i < nTris; ++i) {
-        centroidBounds.extend(std::get<1>(triData[splitTris[i]]));
-        triBounds.extend(std::get<0>(triData[splitTris[i]]));
-    }
     impala::BVHNode node(triBounds);
 
     // split
     NodeSplitInformation splitInfo(leftTris, rightTris);
-    split(splitTris, nTris, depth, centroidBounds, &splitInfo);
+    split(splitTris, nTris, triBounds, depth, &splitInfo);
     node.axis = splitInfo.bestAxis;
     size_t insertIdx = state->bvhNodes.size();
 
-    // did we get as leaf?
+    // did we get a leaf?
     if (splitInfo.bestAxis < 0) {
         // create a leaf
         node.nPrim = nTris;
@@ -170,8 +171,9 @@ size_t Object::buildBVHNode(unsigned *splitTris, unsigned nTris, unsigned depth,
 	state->bvhNodes.push_back(node);
 
 	// Process child nodes recursively, using space further down in our arrays (after the space in leftPrims, rightPrims that we needed)
-	size_t firstChild  = buildBVHNode(leftTris , splitInfo.nLeft      , depth+1, leftTris+nTris, rightTris+nTris);
-	size_t secondChild = buildBVHNode(rightTris, nTris-splitInfo.nLeft, depth+1, leftTris+nTris, rightTris+nTris);
+    assert(splitInfo.nLeft <= nTris, "Keeping too few or too many triangles");
+	size_t firstChild  = buildBVHNode(leftTris , splitInfo.nLeft      , splitInfo.leftBBox,  depth+1, leftTris+nTris, rightTris+nTris);
+	size_t secondChild = buildBVHNode(rightTris, nTris-splitInfo.nLeft, splitInfo.rightBBox, depth+1, leftTris+nTris, rightTris+nTris);
 
 	// Make sure the children's order in the vector is as expected
 	UNUSED(firstChild);
@@ -179,32 +181,112 @@ size_t Object::buildBVHNode(unsigned *splitTris, unsigned nTris, unsigned depth,
 
 	// Now that the second child's index in the vector is known, fix it and be done
 	state->bvhNodes[insertIdx].sndChildFirstPrim = secondChild;
-	return insertIdx;
+    return insertIdx;
 }
 
-void Object::split(unsigned *splitTris, unsigned nTris, unsigned depth, const impala::BBox &centroidBounds, Object::NodeSplitInformation *splitInfo)
+void Object::split(unsigned *splitTris, unsigned nTris, impala::BBox triBounds, unsigned depth, Object::NodeSplitInformation *splitInfo)
 {
+    assert(splitInfo->bestAxis < 0, "Got incorrectly initialized stuff");
     // termination criterion
     if(nTris <= maxPrimsPerLeaf || depth >= depthLimit) {
         //  don't do any split
         return;
     }
 
-    // sort objects by centroid, along longest axis
-    unsigned longestAxis = splitInfo->bestAxis = centroidBounds.longestAxis();
-    std::sort(splitTris, splitTris+nTris,
-              [this,longestAxis](unsigned tri1, unsigned tri2)
-              { return std::get<1>(triData[tri1])[longestAxis] < std::get<1>(triData[tri2])[longestAxis]; });
+    const unsigned longestAxis = triBounds.longestAxis();
+    if (bvhMode == BVHMode::Simple) {
+        // sort objects by centroid, along longest axis
+        std::sort(splitTris, splitTris+nTris,
+                  [this,longestAxis](unsigned tri1, unsigned tri2)
+                  { return triCentroid(tri1)[longestAxis] < triCentroid(tri2)[longestAxis]; });
 
-    // put first half left, second half right
-    splitInfo->nLeft = nTris/2;
-    unsigned i = 0;
-    for (; i < splitInfo->nLeft; ++i) {
-        splitInfo->left[i] = splitTris[i];
+        // put first half left, second half right
+        splitInfo->bestAxis = longestAxis;
+        splitInfo->nLeft = nTris/2;
+        unsigned i = 0;
+        for (; i < splitInfo->nLeft; ++i) {
+            unsigned tri = splitTris[i];
+            splitInfo->leftBBox.extend(std::get<0>(triData[tri]));
+            splitInfo->left[i] = tri;
+        }
+        for (; i < nTris; ++i) {
+            unsigned tri = splitTris[i];
+            splitInfo->rightBBox.extend(std::get<0>(triData[tri]));
+            splitInfo->right[i-splitInfo->nLeft] = tri;
+        }
+
+        // done!
+        return;
     }
-    for (; i < nTris; ++i) {
-        splitInfo->right[i-splitInfo->nLeft] = splitTris[i];
+    else {
+        splitInfo->bestCost = isectCost*nTris;
+        for (unsigned i = 0; i < 3; ++i) {
+            const auto axis = (longestAxis+i) % 3;
+            splitSHAAxis(splitTris, nTris, triBounds, splitInfo, axis);
+            if (bvhMode == BVHMode::SHAFast && splitInfo->bestAxis >= 0) {
+                // we found a good split on this axis, use it
+                break;
+            }
+        }
+        // now the best split we can come up with is in the info, so we are done
+        return;
     }
+}
+
+void Object::splitSHAAxis(unsigned *splitTris, unsigned nTris, impala::BBox triBounds, Object::NodeSplitInformation *splitInfo, unsigned axis)
+{
+    static_assert(std::is_pod<SplitPlaneCandidate>::value, "SplitPlaneCandidate must be a POD");
+
+    // sort objects by centroid, along given axis
+    std::sort(splitTris, splitTris+nTris,
+              [this,axis](unsigned tri1, unsigned tri2)
+              { return triCentroid(tri1)[axis] < triCentroid(tri2)[axis]; });
+
+    // split i in splitPlaneCands contains i+1 triangles to the left - there are nTris-1 splits in total
+    impala::BBox curBox;
+    // compute left bounding boxes
+    curBox = impala::BBox::empty();
+    for (unsigned i = 0; i < nTris-1; i += 1) { // never add the last triangle, it would accumulate to the complete bounds anyway
+        // add next triangle
+        unsigned tri = splitTris[i];
+        curBox.extend(triBound(tri));
+        splitPlaneCands[i].leftBBox = curBox;
+    }
+    // compute right bounding boxes
+    curBox = impala::BBox::empty();
+    for (unsigned i = nTris-1; i > 0; i -= 1) {
+        // add next triangle
+        unsigned tri = splitTris[i];
+        curBox.extend(triBound(tri));
+        splitPlaneCands[i-1].rightBBox = curBox; // triangle i is already on the left in index i, but it's still on the right in index i-1
+    }
+
+    // find split plane with minimal cost
+    int minCostIdx = -1;
+    float minCost;
+    float invTotalSurface = 1 / triBounds.surface();
+    for (unsigned i = 0; i < nTris-1; i += 1) {
+        // now compute the cost
+        const float cost = traversalCost + isectCost*invTotalSurface*(i*splitPlaneCands[i].leftBBox.surface() + (nTris-i)*splitPlaneCands[i].rightBBox.surface());
+        if (minCostIdx < 0 || cost < minCost) {
+            minCost = cost;
+            minCostIdx = i;
+        }
+    }
+    assert(minCostIdx >= 0, "We should have found something...");
+
+    // did we find something useful?
+	if (minCost > splitInfo->bestCost)
+		return;
+
+	// yes, we did. Split!
+	splitInfo->nLeft = minCostIdx+1;
+	splitInfo->bestCost = minCost;
+	splitInfo->bestAxis = axis;
+    std::copy(splitTris, splitTris + splitInfo->nLeft, splitInfo->left);
+    splitInfo->leftBBox = splitPlaneCands[minCostIdx].leftBBox;
+    std::copy(splitTris + splitInfo->nLeft, splitTris + nTris, splitInfo->right);
+    splitInfo->rightBBox = splitPlaneCands[minCostIdx].rightBBox;
 }
 
 

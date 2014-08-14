@@ -147,6 +147,11 @@ namespace impala {
                 return ylen > zlen ? 1 : 2;
             }
         }
+        float surface() const
+        {
+            float xlen = cmax.x-cmin.x, ylen = cmax.y-cmin.y, zlen = cmax.z-cmin.z;
+            return 2*(xlen*ylen + xlen*zlen + ylen*zlen);
+        }
     };
 
     struct BVHNode

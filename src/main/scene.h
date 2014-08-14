@@ -25,6 +25,12 @@ struct Tri {
     unsigned mat;    // material index - this is global, not per-object
 };
 
+enum class BVHMode {
+    Simple,
+    SHAFast,
+    SHASlow,
+};
+
 /** C++-side representation of an object. */
 class Object {
 public:
@@ -38,7 +44,7 @@ protected:
     std::vector<Tri> tris;
 
     // Build the BVH tree. Put primitives into triBuf (starting at offset triBufOff), and the flattened nodes into nodeBuf.
-    size_t buildBVH(BuildState *state);
+    size_t buildBVH(BuildState *state, BVHMode bvhMode = BVHMode::SHAFast);
 
 private:
 
@@ -47,17 +53,32 @@ private:
     struct NodeSplitInformation
 	{
 		NodeSplitInformation(unsigned *left, unsigned *right)
-			: left(left), right(right), bestAxis(-1)
+			: left(left), right(right), leftBBox(impala::BBox::empty()), rightBBox(impala::BBox::empty()), bestAxis(-1)
 		{}
 
 		unsigned nLeft;
 		unsigned *left, *right;
-		//float bestCost, bestPos;
+        impala::BBox leftBBox;
+        impala::BBox rightBBox;
 		int bestAxis;
+        float bestCost;
 	};
+    struct SplitPlaneCandidate
+    {
+        unsigned nLeft;
+        impala::BBox leftBBox;
+        impala::BBox rightBBox;
+    };
 
-    // extra info about tris: bounds, and centroid
-    std::vector<std::tuple<impala::BBox, impala::Point>> triData;
+    // extra BVH construction stuff
+    BVHMode bvhMode;
+    std::vector<std::tuple<impala::BBox, impala::Point>> triData; // bounds and centroid of each tri
+    SplitPlaneCandidate *splitPlaneCands;
+
+    // accessors
+    impala::Point triCentroid(unsigned tri) { return std::get<1>(triData[tri]); }
+    impala::BBox triBound(unsigned tri) { return std::get<0>(triData[tri]); }
+
 
     // target buffers for building Impala data
     BuildState *state;
@@ -66,10 +87,11 @@ private:
      * Put primitives into triBuf (starting at offset triBufOff), and the flattened nodes into nodeBuf.
      * Return the index of the root (in nodeBuf).
      */
-    size_t buildBVHNode(unsigned *splitTris, unsigned nTris, unsigned depth, unsigned *leftTris, unsigned *rightTris);
+    size_t buildBVHNode(unsigned *splitTris, unsigned nTris, impala::BBox triBounds, unsigned depth, unsigned *leftTris, unsigned *rightTris);
 
     /* Do a split decision, and update splitInfo accordingly */
-    void split(unsigned *splitTris, unsigned nTris, unsigned depth, const impala::BBox &centroidBounds, NodeSplitInformation *splitInfo);
+    void split(unsigned *splitTris, unsigned nTris, impala::BBox triBounds, unsigned depth, NodeSplitInformation *splitInfo);
+    void splitSHAAxis(unsigned *splitTris, unsigned nTris, impala::BBox triBounds, NodeSplitInformation *splitInfo, unsigned axis);
 };
 
 /** C++-side representation of a scene. Also manages the dynamically allocated memory. */
