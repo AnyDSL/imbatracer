@@ -1,13 +1,63 @@
+type TextureFn = fn(TexCoord, Point) -> Color;
 
-fn constantTexture(c : Color) -> fn(Point) -> Color
+struct Texture
 {
-    |p:Point| { c }
+    ty : int,
+    color1 : Color,
+    color2 : Color,
+    noise : Noise,
 }
 
-fn checkerboardTexture(a : Color, b : Color) -> fn(Point) -> Color
+// ----------------------------------------------
+
+fn constantTexture(c : Color) -> Texture
+{
+    Texture{ ty: -1, color1:c,
+        color2: color0(), noise:noise0()
+    }
+}
+
+fn checkerboardTexture2D(a : Color, b : Color) -> Texture
+{
+    Texture{ ty: 0, color1:a, color2: b,
+        noise:noise0()
+    }
+}
+
+fn checkerboardTexture3D(a : Color, b : Color) -> Texture
+{
+    Texture{ ty: 1, color1:a, color2: b,
+        noise:noise0()
+    }
+}
+
+fn noiseTexture(a : Color, b : Color, noise : Noise) -> Texture
+{
+    Texture{ ty: 2, color1:a, color2:b, noise:noise }
+}
+
+
+// -----------------------------------------------
+
+fn buildConstantTexture(c : Color) -> TextureFn
+{
+    |uv:TexCoord, p:Point| { c }
+}
+
+
+fn buildCheckerboardTexture2D(a : Color, b : Color) -> TextureFn
 {
     //let cols = [a, b];
-    |p:Point|
+    |uv:TexCoord, p:Point|
+    {
+        if (absfractional(uv.u) >= 0.5f) != (absfractional(uv.v) >= 0.5f) { a } else { b }
+    }
+}
+
+fn buildCheckerboardTexture3D(a : Color, b : Color) -> TextureFn
+{
+    //let cols = [a, b];
+    |uv:TexCoord, p:Point|
     {
         let i = bool2uint(absfractional(p.x) >= 0.5f)
               ^ bool2uint(absfractional(p.y) >= 0.5f)
@@ -17,11 +67,20 @@ fn checkerboardTexture(a : Color, b : Color) -> fn(Point) -> Color
     }
 }
 
-fn noiseTexture(a : Color, b : Color, noise : fn(Point) -> float) -> fn(Point) -> Color
+fn buildNoiseTexture3D(a : Color, b : Color, noise : Noise) -> TextureFn
 {
-    |p:Point|
+    let noiseFn = $buildNoiseFn(noise);
+    |uv:TexCoord, p:Point|
     {
-        let t = @noise(p);
-        @clerp(a, b, t)
+        clerp(a, b, $noiseFn(p))
     }
+}
+
+
+fn buildTextureFn(tex : Texture) -> TextureFn
+{
+         if(tex.ty == 0) { buildCheckerboardTexture2D(tex.color1, tex.color2) }
+    else if(tex.ty == 1) { buildCheckerboardTexture3D(tex.color1, tex.color2) }
+    //else if(tex.ty == 2) { $buildNoiseTexture3D(tex.color1, tex.color2, tex.noise) } // FIXME: this makes compiling SLOOOOOW
+    else                 { buildConstantTexture(tex.color1) }
 }

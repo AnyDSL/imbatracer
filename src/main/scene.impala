@@ -17,6 +17,8 @@ struct Scene
 
     lights: &[Light],
     nLights : uint,
+
+    textures : &[Texture],
 }
 
 
@@ -57,7 +59,8 @@ fn triTexCoord(tri : uint, n : uint, scene : &Scene) -> TexCoord
 
 fn triHasMaterial(tri : uint, scene : &Scene) -> bool
 {
-    scene.triData(7u*tri+6u) != noIdx()
+    true // scene builder ensures there is always at least one material
+    //scene.triData(7u*tri+6u) != noIdx()
 }
 
 fn triMaterial(tri : uint, scene : &Scene) -> Material

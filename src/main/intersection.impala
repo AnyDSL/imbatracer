@@ -15,13 +15,14 @@ struct Intersection
     surfaceNormal : Vec,
     shadingNormal : Vec,
     uv : TexCoord,
+    local : Point,
     eps : float
 }
 
 fn emptyIntersection() -> Intersection
 {
     @Intersection{ dist:-1.0f, obj:noObj(),
-        ray:ray0(), surfaceNormal:vec0(), shadingNormal:vec0(), uv:texCoord0(), eps:0.0f }
+        ray:ray0(), surfaceNormal:vec0(), shadingNormal:vec0(), uv:texCoord0(), local:point0(), eps:0.0f }
 }
 
 fn beginIntersection(ray : Ray, mut isec: &Intersection) -> ()
@@ -31,7 +32,7 @@ fn beginIntersection(ray : Ray, mut isec: &Intersection) -> ()
     isec.ray = ray;
 }
 
-fn improveIntersection(mut isec : &Intersection, dist : float, obj : uint, surfaceNormal : Vec, shadingNormal : Vec, uv : TexCoord, eps : float) -> ()
+fn improveIntersection(mut isec : &Intersection, dist : float, obj : uint, surfaceNormal : Vec, shadingNormal : Vec, uv : TexCoord, local : Point, eps : float) -> ()
 {
     @assert(||dist < isec.dist && obj != @noObj(), 23);
     isec.dist = dist;
@@ -39,10 +40,11 @@ fn improveIntersection(mut isec : &Intersection, dist : float, obj : uint, surfa
     isec.surfaceNormal = surfaceNormal;
     isec.shadingNormal = shadingNormal;
     isec.uv = uv;
+    isec.local = local;
     isec.eps = eps;
 }
 
-fn intersectionHitPoint(isec : &Intersection) -> Point
+fn intersectionWorldHitPoint(isec : &Intersection) -> Point
 {
     @rayP(isec.ray,  isec.dist)
 }

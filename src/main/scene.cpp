@@ -25,7 +25,7 @@ public:
     std::vector<impala::BVHNode> bvhNodes;
 
     BuildState(impala::Scene *scene, unsigned totalVerts, unsigned totalNorms, unsigned totalTexcoords, unsigned totalTris, unsigned totalObjects,
-               std::vector<impala::Material> &materials)
+               std::vector<impala::Material> &materials, std::vector<impala::Texture> &textures)
         : scene(scene), nVerts(0), nNorms(0), nTris(0), nTexCoords(0), nObjs(0)
     {
         scene->verts = thorin_new<impala::Point>(totalVerts);
@@ -40,6 +40,9 @@ public:
 
         scene->materials = thorin_new<impala::Material>(materials.size());
         std::copy(materials.begin(), materials.end(), scene->materials);
+
+        scene->textures = thorin_new<impala::Texture>(textures.size());
+        std::copy(textures.begin(), textures.end(), scene->textures);
 
         bvhNodes.reserve(totalTris/2); // just a wild guess
 
@@ -221,6 +224,7 @@ Scene::Scene(impala::Scene *scene) : scene(scene)
     scene->normals = nullptr;
     scene->texcoords = nullptr;
     scene->materials = nullptr;
+    scene->textures = nullptr;
     scene->triData = nullptr;
 
     scene->objs = nullptr;
@@ -228,6 +232,12 @@ Scene::Scene(impala::Scene *scene) : scene(scene)
 
     scene->lights = nullptr;
     scene->nLights = 0;
+
+
+    // default dummy material & textures that are expected to exist
+    addMaterial(impala::Material::dummy());
+    addTexture(impala::Texture::constant(impala::Color(0,0,0)));
+    addTexture(impala::Texture::constant(impala::Color(1,1,1)));
 }
 
 Scene::~Scene(void)
@@ -251,6 +261,8 @@ void Scene::free(void)
     scene->texcoords = nullptr;
     thorin_free(scene->materials);
     scene->materials = nullptr;
+    thorin_free(scene->textures);
+    scene->textures = nullptr;
     thorin_free(scene->triData);
     scene->triData = nullptr;
 
@@ -268,6 +280,7 @@ void Scene::clear()
     free();
     freeContainer(objects);
     freeContainer(materials);
+    freeContainer(textures);
 }
 
 void Scene::build()
@@ -283,7 +296,7 @@ void Scene::build()
         totalTexcoords += obj.texCoords.size();
     }
     // allocate appropiate build state
-    BuildState state(scene, totalVerts, totalNorms, totalTexcoords, totalTris, objects.size(), materials);
+    BuildState state(scene, totalVerts, totalNorms, totalTexcoords, totalTris, objects.size(), materials, textures);
 
     // now for each object, build the BVH tree
     for (auto& obj : objects) {
@@ -297,6 +310,8 @@ void Scene::build()
 
     // finally, copy the BVH nodes
     state.copyNodes();
+
+    std::cout << "Using " << materials.size() << " materials, " << textures.size()-2 << "+2 textures." << std::endl;
 }
 
 /** CubeScene */

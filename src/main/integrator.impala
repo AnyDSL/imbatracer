@@ -36,11 +36,11 @@ fn debugRadianceDepth(isec : &Intersection) -> Color
     let maxdist = 100.0f;
     let d = clamp(mindist, isec.dist, maxdist);
     let v = @scaleLin(d, mindist, maxdist, 1.0f, 0.0f);
-    @color(v, v, v)
+    @color1(v)
 }
 
-fn integrateLightSources(scratch : &RTScratch, scene : &Scene, hitP : Point, outDir : Vec, surfaceN : Vec, shadingN : Vec, local : TexCoord,
-                         matReflectance : fn(TexCoord, Vec, Vec, Vec) -> Color, rayEps : float) -> Color
+fn integrateLightSources(scratch : &RTScratch, scene : &Scene, hitP : Point, outDir : Vec, surfaceN : Vec, shadingN : Vec, uv : TexCoord, local : Point,
+                         matReflectance : ReflectanceFn, rayEps : float) -> Color
 {
     let mut c = @color0();
 
@@ -56,7 +56,7 @@ fn integrateLightSources(scratch : &RTScratch, scene : &Scene, hitP : Point, out
         {
             let intensityF = lF(1);
             let irrIntensity = @intensityF(lhit);
-            let reflected = @matReflectance(local, shadingN, outDir, lhit.dir);
+            let reflected = @matReflectance(uv, local, shadingN, outDir, lhit.dir);
             let contrib = @ccapply2(irrIntensity, reflected, mul);
 
             @assert(||{!cAny(contrib, isneg)}, 1002);
@@ -82,18 +82,19 @@ fn raytraceRadiance(isec : &Intersection, scene : &Scene, scratch : &RTScratch) 
 
     // HACK: that there's some material to test
     let matinfo = if @triHasMaterial(isec.obj, scene) { @triMaterial(isec.obj, scene) } else { @dummyMaterial() };
-    let mat = @buildMaterial(matinfo);
+    let mat = @buildMaterial(matinfo, scene);
     let reflectance = mat(0);
     let emission = mat(1);
 
-    let local = isec.uv;
-    let hitP = @intersectionHitPoint(isec);
+    let uv = isec.uv;
+    let local = isec.local;
+    let hitP = @intersectionWorldHitPoint(isec);
 
 	@ccadd(
         // we ignore any contribution not coming directly from a light source
-        integrateLightSources(scratch, scene, hitP, outDir, surfaceN, isec.shadingNormal, local, reflectance, isec.eps),
+        integrateLightSources(scratch, scene, hitP, outDir, surfaceN, isec.shadingNormal, uv, local, reflectance, isec.eps),
         // and add the material's own light emission that is not dependent on light
-        emission(local, surfaceN, outDir)
+        emission(uv, local, surfaceN, outDir)
     )
 }
 

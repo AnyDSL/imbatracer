@@ -119,7 +119,8 @@ fn triIntersectFirst(tri : uint, scene : &Scene, isec : &Intersection) -> ()
                 res(1) // surfce normal, already normalized
             };
         let uv = @triTexPoint(res(2), tri, scene);
-        @improveIntersection(isec, t, tri, res(1), shadingNormal, uv, res(3));
+        let local = @triLocalHitPoint(res(2), tri, scene);
+        @improveIntersection(isec, t, tri, res(1), shadingNormal, uv, local, res(3));
     }
 }
 
@@ -142,16 +143,25 @@ fn triArea(tri : uint, scene : &Scene) -> float
 // map hit point to triangle texture coord
 fn triTexPoint(isecBar : Point, tri : uint, scene : &Scene) -> TexCoord
 {
-    if triHasTexcoord(tri, scene)
+    if @triHasTexcoord(tri, scene)
     {
         let t1 = @triTexCoord(tri, 0u, scene);
         let t2 = @triTexCoord(tri, 1u, scene);
         let t3 = @triTexCoord(tri, 2u, scene);
 
-        plerpbart(t1, t2, t3, isecBar)
+        @plerpbart(t1, t2, t3, isecBar)
     }
     else
     {
-        texCoord0()
+        @texCoord0()
     }
+}
+
+fn triLocalHitPoint(isecBar : Point, tri : uint, scene : &Scene) -> Point
+{
+    let t1 = @triPoint(tri, 0u, scene);
+    let t2 = @triPoint(tri, 1u, scene);
+    let t3 = @triPoint(tri, 2u, scene);
+
+    @plerpbarp(t1, t2, t3, isecBar)
 }

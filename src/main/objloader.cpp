@@ -260,7 +260,7 @@ namespace {
         std::string name;
         impala::Material mat;
 
-        MaterialInfo() : mat(impala::Material::init()) {}
+        MaterialInfo() : mat(impala::Material::dummy()) {}
     };
 
     void skipWS(const char * &aStr)
@@ -280,8 +280,10 @@ namespace {
         return std::string(firstChar, lastChar + 1);
     }
 
-    void matCreate(MatLib* dest, MaterialInfo& matinfo) {
-		if (matinfo.name != "" && dest->find(matinfo.name) == dest->end()) { // do not overwrite stuff
+    void matCreate(MatLib* dest, MaterialInfo& matinfo, impala::Material *mats, size_t nmats, size_t *nmatsOverridden) {
+        if(mats && *nmatsOverridden < nmats)
+            matinfo.mat = mats[*nmatsOverridden++];
+		if (matinfo.name.length() && dest->find(matinfo.name) == dest->end()) { // do not overwrite stuff
             std::cerr << "creating material " << matinfo.name << "\n";
             dest->insert(make_pair(matinfo.name, matinfo.mat));
         }
@@ -290,7 +292,7 @@ namespace {
 }
 
 
-void loadOBJMat(MatLib* dest, const std::string& path, const std::string& filename) {
+void loadOBJMat(Scene *scene, MatLib* dest, const std::string& path, const std::string& filename, impala::Material *mats, size_t nmats, size_t *nmatsOverridden) {
     std::string fullname = path + filename;
     std::ifstream matInput(fullname.c_str(), std::ios_base::in);
     std::string buf;
@@ -313,7 +315,7 @@ void loadOBJMat(MatLib* dest, const std::string& path, const std::string& filena
 
         if(std::strncmp(cmd, "newmtl", 6) == 0)
         {
-            matCreate(dest, material); //create the previous material (if it exists) and clear the material info
+            matCreate(dest, material, mats, nmats, nmatsOverridden); //create the previous material (if it exists) and clear the material info
             cmd += 6;
 
             skipWS(cmd);
@@ -337,16 +339,16 @@ void loadOBJMat(MatLib* dest, const std::string& path, const std::string& filena
                 cmd = newCmdString;
             }
 
-
+            // TODO: use delayed texture allocation in case a material isn't used
             switch (coeffType)
             {
             case 'd':
-                material.mat.diffuse = color; break;
+                material.mat.diffuse = scene->addTexture(impala::Texture::constant(color)); break;
             case 'a':
-                material.mat.emissive = color; break;
+                material.mat.emissive = scene->addTexture(impala::Texture::constant(color)); break;
             case 's':
                 if (material.mat.specExp < 0) material.mat.specExp = 1;
-                material.mat.specular = color; break;
+                material.mat.specular = scene->addTexture(impala::Texture::constant(color)); break;
             }
         }
         else if(std::strncmp(cmd,  "Ns", 2) == 0)
@@ -370,19 +372,21 @@ void loadOBJMat(MatLib* dest, const std::string& path, const std::string& filena
 parse_err_found:
         std::cerr << "Error at line " << curLine << "in " << fullname <<std::endl;
     }
-    matCreate(dest, material);
+    matCreate(dest, material, mats, nmats, nmatsOverridden);
 }
 
 
-FileObject::FileObject(const std::string &path, const std::string &filename, Scene *scene, MatLib *mats, unsigned flags)
+FileObject::FileObject(const std::string &path, const std::string &filename, Scene *scene, impala::Material *mats, size_t nmats, unsigned flags)
 {
-    MatLib* matlib = mats ? mats : new MatLib;
+    MatLib* matlib = new MatLib;
 
     std::map<std::string, unsigned> materialName2Idx;
     std::set<Instruction> unsupportedEncounters;
     std::set<std::string> unknownMaterialEncounters;
 
-    unsigned curMatIdx = NoIdx;
+    unsigned curMatIdx = 0; // the default material added in scene ctor
+
+    size_t nmatsOverridden = 0;
 
     FileLine fileline;
     if(!fileline.open(path+filename)) {
@@ -469,7 +473,7 @@ FileObject::FileObject(const std::string &path, const std::string &filename, Sce
             case Obj_MaterialLibrary: {
                 if (!(flags & IgnoreMatLibs)) {
                     std::string libname = fileline.fetchString();
-                    loadOBJMat(matlib, path, libname);
+                    loadOBJMat(scene, matlib, path, libname, mats, nmats, &nmatsOverridden);
                 }
                 break;
             }
@@ -506,8 +510,7 @@ FileObject::FileObject(const std::string &path, const std::string &filename, Sce
         }
     }
     fileline.close();
-    if (matlib != mats)
-        delete matlib;
+    delete matlib;
 
     std::cout << "ObjLoader: Loaded " << verts.size() << " verts, " << normals.size() << " normals, " << texCoords.size() << " texcoords" << std::endl;
 }

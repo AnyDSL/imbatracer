@@ -87,11 +87,16 @@ public:
         materials.push_back(mat);
         return materials.size()-1;
     }
+    size_t addTexture(const impala::Texture &tex) {
+        textures.push_back(tex);
+        return textures.size()-1;
+    }
 
 protected:
     impala::Scene *scene; //!< the Impala Scene. We *own* its dynamically allocated parts!
     std::vector<Object> objects;
     std::vector<impala::Material> materials;
+    std::vector<impala::Texture> textures;
 
 private:
     void free();

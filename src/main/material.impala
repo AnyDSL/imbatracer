@@ -1,21 +1,24 @@
+
+// Indices into scene texture array
 struct Material
 {
     // diffuse
-    diffuse : Color,
+    diffuse : uint,
     // specular (phong)
-    specular : Color,
+    specular : uint,
     specExp : float,
     // ambient / emissive
-    emissive : Color,
+    emissive : uint,
 }
 
+// assumes two default textures at index 0 (white) and 1 (black)
 fn dummyMaterial() -> Material
 {
     Material {
-        diffuse:color1(1.0f),
-        specular:color1(0.0f),
+        diffuse:1u,
+        specular:0u,
         specExp:-1.0f,
-        emissive:color1(0.0f)
+        emissive:0u
     }
 }
 
@@ -29,19 +32,30 @@ fn phongFactor(normal:Vec, outDir:Vec, inDir:Vec, exponent:float) -> float
     powf(cosReflIn, exponent)*(exponent+2.0f)/(2.0f*pi()) // TODO don't compute normalisation factor all the time
 }
 
-fn buildMaterial(mat : Material) -> (fn(TexCoord, Vec, Vec, Vec) -> Color, fn(TexCoord, Vec, Vec) -> Color)
+type ReflectanceFn = fn(TexCoord, Point, Vec, Vec, Vec) -> Color;
+type EmissionFn = fn(TexCoord, Point, Vec, Vec) -> Color;
+
+fn buildMaterial(mat : Material, scene : &Scene) -> (ReflectanceFn, EmissionFn)
 {
-    let reflectance = |texPoint:TexCoord, normal:Vec, outDir:Vec, inDir:Vec| -> Color
+    assert(||{mat.diffuse < 8u}, 42001);
+    assert(||{mat.specular < 8u}, 42002);
+    assert(||{mat.emissive < 8u}, 42003);
+
+    let diffuseFn = buildTextureFn(scene.textures(mat.diffuse));
+    let specularFn = buildTextureFn(scene.textures(mat.specular));
+    let emissiveFn = buildTextureFn(scene.textures(mat.emissive));
+
+    let reflectance = |texPoint:TexCoord, local:Point, normal:Vec, outDir:Vec, inDir:Vec| -> Color
     {
-        let lambertian = @cdiv(mat.diffuse, pi());
-        let phong = if mat.specExp > 0.0f { @cmul(mat.specular, @phongFactor(normal, outDir, inDir, mat.specExp)) } else { color0() };
+        let lambertian = @cdiv(diffuseFn(texPoint, local), pi());
+        let phong = if mat.specExp > 0.0f { @cmul(specularFn(texPoint, local), @phongFactor(normal, outDir, inDir, mat.specExp)) } else { @color0() };
         let renderCos = @absdot(inDir, normal);
         @cmul(@ccadd(lambertian, phong), renderCos)
     };
 
-    let emission = |texPoint:TexCoord, normal:Vec, outDir:Vec| -> Color
+    let emission = |texPoint:TexCoord, local:Point, normal:Vec, outDir:Vec| -> Color
     {
-        mat.emissive
+        emissiveFn(texPoint, local)
     };
 
     (reflectance, emission)

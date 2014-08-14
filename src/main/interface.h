@@ -159,23 +159,49 @@ namespace impala {
         BVHNode(const BBox &bbox) : bbox(bbox) {}
     };
 
+    struct Noise
+    {
+        int ty;
+        unsigned octaves;
+        float amplitude;
+        float freq;
+        float persistence;
+    };
+
+    struct Texture
+    {
+        int ty;
+        Color color1;
+        Color color2;
+        Noise noise;
+
+        static Texture constant(const Color& c)
+        {
+            return (Texture) {
+                .ty = -1,
+                .color1 = c,
+                .color2 = c,
+            };
+        }
+    };
+
     struct Material
     {
         // diffuse
-        Color diffuse;
+        unsigned diffuse;
         // specular (phong)
-        Color specular;
+        unsigned specular;
         float specExp;
         // ambient / emissive
-        Color emissive;
+        unsigned emissive;
 
-        static Material init()
+        static Material dummy()
         {
             return (Material) {
-                .diffuse = Color(0, 0, 0),
-                .specular = Color(0, 0, 0),
+                .diffuse = 1,
+                .specular = 0,
                 .specExp = -1.0f,
-                .emissive = Color(0, 0, 0),
+                .emissive = 0,
             };
         }
     };
@@ -199,6 +225,8 @@ namespace impala {
 
         Light *lights;
         unsigned nLights;
+
+        Texture *textures;
     };
 
     struct View
