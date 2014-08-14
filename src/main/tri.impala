@@ -104,7 +104,7 @@ fn triIntersectAny(tri : uint, scene : &Scene, ray : Ray, maxDistance : float) -
 
 fn triIntersectFirst(tri : uint, scene : &Scene, isec : &Intersection) -> ()
 {
-    let res = @triIntersectDistance_fast(tri, scene, (*isec).ray, (*isec).dist, false);
+    let res = @triIntersectDistance_fast(tri, scene, isec.ray, isec.dist, false);
     let t = res(0); // TODO: would be nice to have syntax for tuple unpacking
     if t >= 0.0f
     {

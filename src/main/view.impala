@@ -36,36 +36,36 @@ fn view0() -> View
 // re-establish the invariants of the view, by computing the up and right vector appropriately
 fn viewNormalize(mut v : &View) -> ()
 {
-    let u = (*v).originalUp;
-    let fnorm = @normalize((*v).forward);
-    (*v).forward = fnorm;
+    let u = v.originalUp;
+    let fnorm = @normalize(v.forward);
+    v.forward = fnorm;
 
     let t = @orthogonalize(fnorm, u); // (ortho, third)
-    (*v).up = @vfmul(t(0), (*v).upFactor);
-    (*v).right = @vfmul(t(1), (*v).rightFactor);
+    v.up = @vfmul(t(0), v.upFactor);
+    v.right = @vfmul(t(1), v.rightFactor);
 }
 
 fn viewSetForward(mut v : &View, f : Vec) -> ()
 {
-    (*v).forward = f;
+    v.forward = f;
     @viewNormalize(v)
 }
 
 fn viewSetLookAt(v : &View, at : Point) -> ()
 {
-    @viewSetForward(v, to((*v).origin, at))
+    @viewSetForward(v, to(v.origin, at))
 }
 
 fn viewSetUp(mut v : &View, up : Vec) -> ()
 {
-    (*v).originalUp = up;
+    v.originalUp = up;
     @viewNormalize(v)
 }
 
 fn viewSetScale(mut v : &View, upFactor : float, rightFactor : float) -> ()
 {
-    (*v).rightFactor = rightFactor;
-    (*v).upFactor = upFactor;
+    v.rightFactor = rightFactor;
+    v.upFactor = upFactor;
     @viewNormalize(v);
 }
 

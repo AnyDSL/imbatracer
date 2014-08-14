@@ -16,16 +16,16 @@ fn camPerspectiveLookAt(center : Point, at : Point, up : Vec, verticalOpeningAng
 fn perspectiveRay(v : &View, x : float, y : float) -> Ray
 {
     @rayNormalize(
-        (*v).origin,
-        vadd((*v).forward, vadd(vfmul((*v).up, y), vfmul((*v).right, x)))
+        v.origin,
+        vadd(v.forward, vadd(vfmul(v.up, y), vfmul(v.right, x)))
     )
 }
 
 fn orthoRay(v : &View, x : float, y : float) -> Ray
 {
     @ray(
-        pvadd((*v).origin, vadd(vfmul((*v).up, y), vfmul((*v).right, x))),
-        (*v).forward // already normalized
+        pvadd(v.origin, vadd(vfmul(v.up, y), vfmul(v.right, x))),
+        v.forward // already normalized
     )
 }
 
@@ -37,11 +37,11 @@ fn fisheyeRay(v : &View, x : float, y : float, fov : float) -> Ray
     let costheta = cosf(theta);
     let sintheta = sinf(theta);
 
-    let a = vfmul((*v).forward, costheta);
-    let b = vfmul((*v).up, sintheta*sinf(phi));
-    let c = vfmul((*v).right, sintheta*cosf(phi));
+    let a = vfmul(v.forward, costheta);
+    let b = vfmul(v.up, sintheta*sinf(phi));
+    let c = vfmul(v.right, sintheta*cosf(phi));
     ray(
-        (*v).origin,
+        v.origin,
         vadd(a, vadd(b, c)) // known to be normal
     )
 }
@@ -53,21 +53,21 @@ fn environRay(v : &View, x : float, y : float, vertical : float, horiz : float) 
     let costheta = cosf(theta);
     let sintheta = sinf(theta);
 
-    let a = vfmul((*v).up, sintheta);
-    let b = vfmul((*v).right, costheta*sinf(phi));
-    let c = vfmul((*v).forward, costheta*cosf(phi));
+    let a = vfmul(v.up, sintheta);
+    let b = vfmul(v.right, costheta*sinf(phi));
+    let c = vfmul(v.forward, costheta*cosf(phi));
     ray(
-        (*v).origin,
+        v.origin,
         vadd(a, vadd(b, c)) // known to be normal
     )
 }
 
 fn runCamera(mut cam : &Cam, x : float, y : float) -> Ray
 {
-    let ty = (*cam).camtype;
-    if      ty == 0 { @perspectiveRay(&(*cam).view, x, y) }
-    else if ty == 1 { @orthoRay(&(*cam).view, x, y) }
-    else if ty == 2 { @fisheyeRay(&(*cam).view, x, y, (*cam).param1) }
-    else            { @environRay(&(*cam).view, x, y, (*cam).param1, (*cam).param2) }
+    let ty = cam.camtype;
+    if      ty == 0 { @perspectiveRay(&cam.view, x, y) }
+    else if ty == 1 { @orthoRay(&cam.view, x, y) }
+    else if ty == 2 { @fisheyeRay(&cam.view, x, y, cam.param1) }
+    else            { @environRay(&cam.view, x, y, cam.param1, cam.param2) }
 }
 

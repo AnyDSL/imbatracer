@@ -2,11 +2,11 @@
 
 extern fn impala_init(mut state : &State) -> ()
 {
-    (*state).time = 0.0f;
-    (*state).integrator.itype = 1; //4:debug, 1:raytrace
-    (*state).integrator.mode = 1;
-    (*state).integrator.minDist = 0.0f;
-    (*state).integrator.maxDist = 0.0f;
+    state.time = 0.0f;
+    state.integrator.itype = 1; //4:debug, 1:raytrace
+    state.integrator.mode = 1;
+    state.integrator.minDist = 0.0f;
+    state.integrator.maxDist = 0.0f;
 
     //scene_add_cube(state, 40.0f);
     scene_add_file(state, 2, 0);
@@ -18,32 +18,32 @@ extern fn impala_init(mut state : &State) -> ()
     lights(0) = @pointLight(point0(), color(intens*500.0f, intens*500.0f, intens*500.0f));
     lights(1) = @pointLight(point0(), color(intens*100.0f, intens*100.0f, intens*100.0f));
     lights(2) = @pointLight(point0(), color(intens*300.0f, intens*300.0f, intens*300.0f));
-    (*state).scene.nLights = 3u;
-    (*state).scene.lights = lights;
+    state.scene.nLights = 3u;
+    state.scene.lights = lights;
 
 }
 
 extern fn impala_update(mut state : &State, dt : float) -> ()
 {
-    let time = (*state).time;
-    (*state).time = time + dt;
+    let time = state.time;
+    state.time = time + dt;
     let scale = 10.0f;
     let pos = @point(-3.5f*scale*sinf(time), 1.2f*scale*sinf(0.2f*time), 3.7f*scale*cosf(time));
     let at = @point0();
     let up = @vec(0.0f, 1.0f, 0.0f);
     let horzOpenAngle = @pi() / 4.0f;
     let vertOpenAngle = @pi() / 3.0f;
-    (*state).cam = @camPerspectiveLookAt(pos, at, up, horzOpenAngle, vertOpenAngle);
+    state.cam = @camPerspectiveLookAt(pos, at, up, horzOpenAngle, vertOpenAngle);
 
     // put light right where the cam was shortly ago, and on the other side
-    (*state).scene.lights(0).pos = @point(-3.5f*scale*sinf(time-0.5f), +1.2f*scale*sinf(0.2f*time-0.5f), +3.7f*scale*cosf(time-0.5f));
-    (*state).scene.lights(1).pos = @point(-3.5f*scale*sinf(time+0.5f), +1.9f*scale*sinf(0.2f*time+0.5f), +3.7f*scale*cosf(time+0.5f));
-    (*state).scene.lights(2).pos = @point(-3.5f*scale*sinf(time+0.5f+pi()), +2.2f*scale*sinf(0.2f*time+0.5f+pi()), +3.7f*scale*cosf(time+0.5f+pi()));
+    state.scene.lights(0).pos = @point(-3.5f*scale*sinf(time-0.5f), +1.2f*scale*sinf(0.2f*time-0.5f), +3.7f*scale*cosf(time-0.5f));
+    state.scene.lights(1).pos = @point(-3.5f*scale*sinf(time+0.5f), +1.9f*scale*sinf(0.2f*time+0.5f), +3.7f*scale*cosf(time+0.5f));
+    state.scene.lights(2).pos = @point(-3.5f*scale*sinf(time+0.5f+pi()), +2.2f*scale*sinf(0.2f*time+0.5f+pi()), +3.7f*scale*cosf(time+0.5f+pi()));
 }
 
 extern fn impala_init_bench1(mut state : &State) -> ()
 {
-    (*state).integrator.itype = 0;
+    state.integrator.itype = 0;
 
     scene_add_file(state, 3, /*IgnoreTexCoord | IgnoreNormals | IgnoreMatLibs*/7);
     scene_build(state);
@@ -54,12 +54,12 @@ extern fn impala_init_bench1(mut state : &State) -> ()
     let up = @vec(0.0f, 1.0f, 0.0f);
     let horzOpenAngle = @pi() / 4.0f;
     let vertOpenAngle = @pi() / 3.0f;
-    (*state).cam = @camPerspectiveLookAt(pos, at, up, horzOpenAngle, vertOpenAngle);
+    state.cam = @camPerspectiveLookAt(pos, at, up, horzOpenAngle, vertOpenAngle);
 }
 
 extern fn impala_init_bench2(mut state : &State) -> ()
 {
-    (*state).integrator.itype = 1;
+    state.integrator.itype = 1;
 
     scene_add_file(state, 2, 0);
     scene_build(state);
@@ -70,8 +70,8 @@ extern fn impala_init_bench2(mut state : &State) -> ()
     lights(0) = @pointLight(point0(), color(intens*500.0f, intens*500.0f, intens*500.0f));
     lights(1) = @pointLight(point0(), color(intens*100.0f, intens*100.0f, intens*100.0f));
     lights(2) = @pointLight(point0(), color(intens*300.0f, intens*300.0f, intens*300.0f));
-    (*state).scene.nLights = 3u;
-    (*state).scene.lights = lights;
+    state.scene.nLights = 3u;
+    state.scene.lights = lights;
 
     let time = 44.05f;
     let scale = 8.0f;
@@ -80,10 +80,10 @@ extern fn impala_init_bench2(mut state : &State) -> ()
     let up = @vec(0.0f, 1.0f, 0.0f);
     let horzOpenAngle = @pi() / 4.0f;
     let vertOpenAngle = @pi() / 3.0f;
-    (*state).cam = @camPerspectiveLookAt(pos, at, up, horzOpenAngle, vertOpenAngle);
+    state.cam = @camPerspectiveLookAt(pos, at, up, horzOpenAngle, vertOpenAngle);
 
     // put light right where the cam was shortly ago, and on the other side
-    (*state).scene.lights(0).pos = @point(-3.5f*scale*sinf(time-0.5f), +1.2f*scale*sinf(0.2f*time-0.5f), +3.7f*scale*cosf(time-0.5f));
-    (*state).scene.lights(1).pos = @point(-3.5f*scale*sinf(time+0.5f), +1.9f*scale*sinf(0.2f*time+0.5f), +3.7f*scale*cosf(time+0.5f));
-    (*state).scene.lights(2).pos = @point(-3.5f*scale*sinf(time+0.5f+pi()), +2.2f*scale*sinf(0.2f*time+0.5f+pi()), +3.7f*scale*cosf(time+0.5f+pi()));
+    state.scene.lights(0).pos = @point(-3.5f*scale*sinf(time-0.5f), +1.2f*scale*sinf(0.2f*time-0.5f), +3.7f*scale*cosf(time-0.5f));
+    state.scene.lights(1).pos = @point(-3.5f*scale*sinf(time+0.5f), +1.9f*scale*sinf(0.2f*time+0.5f), +3.7f*scale*cosf(time+0.5f));
+    state.scene.lights(2).pos = @point(-3.5f*scale*sinf(time+0.5f+pi()), +2.2f*scale*sinf(0.2f*time+0.5f+pi()), +3.7f*scale*cosf(time+0.5f+pi()));
 }

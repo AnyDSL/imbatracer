@@ -7,10 +7,10 @@ struct Object
 
 fn objIntersectFirst(objidx : uint, scene : &Scene, scratch : &RTScratch) -> ()
 {
-    bvhIntersectFirst((*scene).objs(objidx).bvhRoot, scene, scratch)
+    bvhIntersectFirst(scene.objs(objidx).bvhRoot, scene, scratch)
 }
 
 fn objIntersectAny(objidx : uint, scene : &Scene, scratch : &RTScratch, ray : Ray, maxdist : float) -> bool
 {
-    bvhIntersectAny((*scene).objs(objidx).bvhRoot, scene, scratch, ray, maxdist)
+    bvhIntersectAny(scene.objs(objidx).bvhRoot, scene, scratch, ray, maxdist)
 }

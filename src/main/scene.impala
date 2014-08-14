@@ -27,50 +27,50 @@ fn noIdx() -> uint // the ID to be used when "nothing" is referenced (not valid 
 fn triPoint(tri : uint, n : uint, scene : &Scene) -> Point
 {
     @assert(||n < 3u, 1910);
-    let idx = (*scene).triVerts(3u*tri + n);
-    (*scene).verts(idx)
+    let idx = scene.triVerts(3u*tri + n);
+    scene.verts(idx)
 }
 
 fn triHasNormals(tri : uint, scene : &Scene) -> bool
 {
-    (*scene).triData(7u*tri) != noIdx()
+    scene.triData(7u*tri) != noIdx()
 }
 
 fn triVertNormal(tri : uint, n : uint, scene : &Scene) -> Vec
 {
     @assert(||n < 3u, 1911);
-    let idx = (*scene).triData(7u*tri + n);
-    (*scene).normals(idx)
+    let idx = scene.triData(7u*tri + n);
+    scene.normals(idx)
 }
 
 fn triHasTexcoord(tri : uint, scene : &Scene) -> bool
 {
-    (*scene).triData(7u*tri+3u) != noIdx()
+    scene.triData(7u*tri+3u) != noIdx()
 }
 
 fn triTexCoord(tri : uint, n : uint, scene : &Scene) -> TexCoord
 {
     @assert(||n < 3u, 1912);
-    let idx = (*scene).triData(7u*tri + 3u + n);
-    (*scene).texcoords(idx)
+    let idx = scene.triData(7u*tri + 3u + n);
+    scene.texcoords(idx)
 }
 
 fn triHasMaterial(tri : uint, scene : &Scene) -> bool
 {
-    (*scene).triData(7u*tri+6u) != noIdx()
+    scene.triData(7u*tri+6u) != noIdx()
 }
 
 fn triMaterial(tri : uint, scene : &Scene) -> Material
 {
-    let idx = (*scene).triData(7u*tri + 6u);
-    (*scene).materials(idx)
+    let idx = scene.triData(7u*tri + 6u);
+    scene.materials(idx)
 }
 
 
 // TODO: Figure out the best way to pass around stuff. Scene as pointer or as copy? Intersection as pointer, or as function from Ray to isect?
 fn sceneIntersectFirst(scene: &Scene, scratch : &RTScratch) -> ()
 {
-    for obj in urange(0u, (*scene).nObjs)
+    for obj in urange(0u, scene.nObjs)
     {
         @objIntersectFirst(obj, scene, scratch)
     }
@@ -79,7 +79,7 @@ fn sceneIntersectFirst(scene: &Scene, scratch : &RTScratch) -> ()
 fn sceneIntersectAny(scene: &Scene, scratch : &RTScratch, ray : Ray, maxdist : float) -> bool
 {
     let done = return;
-    for obj in urange(0u, (*scene).nObjs)
+    for obj in urange(0u, scene.nObjs)
     {
         if @objIntersectAny(obj, scene, scratch, ray, maxdist)
         {

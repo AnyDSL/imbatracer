@@ -19,7 +19,6 @@ fn checkerboardTexture(a : Color, b : Color) -> fn(Point) -> Color
 
 fn noiseTexture(a : Color, b : Color, noise : fn(Point) -> float) -> fn(Point) -> Color
 {
-    //let cols = [a, b];
     |p:Point|
     {
         let t = @noise(p);

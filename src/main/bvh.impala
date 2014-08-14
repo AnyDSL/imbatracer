@@ -64,7 +64,7 @@ fn bvhIntersectGeneric(mut scratch : &RTScratch, root: uint, scene : &Scene, ray
 
     // we roll our own stack
     let done = return;
-    let mut todo = &(*scratch).bvh.todo;
+    let mut todo = &scratch.bvh.todo;
     let mut todoIdx = 0; // the first *free* index
 
     // CPS fun while passing the current node around as argument :-)
@@ -72,7 +72,7 @@ fn bvhIntersectGeneric(mut scratch : &RTScratch, root: uint, scene : &Scene, ray
         // stack helper functions
         fn pushNode(node : uint) -> ()
         {
-            (*todo)(todoIdx) = node; // do the left child later
+            todo(todoIdx) = node; // do the left child later
             todoIdx = todoIdx+1;
         }
         fn popNode()
@@ -83,17 +83,17 @@ fn bvhIntersectGeneric(mut scratch : &RTScratch, root: uint, scene : &Scene, ray
             else {
                 // continue with stack element
                 todoIdx = todoIdx-1;
-                continue((*todo)(todoIdx))
+                continue(todo(todoIdx))
             }
         }
 
-        if @bvhIntersectNode((*scene).bvhNodes(curNode).bbox, ray.o, maxdist, invDir, neg)
+        if @bvhIntersectNode(scene.bvhNodes(curNode).bbox, ray.o, maxdist, invDir, neg)
         {
             // inner loop: we assume the current node does not intersect
             let inner = continue;
 
-            let nPrim = (*scene).bvhNodes(curNode).nPrim;
-            let sndChildFirstPrim = (*scene).bvhNodes(curNode).sndChildFirstPrim;
+            let nPrim = scene.bvhNodes(curNode).nPrim;
+            let sndChildFirstPrim = scene.bvhNodes(curNode).sndChildFirstPrim;
             if (nPrim > 0u16) {
                 // a leaf
                 for tri in urange(sndChildFirstPrim, sndChildFirstPrim+(nPrim as uint)) {
@@ -108,7 +108,7 @@ fn bvhIntersectGeneric(mut scratch : &RTScratch, root: uint, scene : &Scene, ray
                     continue(fstNode)
                 }
                 // an inner node, which child do we get to first?
-                if @bvhDirIsNeg(neg, (*scene).bvhNodes(curNode).axis as uint) {
+                if @bvhDirIsNeg(neg, scene.bvhNodes(curNode).axis as uint) {
                     @descend(sndChildFirstPrim, curNode+1u) // do the left child later
                 }
                 else {
@@ -126,15 +126,15 @@ fn bvhIntersectGeneric(mut scratch : &RTScratch, root: uint, scene : &Scene, ray
 
 fn bvhIntersectFirst(root: uint, scene : &Scene, mut scratch : &RTScratch) -> ()
 {
-    let isec = &(*scratch).isec;
-    let maxdist = (*scratch).isec.dist;
+    let isec = &scratch.isec;
+    let maxdist = scratch.isec.dist;
 
-    @bvhIntersectGeneric(scratch, root, scene, (*isec).ray, maxdist,
+    @bvhIntersectGeneric(scratch, root, scene, isec.ray, maxdist,
         |tri, mut pmaxdist|
         {
             triIntersectFirst(tri, scene, isec); // triIntersectFirst() updates maxdist, re-assign afterwards
             // update the pointer used by traversal. for some reason, letting traversal directly access the isec dist via pointer or function makes it way slower.
-            *pmaxdist = (*isec).dist;
+            *pmaxdist = isec.dist;
         }
     )
 }

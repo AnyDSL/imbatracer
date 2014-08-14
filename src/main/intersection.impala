@@ -26,34 +26,34 @@ fn emptyIntersection() -> Intersection
 
 fn beginIntersection(ray : Ray, mut isec: &Intersection) -> ()
 {
-    (*isec).dist = 1e10f; // max. drawing distance
-    (*isec).obj = @noObj();
-    (*isec).ray = ray;
+    isec.dist = 1e10f; // max. drawing distance
+    isec.obj = @noObj();
+    isec.ray = ray;
 }
 
 fn improveIntersection(mut isec : &Intersection, dist : float, obj : uint, surfaceNormal : Vec, shadingNormal : Vec, uv : TexCoord, eps : float) -> ()
 {
-    @assert(||dist < (*isec).dist && obj != @noObj(), 23);
-    (*isec).dist = dist;
-    (*isec).obj = obj;
-    (*isec).surfaceNormal = surfaceNormal;
-    (*isec).shadingNormal = shadingNormal;
-    (*isec).uv = uv;
-    (*isec).eps = eps;
+    @assert(||dist < isec.dist && obj != @noObj(), 23);
+    isec.dist = dist;
+    isec.obj = obj;
+    isec.surfaceNormal = surfaceNormal;
+    isec.shadingNormal = shadingNormal;
+    isec.uv = uv;
+    isec.eps = eps;
 }
 
 fn intersectionHitPoint(isec : &Intersection) -> Point
 {
-    @rayP((*isec).ray,  (*isec).dist)
+    @rayP(isec.ray,  isec.dist)
 }
 
 fn intersectionSurfaceNormalTowardsOrigin(isec : &Intersection) -> Vec
 {
-    if @dot((*isec).surfaceNormal, (*isec).ray.d) >= 0.0f {
-        @vflip((*isec).surfaceNormal)
+    if @dot(isec.surfaceNormal, isec.ray.d) >= 0.0f {
+        @vflip(isec.surfaceNormal)
     }
     else {
-        (*isec).surfaceNormal
+        isec.surfaceNormal
     }
 }
 

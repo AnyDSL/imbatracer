@@ -13,18 +13,18 @@ struct Integrator
 // return a gray color whose value is the cosine between the ray direction and the hit surface normal
 fn cosineRadiance(isec : &Intersection) -> Color
 {
-    @color1(absdot((*isec).shadingNormal, (*isec).ray.d)) // ignore normal direction by abs()ing
+    @color1(absdot(isec.shadingNormal, isec.ray.d)) // ignore normal direction by abs()ing
 }
 
 fn debugRadianceNormalDir(isec : &Intersection) -> Color
 {
-    let n = (*isec).shadingNormal;
+    let n = isec.shadingNormal;
     @color(n.x, n.y, n.z)
 }
 
 fn debugRadianceNormalSign(isec : &Intersection) -> Color
 {
-    let n = (*isec).shadingNormal;
+    let n = isec.shadingNormal;
     @color(@scaleLin(n.x, -1.0f, 1.0f, 0.0f, 1.0f),
            @scaleLin(n.y, -1.0f, 1.0f, 0.0f, 1.0f),
            @scaleLin(n.z, -1.0f, 1.0f, 0.0f, 1.0f))
@@ -34,7 +34,7 @@ fn debugRadianceDepth(isec : &Intersection) -> Color
 {
     let mindist = 5.0f;
     let maxdist = 100.0f;
-    let d = clamp(mindist, (*isec).dist, maxdist);
+    let d = clamp(mindist, isec.dist, maxdist);
     let v = @scaleLin(d, mindist, maxdist, 1.0f, 0.0f);
     @color(v, v, v)
 }
@@ -44,9 +44,9 @@ fn integrateLightSources(scratch : &RTScratch, scene : &Scene, hitP : Point, out
 {
     let mut c = @color0();
 
-    for i in @urange(0u, (*scene).nLights)
+    for i in @urange(0u, scene.nLights)
     {
-        let lF = @buildLight((*scene).lights(i));
+        let lF = @buildLight(scene.lights(i));
         let hitF = lF(0);
 
         let lhit = hitF(hitP);
@@ -77,21 +77,21 @@ fn integrateLightSources(scratch : &RTScratch, scene : &Scene, hitP : Point, out
 
 fn raytraceRadiance(isec : &Intersection, scene : &Scene, scratch : &RTScratch) -> Color
 {
-    let outDir = @vflip((*isec).ray.d);
+    let outDir = @vflip(isec.ray.d);
     let surfaceN = @intersectionSurfaceNormalTowardsOrigin(isec);
 
     // HACK: that there's some material to test
-    let matinfo = if @triHasMaterial((*isec).obj, scene) { @triMaterial((*isec).obj, scene) } else { @dummyMaterial() };
+    let matinfo = if @triHasMaterial(isec.obj, scene) { @triMaterial(isec.obj, scene) } else { @dummyMaterial() };
     let mat = @buildMaterial(matinfo);
     let reflectance = mat(0);
     let emission = mat(1);
 
-    let local = (*isec).uv;
+    let local = isec.uv;
     let hitP = @intersectionHitPoint(isec);
 
 	@ccadd(
         // we ignore any contribution not coming directly from a light source
-        integrateLightSources(scratch, scene, hitP, outDir, surfaceN, (*isec).shadingNormal, local, reflectance, (*isec).eps),
+        integrateLightSources(scratch, scene, hitP, outDir, surfaceN, isec.shadingNormal, local, reflectance, isec.eps),
         // and add the material's own light emission that is not dependent on light
         emission(local, surfaceN, outDir)
     )
@@ -109,7 +109,7 @@ fn makeDistanceScaled(minDist: float, maxDist: float, isec : &Intersection, getc
         getcol(isec)
     }
     else {
-        let t = scaleLin((*isec).dist, minDist, maxDist, 1.0f, 0.0f);
+        let t = scaleLin(isec.dist, minDist, maxDist, 1.0f, 0.0f);
         clerp(getcol(isec), color0(), t)
     }
 }
@@ -125,20 +125,20 @@ fn debuggerRadiance(mode: int, minDist: float, maxDist: float, isec : &Intersect
 
 fn getRadianceForHit(integr : &Integrator, isec : &Intersection, scene : &Scene, scratch : &RTScratch) -> Color
 {
-    let ty = (*integr).itype;
+    let ty = integr.itype;
     if      ty == 0 { cosineRadiance(isec) }  // Cosine shading
     else if ty == 1 { raytraceRadiance(isec, scene, scratch) }
     else if ty == 2 { recraytraceRadiance(isec, scene, scratch) }
-    else            { debuggerRadiance((*integr).mode, (*integr).minDist, (*integr).maxDist, isec) }
+    else            { debuggerRadiance(integr.mode, integr.minDist, integr.maxDist, isec) }
 }
 
 fn runIntegrator(integr : &Integrator, scene : &Scene, ray : Ray, mut scratch : &RTScratch) -> Color
 {
-    let isec = &(*scratch).isec;
+    let isec = &scratch.isec;
     @beginIntersection(ray, isec);
     @sceneIntersectFirst(scene, scratch);
 
-    if (*isec).obj == @noObj() {
+    if isec.obj == @noObj() {
         @color(1.0f, 0.0f, 0.0f)
     }
     else {
