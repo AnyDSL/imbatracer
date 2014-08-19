@@ -48,7 +48,7 @@ fn bvhIntersectNode(bounds : BBox, o : Point, maxDist : float, invDir : Vec, neg
     }
 }
 
-fn bvhIntersectGeneric(mut scratch : &RTScratch, root: uint, scene : &Scene, ray : Ray, mut maxdist : float, checkIntersect : fn(uint, &float) -> ()) -> ()
+fn bvhIntersectGeneric(scratch : &RTScratch, root: uint, scene : &Scene, ray : Ray, mut maxdist : float, checkIntersect : fn(uint, &float) -> ()) -> ()
 {
     let invDir = @vapply1(ray.d, |f|1.0f/f);
     let neg = @bvhMakeNeg(invDir);

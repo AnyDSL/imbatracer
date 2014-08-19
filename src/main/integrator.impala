@@ -47,14 +47,14 @@ fn integrateLightSources(scratch : &RTScratch, scene : &Scene, hitP : Point, out
     for i in @urange(0u, scene.nLights)
     {
         let lF = @buildLight(scene.lights(i));
-        let hitF = lF(0);
+        let hitF:LightHitFn = lF(0);
 
         let lhit = hitF(hitP);
         @assert(||almost(vlensq(lhit.dir), 1.0f), 1001);
 
         if @dot(lhit.dir, surfaceN) >= 0.0f // light comes towards us, on same side of surface?
         {
-            let intensityF = lF(1);
+            let intensityF:LightIntensityFn = lF(1);
             let irrIntensity = @intensityF(lhit);
             let reflected = @matReflectance(uv, local, shadingN, outDir, lhit.dir);
             let contrib = @ccapply2(irrIntensity, reflected, mul);
