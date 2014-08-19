@@ -7,15 +7,6 @@ struct BVHNode
     axis: u16,
 }
 
-struct BVHTraversal
-{
-    todo : [uint*16], // sync this with BVH construction in C++!
-}
-fn emptyBVHTraversal() -> BVHTraversal
-{
-    @BVHTraversal { todo:[0u,0u,0u,0u, 0u,0u,0u,0u, 0u,0u,0u,0u, 0u,0u,0u,0u] }
-}
-
 fn bvhBBoxComp(bounds : BBox, comp : bool) -> Point
 {
     if comp { bounds.cmax } else { bounds.cmin }
@@ -64,7 +55,7 @@ fn bvhIntersectGeneric(mut scratch : &RTScratch, root: uint, scene : &Scene, ray
 
     // we roll our own stack
     let done = return;
-    let mut todo = &scratch.bvh.todo;
+    let mut todo:[uint*16] = [0u,0u,0u,0u, 0u,0u,0u,0u, 0u,0u,0u,0u, 0u,0u,0u,0u];;
     let mut todoIdx = 0; // the first *free* index
 
     // CPS fun while passing the current node around as argument :-)

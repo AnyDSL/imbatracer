@@ -21,9 +21,8 @@ struct RTState
 struct RTScratch
 {
     isec : Intersection,
-    bvh  : BVHTraversal,
 }
 fn emptyScratch() -> RTScratch
 {
-    @RTScratch{ isec:emptyIntersection(), bvh:emptyBVHTraversal() }
+    @RTScratch{ isec:emptyIntersection() }
 }
