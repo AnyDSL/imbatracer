@@ -1,4 +1,13 @@
 
+fn rangestep(a : int, b : int, step : int, yield : fn(int, fn()))
+-> ()
+{
+    if a < b {
+        yield(a); // TODO adding an @ here OR below makes stuff go SLOWER! ?!?
+        rangestep(a+step, b, step, yield, return)
+    }
+}
+
 
 fn range(a : int, b : int, yield : fn(int, fn()))
 -> ()
@@ -28,6 +37,16 @@ fn ever1(a : uint, yield: fn(uint) -> uint) -> uint
 {
     let b = @yield(a);
     ever1(b, yield, return)
+}
+
+fn imin(a : int, b : int) -> int
+{
+    if a < b { a } else { b }
+}
+
+fn imax(a : int, b : int) -> int
+{
+    if a < b { b } else { a }
 }
 
 fn min(a : float, b : float) -> float

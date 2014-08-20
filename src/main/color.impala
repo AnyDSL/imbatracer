@@ -5,6 +5,13 @@ struct Color
     b : float
 }
 
+struct XYZ
+{
+    x : float,
+    y : float,
+    z : float,
+}
+
 fn color(r : float, g : float, b : float) -> Color
 {
     Color{ r:r, g:g, b:b }
@@ -18,6 +25,11 @@ fn color1(c : float) -> Color
 fn color0() -> Color
 {
     color1(0.0f)
+}
+
+fn capply1(c: Color, f: fn(float) -> float) -> Color
+{
+    color(f(c.r), f(c.g), f(c.b))
 }
 
 fn cfapply2(c: Color, v : float, f: fn(float, float) -> float) -> Color
@@ -47,7 +59,10 @@ fn cAny(c : Color, f : fn(float) -> bool) -> bool
     f(c.r) || f(c.g) || f(c.b) // FIXME: the sequential-or semantics might be a problem here. Maybe faster if just evaluating all.
 }
 
-
+fn cclamp01(c : Color) -> Color
+{
+    @capply1(c, clamp01f)
+}
 
 fn col_rgb2int(c : Color) -> u32
 {
@@ -55,4 +70,22 @@ fn col_rgb2int(c : Color) -> u32
      | ((((clamp01f(c.b)*255.0f) as int) as u32)<< 16u32)
      | ((((clamp01f(c.g)*255.0f) as int) as u32)<< 8u32 )
      | ((((clamp01f(c.r)*255.0f) as int) as u32)        )
+}
+
+fn col_toXYZ(c : Color) -> XYZ
+{
+    let cv = @vec(c.r, c.g, c.b);
+    XYZ{
+        x: @dot(cv, vec(0.412453f, 0.357580f, 0.180423f)),
+        y: @dot(cv, vec(0.212671f, 0.715160f, 0.072169f)),
+        z: @dot(cv, vec(0.019334f, 0.119193f, 0.950227f))
+    }
+}
+
+fn colorDistXYZ(a : XYZ, b : XYZ) -> float
+{
+    let dx = fabsf(a.x - b.x);
+    let dy = fabsf(a.y - b.y);
+    let dz = fabsf(a.z - b.z);
+    dx + dy + dz
 }

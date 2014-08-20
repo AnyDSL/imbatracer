@@ -1,5 +1,5 @@
 
-fn renderIteration(width : int, height : int, measureTime : bool, state : &State, setcolor: SetColorFn, getcolor: GetColorIFn ) -> ()
+fn renderIteration(width : int, height : int, measureTime : bool, state : &State, setcolor: SetColorFn, getcolor: GetColorIFn) -> ()
 {
     let start = thorin_get_micro_time();
     let mut rtstate = RTState{ cam: state.cam, integrator: state.integrator, scene: state.scene };
@@ -9,6 +9,7 @@ fn renderIteration(width : int, height : int, measureTime : bool, state : &State
             @setcolor(x, y, @getcolor(x, y, &rtstate, &scratch));
         }
     };
+    //@renderSubsampled(8, width, height, &rtstate, setcolor, getcolor);
     let stop = thorin_get_micro_time();
     if measureTime { thorin_print_micro_time(stop-start); };
 }
@@ -20,3 +21,144 @@ fn assert(f : fn() -> bool, i : int) -> ()
         assert_failed(i)
     }
 }
+
+struct PixelInfo
+{
+    rgb : Color,
+    xyz : XYZ,
+}
+
+struct PixelBuffer
+{
+    w : int,
+    pix : &[PixelInfo],
+    used : &[u8],
+}
+
+type RenderFunc = fn(int, int) -> Color;
+
+fn renderSubsampled(level : int, width : int, height : int, rtstate : &RTState, setcolor: SetColorFn, getcolor: GetColorIFn) -> ()
+{
+    let cachesize = (width*height);
+    let mut pixcache = PixelBuffer{ w:(width >> 1), pix:~[cachesize:PixelInfo], used:~[cachesize:u8] }; // FIXME: use C function to realloc as necessary
+
+    let body2 = |x:int, y:int| -> Color
+    {
+        let mut scratch = @emptyScratch();
+        let c = $getcolor(x, y, rtstate, &scratch);
+        @setcolor(x, y, c);
+        c
+    };
+
+    for y in $rangestep(0, height, level) {
+        for x in $rangestep(0, width, level) {
+            @renderBlock(body2, setcolor, &pixcache, x, y, width, height, level)
+        }
+    }
+}
+
+fn getCachePixel(body : RenderFunc, mut pixcache : &PixelBuffer, x : int, y : int) -> &PixelInfo
+{
+    //print_ii(x, y);
+    assert(||{(x&1)==0 && (y&1)==0}, 110001);
+    let idx = (y >> 1) * pixcache.w + (x >> 1);
+    if pixcache.used(idx) == 0u8
+    {
+        let c = cclamp01($body(x, y));  // TODO: do the clamping elsewhere?
+        pixcache.pix(idx) = PixelInfo{rgb:c, xyz:col_toXYZ(c)};
+        pixcache.used(idx) = 1u8;
+    }
+    &pixcache.pix(idx)
+}
+
+fn renderBlock(body : RenderFunc, setcolor: SetColorFn, pixcache : &PixelBuffer, x : int, y : int, w : int, h : int, level : int) -> ()
+{
+    @renderBlock2(body, setcolor, pixcache, x, y, w, h, level, @getCachePixel(body, pixcache, x, y))
+}
+
+fn renderBlock2(body : RenderFunc, setcolor: SetColorFn, pixcache : &PixelBuffer, x : int, y : int, w : int, h : int, level : int, topleft : &PixelInfo) -> ()
+{
+    assert(||{(level%2)==0 && level>1}, 110002);
+    assert(||{x+level<w}, 110003);
+    assert(||{y+level<h}, 110004);
+    //print_ifff(level, x as float, y as float, -1.0f);
+    let maxColorDist = 0.1f;
+
+    let topright = getCachePixel(body, pixcache, x + level, y);
+    let bottomleft = getCachePixel(body, pixcache, x, y + level);
+    let bottomright = getCachePixel(body, pixcache, x + level, y + level);
+
+    if @colorDistXYZ(topleft.xyz, topright.xyz) <= maxColorDist
+    && @colorDistXYZ(topleft.xyz, bottomleft.xyz) <= maxColorDist
+    && @colorDistXYZ(topright.xyz, bottomright.xyz) <= maxColorDist
+    && @colorDistXYZ(bottomleft.xyz, bottomright.xyz) <= maxColorDist
+    {
+        // colors are similar, interpolate
+        /*let step = 1.0f / (level as float);
+        let xmax = @imin(x + level, w);
+        let ymax = @imin(y + level, h);
+
+        fn fillrow(xbegin : int, mut xf : float, a : Color, b : Color) -> ()
+        {
+            for xx in @range(xbegin, xmax)
+            {
+                @setcolor(xx, y, clerp(a, b, xf));
+                xf = xf + step;
+            }
+        }
+
+        // top left pixel is already written to image
+        @fillrow(x+1, step, topleft.rgb, topright.rgb);
+
+        let mut ty = step;
+        for yy in range(y+1, ymax)
+        {
+            let ileft = @clerp(topleft.rgb, bottomleft.rgb, ty);
+            let iright = @clerp(topright.rgb, bottomright.rgb, ty);
+
+            @setcolor(x, yy, ileft);
+            @fillrow(x+1, step, ileft, iright);
+            ty = ty + step;
+        }*/
+
+        return()
+    }
+
+/*
+    let nextlevel = level >> 1;
+    let haveRightNeighbor = (x+nextlevel < w);
+    let haveBottomNeighbor = (y+nextlevel < h);
+
+    let boundsChecked = |f : fn(int, int) -> ()| -> ()
+    {
+        if haveRightNeighbor
+        {
+            f(x+nextlevel, y);
+        }
+        if haveBottomNeighbor
+        {
+            f(x, y+nextlevel);
+        }
+        if haveRightNeighbor && haveBottomNeighbor
+        {
+            f(x+nextlevel, y+nextlevel);
+        }
+    };
+
+    if nextlevel == 1
+    {
+        let renderpixel = |xx:int, yy:int| -> () $body(xx, yy, false);
+        @setcolor(x, y, topleft.rgb);
+
+        @boundsChecked(renderpixel);
+        return()
+    }
+*/
+
+    // subdivide
+    //renderBlock2(body, setcolor, pixcache, x, y, w, h, nextlevel, topleft);
+
+    //@boundsChecked(|xx:int, yy:int| renderBlock2(body, setcolor, pixcache, xx, yy, w, h, nextlevel, topleft) );
+
+}
+
