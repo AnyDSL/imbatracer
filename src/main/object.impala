@@ -2,7 +2,9 @@
 struct Object
 {
     bvhRoot : uint,
-    // TODO: instance matrix?
+    o2w : Matrix, // object to world
+	w2o : Matrix, // world to object
+	swapsHandedness : bool, // is the determinant of the above matrices negative?
 }
 
 fn objIntersectFirst(objidx : uint, scene : &Scene, scratch : &RTScratch) -> ()

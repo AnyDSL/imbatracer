@@ -12,6 +12,7 @@ set(impala_shared_SRC
     extern_c.impala
     color.impala
     vector.impala
+    matrix.impala
     noise.impala
     ray.impala
     bbox.impala
@@ -27,13 +28,13 @@ set(impala_shared_SRC
     integrator.impala
     tri.impala
     bvh.impala
+    render.impala
 )
 set(impala_loc_SRC
     mapping_cpu.impala
     interface_loc.impala
 )
 set(impala_acc_SRC
-    render.impala
     mapping_${DEVICE}.impala
     interface_acc.impala
 )

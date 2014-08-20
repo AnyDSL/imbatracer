@@ -12,12 +12,21 @@ struct Point
     z : float
 }
 
+struct Float4
+{
+    x : float,
+    y : float,
+    z : float,
+    w : float
+}
+
 struct TexCoord
 {
     u : float,
     v : float,
 }
 
+// Vector
 fn vec(x : float, y : float, z : float) -> Vec
 {
     Vec{ x:x, y:y, z:z }
@@ -130,7 +139,7 @@ fn vlerpbarp(a : Vec, b : Vec, c : Vec, w : Point) -> Vec
 }
 
 
-
+// Point
 fn point(x : float, y : float, z : float) -> Point
 {
     Point{ x:x, y:y, z:z }
@@ -151,7 +160,7 @@ fn ppapply2(a : Point, b : Point, f: fn(float, float) -> float) -> Point
     point(f(a.x, b.x), f(a.y, b.y), f(a.z, b.z))
 }
 
-fn pfapply1(a : Point, b : float, f: fn(float) -> float) -> Point
+fn pfapply1(a : Point, f: fn(float) -> float) -> Point
 {
     point(f(a.x), f(a.y), f(a.z))
 }
@@ -195,6 +204,48 @@ fn plerpbarp(a : Point, b : Point, c : Point, w : Point) -> Point
 }
 
 
+// Float4
+fn float4(x : float, y : float, z : float, w : float) -> Float4
+{
+    Float4{ x:x, y:y, z:z, w:w }
+}
+
+fn float4_1(x : float) -> Float4
+{
+    float4(x, x, x, x)
+}
+
+fn float4_0() -> Float4
+{
+    float4_1(0.0f)
+}
+
+fn float4_v(v : Vec) -> Float4
+{
+    float4(v.x, v.y, v.z, 0.0f)
+}
+fn float4_p(p : Point) -> Float4
+{
+    float4(p.x, p.y, p.z, 1.0f)
+}
+
+fn f4apply2(a : Float4, b : Float4, f: fn(float, float) -> float) -> Float4
+{
+    float4(f(a.x, b.x), f(a.y, b.y), f(a.z, b.z), f(a.w, b.w))
+}
+
+fn f4fapply1(a : Float4,f: fn(float) -> float) -> Float4
+{
+    float4(f(a.x), f(a.y), f(a.z), f(a.w))
+}
+
+fn f4fapply2(a : Float4, b : float, f: fn(float, float) -> float) -> Float4
+{
+    float4(f(a.x, b), f(a.y, b), f(a.z, b), f(a.w, b))
+}
+
+
+// TexCoord
 fn texCoord(u: float, v : float) -> TexCoord
 {
     TexCoord{u:u, v:v}

@@ -67,6 +67,16 @@ namespace impala {
         return o << "(" << v.x << ", " << v.y << ", " << v.z << ")";
     }
 
+    struct Float4
+    {
+        float x, y, z, w;
+    };
+
+    struct Matrix
+    {
+        Float4 rows[4];
+    };
+
     struct Color
     {
         float r, g, b;
@@ -101,6 +111,8 @@ namespace impala {
     struct Object
     {
         unsigned bvhRoot;
+        Matrix o2w, w2o;
+        bool swapsHandedness;
     };
 
     struct BBox
@@ -279,6 +291,8 @@ namespace impala {
     {
         static_assert(std::is_pod<impala::Point>::value, "impala::Point must be a POD");
         static_assert(std::is_pod<impala::Vec>::value, "impala::Vec must be a POD");
+        static_assert(std::is_pod<impala::Float4>::value, "impala::Float4 must be a POD");
+        static_assert(std::is_pod<impala::Matrix>::value, "impala::Matrix must be a POD");
         static_assert(std::is_pod<impala::Color>::value, "impala::Color must be a POD");
         static_assert(std::is_pod<impala::TexCoord>::value, "impala::TexCoord must be a POD");
         static_assert(std::is_pod<impala::Object>::value, "impala::Object must be a POD");
