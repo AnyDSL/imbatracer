@@ -1,3 +1,18 @@
 struct Matrix  {
     rows : [Float4*4],
 }
+
+fn mpmul(m : Matrix, p : Point) -> Point
+{
+    p // FIXME
+}
+
+fn mvmul(m : Matrix, v : Vec) -> Vec
+{
+    v // FIXME
+}
+
+fn mmul_transposed3x3(m : Matrix, v : Vec) -> Vec
+{
+    v // FIXME
+}
