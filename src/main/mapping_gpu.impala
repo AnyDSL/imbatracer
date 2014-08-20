@@ -3,7 +3,7 @@ extern "C" {
     fn magic_uint_array_id(&[uint]) -> &[uint];
 }
 
-fn renderIteration(width : int, height : int, measureTime : bool, state : &State, body : fn(int, int, &RTState, &RTScratch) -> () ) -> ()
+fn renderIteration(width : int, height : int, measureTime : bool, state : &State, setcolor: SetColorFn, getcolor: GetColorIFn ) -> ()
 {
     let unroll = 1;
     let block  = (32, 4, 1);
@@ -45,7 +45,7 @@ fn renderIteration(width : int, height : int, measureTime : bool, state : &State
             let x = gid_x;
             let y = gid_y + i * acc_bdimy();
             if x < width && y < height {
-                @body(x, y, &rtstate, &scratch);
+                @setcolor(x, y, @getcolor(x, y, &rtstate, &scratch));
             }
         }
     });
