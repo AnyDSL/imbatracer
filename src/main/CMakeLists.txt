@@ -33,7 +33,6 @@ set(impala_loc_SRC
     interface_loc.impala
 )
 set(impala_acc_SRC
-    render.impala
     mapping_${DEVICE}.impala
     interface_acc.impala
 )
