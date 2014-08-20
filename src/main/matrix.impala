@@ -9,10 +9,18 @@ fn matrix4(r1 : Float4, r2 : Float4, r3 : Float4, r4 : Float4) -> Matrix
 
 fn matrix0() -> Matrix
 {
-    matrix4(float4(1.0f, 0.0f, 0.0f, 0.0f),
-            float4(0.0f, 1.0f, 0.0f, 0.0f),
-            float4(0.0f, 0.0f, 1.0f, 0.0f),
-            float4(0.0f, 0.0f, 0.0f, 1.0f))
+    @matrix4(float4(1.0f, 0.0f, 0.0f, 0.0f),
+             float4(0.0f, 1.0f, 0.0f, 0.0f),
+             float4(0.0f, 0.0f, 1.0f, 0.0f),
+             float4(0.0f, 0.0f, 0.0f, 1.0f))
+}
+
+fn matrix_scalingv(v : Vec) -> Matrix
+{
+    @matrix4(@float4(v.x,  0.0f, 0.0f, 0.0f),
+             @float4(0.0f, v.y,  0.0f, 0.0f),
+             @float4(0.0f, 0.0f, v.z,  0.0f),
+             @float4(0.0f, 0.0f, 0.0f, 1.0f))
 }
 
 fn mf4mul(m : Matrix, f : Float4) -> Float4
@@ -32,7 +40,9 @@ fn mvmul(m : Matrix, v : Vec) -> Vec
     @vec_f4(f)
 }
 
-fn mmul_transposed3x3(m : Matrix, v : Vec) -> Vec
+fn mmul_transposed3x3(m : Matrix, n : Vec) -> Vec
 {
-    v // FIXME
+    @vec(@dot(@vec(m.rows(0).x, m.rows(1).x, m.rows(2).x), n),
+         @dot(@vec(m.rows(0).y, m.rows(1).y, m.rows(2).y), n),
+         @dot(@vec(m.rows(0).z, m.rows(1).z, m.rows(2).z), n))
 }

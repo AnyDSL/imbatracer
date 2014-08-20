@@ -17,7 +17,7 @@ fn objIntersectFirst(objidx : uint, scene : &Scene, mut scratch : &RTScratch) ->
 
     // perform intersection with new scratch space [HACK!]
     let mut tmpScratch = RTScratch { isec:@emptyIntersection() };
-    @beginIntersection(ray(io, vfmul(idir, invUnitLen)), &tmpScratch.isec);
+    @beginIntersection(@ray(io, @vfmul(idir, invUnitLen)), &tmpScratch.isec);
     tmpScratch.isec.dist = scratch.isec.dist*unitLen;
     @bvhIntersectFirst(scene.objs(objidx).bvhRoot, scene, &tmpScratch);
     if (tmpScratch.isec.obj == @noObj()) { return() }
@@ -25,9 +25,12 @@ fn objIntersectFirst(objidx : uint, scene : &Scene, mut scratch : &RTScratch) ->
     if (newDist >= scratch.isec.dist) { return () } // after scaling back, we're no better than the alreaady best hit
 
     // and translate it back
-    let normalSwap = |v:Vec|->Vec{if scene.objs(objidx).swapsHandedness { vflip(v) } else { v }};
-    let surfaceNormal = @normalSwap(@mmul_transposed3x3(scene.objs(objidx).w2o, tmpScratch.isec.surfaceNormal));
-    let shadingNormal = @normalSwap(@mmul_transposed3x3(scene.objs(objidx).w2o, tmpScratch.isec.shadingNormal));
+    let transformNormal = |v:Vec|->Vec{
+        let vT = @mmul_transposed3x3(scene.objs(objidx).w2o, v);
+        @normalize(if scene.objs(objidx).swapsHandedness { @vflip(v) } else { v })
+    };
+    let surfaceNormal = @transformNormal(tmpScratch.isec.surfaceNormal);
+    let shadingNormal = @transformNormal(tmpScratch.isec.shadingNormal);
     let epsilonFactor = @max(unitLen, invUnitLen);
     @improveIntersection(&scratch.isec, newDist, tmpScratch.isec.obj, surfaceNormal, shadingNormal, tmpScratch.isec.uv, tmpScratch.isec.local, tmpScratch.isec.eps*epsilonFactor)
 }
