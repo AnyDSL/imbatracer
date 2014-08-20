@@ -223,6 +223,7 @@ namespace impala {
         Vec *normals;
         TexCoord *texcoords;
         Material *materials;
+        Texture *textures;
         unsigned *triData; // 7 successive indices belong to one triangle: 3 normals, 2 texcoors, 1 material
 
         Object *objs;
@@ -230,8 +231,6 @@ namespace impala {
 
         Light *lights;
         unsigned nLights;
-
-        Texture *textures;
     };
 
     struct View
