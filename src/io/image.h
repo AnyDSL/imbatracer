@@ -29,6 +29,7 @@ public:
 
 private:
     SDL_Surface *surface;
+    void *rawmem;
 };
 
 } // end namespace rt
