@@ -281,8 +281,10 @@ namespace {
     }
 
     void matCreate(MatLib* dest, MaterialInfo& matinfo, impala::Material *mats, size_t nmats, size_t *nmatsOverridden) {
-        if(mats && *nmatsOverridden < nmats)
-            matinfo.mat = mats[*nmatsOverridden++];
+        if(mats && *nmatsOverridden < nmats) {
+            matinfo.mat = mats[*nmatsOverridden];
+            *nmatsOverridden += 1;
+        }
 		if (matinfo.name.length() && dest->find(matinfo.name) == dest->end()) { // do not overwrite stuff
             std::cerr << "creating material " << matinfo.name << "\n";
             dest->insert(make_pair(matinfo.name, matinfo.mat));
@@ -376,7 +378,7 @@ parse_err_found:
 }
 
 
-FileObject::FileObject(const std::string &path, const std::string &filename, Scene *scene, impala::Material *mats, size_t nmats, unsigned flags)
+FileObject::FileObject(const std::string &path, const std::string &filename, Scene *scene, unsigned flags, impala::Material *mats, size_t nmats)
 {
     MatLib* matlib = new MatLib;
 
@@ -497,7 +499,7 @@ FileObject::FileObject(const std::string &path, const std::string &filename, Sce
                         std::cerr << "Warning: Material \'" << matname << "\' not found in material library at " << fileline.filename << ":" << fileline.lineIdx << "." << fileline.pos << ". Using dummy material." << std::endl;
                         unknownMaterialEncounters.insert(matname);
                     }
-                    curMatIdx = NoIdx;
+                    curMatIdx = 0;
                 }
                 break;
             }

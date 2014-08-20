@@ -317,9 +317,9 @@ Scene::Scene(impala::Scene *scene) : scene(scene)
 
 
     // default dummy material & textures that are expected to exist
-    addMaterial(impala::Material::dummy());
     addTexture(impala::Texture::constant(impala::Color(0,0,0)));
     addTexture(impala::Texture::constant(impala::Color(1,1,1)));
+    addMaterial(impala::Material::dummy());
 }
 
 Scene::~Scene(void)
@@ -393,7 +393,7 @@ void Scene::build()
     // finally, copy the BVH nodes
     state.copyNodes();
 
-    std::cout << "Using " << materials.size() << " materials, " << textures.size()-2 << "+2 textures." << std::endl;
+    std::cout << "Using " << materials.size()-1 << "+1 materials, " << textures.size()-2 << "+2 textures." << std::endl;
 }
 
 /** CubeScene */

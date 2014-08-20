@@ -17,7 +17,7 @@ struct Tri {
     Tri(unsigned p1, unsigned p2, unsigned p3,
         unsigned n1 = NoIdx, unsigned n2 = NoIdx, unsigned n3 = NoIdx,
         unsigned t1 = NoIdx, unsigned t2 = NoIdx, unsigned t3 = NoIdx,
-        unsigned mat = NoIdx)
+        unsigned mat = 0)
         : p1(p1), p2(p2), p3(p3), n1(n1), n2(n2), n3(n3), t1(t1), t2(t2), t3(t3), mat(mat) {}
     unsigned p1, p2, p3; // vertex indices
     unsigned n1, n2, n3; // normal indices

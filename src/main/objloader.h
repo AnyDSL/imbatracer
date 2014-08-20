@@ -28,7 +28,7 @@ public:
         IgnoreMatLibs = 1 << 2,
     };
 
-    FileObject(const std::string &path, const std::string &filename, Scene *scene, impala::Material *mats = nullptr, size_t nmats = 0, unsigned flags = None);
+    FileObject(const std::string &path, const std::string &filename, Scene *scene, unsigned flags = None, impala::Material *mats = nullptr, size_t nmats = 0);
 };
 
 }

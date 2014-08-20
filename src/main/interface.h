@@ -285,6 +285,8 @@ namespace impala {
         static_assert(std::is_pod<impala::Object>::value, "impala::Object must be a POD");
         static_assert(std::is_pod<impala::BBox>::value, "impala::BBox must be a POD");
         static_assert(std::is_pod<impala::BVHNode>::value, "impala::BVHNode must be a POD");
+        static_assert(std::is_pod<impala::Texture>::value, "impala::Texture must be a POD");
+        static_assert(std::is_pod<impala::Noise>::value, "impala::Noise must be a POD");
         static_assert(std::is_pod<impala::Material>::value, "impala::Material must be a POD");
         static_assert(std::is_pod<impala::Scene>::value, "impala::Scene must be a POD");
         static_assert(std::is_pod<impala::View>::value, "impala::View must be a POD");

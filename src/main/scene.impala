@@ -10,6 +10,7 @@ struct Scene
     normals : &[Vec],
     texcoords: &[TexCoord],
     materials: &[Material],
+    textures : &[Texture],
     triData : &[uint], // 7 successive indices belong to one triangle: 3 normals, 2 texcoors, 1 material
 
     objs: &[Object],
@@ -18,7 +19,6 @@ struct Scene
     lights: &[Light],
     nLights : uint,
 
-    textures : &[Texture],
 }
 
 

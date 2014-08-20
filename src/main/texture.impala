@@ -79,8 +79,8 @@ fn buildNoiseTexture3D(a : Color, b : Color, noise : Noise) -> TextureFn
 
 fn buildTextureFn(tex : Texture) -> TextureFn
 {
-         if(tex.ty == 0) { buildCheckerboardTexture2D(tex.color1, tex.color2) }
-    else if(tex.ty == 1) { buildCheckerboardTexture3D(tex.color1, tex.color2) }
+    //     if(tex.ty == 0) { buildCheckerboardTexture2D(tex.color1, tex.color2) }
+    //else if(tex.ty == 1) { buildCheckerboardTexture3D(tex.color1, tex.color2) }
     //else if(tex.ty == 2) { $buildNoiseTexture3D(tex.color1, tex.color2, tex.noise) } // FIXME: this makes compiling SLOOOOOW
-    else                 { buildConstantTexture(tex.color1) }
+    /*else                 */{ buildConstantTexture(tex.color1) }
 }

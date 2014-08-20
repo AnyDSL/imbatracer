@@ -14,6 +14,7 @@ fn renderIteration(width : int, height : int, measureTime : bool, state : &State
     let normals = (*state).scene.normals;
     let texcoords = (*state).scene.texcoords;
     let materials = (*state).scene.materials;
+    let textures = (*state).scene.textures;
     let triData = (*state).scene.triData;
 
     let bvhNodes = (*state).scene.bvhNodes;
@@ -31,7 +32,7 @@ fn renderIteration(width : int, height : int, measureTime : bool, state : &State
         let mut scratch = @emptyScratch(); // scratch space for the current intersection
         let mut rtstate = RTState { cam:cam, integrator:integrator,
                                     scene:Scene { verts:verts, triVerts:triVerts,
-                                                  normals:normals, texcoords:texcoords, materials:materials, triData:triData,
+                                                  normals:normals, texcoords:texcoords, materials:materials, textures:textures, triData:triData,
                                                   bvhNodes:bvhNodes, objs:objs, nObjs:nObjs,
                                                   lights:lights, nLights:nLights} };
 
