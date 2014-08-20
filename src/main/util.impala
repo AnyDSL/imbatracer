@@ -147,7 +147,7 @@ fn epsilon() -> float
 
 fn isDebug() -> bool
 {
-    false || true
+    false
 }
 
 

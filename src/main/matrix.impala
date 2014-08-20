@@ -2,14 +2,34 @@ struct Matrix  {
     rows : [Float4*4],
 }
 
+fn matrix4(r1 : Float4, r2 : Float4, r3 : Float4, r4 : Float4) -> Matrix
+{
+    Matrix { rows:[r1, r2, r3, r4] }
+}
+
+fn matrix0() -> Matrix
+{
+    matrix4(float4(1.0f, 0.0f, 0.0f, 0.0f),
+            float4(0.0f, 1.0f, 0.0f, 0.0f),
+            float4(0.0f, 0.0f, 1.0f, 0.0f),
+            float4(0.0f, 0.0f, 0.0f, 1.0f))
+}
+
+fn mf4mul(m : Matrix, f : Float4) -> Float4
+{
+    @float4(f4dot(m.rows(0),f), f4dot(m.rows(1),f), f4dot(m.rows(2),f), f4dot(m.rows(3),f))
+}
+
 fn mpmul(m : Matrix, p : Point) -> Point
 {
-    p // FIXME
+    let f = @mf4mul(m, float4_p(p));
+    @point_f4(f)
 }
 
 fn mvmul(m : Matrix, v : Vec) -> Vec
 {
-    v // FIXME
+    let f = @mf4mul(m, float4_v(v));
+    @vec_f4(f)
 }
 
 fn mmul_transposed3x3(m : Matrix, v : Vec) -> Vec

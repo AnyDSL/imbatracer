@@ -111,7 +111,8 @@ namespace impala {
     struct Object
     {
         unsigned bvhRoot;
-        Matrix o2w, w2o;
+        //Matrix o2w;
+        Matrix w2o;
         bool swapsHandedness;
     };
 
@@ -277,6 +278,8 @@ namespace impala {
 
 
     extern "C" {
+        void impala_object_init(Object *obj, unsigned rootIdx);
+
         void impala_init(State *state);
         void impala_update(State *state, float dt);
 

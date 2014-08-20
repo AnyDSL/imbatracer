@@ -1,4 +1,9 @@
-
+extern fn impala_object_init(mut obj : &Object, root : uint) -> ()
+{
+    obj.bvhRoot = root;
+    obj.w2o = @matrix0();
+    obj.swapsHandedness = false;
+}
 
 extern fn impala_init(mut state : &State) -> ()
 {

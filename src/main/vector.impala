@@ -42,6 +42,12 @@ fn vec1(a : float) -> Vec
     Vec{ x : a, y : a, z: a }
 }
 
+fn vec_f4(f : Float4) -> Vec
+{
+    @assert(||almost(f.w, 0.0f), 990001);
+    vec(f.x, f.y, f.z)
+}
+
 fn vecAt(v : Vec, i : int) -> float
 {
     if      i == 0 { v.x }
@@ -155,6 +161,12 @@ fn point0() -> Point
     point1(0.0f)
 }
 
+fn point_f4(f : Float4) -> Point
+{
+    @assert(||almost(f.w, 1.0f), 990001);
+    point(f.x, f.y, f.z)
+}
+
 fn ppapply2(a : Point, b : Point, f: fn(float, float) -> float) -> Point
 {
     point(f(a.x, b.x), f(a.y, b.y), f(a.z, b.z))
@@ -243,6 +255,9 @@ fn f4fapply2(a : Float4, b : float, f: fn(float, float) -> float) -> Float4
 {
     float4(f(a.x, b), f(a.y, b), f(a.z, b), f(a.w, b))
 }
+
+
+fn f4dot(a : Float4, b : Float4) -> float { a.x*b.x + a.y*b.y + a.z*b.z + a.w*b.w }
 
 
 // TexCoord
