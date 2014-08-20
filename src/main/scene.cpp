@@ -312,7 +312,8 @@ Scene::Scene(impala::Scene *scene) : scene(scene)
     scene->objs = nullptr;
     scene->nObjs = 0;
 
-    scene->lights = nullptr;
+    // make sure they have a sensible value, but leave them oherwise untouched
+    scene->lights = (impala::Light*)thorin_malloc(0);
     scene->nLights = 0;
 
 
@@ -325,6 +326,7 @@ Scene::Scene(impala::Scene *scene) : scene(scene)
 Scene::~Scene(void)
 {
     free();
+    thorin_free(scene->lights); // someone has to do it...
 }
 
 void Scene::free(void)
@@ -351,10 +353,6 @@ void Scene::free(void)
     thorin_free(scene->objs);
     scene->objs = nullptr;
     scene->nObjs = 0;
-
-    thorin_free(scene->lights);
-    scene->lights = nullptr;
-    scene->nLights = 0;
 }
 
 void Scene::clear()

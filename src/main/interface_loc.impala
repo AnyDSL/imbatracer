@@ -47,7 +47,6 @@ extern fn impala_init_bench1(mut state : &State) -> ()
 
     scene_add_file(state, 3, /*IgnoreTexCoord | IgnoreNormals | IgnoreMatLibs*/7);
     scene_build(state);
-    state.scene.lights = ~[0:Light]; // we need a light array!
 
     let scale = 40.0f;
     let pos = @point(-3.5f*scale, 1.2f*scale, 3.7f*scale);
