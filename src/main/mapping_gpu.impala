@@ -1,3 +1,8 @@
+extern "C" {
+    // HACK
+    fn magic_uint_array_id(&[uint]) -> &[uint];
+}
+
 fn renderIteration(width : int, height : int, measureTime : bool, state : &State, body : fn(int, int, &RTState, &RTScratch) -> () ) -> ()
 {
     let unroll = 1;
@@ -31,8 +36,8 @@ fn renderIteration(width : int, height : int, measureTime : bool, state : &State
         let gid_y = acc_tidy() + acc_bdimy() * acc_bidy() * unroll;
         let mut scratch = @emptyScratch(); // scratch space for the current intersection
         let mut rtstate = RTState { cam:cam, integrator:integrator,
-                                    scene:Scene { verts:verts, triVerts:triVerts,
-                                                  normals:normals, texcoords:texcoords, materials:materials, textures:textures, triData:triData,
+                                    scene:Scene { verts:verts, triVerts:magic_uint_array_id(triVerts),
+                                                  normals:normals, texcoords:texcoords, materials:materials, textures:textures, triData:magic_uint_array_id(triData),
                                                   bvhNodes:bvhNodes, objs:objs, nObjs:nObjs,
                                                   lights:lights, nLights:nLights} };
 
