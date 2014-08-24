@@ -55,7 +55,7 @@ fn bvhIntersectGeneric(scratch : &RTScratch, root: uint, scene : &Scene, ray : R
 
     // we roll our own stack
     let done = return;
-    let mut todo:[uint*16] = [0u,0u,0u,0u, 0u,0u,0u,0u, 0u,0u,0u,0u, 0u,0u,0u,0u];;
+    let mut todo = [0u, ..16];
     let mut todoIdx = 0; // the first *free* index
 
     // CPS fun while passing the current node around as argument :-)
