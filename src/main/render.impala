@@ -1,13 +1,13 @@
 type SetColorFn = fn(int, int, Color) -> ();
-type GetColorIFn = fn(int, int, &RTState, &RTScratch) -> Color;
-type GetColorFFn = fn(float, float, &RTState, &RTScratch) -> Color;
+type GetColorIFn = fn(int, int, &RTState) -> Color;
+type GetColorFFn = fn(float, float, &RTState) -> Color;
 
 fn renderImage(mut buf : &[u32], width : int, height : int, measureTime : bool, state : &State, body : GetColorFFn) -> ()
 {
     let wf = width as float;
     let hf = height as float;
     let setcolor:SetColorFn = |x, y, col|{buf(y*width+x) = col_rgb2int(col)};
-    for x, y, rtstate, scratch in renderIteration(width, height, measureTime, state, setcolor)
+    for x, y, rtstate in renderIteration(width, height, measureTime, state, setcolor)
     {
         // render in the center of the pixel
         let nx = (x as float + 0.5f) / wf;
@@ -16,6 +16,6 @@ fn renderImage(mut buf : &[u32], width : int, height : int, measureTime : bool, 
         let sx =  (nx - 0.5f) * 2.0f;
         let sy = -(ny - 0.5f) * 2.0f;
         // render!
-        body(sx, sy, rtstate, scratch) // TODO adding @ in front of the body makes compilation take... eh, long^^
+        body(sx, sy, rtstate) // TODO adding @ in front of the body makes compilation take... eh, long^^
     }
 }

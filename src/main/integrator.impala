@@ -13,18 +13,18 @@ struct Integrator
 // return a gray color whose value is the cosine between the ray direction and the hit surface normal
 fn cosineRadiance(isec : &Intersection) -> Color
 {
-    @color1(absdot(isec.shadingNormal, isec.ray.d)) // ignore normal direction by abs()ing
+    @color1(absdot(isec.surfaceNormal, isec.ray.d)) // ignore normal direction by abs()ing
 }
 
 fn debugRadianceNormalDir(isec : &Intersection) -> Color
 {
-    let n = isec.shadingNormal;
+    let n = isec.surfaceNormal;
     @color(n.x, n.y, n.z)
 }
 
 fn debugRadianceNormalSign(isec : &Intersection) -> Color
 {
-    let n = isec.shadingNormal;
+    let n = isec.surfaceNormal;
     @color(@scaleLin(n.x, -1.0f, 1.0f, 0.0f, 1.0f),
            @scaleLin(n.y, -1.0f, 1.0f, 0.0f, 1.0f),
            @scaleLin(n.z, -1.0f, 1.0f, 0.0f, 1.0f))
@@ -39,7 +39,8 @@ fn debugRadianceDepth(isec : &Intersection) -> Color
     @color1(v)
 }
 
-fn integrateLightSources(scratch : &RTScratch, scene : &Scene, hitP : Point, outDir : Vec, surfaceN : Vec, shadingN : Vec, uv : TexCoord, local : Point,
+/*
+fn integrateLightSources(scene : &Scene, hitP : Point, outDir : Vec, surfaceN : Vec, shadingN : Vec, uv : TexCoord, local : Point,
                          matReflectance : ReflectanceFn, rayEps : float) -> Color
 {
     let mut c = @color0();
@@ -65,7 +66,7 @@ fn integrateLightSources(scratch : &RTScratch, scene : &Scene, hitP : Point, out
             {
                 let shadowRay = @ray(pvadd(hitP, vfmul(surfaceN, rayEps)), lhit.dir);
                 let dist = lhit.dist - 2.0f*rayEps; // we substract rayEps at both ends
-                if @!sceneIntersectAny(scene, scratch, shadowRay, dist)
+                if @!sceneIntersectAny(scene, shadowRay, dist)
                 {
                     c = @ccapply2(c, contrib, add); // light shines on hit point
                 }
@@ -75,7 +76,7 @@ fn integrateLightSources(scratch : &RTScratch, scene : &Scene, hitP : Point, out
     c
 }
 
-fn raytraceRadiance(isec : &Intersection, scene : &Scene, scratch : &RTScratch) -> Color
+fn raytraceRadiance(isec : &Intersection, scene : &Scene) -> Color
 {
     let outDir = @vflip(isec.ray.d);
     let surfaceN = @intersectionSurfaceNormalTowardsOrigin(isec);
@@ -92,14 +93,14 @@ fn raytraceRadiance(isec : &Intersection, scene : &Scene, scratch : &RTScratch) 
 
 	@ccadd(
         // we ignore any contribution not coming directly from a light source
-        integrateLightSources(scratch, scene, hitP, outDir, surfaceN, isec.shadingNormal, uv, local, reflectance, isec.eps),
+        integrateLightSources(scene, hitP, outDir, surfaceN, isec.shadingNormal, uv, local, reflectance, isec.eps),
         // and add the material's own light emission that is not dependent on light
         emission(uv, local, surfaceN, outDir)
     )
 }
+*/
 
-
-fn recraytraceRadiance(isec : &Intersection, scene : &Scene, scratch : &RTScratch) -> Color
+fn recraytraceRadiance(isec : &Intersection, scene : &Scene) -> Color
 {
     color0() // TODO
 }
@@ -124,26 +125,25 @@ fn debuggerRadiance(mode: int, minDist: float, maxDist: float, isec : &Intersect
         )
 }
 
-fn getRadianceForHit(integr : &Integrator, isec : &Intersection, scene : &Scene, scratch : &RTScratch) -> Color
+fn getRadianceForHit(integr : &Integrator, isec : &Intersection, scene : &Scene) -> Color
 {
     let ty = integr.itype;
     if      ty == 0 { cosineRadiance(isec) }  // Cosine shading
-    else if ty == 1 { raytraceRadiance(isec, scene, scratch) }
-    else if ty == 2 { recraytraceRadiance(isec, scene, scratch) }
+    else if ty == 1 { cosineRadiance(isec) }
+    else if ty == 2 { recraytraceRadiance(isec, scene) }
     else            { debuggerRadiance(integr.mode, integr.minDist, integr.maxDist, isec) }
 }
 
-fn runIntegrator(integr : &Integrator, scene : &Scene, ray : Ray, mut scratch : &RTScratch) -> Color
+fn runIntegrator(integr : &Integrator, scene : &Scene, ray : Ray) -> Color
 {
-    let isec = &scratch.isec;
-    @beginIntersection(ray, isec);
-    @sceneIntersectFirst(scene, scratch);
+    let mut isec = @intersection(ray, @defaultDist());
+    @sceneIntersectFirst(scene, &isec);
 
     if isec.obj == @noObj() {
         @color(1.0f, 0.0f, 0.0f)
     }
     else {
-        @getRadianceForHit(integr, isec, scene, scratch)
+        @getRadianceForHit(integr, &isec, scene)
     }
 }
 

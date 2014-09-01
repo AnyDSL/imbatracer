@@ -2,7 +2,7 @@
 fn renderIteration(width : int, height : int, measureTime : bool, state : &State, setcolor: SetColorFn, getcolor: GetColorIFn) -> ()
 {
     let start = thorin_get_micro_time();
-    @renderSubsampled(8u, width as uint, height as uint, state, setcolor, getcolor);
+    @renderSubsampled(1u, width as uint, height as uint, state, setcolor, getcolor);
     let stop = thorin_get_micro_time();
     if measureTime { thorin_print_micro_time(stop-start); };
 }
@@ -76,10 +76,9 @@ fn renderSubsampled(level : uint, width : uint, height : uint, state : &State, s
 
     if level <= 1u
     {
-        let mut scratch = @emptyScratch(); // scratch space for the current intersection (TODO is this better than passing it around?)
         for y in $urange(0u, height) {
             for x in $urange(0u, width) { // TODO: this used to be $inner_loop(), but wfv2 is too slow to be practical, for now
-                @setcolor(x as int, y as int, $getcolor(x as int, y as int, &rtstate, &scratch));
+                @setcolor(x as int, y as int, $getcolor(x as int, y as int, &rtstate));
             }
         }
         return()
@@ -90,8 +89,7 @@ fn renderSubsampled(level : uint, width : uint, height : uint, state : &State, s
 
     fn renderPixel(x:uint, y:uint) -> Color
     {
-        let mut scratch = @emptyScratch();
-        let c = $getcolor(x as int, y as int, &rtstate, &scratch);
+        let c = $getcolor(x as int, y as int, &rtstate);
         @setcolor(x as int, y as int, c);
         c
     }

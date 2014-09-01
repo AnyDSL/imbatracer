@@ -19,11 +19,3 @@ struct RTState
     integrator : Integrator,
     scene : Scene,
 }
-struct RTScratch
-{
-    isec : Intersection,
-}
-fn emptyScratch() -> RTScratch
-{
-    @RTScratch{ isec:emptyIntersection() }
-}

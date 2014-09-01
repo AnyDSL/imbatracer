@@ -49,7 +49,7 @@ fn triIntersectDistance_slow(tri : uint, scene : &Scene, ray : Ray, maxDistance 
     }
 }
 
-fn triIntersectDistance_fast(tri : uint, scene : &Scene, ray : Ray, maxDistance : float, distOnly : bool) -> (float, Vec, Point, float) // t, barycentric coords, epsilon
+fn triIntersectDistance_fast(tri : uint, scene : &Scene, ray : Ray, maxDistance : float, distOnly : bool) -> (float, Vec, TexCoord, float) // t, normal, barycentric coords, epsilon
 {
     /* Directly compute barycentric coordinates and t, and cancel early if we notice the ray is not going to hit
      * Surface parameterization: with barycentric coordinates b1, b2, it is p(b1, b2) = (1-b1-b2)*a + b1*b + b2*c
@@ -76,24 +76,24 @@ fn triIntersectDistance_fast(tri : uint, scene : &Scene, ray : Ray, maxDistance 
     let s = to(a, ray.o);
     let b1 = dot(s, f1) * invDetA;
     if b1 < 0.0f || b1 > 1.0f {
-        return (-1.0f, @vec0(), @point0(), -1.0f)
+        return (-1.0f, @vec0(), @texCoord0(), -1.0f)
     }
     // compute b2
     let f2 = cross(s, e1);
     let b2 = dot(ray.d, f2) * invDetA;
     if b2 < 0.0f || b1+b2 > 1.0f {
-        return (-1.0f, @vec0(), @point0(), -1.0f)
+        return (-1.0f, @vec0(), @texCoord0(), -1.0f)
     }
     // compute t
     let t = dot(e2, f2) * invDetA;
     if t >= maxDistance {
-        return (-1.0f, @vec0(), @point0(), -1.0f)
+        return (-1.0f, @vec0(), @texCoord0(), -1.0f)
     }
     else if distOnly {
-        return (t, @vec0(), @point0(), -1.0f)
+        return (t, @vec0(), @texCoord0(), -1.0f)
     }
     else {
-        return (t, @normalize(cross(e1, e2)), @point(1.0f-b1-b2, b1, b2), @sqrtf((vlensq(e1)+vlensq(e2))*defaultRayEps()))
+        return (t, @normalize(cross(e1, e2)), @texCoord(b1, b2), @sqrtf((vlensq(e1)+vlensq(e2))*defaultRayEps()))
     }
 }
 
@@ -108,19 +108,7 @@ fn triIntersectFirst(tri : uint, scene : &Scene, isec : &Intersection) -> ()
     let t = res(0); // TODO: would be nice to have syntax for tuple unpacking
     if t >= 0.0f
     {
-        let shadingNormal =
-            if @triHasNormals(tri, scene) {
-                let n1 = @triVertNormal(tri, 0u, scene);
-                let n2 = @triVertNormal(tri, 1u, scene);
-                let n3 = @triVertNormal(tri, 2u, scene);
-                @normalize(@vlerpbarp(n1, n2, n3, res(2)))
-            }
-            else {
-                res(1) // surfce normal, already normalized
-            };
-        let uv = @triTexPoint(res(2), tri, scene);
-        let local = @triLocalHitPoint(res(2), tri, scene);
-        @improveIntersection(isec, t, tri, res(1), shadingNormal, uv, local, res(3));
+        @improveIntersection(isec, t, tri, res(1), res(2), res(3));
     }
 }
 

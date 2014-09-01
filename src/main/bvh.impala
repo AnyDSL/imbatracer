@@ -48,7 +48,7 @@ fn bvhIntersectNode(bounds : BBox, o : Point, maxDist : float, invDir : Vec, neg
     }
 }
 
-fn bvhIntersectGeneric(scratch : &RTScratch, root: uint, scene : &Scene, ray : Ray, mut maxdist : float, checkIntersect : fn(uint, &float) -> ()) -> ()
+fn bvhIntersectGeneric(root: uint, scene : &Scene, ray : Ray, mut maxdist : float, checkIntersect : fn(uint, &float) -> ()) -> ()
 {
     let invDir = @vapply1(ray.d, |f|1.0f/f);
     let neg = @bvhMakeNeg(invDir);
@@ -115,12 +115,11 @@ fn bvhIntersectGeneric(scratch : &RTScratch, root: uint, scene : &Scene, ray : R
     };
 }
 
-fn bvhIntersectFirst(root: uint, scene : &Scene, mut scratch : &RTScratch) -> ()
+fn bvhIntersectFirst(root: uint, scene : &Scene, isec : &Intersection) -> ()
 {
-    let isec = &scratch.isec;
-    let maxdist = scratch.isec.dist;
+    let maxdist = isec.dist;
 
-    @bvhIntersectGeneric(scratch, root, scene, isec.ray, maxdist,
+    @bvhIntersectGeneric(root, scene, isec.ray, maxdist,
         |tri, mut pmaxdist|
         {
             triIntersectFirst(tri, scene, isec); // triIntersectFirst() updates maxdist, re-assign afterwards
@@ -131,11 +130,11 @@ fn bvhIntersectFirst(root: uint, scene : &Scene, mut scratch : &RTScratch) -> ()
 }
 
 
-fn bvhIntersectAny(root: uint, scene : &Scene, scratch : &RTScratch, ray : Ray, maxdist : float) -> bool
+fn bvhIntersectAny(root: uint, scene : &Scene, ray : Ray, maxdist : float) -> bool
 {
     let success = return; // jump out once we hit anything
 
-    @bvhIntersectGeneric(scratch, root, scene, ray, maxdist,
+    @bvhIntersectGeneric(root, scene, ray, maxdist,
         |tri, _|
         {
             if @triIntersectAny(tri, scene, ray, maxdist)

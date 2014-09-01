@@ -4,6 +4,11 @@ fn defaultRayEps() -> float
     2.0f*epsilon()
 }
 
+fn defaultDist() -> float
+{
+    1e10f // max. drawing distance
+}
+
 fn noObj() -> uint
 { 0xFFFFFFFFu }
 
@@ -12,37 +17,26 @@ struct Intersection
     dist : float,
     obj : uint,
     ray : Ray,
+    // these are not really relevant for further intersections, but to compute with the data available for intersection of triangles
     surfaceNormal : Vec,
-    shadingNormal : Vec,
-    uv : TexCoord,
-    local : Point,
-    eps : float
+    b : TexCoord, // barycentric coordinates
+    eps: float,
 }
 
-fn emptyIntersection() -> Intersection
+fn intersection(ray : Ray, dist: float) -> Intersection
 {
-    @Intersection{ dist:-1.0f, obj:noObj(),
-        ray:ray0(), surfaceNormal:vec0(), shadingNormal:vec0(), uv:texCoord0(), local:point0(), eps:0.0f }
+    @Intersection{ dist:dist, obj:@noObj(), ray:ray,
+        surfaceNormal:@vec0(), b:texCoord0(), eps:0.0f }
 }
 
-fn beginIntersection(ray : Ray, mut isec: &Intersection) -> ()
-{
-    isec.dist = 1e10f; // max. drawing distance
-    isec.obj = @noObj();
-    isec.ray = ray;
-}
-
-fn improveIntersection(mut isec : &Intersection, dist : float, obj : uint, surfaceNormal : Vec, shadingNormal : Vec, uv : TexCoord, local : Point, eps : float) -> ()
+fn improveIntersection(mut isec : &Intersection, dist : float, obj : uint, surfaceNormal : Vec, b : TexCoord, eps : float) -> ()
 {
     @assert(||dist < isec.dist && obj != @noObj(), "Improved intersection must have object at smaller distance");
     @assert(||almost(vlen(surfaceNormal), 1.0f), "Improved intersection surface normal must be normalised");
-    @assert(||almost(vlen(shadingNormal), 1.0f), "Improved intersection shading normal must be normalised");
     isec.dist = dist;
     isec.obj = obj;
     isec.surfaceNormal = surfaceNormal;
-    isec.shadingNormal = shadingNormal;
-    isec.uv = uv;
-    isec.local = local;
+    isec.b = b;
     isec.eps = eps;
 }
 
