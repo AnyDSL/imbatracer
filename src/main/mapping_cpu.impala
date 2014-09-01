@@ -97,8 +97,8 @@ fn renderSubsampled(level : uint, width : uint, height : uint, state : &State, s
         c
     };
 
-    for y in $urangestep(0u, height-level, level) {
-        for x in $urangestep(0u, width-level, level) {
+    for y in $urangestep(0u, height, level) {
+        for x in $urangestep(0u, width, level) {
             renderBlock(body2, setcolor, pixcache, x, y, width, height, level)
         }
     }
