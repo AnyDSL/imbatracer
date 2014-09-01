@@ -37,13 +37,14 @@ fn free_PixelBuffer(p : &PixelBuffer) -> ()
 }
 
 
-fn preparePixelBuffer(mut state : &State, w : uint, h : uint) -> &PixelBuffer
+fn preparePixelBuffer(level : uint, mut state : &State, w : uint, h : uint) -> &PixelBuffer
 {
     let mut pb = state.user1 as &PixelBuffer;
 
-    // FIXME: this is way too big. only half should be required
-    let sz = w * h;
-    //let sz = (w >> 1u) * (h >> 1u);
+    let allocW = round_up(w, level)/2u+1u;
+    let allocH = round_up(h, level)/2u+1u;
+
+    let sz = allocW * allocH;
 
     let alloc = || -> &PixelBuffer
     {
@@ -59,7 +60,7 @@ fn preparePixelBuffer(mut state : &State, w : uint, h : uint) -> &PixelBuffer
     }
     else if(pb.allocSize != sz)
     {
-        //free_PixelBuffer(pb);
+        free_PixelBuffer(pb);
         pb = alloc()
     }
 
@@ -85,7 +86,7 @@ fn renderSubsampled(level : uint, width : uint, height : uint, state : &State, s
         return()
     }
 
-    let pixcache = $preparePixelBuffer(state, width, height);
+    let pixcache = preparePixelBuffer(level, state, width, height);
 
 
     let body2 = |x:uint, y:uint| -> Color
@@ -96,8 +97,8 @@ fn renderSubsampled(level : uint, width : uint, height : uint, state : &State, s
         c
     };
 
-    for y in $urangestep(0u, height, level) {
-        for x in $urangestep(0u, width, level) {
+    for y in $urangestep(0u, height-level, level) {
+        for x in $urangestep(0u, width-level, level) {
             renderBlock(body2, setcolor, pixcache, x, y, width, height, level)
         }
     }
@@ -105,9 +106,9 @@ fn renderSubsampled(level : uint, width : uint, height : uint, state : &State, s
 
 fn getCachePixel(body : RenderFunc, mut pixcache : &PixelBuffer, x : uint, y : uint) -> &PixelInfo
 {
-    //print_ii(x, y);
     assert(||{(x&1u)==0u && (y&1u)==0u}, 110001);
     let idx = (y >> 1u) * pixcache.w + (x >> 1u);
+    assert(||{idx < pixcache.allocSize}, 110005);
     if pixcache.used(idx) == 0u8
     {
         let c = cclamp01($body(x, y));  // TODO: do the clamping elsewhere?
@@ -125,9 +126,7 @@ fn renderBlock(body : RenderFunc, setcolor: SetColorFn, pixcache : &PixelBuffer,
 fn renderBlock2(body : RenderFunc, setcolor: SetColorFn, pixcache : &PixelBuffer, x : uint, y : uint, w : uint, h : uint, level : uint, topleft : &PixelInfo) -> ()
 {
     assert(||{(level%2u)==0u && level>1u}, 110002);
-    assert(||{x+level<w}, 110003);
-    assert(||{y+level<h}, 110004);
-    //print_ifff(level, x as float, y as float, -1.0f);
+
     let maxColorDist = 0.1f;
 
     let topright = getCachePixel(body, pixcache, x + level, y);
@@ -144,11 +143,11 @@ fn renderBlock2(body : RenderFunc, setcolor: SetColorFn, pixcache : &PixelBuffer
         let xmax = @umin(x + level, w);
         let ymax = @umin(y + level, h);
 
-        fn fillrow(xbegin : uint, y : uint, mut xf : float, a : Color, b : Color) -> ()
+        fn fillrow(xbegin : uint, yy : uint, mut xf : float, a : Color, b : Color) -> ()
         {
             for xx in @urange(xbegin, xmax)
             {
-                @setcolor(xx as int, y as int, clerp(a, b, xf));
+                @setcolor(xx as int, yy as int, clerp(a, b, xf));
                 xf = xf + step;
             }
         }
@@ -170,12 +169,11 @@ fn renderBlock2(body : RenderFunc, setcolor: SetColorFn, pixcache : &PixelBuffer
         return()
     }
 
-
     let nextlevel = level >> 1u;
     let haveRightNeighbor = (x+nextlevel < w);
     let haveBottomNeighbor = (y+nextlevel < h);
 
-    let boundsChecked = |f : fn(uint, uint) -> ()| -> ()
+    fn boundsChecked(f : fn(uint, uint) -> ()) -> ()
     {
         if haveRightNeighbor
         {
@@ -189,7 +187,7 @@ fn renderBlock2(body : RenderFunc, setcolor: SetColorFn, pixcache : &PixelBuffer
         {
             f(x+nextlevel, y+nextlevel);
         }
-    };
+    }
 
     if nextlevel == 1u
     {
