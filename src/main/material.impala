@@ -37,10 +37,6 @@ type EmissionFn = fn(TexCoord, Point, Vec, Vec) -> Color;
 
 fn buildMaterial(mat : Material, scene : &Scene) -> (ReflectanceFn, EmissionFn)
 {
-    assert(||{mat.diffuse < 8u}, 42001);
-    assert(||{mat.specular < 8u}, 42002);
-    assert(||{mat.emissive < 8u}, 42003);
-
     let diffuseFn = buildTextureFn(scene.textures(mat.diffuse));
     let specularFn = buildTextureFn(scene.textures(mat.specular));
     let emissiveFn = buildTextureFn(scene.textures(mat.emissive));

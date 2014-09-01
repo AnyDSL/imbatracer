@@ -34,9 +34,9 @@ fn beginIntersection(ray : Ray, mut isec: &Intersection) -> ()
 
 fn improveIntersection(mut isec : &Intersection, dist : float, obj : uint, surfaceNormal : Vec, shadingNormal : Vec, uv : TexCoord, local : Point, eps : float) -> ()
 {
-    @assert(||dist < isec.dist && obj != @noObj(), 23);
-    @assert(||almost(vlen(surfaceNormal), 1.0f), 24);
-    @assert(||almost(vlen(shadingNormal), 1.0f), 25);
+    @assert(||dist < isec.dist && obj != @noObj(), "Improved intersection must have object at smaller distance");
+    @assert(||almost(vlen(surfaceNormal), 1.0f), "Improved intersection surface normal must be normalised");
+    @assert(||almost(vlen(shadingNormal), 1.0f), "Improved intersection shading normal must be normalised");
     isec.dist = dist;
     isec.obj = obj;
     isec.surfaceNormal = surfaceNormal;

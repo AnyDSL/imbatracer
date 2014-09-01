@@ -28,7 +28,7 @@ fn noIdx() -> uint // the ID to be used when "nothing" is referenced (not valid 
 // accessor functions
 fn triPoint(tri : uint, n : uint, scene : &Scene) -> Point
 {
-    @assert(||n < 3u, 1910);
+    @assert(||n < 3u, "Accessing invalid triangle point");
     let idx = scene.triVerts(3u*tri + n);
     scene.verts(idx)
 }
@@ -40,7 +40,7 @@ fn triHasNormals(tri : uint, scene : &Scene) -> bool
 
 fn triVertNormal(tri : uint, n : uint, scene : &Scene) -> Vec
 {
-    @assert(||n < 3u, 1911);
+    @assert(||n < 3u, "Accessing invalid triangle normal");
     let idx = scene.triData(7u*tri + n);
     scene.normals(idx)
 }
@@ -52,7 +52,7 @@ fn triHasTexcoord(tri : uint, scene : &Scene) -> bool
 
 fn triTexCoord(tri : uint, n : uint, scene : &Scene) -> TexCoord
 {
-    @assert(||n < 3u, 1912);
+    @assert(||n < 3u, "Accessing invalid triangle texture coordinate");
     let idx = scene.triData(7u*tri + 3u + n);
     scene.texcoords(idx)
 }

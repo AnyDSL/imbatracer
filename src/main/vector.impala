@@ -44,7 +44,7 @@ fn vec1(a : float) -> Vec
 
 fn vec_f4(f : Float4) -> Vec
 {
-    @assert(||almost(f.w, 0.0f), 990001);
+    @assert(||almost(f.w, 0.0f), "This Float4 is not a Vec");
     vec(f.x, f.y, f.z)
 }
 
@@ -132,7 +132,7 @@ fn orthogonalize(ref : Vec, toOrtho : Vec) -> (Vec, Vec)
 {
     let third = normalize(cross(ref, toOrtho));
     let ortho = cross(third, ref);
-    @assert(||dot(toOrtho, ortho) > 0.0f, 22);
+    @assert(||dot(toOrtho, ortho) > 0.0f, "Something went wrong during orthogonalisation");
     (ortho, third)
 }
 
@@ -163,7 +163,7 @@ fn point0() -> Point
 
 fn point_f4(f : Float4) -> Point
 {
-    @assert(||almost(f.w, 1.0f), 990001);
+    @assert(||almost(f.w, 1.0f), "This Float4 is not a Point");
     point(f.x, f.y, f.z)
 }
 
