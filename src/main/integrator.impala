@@ -50,7 +50,7 @@ fn integrateLightSources(scratch : &RTScratch, scene : &Scene, hitP : Point, out
         let hitF:LightHitFn = lF(0);
 
         let lhit = hitF(hitP);
-        @assert(||almost(vlensq(lhit.dir), 1.0f), 1001);
+        @assert(||almost(vlensq(lhit.dir), 1.0f), "Light source hit direction must be normalised");
 
         if @dot(lhit.dir, surfaceN) >= 0.0f // light comes towards us, on same side of surface?
         {
@@ -59,7 +59,7 @@ fn integrateLightSources(scratch : &RTScratch, scene : &Scene, hitP : Point, out
             let reflected = @matReflectance(uv, local, shadingN, outDir, lhit.dir);
             let contrib = @ccapply2(irrIntensity, reflected, mul);
 
-            @assert(||{!cAny(contrib, isneg)}, 1002);
+            @assert(||{!cAny(contrib, isneg)}, "Lights cannot have negative contribution");
 
             if @cAny(contrib, isstrictpos)
             {

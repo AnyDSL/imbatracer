@@ -22,9 +22,9 @@ extern "C"
       std::cout << "Impala print [" << i << "] " << x << ", " << y << ", " << z << std::endl;
     }
 
-    void assert_failed(int i)
+    void assert_failed(const char *str)
     {
-        std::cerr << "Impala assertion failed [" << i << "]" << std::endl;
+        std::cerr << "Impala assertion failed: " << str;
         rt::debugAbort();
     }
 

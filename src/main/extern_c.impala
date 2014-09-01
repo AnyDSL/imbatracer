@@ -8,7 +8,7 @@ extern "C"
     fn print_ii(int, int) -> ();
     fn print_if(int, float) -> ();
     fn print_ifff(int, float, float, float) -> ();
-    fn assert_failed(int) -> ();
+    fn assert_failed([u8]) -> ();
 
     // scene creation functions
     fn scene_clear(&State) -> ();

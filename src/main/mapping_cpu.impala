@@ -8,10 +8,10 @@ fn renderIteration(width : int, height : int, measureTime : bool, state : &State
 }
 
 
-fn assert(f : fn() -> bool, i : int) -> ()
+fn assert(f : fn() -> bool, msg: [u8]) -> ()
 {
     if @isDebug() && !f() {
-        assert_failed(i)
+        assert_failed(msg)
     }
 }
 
@@ -45,13 +45,13 @@ fn preparePixelBuffer(mut state : &State, w : uint, h : uint) -> &PixelBuffer
     let sz = w * h;
     //let sz = (w >> 1u) * (h >> 1u);
 
-    let alloc = || -> &PixelBuffer
+    fn alloc() -> &PixelBuffer
     {
         print_ii(w as int, h as int);
         let p = ~PixelBuffer{ w:(w >> 1u), pix:~[sz:PixelInfo], used:~[sz:u8], allocSize:sz };
         state.user1 = p as &u8;
         p
-    };
+    }
 
     if (pb == (0 as &PixelBuffer))
     {
@@ -88,17 +88,17 @@ fn renderSubsampled(level : uint, width : uint, height : uint, state : &State, s
     let pixcache = $preparePixelBuffer(state, width, height);
 
 
-    let body2 = |x:uint, y:uint| -> Color
+    fn renderPixel(x:uint, y:uint) -> Color
     {
         let mut scratch = @emptyScratch();
         let c = $getcolor(x as int, y as int, &rtstate, &scratch);
         @setcolor(x as int, y as int, c);
         c
-    };
+    }
 
     for y in $urangestep(0u, height, level) {
         for x in $urangestep(0u, width, level) {
-            renderBlock(body2, setcolor, pixcache, x, y, width, height, level)
+            renderBlock(renderPixel, setcolor, pixcache, x, y, width, height, level)
         }
     }
 }
@@ -106,7 +106,7 @@ fn renderSubsampled(level : uint, width : uint, height : uint, state : &State, s
 fn getCachePixel(body : RenderFunc, mut pixcache : &PixelBuffer, x : uint, y : uint) -> &PixelInfo
 {
     //print_ii(x, y);
-    assert(||{(x&1u)==0u && (y&1u)==0u}, 110001);
+    assert(||{(x&1u)==0u && (y&1u)==0u}, "Subsampling x and y must be even");
     let idx = (y >> 1u) * pixcache.w + (x >> 1u);
     if pixcache.used(idx) == 0u8
     {
@@ -124,9 +124,9 @@ fn renderBlock(body : RenderFunc, setcolor: SetColorFn, pixcache : &PixelBuffer,
 
 fn renderBlock2(body : RenderFunc, setcolor: SetColorFn, pixcache : &PixelBuffer, x : uint, y : uint, w : uint, h : uint, level : uint, topleft : &PixelInfo) -> ()
 {
-    assert(||{(level%2u)==0u && level>1u}, 110002);
-    assert(||{x+level<w}, 110003);
-    assert(||{y+level<h}, 110004);
+    assert(||{(level%2u)==0u && level>1u}, "Subsampling Level must be even");
+    assert(||{x+level<w}, "Subsampling x is out of bounds");
+    assert(||{y+level<h}, "Subsampling y is out of bounds");
     //print_ifff(level, x as float, y as float, -1.0f);
     let maxColorDist = 0.1f;
 
