@@ -2,7 +2,7 @@
 fn renderIteration(width : int, height : int, measureTime : bool, state : &State, setcolor: SetColorFn, getcolor: GetColorIFn) -> ()
 {
     let start = thorin_get_micro_time();
-    @renderSubsampled(8u, width as uint, height as uint, state, setcolor, getcolor);
+    $renderSubsampled(8u, width as uint, height as uint, state, setcolor, getcolor);
     let stop = thorin_get_micro_time();
     if measureTime { thorin_print_micro_time(stop-start); };
 }
@@ -48,7 +48,6 @@ fn preparePixelBuffer(level : uint, mut state : &State, w : uint, h : uint) -> &
 
     fn alloc() -> &PixelBuffer
     {
-        print_ii(w as int, h as int);
         let p = ~PixelBuffer{ w:(w >> 1u), pix:~[sz:PixelInfo], used:~[sz:u8], allocSize:sz };
         state.user1 = p as &u8;
         p
@@ -86,7 +85,7 @@ fn renderSubsampled(level : uint, width : uint, height : uint, state : &State, s
         return()
     }
 
-    let pixcache = preparePixelBuffer(level, state, width, height);
+    let pixcache = $preparePixelBuffer(level, state, width, height);
 
 
     fn renderPixel(x:uint, y:uint) -> Color
@@ -99,7 +98,7 @@ fn renderSubsampled(level : uint, width : uint, height : uint, state : &State, s
 
     for y in $urangestep(0u, height, level) {
         for x in $urangestep(0u, width, level) {
-            renderBlock(renderPixel, setcolor, pixcache, x, y, width, height, level)
+            $renderBlock(renderPixel, setcolor, pixcache, x, y, width, height, level)
         }
     }
 }
@@ -121,7 +120,7 @@ fn getCachePixel(body : RenderFunc, mut pixcache : &PixelBuffer, x : uint, y : u
 
 fn renderBlock(body : RenderFunc, setcolor: SetColorFn, pixcache : &PixelBuffer, x : uint, y : uint, w : uint, h : uint, level : uint) -> ()
 {
-    renderBlock2(body, setcolor, pixcache, x, y, w, h, level, getCachePixel(body, pixcache, x, y))
+    $renderBlock2(body, setcolor, pixcache, x, y, w, h, level, getCachePixel(body, pixcache, x, y))
 }
 
 fn renderBlock2(body : RenderFunc, setcolor: SetColorFn, pixcache : &PixelBuffer, x : uint, y : uint, w : uint, h : uint, level : uint, topleft : &PixelInfo) -> ()
@@ -130,9 +129,9 @@ fn renderBlock2(body : RenderFunc, setcolor: SetColorFn, pixcache : &PixelBuffer
 
     let maxColorDist = 0.1f;
 
-    let topright = getCachePixel(body, pixcache, x + level, y);
-    let bottomleft = getCachePixel(body, pixcache, x, y + level);
-    let bottomright = getCachePixel(body, pixcache, x + level, y + level);
+    let topright = $getCachePixel(body, pixcache, x + level, y);
+    let bottomleft = $getCachePixel(body, pixcache, x, y + level);
+    let bottomright = $getCachePixel(body, pixcache, x + level, y + level);
 
     if @colorDistXYZ(topleft.xyz, topright.xyz) <= maxColorDist
     && @colorDistXYZ(topleft.xyz, bottomleft.xyz) <= maxColorDist
@@ -148,7 +147,7 @@ fn renderBlock2(body : RenderFunc, setcolor: SetColorFn, pixcache : &PixelBuffer
         {
             for xx in @urange(xbegin, xmax)
             {
-                @setcolor(xx as int, yy as int, clerp(a, b, xf));
+                @setcolor(xx as int, yy as int, @clerp(a, b, xf));
                 xf = xf + step;
             }
         }
@@ -198,11 +197,24 @@ fn renderBlock2(body : RenderFunc, setcolor: SetColorFn, pixcache : &PixelBuffer
         return()
     }
 
-
     // subdivide
-    renderBlock2(body, setcolor, pixcache, x, y, w, h, nextlevel, topleft); // in this case the color is known, saves a cache lookup
+    $renderBlock2(body, setcolor, pixcache, x, y, w, h, nextlevel, topleft); // in this case the color is known, saves a cache lookup
 
-    boundsChecked(|xx:uint, yy:uint| $renderBlock(body, setcolor, pixcache, xx, yy, w, h, nextlevel) );
+
+    // Disabled; unable to compile this
+    //$boundsChecked(|xx:uint, yy:uint| $renderBlock(body, setcolor, pixcache, xx, yy, w, h, nextlevel) );
+
+
+    // TEST CASE (part of the above function)
+    if haveRightNeighbor
+    {
+        // WORKS
+        //$renderBlock(body, setcolor, pixcache, x+nextlevel, y, w, h, nextlevel);
+
+        // COMPILES FOREVER (= renderBlock() hand inlined)
+        $renderBlock2(body, setcolor, pixcache, x+nextlevel, y, w, h, level, getCachePixel(body, pixcache, x+nextlevel, y));
+    }
+
 
 }
 
