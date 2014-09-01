@@ -18,6 +18,16 @@ fn range(a : int, b : int, yield : fn(int, fn()))
     }
 }
 
+
+fn urangestep(a : uint, b : uint, step : uint, yield : fn(uint, fn()))
+-> ()
+{
+    if a < b {
+        yield(a); // TODO adding an @ here OR below makes stuff go SLOWER! ?!?
+        urangestep(a+step, b, step, yield, return)
+    }
+}
+
 fn urange(a : uint, b : uint, yield : fn(uint, fn()))
 -> ()
 {
@@ -45,6 +55,16 @@ fn imin(a : int, b : int) -> int
 }
 
 fn imax(a : int, b : int) -> int
+{
+    if a < b { b } else { a }
+}
+
+fn umin(a : uint, b : uint) -> uint
+{
+    if a < b { a } else { b }
+}
+
+fn umax(a : uint, b : uint) -> uint
 {
     if a < b { b } else { a }
 }

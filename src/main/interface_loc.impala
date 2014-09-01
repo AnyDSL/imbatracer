@@ -26,6 +26,7 @@ extern fn impala_init(mut state : &State) -> ()
     state.scene.nLights = 3u;
     state.scene.lights = lights;
 
+    state.user1 = (0 as &u8);
 }
 
 extern fn impala_update(mut state : &State, dt : float) -> ()

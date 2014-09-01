@@ -21,6 +21,7 @@ public:
     ImpalaGui(unsigned w, unsigned h, SceneKind sceneKind)
         : SDLBufferGui(w, h, "ImbaTracer"), sceneKind(sceneKind), scene(&state.scene)
     {
+        memset(&state, 0, sizeof(state));
         state.sceneMgr = &scene;
         // impala_init may call functions that add objects to the scene
         switch (sceneKind) {

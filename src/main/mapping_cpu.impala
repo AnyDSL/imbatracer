@@ -2,14 +2,7 @@
 fn renderIteration(width : int, height : int, measureTime : bool, state : &State, setcolor: SetColorFn, getcolor: GetColorIFn) -> ()
 {
     let start = thorin_get_micro_time();
-    let mut rtstate = RTState{ cam: state.cam, integrator: state.integrator, scene: state.scene };
-    for y in $range(0, height) {
-        for x in $inner_loop(0, width) {
-            let mut scratch = @emptyScratch(); // scratch space for the current intersection (TODO is this better than passing it around?)
-            @setcolor(x, y, @getcolor(x, y, &rtstate, &scratch));
-        }
-    };
-    //@renderSubsampled(8, width, height, &rtstate, setcolor, getcolor);
+    @renderSubsampled(8u, width as uint, height as uint, state, setcolor, getcolor);
     let stop = thorin_get_micro_time();
     if measureTime { thorin_print_micro_time(stop-start); };
 }
@@ -30,38 +23,91 @@ struct PixelInfo
 
 struct PixelBuffer
 {
-    w : int,
+    w : uint,
     pix : &[PixelInfo],
     used : &[u8],
+    allocSize : uint,
 }
 
-type RenderFunc = fn(int, int) -> Color;
-
-fn renderSubsampled(level : int, width : int, height : int, rtstate : &RTState, setcolor: SetColorFn, getcolor: GetColorIFn) -> ()
+fn free_PixelBuffer(p : &PixelBuffer) -> ()
 {
-    let cachesize = (width*height);
-    let mut pixcache = PixelBuffer{ w:(width >> 1), pix:~[cachesize:PixelInfo], used:~[cachesize:u8] }; // FIXME: use C function to realloc as necessary
+    thorin_free(p.pix as &u8);
+    thorin_free(p.used as &u8);
+    thorin_free(p as &u8);
+}
 
-    let body2 = |x:int, y:int| -> Color
+
+fn preparePixelBuffer(mut state : &State, w : uint, h : uint) -> &PixelBuffer
+{
+    let mut pb = state.user1 as &PixelBuffer;
+
+    // FIXME: this is way too big. only half should be required
+    let sz = w * h;
+    //let sz = (w >> 1u) * (h >> 1u);
+
+    let alloc = || -> &PixelBuffer
+    {
+        print_ii(w as int, h as int);
+        let p = ~PixelBuffer{ w:(w >> 1u), pix:~[sz:PixelInfo], used:~[sz:u8], allocSize:sz };
+        state.user1 = p as &u8;
+        p
+    };
+
+    if (pb == (0 as &PixelBuffer))
+    {
+        pb = alloc()
+    }
+    else if(pb.allocSize != sz)
+    {
+        //free_PixelBuffer(pb);
+        pb = alloc()
+    }
+
+    memset(pb.used as &u8, 0, sz as size_t);
+    pb
+}
+
+
+type RenderFunc = fn(uint, uint) -> Color;
+
+fn renderSubsampled(level : uint, width : uint, height : uint, state : &State, setcolor: SetColorFn, getcolor: GetColorIFn) -> ()
+{
+    let mut rtstate = RTState{ cam: state.cam, integrator: state.integrator, scene: state.scene };
+
+    if level <= 1u
+    {
+        let mut scratch = @emptyScratch(); // scratch space for the current intersection (TODO is this better than passing it around?)
+        for y in $urange(0u, height) {
+            for x in $urange(0u, width) { // TODO: this used to be $inner_loop(), but wfv2 is too slow to be practical, for now
+                @setcolor(x as int, y as int, $getcolor(x as int, y as int, &rtstate, &scratch));
+            }
+        }
+        return()
+    }
+
+    let pixcache = $preparePixelBuffer(state, width, height);
+
+
+    let body2 = |x:uint, y:uint| -> Color
     {
         let mut scratch = @emptyScratch();
-        let c = $getcolor(x, y, rtstate, &scratch);
-        @setcolor(x, y, c);
+        let c = $getcolor(x as int, y as int, &rtstate, &scratch);
+        @setcolor(x as int, y as int, c);
         c
     };
 
-    for y in $rangestep(0, height, level) {
-        for x in $rangestep(0, width, level) {
-            @renderBlock(body2, setcolor, &pixcache, x, y, width, height, level)
+    for y in $urangestep(0u, height, level) {
+        for x in $urangestep(0u, width, level) {
+            renderBlock(body2, setcolor, pixcache, x, y, width, height, level)
         }
     }
 }
 
-fn getCachePixel(body : RenderFunc, mut pixcache : &PixelBuffer, x : int, y : int) -> &PixelInfo
+fn getCachePixel(body : RenderFunc, mut pixcache : &PixelBuffer, x : uint, y : uint) -> &PixelInfo
 {
     //print_ii(x, y);
-    assert(||{(x&1)==0 && (y&1)==0}, 110001);
-    let idx = (y >> 1) * pixcache.w + (x >> 1);
+    assert(||{(x&1u)==0u && (y&1u)==0u}, 110001);
+    let idx = (y >> 1u) * pixcache.w + (x >> 1u);
     if pixcache.used(idx) == 0u8
     {
         let c = cclamp01($body(x, y));  // TODO: do the clamping elsewhere?
@@ -71,14 +117,14 @@ fn getCachePixel(body : RenderFunc, mut pixcache : &PixelBuffer, x : int, y : in
     &pixcache.pix(idx)
 }
 
-fn renderBlock(body : RenderFunc, setcolor: SetColorFn, pixcache : &PixelBuffer, x : int, y : int, w : int, h : int, level : int) -> ()
+fn renderBlock(body : RenderFunc, setcolor: SetColorFn, pixcache : &PixelBuffer, x : uint, y : uint, w : uint, h : uint, level : uint) -> ()
 {
-    @renderBlock2(body, setcolor, pixcache, x, y, w, h, level, @getCachePixel(body, pixcache, x, y))
+    renderBlock2(body, setcolor, pixcache, x, y, w, h, level, getCachePixel(body, pixcache, x, y))
 }
 
-fn renderBlock2(body : RenderFunc, setcolor: SetColorFn, pixcache : &PixelBuffer, x : int, y : int, w : int, h : int, level : int, topleft : &PixelInfo) -> ()
+fn renderBlock2(body : RenderFunc, setcolor: SetColorFn, pixcache : &PixelBuffer, x : uint, y : uint, w : uint, h : uint, level : uint, topleft : &PixelInfo) -> ()
 {
-    assert(||{(level%2)==0 && level>1}, 110002);
+    assert(||{(level%2u)==0u && level>1u}, 110002);
     assert(||{x+level<w}, 110003);
     assert(||{y+level<h}, 110004);
     //print_ifff(level, x as float, y as float, -1.0f);
@@ -94,42 +140,42 @@ fn renderBlock2(body : RenderFunc, setcolor: SetColorFn, pixcache : &PixelBuffer
     && @colorDistXYZ(bottomleft.xyz, bottomright.xyz) <= maxColorDist
     {
         // colors are similar, interpolate
-        /*let step = 1.0f / (level as float);
-        let xmax = @imin(x + level, w);
-        let ymax = @imin(y + level, h);
+        let step = 1.0f / (level as float);
+        let xmax = @umin(x + level, w);
+        let ymax = @umin(y + level, h);
 
-        fn fillrow(xbegin : int, mut xf : float, a : Color, b : Color) -> ()
+        fn fillrow(xbegin : uint, y : uint, mut xf : float, a : Color, b : Color) -> ()
         {
-            for xx in @range(xbegin, xmax)
+            for xx in @urange(xbegin, xmax)
             {
-                @setcolor(xx, y, clerp(a, b, xf));
+                @setcolor(xx as int, y as int, clerp(a, b, xf));
                 xf = xf + step;
             }
         }
 
-        // top left pixel is already written to image
-        @fillrow(x+1, step, topleft.rgb, topright.rgb);
+        // top left pixel is already written to image, fill rest of row
+        @fillrow(x+1u, y, step, topleft.rgb, topright.rgb);
 
         let mut ty = step;
-        for yy in range(y+1, ymax)
+        for yy in urange(y+1u, ymax)
         {
             let ileft = @clerp(topleft.rgb, bottomleft.rgb, ty);
             let iright = @clerp(topright.rgb, bottomright.rgb, ty);
 
-            @setcolor(x, yy, ileft);
-            @fillrow(x+1, step, ileft, iright);
+            @setcolor(x as int, yy as int, ileft);
+            @fillrow(x+1u, yy, step, ileft, iright);
             ty = ty + step;
-        }*/
+        }
 
         return()
     }
 
-/*
-    let nextlevel = level >> 1;
+
+    let nextlevel = level >> 1u;
     let haveRightNeighbor = (x+nextlevel < w);
     let haveBottomNeighbor = (y+nextlevel < h);
 
-    let boundsChecked = |f : fn(int, int) -> ()| -> ()
+    let boundsChecked = |f : fn(uint, uint) -> ()| -> ()
     {
         if haveRightNeighbor
         {
@@ -145,20 +191,19 @@ fn renderBlock2(body : RenderFunc, setcolor: SetColorFn, pixcache : &PixelBuffer
         }
     };
 
-    if nextlevel == 1
+    if nextlevel == 1u
     {
-        let renderpixel = |xx:int, yy:int| -> () $body(xx, yy, false);
-        @setcolor(x, y, topleft.rgb);
-
-        @boundsChecked(renderpixel);
+        let renderpixel = |xx:uint, yy:uint| -> () { $body(xx, yy); };
+        // top-left pixel is already written to image
+        boundsChecked(renderpixel);
         return()
     }
-*/
+
 
     // subdivide
-    //renderBlock2(body, setcolor, pixcache, x, y, w, h, nextlevel, topleft);
+    renderBlock2(body, setcolor, pixcache, x, y, w, h, nextlevel, topleft); // in this case the color is known, saves a cache lookup
 
-    //@boundsChecked(|xx:int, yy:int| renderBlock2(body, setcolor, pixcache, xx, yy, w, h, nextlevel, topleft) );
+    boundsChecked(|xx:uint, yy:uint| $renderBlock(body, setcolor, pixcache, xx, yy, w, h, nextlevel) );
 
 }
 

@@ -9,7 +9,8 @@ struct State
     integrator : Integrator,
     scene : Scene,
 
-    sceneMgr : &SceneMgr
+    sceneMgr : &SceneMgr,
+    user1 : &u8,
 }
 
 struct RTState

@@ -1,4 +1,6 @@
 
+type size_t = u64; // FIXME: should be size_t (esp. for 32 bit arch!)
+
 // CPU-only functions
 extern "C"
 {
@@ -14,6 +16,9 @@ extern "C"
     fn scene_add_file(&State, int, int) -> bool;
     fn scene_add_file_mat(&State, int, int, &[Material], uint) -> bool;
     fn scene_build(&State) -> ();
+
+    fn thorin_free(&u8) -> ();
+    fn memset(&u8, int, size_t) -> ();
 }
 
 // some derived forms

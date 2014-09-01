@@ -274,6 +274,7 @@ namespace impala {
         Integrator integrator;
         Scene scene;
         rt::Scene *sceneMgr;
+        void *user1;
     };
 
 
