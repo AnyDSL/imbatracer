@@ -8,7 +8,7 @@ fn renderIteration(width : int, height : int, measureTime : bool, state : &State
 }
 
 
-fn assert(f : fn() -> bool, msg: [u8]) -> ()
+fn assert(f : fn() -> bool, msg: &[u8]) -> ()
 {
     if @isDebug() && !f() {
         assert_failed(msg)

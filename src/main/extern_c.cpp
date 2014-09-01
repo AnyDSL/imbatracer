@@ -24,7 +24,7 @@ extern "C"
 
     void assert_failed(const char *str)
     {
-        std::cerr << "Impala assertion failed: " << str;
+        std::cerr << "Impala assertion failed: " << str << std::endl;
         rt::debugAbort();
     }
 
