@@ -6,7 +6,10 @@ fn renderImage(mut buf : &[u32], width : int, height : int, measureTime : bool, 
 {
     let wf = width as float;
     let hf = height as float;
-    let setcolor:SetColorFn = |x, y, col|{buf(y*width+x) = col_rgb2int(col)};
+    let setcolor:SetColorFn = |x, y, col| {
+            assert(||{x < width && y < height}, "Image out of bounds access");
+            buf(y*width+x) = col_rgb2int(col)
+    };
     for x, y, rtstate in renderIteration(width, height, measureTime, state, setcolor)
     {
         // render in the center of the pixel

@@ -2,9 +2,14 @@
 fn renderIteration(width : int, height : int, measureTime : bool, state : &State, setcolor: SetColorFn, getcolor: GetColorIFn) -> ()
 {
     let start = thorin_get_micro_time();
-    @renderSubsampled(1u, width as uint, height as uint, state, setcolor, getcolor);
+    @renderSubsampled(8u, width as uint, height as uint, state, setcolor, getcolor);
     let stop = thorin_get_micro_time();
     if measureTime { thorin_print_micro_time(stop-start); };
+}
+
+fn subsampleDebugView() -> bool
+{
+    @isDebug()
 }
 
 
@@ -69,7 +74,7 @@ fn preparePixelBuffer(level : uint, mut state : &State, w : uint, h : uint) -> &
 }
 
 
-type RenderFunc = fn(uint, uint) -> Color;
+type RenderFunc = fn(uint, uint, bool) -> Color;
 
 fn renderSubsampled(level : uint, width : uint, height : uint, state : &State, setcolor: SetColorFn, getcolor: GetColorIFn) -> ()
 {
@@ -87,10 +92,12 @@ fn renderSubsampled(level : uint, width : uint, height : uint, state : &State, s
     let pixcache = preparePixelBuffer(level, state, width, height);
 
 
-    fn renderPixel(x:uint, y:uint) -> Color
+    fn renderPixel(x:uint, y:uint, write:bool) -> Color
     {
         let c = $getcolor(x as int, y as int, &rtstate);
-        @setcolor(x as int, y as int, c);
+        if write {
+            @setcolor(x as int, y as int, if @subsampleDebugView() { color(0.0f, 1.0f, 0.0f) } else { c });
+        }
         c
     }
 
@@ -101,7 +108,7 @@ fn renderSubsampled(level : uint, width : uint, height : uint, state : &State, s
     }
 }
 
-fn getCachePixel(body : RenderFunc, mut pixcache : &PixelBuffer, x : uint, y : uint) -> &PixelInfo
+fn getCachePixel(body : RenderFunc, mut pixcache : &PixelBuffer, x : uint, y : uint, write : bool) -> &PixelInfo
 {
     //print_ii(x, y);
     assert(||{(x&1u)==0u && (y&1u)==0u}, "Subsampling cached x and y must be even");
@@ -109,8 +116,8 @@ fn getCachePixel(body : RenderFunc, mut pixcache : &PixelBuffer, x : uint, y : u
     assert(||{idx < pixcache.allocSize}, "Subsampling pixel cache out of bounds access");
     if pixcache.used(idx) == 0u8
     {
-        let c = cclamp01($body(x, y));  // TODO: do the clamping elsewhere?
-        pixcache.pix(idx) = PixelInfo{rgb:c, xyz:col_toXYZ(c)};
+        let c = @cclamp01(@body(x, y, write));  // TODO: do the clamping elsewhere?
+        pixcache.pix(idx) = @PixelInfo{rgb:c, xyz:@col_toXYZ(c)};
         pixcache.used(idx) = 1u8;
     }
     &pixcache.pix(idx)
@@ -118,7 +125,7 @@ fn getCachePixel(body : RenderFunc, mut pixcache : &PixelBuffer, x : uint, y : u
 
 fn renderBlock(body : RenderFunc, setcolor: SetColorFn, pixcache : &PixelBuffer, x : uint, y : uint, w : uint, h : uint, level : uint) -> ()
 {
-    renderBlock2(body, setcolor, pixcache, x, y, w, h, level, getCachePixel(body, pixcache, x, y))
+    renderBlock2(body, setcolor, pixcache, x, y, w, h, level, @getCachePixel(body, pixcache, x, y, true))
 }
 
 fn renderBlock2(body : RenderFunc, setcolor: SetColorFn, pixcache : &PixelBuffer, x : uint, y : uint, w : uint, h : uint, level : uint, topleft : &PixelInfo) -> ()
@@ -127,9 +134,9 @@ fn renderBlock2(body : RenderFunc, setcolor: SetColorFn, pixcache : &PixelBuffer
 
     let maxColorDist = 0.1f;
 
-    let topright = getCachePixel(body, pixcache, x + level, y);
-    let bottomleft = getCachePixel(body, pixcache, x, y + level);
-    let bottomright = getCachePixel(body, pixcache, x + level, y + level);
+    let topright = @getCachePixel(body, pixcache, x + level, y, x+level < w);
+    let bottomleft = @getCachePixel(body, pixcache, x, y + level, y+level < h);
+    let bottomright = @getCachePixel(body, pixcache, x + level, y + level, x+level < w && y+level < h);
 
     if @colorDistXYZ(topleft.xyz, topright.xyz) <= maxColorDist
     && @colorDistXYZ(topleft.xyz, bottomleft.xyz) <= maxColorDist
@@ -145,10 +152,12 @@ fn renderBlock2(body : RenderFunc, setcolor: SetColorFn, pixcache : &PixelBuffer
         {
             for xx in @urange(xbegin, xmax)
             {
-                @setcolor(xx as int, yy as int, clerp(a, b, xf));
+                let mix = if @subsampleDebugView() { @color0() } else { @clerp(a, b, xf) };
+                @setcolor(xx as int, yy as int, mix);
                 xf = xf + step;
             }
         }
+
 
         // top left pixel is already written to image, fill rest of row
         @fillrow(x+1u, y, step, topleft.rgb, topright.rgb);
@@ -156,8 +165,8 @@ fn renderBlock2(body : RenderFunc, setcolor: SetColorFn, pixcache : &PixelBuffer
         let mut ty = step;
         for yy in urange(y+1u, ymax)
         {
-            let ileft = @clerp(topleft.rgb, bottomleft.rgb, ty);
-            let iright = @clerp(topright.rgb, bottomright.rgb, ty);
+            let ileft  = if @subsampleDebugView() { @color0() } else { @clerp(topleft.rgb, bottomleft.rgb, ty) };
+            let iright = if @subsampleDebugView() { @color0() } else { @clerp(topright.rgb, bottomright.rgb, ty) };
 
             @setcolor(x as int, yy as int, ileft);
             @fillrow(x+1u, yy, step, ileft, iright);
@@ -168,30 +177,36 @@ fn renderBlock2(body : RenderFunc, setcolor: SetColorFn, pixcache : &PixelBuffer
     }
 
     let nextlevel = level >> 1u;
-    let haveRightNeighbor = (x+nextlevel < w);
-    let haveBottomNeighbor = (y+nextlevel < h);
 
-    fn boundsChecked(f : fn(uint, uint) -> ()) -> ()
+
+    fn boundsChecked(offs : uint, f : fn(uint, uint) -> ()) -> ()
     {
+        let haveRightNeighbor = (x+offs < w);
+        let haveBottomNeighbor = (y+offs < h);
         if haveRightNeighbor
         {
-            f(x+nextlevel, y);
+            f(x+offs, y);
         }
         if haveBottomNeighbor
         {
-            f(x, y+nextlevel);
+            f(x, y+offs);
         }
         if haveRightNeighbor && haveBottomNeighbor
         {
-            f(x+nextlevel, y+nextlevel);
+            f(x+offs, y+offs);
         }
     }
 
     if nextlevel == 1u
     {
-        let renderpixel = |xx:uint, yy:uint| -> () { $body(xx, yy); };
+        let renderpixel = if @subsampleDebugView()
+        {
+            |xx:uint, yy:uint| -> () { @setcolor(xx as int, yy as int, @color1(1.0f)); }
+        } else {
+            |xx:uint, yy:uint| -> () { @body(xx, yy, true); }
+        };
         // top-left pixel is already written to image
-        boundsChecked(renderpixel);
+        @boundsChecked(1u, renderpixel);
         return()
     }
 
@@ -199,7 +214,7 @@ fn renderBlock2(body : RenderFunc, setcolor: SetColorFn, pixcache : &PixelBuffer
     // subdivide
     renderBlock2(body, setcolor, pixcache, x, y, w, h, nextlevel, topleft); // in this case the color is known, saves a cache lookup
 
-    boundsChecked(|xx:uint, yy:uint| $renderBlock(body, setcolor, pixcache, xx, yy, w, h, nextlevel) );
+    boundsChecked(nextlevel, |xx:uint, yy:uint| $renderBlock(body, setcolor, pixcache, xx, yy, w, h, nextlevel) );
 
 }
 
