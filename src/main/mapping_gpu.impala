@@ -7,7 +7,7 @@ fn renderIteration(width : int, height : int, measureTime : bool, state : &State
 {
     let unroll = 1;
     let block  = (32, 4, 1);
-    let grid   = (@round_up(width, block(0)), @round_up(div_round_up(height, unroll), block(1)), 1);
+    let grid   = (@round_up(width as uint, block(0) as uint) as int, @round_up(div_round_up(height as uint, unroll as uint), block(1) as uint) as int, 1); // casts curtsey to Max... :P
 
     // extract the stuff we need
     let cam:Cam = (*state).cam;
