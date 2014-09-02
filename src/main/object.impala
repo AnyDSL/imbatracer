@@ -35,13 +35,13 @@ fn objIntersectAny(objidx : uint, scene : &Scene, theRay : Ray, maxdist : float)
     let io = @mpmul(scene.objs(objidx).w2o, theRay.o);
     let idir = @mvmul(scene.objs(objidx).w2o, theRay.d);
     let unitLen = @vlen(idir);
-    let subRay = ray(io, vfdiv(idir, unitLen));
+    let subRay = @ray(io, @vfdiv(idir, unitLen));
     bvhIntersectAny(scene.objs(objidx).bvhRoot, scene, subRay, maxdist)
 }
 
-fn objShadeIntersection(objidx: uint, scene: &Scene, isec: &Intersection) -> ShadingIntersection
+fn objShadeIntersection(objidx: uint, scene: &Scene, isec: &Intersection, mut sisec: &ShadingIntersection) -> ()
 {
-    let mut sisec = triShadeIntersection(isec.tri, scene, isec);
+    @triShadeIntersection(isec.tri, scene, isec, sisec);
 
     // and translate it back
     let transformNormal = |v:Vec|->Vec{
@@ -51,5 +51,4 @@ fn objShadeIntersection(objidx: uint, scene: &Scene, isec: &Intersection) -> Sha
     sisec.surfaceNormal = @transformNormal(sisec.surfaceNormal);
     sisec.shadingNormal = @transformNormal(sisec.shadingNormal);
     sisec.eps = sisec.eps*@max(isec.unitLen, 1.0f/isec.unitLen);
-    sisec
 }

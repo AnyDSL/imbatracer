@@ -111,15 +111,15 @@ fn triIntersectFirst(tri : uint, scene : &Scene, mut isec : &Intersection) -> ()
     }
 }
 
-fn triShadeIntersection(tri: uint, scene: &Scene, isec: &Intersection) -> ShadingIntersection
+fn triShadeIntersection(tri: uint, scene: &Scene, isec: &Intersection, mut sisec: &ShadingIntersection) -> ()
 {
     let a = @triPoint(tri, 0u, scene);
-    let e1 = to(a, @triPoint(tri, 1u, scene));
-    let e2 = to(a, @triPoint(tri, 2u, scene));
+    let e1 = @to(a, @triPoint(tri, 1u, scene));
+    let e2 = @to(a, @triPoint(tri, 2u, scene));
     let bar = @point(1f-isec.b.u-isec.b.v, isec.b.u, isec.b.v);
-    let eps = @sqrtf((vlensq(e1)+vlensq(e2))*defaultRayEps());
-    let surfaceNormal = @normalize(cross(e1, e2));
-    let shadingNormal =
+    sisec.eps = @sqrtf((@vlensq(e1)+@vlensq(e2))*defaultRayEps());
+    sisec.surfaceNormal = @normalize(cross(e1, e2));
+    sisec.shadingNormal =
         if @triHasNormals(tri, scene) {
             let n1 = @triVertNormal(tri, 0u, scene);
             let n2 = @triVertNormal(tri, 1u, scene);
@@ -127,11 +127,11 @@ fn triShadeIntersection(tri: uint, scene: &Scene, isec: &Intersection) -> Shadin
             @normalize(@vlerpbarp(n1, n2, n3, bar))
         }
         else {
-            surfaceNormal // surfce normal, already normalized
+            sisec.surfaceNormal // surfce normal, already normalized
         };
-    let uv = @triTexPoint(bar, tri, scene);
-    let local = @triLocalHitPoint(bar, tri, scene);
-    ShadingIntersection{ materialIdx:@triMaterialIdx(tri, scene), surfaceNormal:surfaceNormal, shadingNormal:shadingNormal, uv:uv, local:local, eps:eps }
+    sisec.uv = @triTexPoint(bar, tri, scene);
+    sisec.local = @triLocalHitPoint(bar, tri, scene);
+    sisec.materialIdx = @triMaterialIdx(tri, scene);
 }
 
 fn triBBox(tri : uint, scene : &Scene) -> BBox

@@ -142,7 +142,8 @@ fn runIntegrator(integr : &Integrator, scene : &Scene, ray : Ray) -> Color
         @color(1.0f, 0.0f, 0.0f)
     }
     else {
-        let mut sisec = @sceneShadeIntersection(scene, &isec);
+        let mut sisec = @shadingIntersection();
+        //@sceneShadeIntersection(scene, &isec, &sisec);
         @getRadianceForHit(integr, &isec, &sisec, scene)
     }
 }
