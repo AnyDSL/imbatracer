@@ -161,7 +161,7 @@ fn epsilon() -> float
 
 fn isDebug() -> bool
 {
-    false || true
+    false //|| true
 }
 
 
@@ -176,13 +176,13 @@ fn bool2uint(b : bool) -> uint
 }
 
 // only works for positive numbers!
-fn div_round_up(a : int, b : int) -> int
+fn div_round_up(a : uint, b : uint) -> uint
 {
-    (a+b-1)/b
+    (a+b-1u)/b
 }
 
 // only works for positive numbers!
-fn round_up(a : int, b : int) -> int
+fn round_up(a : uint, b : uint) -> uint
 {
     div_round_up(a, b)*b
 }

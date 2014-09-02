@@ -30,9 +30,8 @@ fn debugRadianceNormalSign(dist:float, sisec: &ShadingIntersection) -> Color
            @scaleLin(n.z, -1.0f, 1.0f, 0.0f, 1.0f))
 }
 
-
 fn integrateLightSources(scene : &Scene, hitP : Point, outDir : Vec, surfaceN : Vec, shadingN : Vec, uv : TexCoord, local : Point,
-                         matReflectance : ReflectanceFn, rayEps : float) -> Color
+                         mat : &Material, rayEps : float) -> Color
 {
     let mut c = @color0();
 
@@ -48,7 +47,7 @@ fn integrateLightSources(scene : &Scene, hitP : Point, outDir : Vec, surfaceN : 
         {
             let intensityF:LightIntensityFn = lF(1);
             let irrIntensity = @intensityF(lhit);
-            let reflected = @matReflectance(uv, local, shadingN, outDir, lhit.dir);
+            let reflected = @evalMaterialReflectance(uv, local, shadingN, outDir, lhit.dir, mat, scene);
             let contrib = @ccapply2(irrIntensity, reflected, mul);
             //print_sc("Total contrib", contrib);
 
@@ -68,15 +67,13 @@ fn integrateLightSources(scene : &Scene, hitP : Point, outDir : Vec, surfaceN : 
     c
 }
 
-fn raytraceRadiance(ray: Ray, dist:float, sisec: &ShadingIntersection, scene : &Scene) -> Color
+fn raytraceRadiance(ray: Ray, dist:float, sisec: &ShadingIntersection, mut scene : &Scene) -> Color
 {
     let outDir = @vflip(ray.d);
     let surfaceN = @normalTowardsOrigin(sisec.surfaceNormal, ray);
 
     // HACK: that there's some material to test
-    let mat = @buildMaterial(scene.materials(sisec.materialIdx), scene);
-    let reflectance = mat(0);
-    let emission = mat(1);
+    let mat = &scene.materials(sisec.materialIdx);
 
     let uv = sisec.uv;
     let local = sisec.local;
@@ -84,9 +81,9 @@ fn raytraceRadiance(ray: Ray, dist:float, sisec: &ShadingIntersection, scene : &
 
 	@ccadd(
         // we ignore any contribution not coming directly from a light source
-        @integrateLightSources(scene, hitP, outDir, surfaceN, sisec.shadingNormal, uv, local, reflectance, sisec.eps),
+        @integrateLightSources(scene, hitP, outDir, surfaceN, sisec.shadingNormal, uv, local, mat, sisec.eps),
         // and add the material's own light emission that is not dependent on light
-        emission(uv, local, surfaceN, outDir)
+        evalMaterialEmission(uv, local, surfaceN, outDir, mat, scene)
     )
 }
 

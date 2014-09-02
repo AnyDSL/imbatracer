@@ -35,26 +35,24 @@ fn phongFactor(normal:Vec, outDir:Vec, inDir:Vec, exponent:float) -> float
 type ReflectanceFn = fn(TexCoord, Point, Vec, Vec, Vec) -> Color;
 type EmissionFn = fn(TexCoord, Point, Vec, Vec) -> Color;
 
-fn buildMaterial(mat : Material, scene : &Scene) -> (ReflectanceFn, EmissionFn)
+fn evalMaterialReflectance(texPoint:TexCoord, local:Point, normal:Vec, outDir:Vec, inDir:Vec, mat : &Material, mut scene : &Scene) -> Color
 {
-    let diffuseFn = buildTextureFn(scene.textures(mat.diffuse));
-    let specularFn = buildTextureFn(scene.textures(mat.specular));
-    let emissiveFn = buildTextureFn(scene.textures(mat.emissive));
+    let diffuse = evalTexture(texPoint, local, &scene.textures(mat.diffuse));
 
-    let reflectance = |texPoint:TexCoord, local:Point, normal:Vec, outDir:Vec, inDir:Vec| -> Color
-    {
-        let diffuse = diffuseFn(texPoint, local);
-        let lambertian = @cdiv(diffuse, pi());
-        let specular = specularFn(texPoint, local);
-        let phong = if mat.specExp > 0.0f { @cmul(specular, @phongFactor(normal, outDir, inDir, mat.specExp)) } else { @color0() };
-        let renderCos = @absdot(inDir, normal);
-        @cmul(@ccadd(lambertian, phong), renderCos)
-    };
+    let lambertian = @cdiv(diffuse, @pi());
+    let phong = if mat.specExp > 0.0f {
+            @cmul(evalTexture(texPoint, local, &scene.textures(mat.specular))
+                , @phongFactor(normal, outDir, inDir, mat.specExp)
+            )
+        } else { @color0() };
+    let renderCos = @absdot(inDir, normal);
+    @cmul(@ccadd(lambertian, phong), renderCos)
+}
 
-    let emission = |texPoint:TexCoord, local:Point, normal:Vec, outDir:Vec| -> Color
-    {
-        emissiveFn(texPoint, local)
-    };
+fn evalMaterialEmission(texPoint:TexCoord, local:Point, normal:Vec, outDir:Vec, mat : &Material, mut scene : &Scene) -> Color
+{
+    // texture material
+    evalTexture(texPoint, local, &scene.textures(mat.emissive))
 
-    (reflectance, emission)
+    // TODO: other materials (glass etc)
 }
