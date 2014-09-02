@@ -63,6 +63,6 @@ fn evalTexture(uv:TexCoord, p:Point, mut tex : &Texture) -> Color
 {
          if(tex.ty == 0) { evalCheckerboardTexture2D(uv, p, tex.color1, tex.color2) }
     else if(tex.ty == 1) { evalCheckerboardTexture3D(uv, p, tex.color1, tex.color2) }
-    else if(tex.ty == 2) { evalNoiseTexture3D(p, tex.color1, tex.color2, &tex.noise) } // FIXME: this makes compiling SLOOOOOW
+    else if(tex.ty == 2) { evalNoiseTexture3D(p, tex.color1, tex.color2, &tex.noise) }
     else                 { tex.color1 }
 }

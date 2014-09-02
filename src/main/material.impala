@@ -32,9 +32,6 @@ fn phongFactor(normal:Vec, outDir:Vec, inDir:Vec, exponent:float) -> float
     powf(cosReflIn, exponent)*(exponent+2.0f)/(2.0f*pi()) // TODO don't compute normalisation factor all the time
 }
 
-type ReflectanceFn = fn(TexCoord, Point, Vec, Vec, Vec) -> Color;
-type EmissionFn = fn(TexCoord, Point, Vec, Vec) -> Color;
-
 fn evalMaterialReflectance(texPoint:TexCoord, local:Point, normal:Vec, outDir:Vec, inDir:Vec, mat : &Material, mut scene : &Scene) -> Color
 {
     let diffuse = evalTexture(texPoint, local, &scene.textures(mat.diffuse));
