@@ -7,26 +7,31 @@ struct Object
 	swapsHandedness : bool, // is the determinant of the above matrices negative?
 }
 
-fn objIntersectFirst(objidx : uint, scene : &Scene, mut isec : &Intersection) -> ()
+fn objIntersectFirst(objidx : uint, scene : &Scene, theRay: Ray, maxdist: float, mut sisec : &ShadingIntersection) -> float
 {
     // translate world to object
-    let io = @mpmul(scene.objs(objidx).w2o, isec.ray.o);
-    let idir = @mvmul(scene.objs(objidx).w2o, isec.ray.d);
+    let io = @mpmul(scene.objs(objidx).w2o, theRay.o);
+    let idir = @mvmul(scene.objs(objidx).w2o, theRay.d);
     let unitLen = @vlen(idir);
     let invUnitLen = 1.0f / unitLen;
 
     // perform intersection with new scratch space [HACK!]
-    let mut tmpIsec = @intersection(@ray(io, @vfmul(idir, invUnitLen)), isec.dist*unitLen);
-    @bvhIntersectFirst(scene.objs(objidx).bvhRoot, scene, &tmpIsec);
-    if (tmpIsec.tri == @noObj()) { return() }
-    let newDist = tmpIsec.dist*invUnitLen; // this is in world units
-    if (newDist >= isec.dist) { return () } // after scaling back, we're no better than the alreaady best hit
+    let iRay:Ray = @ray(io, @vfmul(idir, invUnitLen));
+    let iMaxDist = maxdist*unitLen;
+    let iNewDist = @bvhIntersectFirst(scene.objs(objidx).bvhRoot, scene, iRay, iMaxDist, sisec);
+    if (iNewDist >= iMaxDist) { return(maxdist) }
+    let newDist = iNewDist*invUnitLen; // this is in world units
+    @assert(||newDist < maxdist, "after scaling back, we're no better than the already best hit");
 
-    @improveIntersection(isec, newDist);
-    isec.b = tmpIsec.b;
-    isec.tri = tmpIsec.tri;
-    isec.obj = objidx;
-    isec.unitLen = unitLen;
+    // and translate it back
+    let transformNormal = |v:Vec|->Vec{
+        let vT = @mmul_transposed3x3(scene.objs(objidx).w2o, v);
+        @normalize(if scene.objs(objidx).swapsHandedness { @vflip(v) } else { v })
+    };
+    sisec.surfaceNormal = @transformNormal(sisec.surfaceNormal);
+    sisec.shadingNormal = @transformNormal(sisec.shadingNormal);
+    sisec.eps = sisec.eps*@max(unitLen, invUnitLen);
+    return(newDist)
 }
 
 fn objIntersectAny(objidx : uint, scene : &Scene, theRay : Ray, maxdist : float) -> bool
@@ -39,6 +44,7 @@ fn objIntersectAny(objidx : uint, scene : &Scene, theRay : Ray, maxdist : float)
     bvhIntersectAny(scene.objs(objidx).bvhRoot, scene, subRay, maxdist)
 }
 
+/*
 fn objShadeIntersection(objidx: uint, scene: &Scene, isec: &Intersection, mut sisec: &ShadingIntersection) -> ()
 {
     @triShadeIntersection(isec.tri, scene, isec, sisec);
@@ -52,3 +58,4 @@ fn objShadeIntersection(objidx: uint, scene: &Scene, isec: &Intersection, mut si
     sisec.shadingNormal = @transformNormal(sisec.shadingNormal);
     sisec.eps = sisec.eps*@max(isec.unitLen, 1.0f/isec.unitLen);
 }
+*/

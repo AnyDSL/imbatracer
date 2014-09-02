@@ -12,6 +12,7 @@ fn defaultDist() -> float
 fn noObj() -> uint
 { 0xFFFFFFFFu }
 
+/*
 struct Intersection
 {
     dist : float,
@@ -23,25 +24,10 @@ struct Intersection
     unitLen : float, // the length of a unit in ray direction, in the transformed coordinate system
 }
 
-struct ShadingIntersection // all the stuff needed for shading an intersection
-{
-    materialIdx : uint,
-    surfaceNormal : Vec,
-    shadingNormal : Vec,
-    uv : TexCoord,
-    local : Point,
-    eps: float,
-}
-
 fn intersection(ray : Ray, dist: float) -> Intersection
 {
     @Intersection{ dist:dist, ray:ray,
         tri:@noObj(), b:texCoord0(), obj:@noObj(), unitLen:0.0f }
-}
-
-fn shadingIntersection() -> ShadingIntersection
-{
-    @ShadingIntersection{ materialIdx:0u, surfaceNormal:@vec0(), shadingNormal:@vec0(), uv:@texCoord0(), local:@point0(), eps:@defaultRayEps() }
 }
 
 fn improveIntersection(mut isec : &Intersection, dist : float) -> ()
@@ -55,5 +41,21 @@ fn intersectionWorldHitPoint(isec : &Intersection) -> Point
     @rayP(isec.ray,  isec.dist)
 }
 
+*/
 
+
+struct ShadingIntersection // all the stuff needed for shading an intersection
+{
+    materialIdx : uint,
+    surfaceNormal : Vec,
+    shadingNormal : Vec,
+    uv : TexCoord,
+    local : Point,
+    eps: float,
+}
+
+fn shadingIntersection() -> ShadingIntersection
+{
+    @ShadingIntersection{ materialIdx:0u, surfaceNormal:@vec0(), shadingNormal:@vec0(), uv:@texCoord0(), local:@point0(), eps:@defaultRayEps() }
+}
 

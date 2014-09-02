@@ -48,7 +48,7 @@ fn bvhIntersectNode(bounds : BBox, o : Point, maxDist : float, invDir : Vec, neg
     }
 }
 
-fn bvhIntersectGeneric(root: uint, scene : &Scene, ray : Ray, mut maxdist : float, checkIntersect : fn(uint, &float) -> ()) -> ()
+fn bvhIntersectGeneric(root: uint, scene : &Scene, ray : Ray, mut maxdist : float, checkIntersect : fn(uint, float) -> float) -> float
 {
     let invDir = @vapply1(ray.d, |f|1.0f/f);
     let neg = @bvhMakeNeg(invDir);
@@ -69,7 +69,7 @@ fn bvhIntersectGeneric(root: uint, scene : &Scene, ray : Ray, mut maxdist : floa
         fn popNode()
         {
             if todoIdx == 0 {
-                done() // DONE!
+                done(maxdist) // DONE!
             }
             else {
                 // continue with stack element
@@ -88,7 +88,7 @@ fn bvhIntersectGeneric(root: uint, scene : &Scene, ray : Ray, mut maxdist : floa
             if (nPrim > 0u16) {
                 // a leaf
                 for tri in urange(sndChildFirstPrim, sndChildFirstPrim+(nPrim as uint)) {
-                    @checkIntersect(tri, &maxdist); // try and intersect the thing, and do whatever. Called function is expected to update maxdist to narrow the search.
+                    maxdist = @checkIntersect(tri, maxdist); // try and intersect the thing, and do whatever. Called function returns new maxdist to narrow the search.
                 }
                 // done with this node, pop one off the stack
                 @popNode()
@@ -113,18 +113,16 @@ fn bvhIntersectGeneric(root: uint, scene : &Scene, ray : Ray, mut maxdist : floa
             @popNode()
         }
     };
+    // FIXME unreachable
+    maxdist
 }
 
-fn bvhIntersectFirst(root: uint, scene : &Scene, isec : &Intersection) -> ()
+fn bvhIntersectFirst(root: uint, scene : &Scene, ray: Ray, maxdist: float, sisec : &ShadingIntersection) -> float
 {
-    let maxdist = isec.dist;
-
-    @bvhIntersectGeneric(root, scene, isec.ray, maxdist,
-        |tri, mut pmaxdist|
+    @bvhIntersectGeneric(root, scene, ray, maxdist,
+        |tri, maxdist|
         {
-            triIntersectFirst(tri, scene, isec); // triIntersectFirst() updates maxdist, re-assign afterwards
-            // update the pointer used by traversal. for some reason, letting traversal directly access the isec dist via pointer or function makes it way slower.
-            *pmaxdist = isec.dist;
+            triIntersectFirst(tri, scene, ray, maxdist, sisec) // returns new maxdist
         }
     )
 }
@@ -135,11 +133,13 @@ fn bvhIntersectAny(root: uint, scene : &Scene, ray : Ray, maxdist : float) -> bo
     let success = return; // jump out once we hit anything
 
     @bvhIntersectGeneric(root, scene, ray, maxdist,
-        |tri, _|
+        |tri, maxdist|
         {
-            if @triIntersectAny(tri, scene, ray, maxdist)
-            {
+            if @triIntersectAny(tri, scene, ray, maxdist) {
                 success(true)
+            }
+            else {
+                maxdist
             }
         }
     );

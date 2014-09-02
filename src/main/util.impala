@@ -37,12 +37,6 @@ fn urange(a : uint, b : uint, yield : fn(uint, fn()))
     }
 }
 
-fn ever(yield: fn() -> () ) -> ()
-{
-    @yield();
-    ever(yield, return)
-}
-
 fn ever1(a : uint, yield: fn(uint) -> uint) -> uint
 {
     let b = @yield(a);

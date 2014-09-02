@@ -63,14 +63,21 @@ fn triMaterialIdx(tri : uint, scene : &Scene) -> uint
     idx
 }
 
+/* Object API: Provide three functions
+ * - IntersectFirst takes a scene, a ray, the max. distance, a pointer to the shading intersection and returns the new max. distance (if an intersection was found),
+ *   or the old one if nothing was found
+ * - IntersectAny takes ascene, a ray, and the max. distance and returns whether there's a hit in that range
+ * - ShadeIntersection currently does nothing useful
+ */
 
 // TODO: Figure out the best way to pass around stuff. Scene as pointer or as copy? Intersection as pointer, or as function from Ray to isect?
-fn sceneIntersectFirst(scene: &Scene, isec : &Intersection) -> ()
+fn sceneIntersectFirst(scene: &Scene, ray : Ray, mut maxdist : float, sisec : &ShadingIntersection) -> float
 {
     for obj in urange(0u, scene.nObjs)
     {
-        @objIntersectFirst(obj, scene, isec)
-    }
+        maxdist = @objIntersectFirst(obj, scene, ray, maxdist, sisec);
+    };
+    maxdist
 }
 
 fn sceneIntersectAny(scene: &Scene, ray : Ray, maxdist : float) -> bool
@@ -85,8 +92,9 @@ fn sceneIntersectAny(scene: &Scene, ray : Ray, maxdist : float) -> bool
     }
     false
 }
-
+/*
 fn sceneShadeIntersection(scene: &Scene, isec: &Intersection, sisec: &ShadingIntersection) -> ()
 {
     @objShadeIntersection(isec.obj, scene, isec, sisec)
 }
+*/
