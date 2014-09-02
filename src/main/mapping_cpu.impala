@@ -47,7 +47,7 @@ fn preparePixelBuffer(mut state : &State, w : uint, h : uint) -> &PixelBuffer
 
     fn alloc() -> &PixelBuffer
     {
-        print_ii(w as int, h as int);
+        print_sii("Image size", w as int, h as int);
         let p = ~PixelBuffer{ w:(w >> 1u), pix:~[sz:PixelInfo], used:~[sz:u8], allocSize:sz };
         state.user1 = p as &u8;
         p

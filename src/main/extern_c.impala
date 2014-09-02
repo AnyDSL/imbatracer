@@ -5,9 +5,10 @@ type size_t = u64; // FIXME: should be size_t (esp. for 32 bit arch!)
 extern "C"
 {
     // Debugging
-    fn print_ii(int, int) -> ();
-    fn print_if(int, float) -> ();
-    fn print_ifff(int, float, float, float) -> ();
+    fn print_si(&[u8], int) -> ();
+    fn print_sii(&[u8], int, int) -> ();
+    fn print_sf(&[u8], float) -> ();
+    fn print_sfff(&[u8], float, float, float) -> ();
     fn assert_failed(&[u8]) -> ();
 
     // scene creation functions
@@ -22,11 +23,11 @@ extern "C"
 }
 
 // some derived forms
-fn print_iv(i : int, v : Vec) -> ()
+fn print_sv(s : &[u8], v : Vec) -> ()
 {
-    print_ifff(i, v.x, v.y, v.z);
+    print_sfff(s, v.x, v.y, v.z);
 }
-fn print_ip(i : int, p : Point) -> ()
+fn print_sp(s : &[u8], p : Point) -> ()
 {
-    print_ifff(i, p.x, p.y, p.z);
+    print_sfff(s, p.x, p.y, p.z);
 }
