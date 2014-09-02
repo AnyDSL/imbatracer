@@ -138,7 +138,7 @@ fn runIntegrator(integr : &Integrator, scene : &Scene, ray : Ray) -> Color
     let mut isec = @intersection(ray, @defaultDist());
     @sceneIntersectFirst(scene, &isec);
 
-    if isec.tri == @noObj() {
+    if isec.dist >= @defaultDist() {
         @color(1.0f, 0.0f, 0.0f)
     }
     else {

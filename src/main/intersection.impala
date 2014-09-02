@@ -20,6 +20,7 @@ struct Intersection
     tri : uint, // the triangle we hit
     b : TexCoord, // barycentric coordinates
     obj : uint, // the object our triangle belongs to (to re-apply the transformation matrix)
+    unitLen : float, // the length of a unit in ray direction, in the transformed coordinate system
 }
 
 struct ShadingIntersection // all the stuff needed for shading that's missing above
@@ -35,7 +36,7 @@ struct ShadingIntersection // all the stuff needed for shading that's missing ab
 fn intersection(ray : Ray, dist: float) -> Intersection
 {
     @Intersection{ dist:dist, ray:ray,
-        tri:@noObj(), b:texCoord0(), obj:@noObj() }
+        tri:@noObj(), b:texCoord0(), obj:@noObj(), unitLen:0.0f }
 }
 
 fn improveIntersection(mut isec : &Intersection, dist : float) -> ()
