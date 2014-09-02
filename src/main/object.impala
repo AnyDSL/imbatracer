@@ -22,14 +22,9 @@ fn objIntersectFirst(objidx : uint, scene : &Scene, mut isec : &Intersection) ->
     let newDist = tmpIsec.dist*invUnitLen; // this is in world units
     if (newDist >= isec.dist) { return () } // after scaling back, we're no better than the alreaady best hit
 
-    // and translate it back
-    let transformNormal = |v:Vec|->Vec{
-        let vT = @mmul_transposed3x3(scene.objs(objidx).w2o, v);
-        @normalize(if scene.objs(objidx).swapsHandedness { @vflip(v) } else { v })
-    };
-    let surfaceNormal = @transformNormal(tmpIsec.surfaceNormal);
-    let epsilonFactor = @max(unitLen, invUnitLen);
-    @improveIntersection(isec, newDist, tmpIsec.tri, surfaceNormal, tmpIsec.b, tmpIsec.eps*epsilonFactor);
+    @improveIntersection(isec, newDist);
+    isec.b = tmpIsec.b;
+    isec.tri = tmpIsec.tri;
     isec.obj = objidx;
 }
 
@@ -46,4 +41,13 @@ fn objIntersectAny(objidx : uint, scene : &Scene, theRay : Ray, maxdist : float)
 fn objShadeIntersection(objidx: uint, scene: &Scene, isec: &Intersection) -> ShadingIntersection
 {
     triShadeIntersection(isec.tri, scene, isec) // FIXME transform
+
+/*
+// and translate it back
+let transformNormal = |v:Vec|->Vec{
+    let vT = @mmul_transposed3x3(scene.objs(objidx).w2o, v);
+    @normalize(if scene.objs(objidx).swapsHandedness { @vflip(v) } else { v })
+};
+let surfaceNormal = @transformNormal(tmpIsec.surfaceNormal);
+let epsilonFactor = @max(unitLen, invUnitLen);*/
 }

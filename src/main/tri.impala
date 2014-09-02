@@ -49,7 +49,7 @@ fn triIntersectDistance_slow(tri : uint, scene : &Scene, ray : Ray, maxDistance 
     }
 }
 
-fn triIntersectDistance_fast(tri : uint, scene : &Scene, ray : Ray, maxDistance : float, distOnly : bool) -> (float, Vec, TexCoord, float) // t, normal, barycentric coords, epsilon
+fn triIntersectDistance_fast(tri : uint, scene : &Scene, ray : Ray, maxDistance : float) -> (float, TexCoord) // t, barycentric coords
 {
     /* Directly compute barycentric coordinates and t, and cancel early if we notice the ray is not going to hit
      * Surface parameterization: with barycentric coordinates b1, b2, it is p(b1, b2) = (1-b1-b2)*a + b1*b + b2*c
@@ -76,45 +76,49 @@ fn triIntersectDistance_fast(tri : uint, scene : &Scene, ray : Ray, maxDistance 
     let s = to(a, ray.o);
     let b1 = dot(s, f1) * invDetA;
     if b1 < 0.0f || b1 > 1.0f {
-        return (-1.0f, @vec0(), @texCoord0(), -1.0f)
+        return (-1.0f, @texCoord0())
     }
     // compute b2
     let f2 = cross(s, e1);
     let b2 = dot(ray.d, f2) * invDetA;
     if b2 < 0.0f || b1+b2 > 1.0f {
-        return (-1.0f, @vec0(), @texCoord0(), -1.0f)
+        return (-1.0f, @texCoord0())
     }
     // compute t
     let t = dot(e2, f2) * invDetA;
     if t >= maxDistance {
-        return (-1.0f, @vec0(), @texCoord0(), -1.0f)
-    }
-    else if distOnly {
-        return (t, @vec0(), @texCoord0(), -1.0f)
+        return (-1.0f, @texCoord0())
     }
     else {
-        return (t, @normalize(cross(e1, e2)), @texCoord(b1, b2), @sqrtf((vlensq(e1)+vlensq(e2))*defaultRayEps()))
+        return (t, @texCoord(b1, b2))
     }
 }
 
 fn triIntersectAny(tri : uint, scene : &Scene, ray : Ray, maxDistance : float) -> bool
 {
-    @triIntersectDistance_fast(tri, scene, ray, maxDistance, true)(0) >= 0.0f
+    @triIntersectDistance_fast(tri, scene, ray, maxDistance)(0) >= 0.0f
 }
 
-fn triIntersectFirst(tri : uint, scene : &Scene, isec : &Intersection) -> ()
+fn triIntersectFirst(tri : uint, scene : &Scene, mut isec : &Intersection) -> ()
 {
-    let res = @triIntersectDistance_fast(tri, scene, isec.ray, isec.dist, false);
+    let res = @triIntersectDistance_fast(tri, scene, isec.ray, isec.dist);
     let t = res(0); // TODO: would be nice to have syntax for tuple unpacking
     if t >= 0.0f
     {
-        @improveIntersection(isec, t, tri, res(1), res(2), res(3));
+        @improveIntersection(isec, t);
+        isec.tri = tri;
+        isec.b = res(1);
     }
 }
 
 fn triShadeIntersection(tri: uint, scene: &Scene, isec: &Intersection) -> ShadingIntersection
 {
+    let a = @triPoint(tri, 0u, scene);
+    let e1 = to(a, @triPoint(tri, 1u, scene));
+    let e2 = to(a, @triPoint(tri, 2u, scene));
     let bar = @point(1f-isec.b.u-isec.b.v, isec.b.u, isec.b.v);
+    let eps = @sqrtf((vlensq(e1)+vlensq(e2))*defaultRayEps());
+    let surfaceNormal = @normalize(cross(e1, e2));
     let shadingNormal =
         if @triHasNormals(tri, scene) {
             let n1 = @triVertNormal(tri, 0u, scene);
@@ -123,11 +127,11 @@ fn triShadeIntersection(tri: uint, scene: &Scene, isec: &Intersection) -> Shadin
             @normalize(@vlerpbarp(n1, n2, n3, bar))
         }
         else {
-            isec.surfaceNormal // surfce normal, already normalized
+            surfaceNormal // surfce normal, already normalized
         };
     let uv = @triTexPoint(bar, tri, scene);
     let local = @triLocalHitPoint(bar, tri, scene);
-    ShadingIntersection{ shadingNormal:shadingNormal, uv:uv, local:local }
+    ShadingIntersection{ materialIdx:@triMaterialIdx(tri, scene), surfaceNormal:surfaceNormal, shadingNormal:shadingNormal, uv:uv, local:local, eps:eps }
 }
 
 fn triBBox(tri : uint, scene : &Scene) -> BBox
