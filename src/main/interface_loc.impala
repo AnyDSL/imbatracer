@@ -19,12 +19,14 @@ extern fn impala_init(mut state : &State) -> ()
 
     let turbnoise = Noise{ ty:2, octaves:3u, amplitude:0.8f, freq:0.6f, persistence:0.8f };
     let mut turbtex = noiseTexture(color(0.0f, 0.3f, 0.6f), color(0.8f, 1.0f, 0.7f), turbnoise);
+    let mut phongtex = constantTexture(color(1.0f, 0.1f, 0.2f));
 
     let turbtexID = scene_add_texture(state, &turbtex);
     let cxtexID = scene_add_texture(state, &cxtex);
+    let phtexID = scene_add_texture(state, &phongtex);
 
     let cxmat = Material{ diffuse:cxtexID, specular:0u, emissive:0u, specExp:-1.0f };
-    let turbmat = Material{ diffuse:turbtexID, specular:0u, emissive:0u, specExp:-1.0f};
+    let turbmat = Material{ diffuse:turbtexID, specular:phtexID, emissive:0u, specExp:1.6f};
 
     let mut mats = [
         turbmat,
