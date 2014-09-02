@@ -30,23 +30,20 @@ fn debugRadianceNormalSign(dist:float, sisec: &ShadingIntersection) -> Color
            @scaleLin(n.z, -1.0f, 1.0f, 0.0f, 1.0f))
 }
 
-fn integrateLightSources(scene : &Scene, hitP : Point, outDir : Vec, surfaceN : Vec, shadingN : Vec, uv : TexCoord, local : Point,
+fn integrateLightSources(mut scene : &Scene, hitP : Point, outDir : Vec, surfaceN : Vec, shadingN : Vec, uv : TexCoord, local : Point,
                          mat : &Material, rayEps : float) -> Color
 {
     let mut c = @color0();
 
     for i in @urange(0u, scene.nLights)
     {
-        let lF = @buildLight(scene.lights(i));
-        let hitF:LightHitFn = lF(0);
-
-        let lhit = hitF(hitP);
+        let light = &scene.lights(i);
+        let lhit = evalLightHit(light, hitP);
         @assert(||almost(vlensq(lhit.dir), 1.0f), "Light source hit direction must be normalised");
 
         if @dot(lhit.dir, surfaceN) >= 0.0f // light comes towards us, on same side of surface?
         {
-            let intensityF:LightIntensityFn = lF(1);
-            let irrIntensity = @intensityF(lhit);
+            let irrIntensity = @evalLightIntensity(light, lhit);
             let reflected = @evalMaterialReflectance(uv, local, shadingN, outDir, lhit.dir, mat, scene);
             let contrib = @ccapply2(irrIntensity, reflected, mul);
             //print_sc("Total contrib", contrib);

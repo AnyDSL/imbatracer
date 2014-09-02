@@ -16,9 +16,6 @@ struct LightHit
 	dist : float, //the distance that has to be checked, along the direction, for occlusion
 }
 
-type LightHitFn = fn(Point) -> LightHit;
-type LightIntensityFn = fn(LightHit) -> Color;
-
 fn pointLight(pos : Point, intensity : Color) -> Light
 {
     Light{ty:0, pos:pos, intensity:intensity,
@@ -26,28 +23,15 @@ fn pointLight(pos : Point, intensity : Color) -> Light
     }
 }
 
-fn buildPointLight(li : Light) -> (LightHitFn, LightIntensityFn)
+fn evalLightHit(li: &Light, p:Point) -> LightHit
 {
-    let hitF = |p:Point| -> LightHit
-    {
-        let dir = @to(p, li.pos);
-        let len = @vlen(dir);
-        LightHit{dir:vfmul(dir, 1.0f/len), dist:len}
-    };
-
-    let intensityF = |irr:LightHit| -> Color
-    {
-        @cmul(li.intensity, 1.0f / sqr(irr.dist))
-    };
-
-    (hitF, intensityF)
+    let dir = @to(p, li.pos);
+    let len = @vlen(dir);
+    LightHit{dir:vfmul(dir, 1.0f/len), dist:len}
 }
 
-
-
-fn buildLight(li : Light) -> (LightHitFn, LightIntensityFn)
+fn evalLightIntensity(li: &Light, irr: LightHit) -> Color
 {
-    // TODO: other light types
-    buildPointLight(li)
+    @cmul(li.intensity, 1.0f / sqr(irr.dist))
 }
 
