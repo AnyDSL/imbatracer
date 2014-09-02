@@ -37,8 +37,6 @@ type EmissionFn = fn(TexCoord, Point, Vec, Vec) -> Color;
 
 fn evalMaterialReflectance(texPoint:TexCoord, local:Point, normal:Vec, outDir:Vec, inDir:Vec, mat : &Material, mut scene : &Scene) -> Color
 {
-    //print_ii(0, mat.diffuse as int);
-
     let diffuse = evalTexture(texPoint, local, &scene.textures(mat.diffuse));
 
     let lambertian = @cdiv(diffuse, @pi());

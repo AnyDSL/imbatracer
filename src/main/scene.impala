@@ -57,37 +57,36 @@ fn triTexCoord(tri : uint, n : uint, scene : &Scene) -> TexCoord
     scene.texcoords(idx)
 }
 
-fn triHasMaterial(tri : uint, scene : &Scene) -> bool
-{
-    true // scene builder ensures there is always at least one material
-    //scene.triData(7u*tri+6u) != noIdx()
-}
-
-fn triMaterial(tri : uint, scene : &Scene) -> Material
+fn triMaterialIdx(tri : uint, scene : &Scene) -> uint
 {
     let idx = scene.triData(7u*tri + 6u);
-    scene.materials(idx)
+    idx
 }
 
 
 // TODO: Figure out the best way to pass around stuff. Scene as pointer or as copy? Intersection as pointer, or as function from Ray to isect?
-fn sceneIntersectFirst(scene: &Scene, scratch : &RTScratch) -> ()
+fn sceneIntersectFirst(scene: &Scene, isec : &Intersection) -> ()
 {
     for obj in urange(0u, scene.nObjs)
     {
-        @objIntersectFirst(obj, scene, scratch)
+        @objIntersectFirst(obj, scene, isec)
     }
 }
 
-fn sceneIntersectAny(scene: &Scene, scratch : &RTScratch, ray : Ray, maxdist : float) -> bool
+fn sceneIntersectAny(scene: &Scene, ray : Ray, maxdist : float) -> bool
 {
     let done = return;
     for obj in urange(0u, scene.nObjs)
     {
-        if @objIntersectAny(obj, scene, scratch, ray, maxdist)
+        if @objIntersectAny(obj, scene, ray, maxdist)
         {
             done(true)
         }
     }
     false
+}
+
+fn sceneShadeIntersection(scene: &Scene, isec: &Intersection, sisec: &ShadingIntersection) -> ()
+{
+    @objShadeIntersection(isec.obj, scene, isec, sisec)
 }

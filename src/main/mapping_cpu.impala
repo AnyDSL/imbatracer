@@ -48,7 +48,7 @@ fn preparePixelBuffer(level : uint, mut state : &State, w : uint, h : uint) -> &
 
     fn alloc() -> &PixelBuffer
     {
-        print_ii(w as int, h as int);
+        print_sii("Image size", w as int, h as int);
         let p = ~PixelBuffer{ w:(w >> 1u), pix:~[sz:PixelInfo], used:~[sz:u8], allocSize:sz };
         state.user1 = p as &u8;
         p
@@ -75,12 +75,10 @@ fn renderSubsampled(level : uint, width : uint, height : uint, state : &State, s
 {
     let mut rtstate = RTState{ cam: state.cam, integrator: state.integrator, scene: state.scene };
 
-    if level <= 1u
-    {
-        let mut scratch = @emptyScratch(); // scratch space for the current intersection (TODO is this better than passing it around?)
+    if level <= 1u {
         for y in $urange(0u, height) {
             for x in $urange(0u, width) { // TODO: this used to be $inner_loop(), but wfv2 is too slow to be practical, for now
-                @setcolor(x as int, y as int, $getcolor(x as int, y as int, &rtstate, &scratch));
+                @setcolor(x as int, y as int, $getcolor(x as int, y as int, &rtstate));
             }
         }
         return()
@@ -91,8 +89,7 @@ fn renderSubsampled(level : uint, width : uint, height : uint, state : &State, s
 
     fn renderPixel(x:uint, y:uint) -> Color
     {
-        let mut scratch = @emptyScratch();
-        let c = $getcolor(x as int, y as int, &rtstate, &scratch);
+        let c = $getcolor(x as int, y as int, &rtstate);
         @setcolor(x as int, y as int, c);
         c
     }

@@ -32,3 +32,13 @@ fn rayP(r : Ray, dist : float) -> Point
 }
 
 
+
+fn normalTowardsOrigin(normal: Vec, ray: Ray) -> Vec
+{
+    if @dot(normal, ray.d) >= 0.0f {
+        @vflip(normal)
+    }
+    else {
+        normal
+    }
+}

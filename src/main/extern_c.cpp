@@ -9,17 +9,21 @@
 extern "C"
 {
     // Debugging
-    void print_ii(int i, int x)
+    void print_si(const char *s, int x)
     {
-      std::cout << "Impala print [" << i << "] " << x << std::endl;
+      std::cout << "Impala print: " << s << " " << x << std::endl;
     }
-    void print_if(int i, float x)
+    void print_sii(const char *s, int x, int y)
     {
-      std::cout << "Impala print [" << i << "] " << x << std::endl;
+      std::cout << "Impala print: " << s << " " << x << ", " << y << std::endl;
     }
-    void print_ifff(int i, float x, float y, float z)
+    void print_sf(const char *s, float x)
     {
-      std::cout << "Impala print [" << i << "] " << x << ", " << y << ", " << z << std::endl;
+      std::cout << "Impala print: " << s << " " << x << std::endl;
+    }
+    void print_sfff(const char *s, float x, float y, float z)
+    {
+      std::cout << "Impala print: " << s << " " << x << ", " << y << ", " << z << std::endl;
     }
 
     void assert_failed(const char *str)

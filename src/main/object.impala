@@ -7,40 +7,48 @@ struct Object
 	swapsHandedness : bool, // is the determinant of the above matrices negative?
 }
 
-fn objIntersectFirst(objidx : uint, scene : &Scene, mut scratch : &RTScratch) -> ()
+fn objIntersectFirst(objidx : uint, scene : &Scene, mut isec : &Intersection) -> ()
 {
     // translate world to object
-    let io = @mpmul(scene.objs(objidx).w2o, scratch.isec.ray.o);
-    let idir = @mvmul(scene.objs(objidx).w2o, scratch.isec.ray.d);
+    let io = @mpmul(scene.objs(objidx).w2o, isec.ray.o);
+    let idir = @mvmul(scene.objs(objidx).w2o, isec.ray.d);
     let unitLen = @vlen(idir);
     let invUnitLen = 1.0f / unitLen;
 
     // perform intersection with new scratch space [HACK!]
-    let mut tmpScratch = RTScratch { isec:@emptyIntersection() };
-    @beginIntersection(@ray(io, @vfmul(idir, invUnitLen)), &tmpScratch.isec);
-    tmpScratch.isec.dist = scratch.isec.dist*unitLen;
-    @bvhIntersectFirst(scene.objs(objidx).bvhRoot, scene, &tmpScratch);
-    if (tmpScratch.isec.obj == @noObj()) { return() }
-    let newDist = tmpScratch.isec.dist*invUnitLen; // this is in world units
-    if (newDist >= scratch.isec.dist) { return () } // after scaling back, we're no better than the alreaady best hit
+    let mut tmpIsec = @intersection(@ray(io, @vfmul(idir, invUnitLen)), isec.dist*unitLen);
+    @bvhIntersectFirst(scene.objs(objidx).bvhRoot, scene, &tmpIsec);
+    if (tmpIsec.tri == @noObj()) { return() }
+    let newDist = tmpIsec.dist*invUnitLen; // this is in world units
+    if (newDist >= isec.dist) { return () } // after scaling back, we're no better than the alreaady best hit
+
+    @improveIntersection(isec, newDist);
+    isec.b = tmpIsec.b;
+    isec.tri = tmpIsec.tri;
+    isec.obj = objidx;
+    isec.unitLen = unitLen;
+}
+
+fn objIntersectAny(objidx : uint, scene : &Scene, theRay : Ray, maxdist : float) -> bool
+{
+    // translate world to object
+    let io = @mpmul(scene.objs(objidx).w2o, theRay.o);
+    let idir = @mvmul(scene.objs(objidx).w2o, theRay.d);
+    let unitLen = @vlen(idir);
+    let subRay = @ray(io, @vfdiv(idir, unitLen));
+    bvhIntersectAny(scene.objs(objidx).bvhRoot, scene, subRay, maxdist)
+}
+
+fn objShadeIntersection(objidx: uint, scene: &Scene, isec: &Intersection, mut sisec: &ShadingIntersection) -> ()
+{
+    @triShadeIntersection(isec.tri, scene, isec, sisec);
 
     // and translate it back
     let transformNormal = |v:Vec|->Vec{
         let vT = @mmul_transposed3x3(scene.objs(objidx).w2o, v);
         @normalize(if scene.objs(objidx).swapsHandedness { @vflip(v) } else { v })
     };
-    let surfaceNormal = @transformNormal(tmpScratch.isec.surfaceNormal);
-    let shadingNormal = @transformNormal(tmpScratch.isec.shadingNormal);
-    let epsilonFactor = @max(unitLen, invUnitLen);
-    @improveIntersection(&scratch.isec, newDist, tmpScratch.isec.obj, surfaceNormal, shadingNormal, tmpScratch.isec.uv, tmpScratch.isec.local, tmpScratch.isec.eps*epsilonFactor)
-}
-
-fn objIntersectAny(objidx : uint, scene : &Scene, scratch : &RTScratch, theRay : Ray, maxdist : float) -> bool
-{
-    // translate world to object
-    let io = @mpmul(scene.objs(objidx).w2o, theRay.o);
-    let idir = @mvmul(scene.objs(objidx).w2o, theRay.d);
-    let unitLen = @vlen(idir);
-    let subRay = ray(io, vfdiv(idir, unitLen));
-    bvhIntersectAny(scene.objs(objidx).bvhRoot, scene, scratch, subRay, maxdist)
+    sisec.surfaceNormal = @transformNormal(sisec.surfaceNormal);
+    sisec.shadingNormal = @transformNormal(sisec.shadingNormal);
+    sisec.eps = sisec.eps*@max(isec.unitLen, 1.0f/isec.unitLen);
 }

@@ -4,46 +4,50 @@ fn defaultRayEps() -> float
     2.0f*epsilon()
 }
 
+fn defaultDist() -> float
+{
+    1e10f // max. drawing distance
+}
+
 fn noObj() -> uint
 { 0xFFFFFFFFu }
 
 struct Intersection
 {
     dist : float,
-    obj : uint,
     ray : Ray,
+    // cache some data during initial intersection to be used when computing the shading intersection
+    tri : uint, // the triangle we hit
+    b : TexCoord, // barycentric coordinates
+    obj : uint, // the object our triangle belongs to (to re-apply the transformation matrix)
+    unitLen : float, // the length of a unit in ray direction, in the transformed coordinate system
+}
+
+struct ShadingIntersection // all the stuff needed for shading an intersection
+{
+    materialIdx : uint,
     surfaceNormal : Vec,
     shadingNormal : Vec,
     uv : TexCoord,
     local : Point,
-    eps : float
+    eps: float,
 }
 
-fn emptyIntersection() -> Intersection
+fn intersection(ray : Ray, dist: float) -> Intersection
 {
-    @Intersection{ dist:-1.0f, obj:noObj(),
-        ray:ray0(), surfaceNormal:vec0(), shadingNormal:vec0(), uv:texCoord0(), local:point0(), eps:0.0f }
+    @Intersection{ dist:dist, ray:ray,
+        tri:@noObj(), b:texCoord0(), obj:@noObj(), unitLen:0.0f }
 }
 
-fn beginIntersection(ray : Ray, mut isec: &Intersection) -> ()
+fn shadingIntersection() -> ShadingIntersection
 {
-    isec.dist = 1e10f; // max. drawing distance
-    isec.obj = @noObj();
-    isec.ray = ray;
+    @ShadingIntersection{ materialIdx:0u, surfaceNormal:@vec0(), shadingNormal:@vec0(), uv:@texCoord0(), local:@point0(), eps:@defaultRayEps() }
 }
 
-fn improveIntersection(mut isec : &Intersection, dist : float, obj : uint, surfaceNormal : Vec, shadingNormal : Vec, uv : TexCoord, local : Point, eps : float) -> ()
+fn improveIntersection(mut isec : &Intersection, dist : float) -> ()
 {
-    @assert(||dist < isec.dist && obj != @noObj(), "Improved intersection must have object at smaller distance");
-    @assert(||almost(vlen(surfaceNormal), 1.0f), "Improved intersection surface normal must be normalised");
-    @assert(||almost(vlen(shadingNormal), 1.0f), "Improved intersection shading normal must be normalised");
+    @assert(||dist < isec.dist, "Improved intersection must have smaller distance");
     isec.dist = dist;
-    isec.obj = obj;
-    isec.surfaceNormal = surfaceNormal;
-    isec.shadingNormal = shadingNormal;
-    isec.uv = uv;
-    isec.local = local;
-    isec.eps = eps;
 }
 
 fn intersectionWorldHitPoint(isec : &Intersection) -> Point
@@ -51,14 +55,5 @@ fn intersectionWorldHitPoint(isec : &Intersection) -> Point
     @rayP(isec.ray,  isec.dist)
 }
 
-fn intersectionSurfaceNormalTowardsOrigin(isec : &Intersection) -> Vec
-{
-    if @dot(isec.surfaceNormal, isec.ray.d) >= 0.0f {
-        @vflip(isec.surfaceNormal)
-    }
-    else {
-        isec.surfaceNormal
-    }
-}
 
 
