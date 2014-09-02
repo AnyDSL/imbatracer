@@ -53,7 +53,7 @@ fn triIntersectGeneric(tri : uint, scene : &Scene, ray : Ray, maxDistance : floa
 {
     /* Directly compute barycentric coordinates and t, and cancel early if we notice the ray is not going to hit
      * Surface parameterization: with barycentric coordinates b1, b2, it is p(b1, b2) = (1-b1-b2)*a + b1*b + b2*c
-     * Let e1 = a.to(b), a2 = a.to(c). Then p(b1, b2) * a + b1*e1 + b2*e2
+     * Let e1 = a.to(b), a2 = a.to(c). Then p(b1, b2) = a + b1*e1 + b2*e2
      * We want p(b1, b2) = o + t*d, which after sorting coefficients yields
      *      -t*d + b1*e1 + b2*e2 = o-a = a.to(o)
      * This is a linear system with the matrix A = [ -d e1 e2 ] and s = a.to(o). By Cramer's rule, the solution is
@@ -86,7 +86,7 @@ fn triIntersectGeneric(tri : uint, scene : &Scene, ray : Ray, maxDistance : floa
     }
     // compute t
     let t = dot(e2, f2) * invDetA;
-    if t >= maxDistance {
+    if t < 0.0f || t >= maxDistance {
         return (maxDistance)
     }
     else if sisec == (0u as &ShadingIntersection) {
@@ -96,7 +96,7 @@ fn triIntersectGeneric(tri : uint, scene : &Scene, ray : Ray, maxDistance : floa
         // do the Shading
         let surfaceNormal = @normalize(cross(e1, e2));
         let bar = @point(1f-b1-b2, b1, b2);
-        sisec.eps = @sqrtf((@vlensq(e1)+@vlensq(e2))*defaultRayEps());
+        sisec.eps = @sqrtf((@vlensq(e1)+@vlensq(e2)))*defaultRayEps();
         sisec.surfaceNormal = surfaceNormal;
         sisec.shadingNormal =
             if @triHasNormals(tri, scene) {
@@ -109,7 +109,7 @@ fn triIntersectGeneric(tri : uint, scene : &Scene, ray : Ray, maxDistance : floa
                 surfaceNormal // surfce normal, already normalized
             };
         sisec.uv = @triTexPoint(bar, tri, scene);
-        sisec.local = @triLocalHitPoint(bar, tri, scene);
+        sisec.local = @triLocalHitPoint(bar, tri, scene); // TODO directly use b1, b2, e1, e2, a
         sisec.materialIdx = @triMaterialIdx(tri, scene);
         return (t)
     }

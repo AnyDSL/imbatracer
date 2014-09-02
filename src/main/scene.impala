@@ -82,12 +82,11 @@ fn sceneIntersectFirst(scene: &Scene, ray : Ray, mut maxdist : float, sisec : &S
 
 fn sceneIntersectAny(scene: &Scene, ray : Ray, maxdist : float) -> bool
 {
-    let done = return;
     for obj in urange(0u, scene.nObjs)
     {
         if @objIntersectAny(obj, scene, ray, maxdist)
         {
-            done(true)
+            return(true)
         }
     }
     false

@@ -5,6 +5,7 @@ type size_t = u64; // FIXME: should be size_t (esp. for 32 bit arch!)
 extern "C"
 {
     // Debugging
+    fn print_s(&[u8]) -> ();
     fn print_si(&[u8], int) -> ();
     fn print_sii(&[u8], int, int) -> ();
     fn print_sf(&[u8], float) -> ();
@@ -30,4 +31,8 @@ fn print_sv(s : &[u8], v : Vec) -> ()
 fn print_sp(s : &[u8], p : Point) -> ()
 {
     print_sfff(s, p.x, p.y, p.z);
+}
+fn print_sc(s : &[u8], c : Color) -> ()
+{
+    print_sfff(s, c.r, c.g, c.b);
 }

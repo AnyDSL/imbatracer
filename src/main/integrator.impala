@@ -30,15 +30,6 @@ fn debugRadianceNormalSign(dist:float, sisec: &ShadingIntersection) -> Color
            @scaleLin(n.z, -1.0f, 1.0f, 0.0f, 1.0f))
 }
 
-fn debugRadianceDepth(dist:float, sisec: &ShadingIntersection) -> Color
-{
-    let mindist = 5.0f;
-    let maxdist = 100.0f;
-    let d = clamp(mindist, dist, maxdist);
-    let v = @scaleLin(d, mindist, maxdist, 1.0f, 0.0f);
-    @color1(v)
-}
-
 
 fn integrateLightSources(scene : &Scene, hitP : Point, outDir : Vec, surfaceN : Vec, shadingN : Vec, uv : TexCoord, local : Point,
                          matReflectance : ReflectanceFn, rayEps : float) -> Color
@@ -59,6 +50,7 @@ fn integrateLightSources(scene : &Scene, hitP : Point, outDir : Vec, surfaceN : 
             let irrIntensity = @intensityF(lhit);
             let reflected = @matReflectance(uv, local, shadingN, outDir, lhit.dir);
             let contrib = @ccapply2(irrIntensity, reflected, mul);
+            //print_sc("Total contrib", contrib);
 
             @assert(||{!cAny(contrib, isneg)}, "Lights cannot have negative contribution");
 
@@ -120,7 +112,7 @@ fn debuggerRadiance(mode: int, minDist: float, maxDist: float, dist:float, sisec
     @makeDistanceScaled(minDist, maxDist, dist, sisec,
             if      mode == 0 { debugRadianceNormalDir }
             else if mode == 1 { debugRadianceNormalSign }
-            else              { debugRadianceDepth }
+            else              { |_, __, ___|color1(1.0f) } // FIXME this is broken
         )
 }
 
@@ -136,7 +128,7 @@ fn getRadianceForHit(integr : &Integrator, ray: Ray, dist:float, sisec: &Shading
 fn runIntegrator(integr : &Integrator, scene : &Scene, ray : Ray) -> Color
 {
     //let mut isec = @intersection(ray, @defaultDist());
-    let mut sisec = @shadingIntersection();
+    let mut sisec:ShadingIntersection;
     let dist = @sceneIntersectFirst(scene, ray, @defaultDist(), &sisec);
 
     if dist >= @defaultDist() {

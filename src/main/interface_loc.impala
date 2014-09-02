@@ -11,7 +11,7 @@ extern fn impala_init(mut state : &State) -> ()
     state.integrator.itype = 1; //4:debug, 1:raytrace, 0:cosine
     state.integrator.mode = 1;
     state.integrator.minDist = 0.0f;
-    state.integrator.maxDist = 0.0f;
+    state.integrator.maxDist = 1.0f;
 
     //scene_add_cube(state, 40.0f);
     scene_add_file(state, 2, 0);

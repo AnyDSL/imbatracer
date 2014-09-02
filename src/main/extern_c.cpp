@@ -9,6 +9,10 @@
 extern "C"
 {
     // Debugging
+    void print_s(const char *s)
+    {
+      std::cout << "Impala print: " << s << std::endl;
+    }
     void print_si(const char *s, int x)
     {
       std::cout << "Impala print: " << s << " " << x << std::endl;

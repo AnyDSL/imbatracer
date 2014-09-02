@@ -53,9 +53,3 @@ struct ShadingIntersection // all the stuff needed for shading an intersection
     local : Point,
     eps: float,
 }
-
-fn shadingIntersection() -> ShadingIntersection
-{
-    @ShadingIntersection{ materialIdx:0u, surfaceNormal:@vec0(), shadingNormal:@vec0(), uv:@texCoord0(), local:@point0(), eps:@defaultRayEps() }
-}
-
