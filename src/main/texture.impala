@@ -39,48 +39,30 @@ fn noiseTexture(a : Color, b : Color, noise : Noise) -> Texture
 
 // -----------------------------------------------
 
-fn buildConstantTexture(c : Color) -> TextureFn
+
+fn evalCheckerboardTexture2D(uv:TexCoord, p:Point, a : Color, b : Color) -> Color
 {
-    |uv:TexCoord, p:Point| { c }
+    if (absfractional(uv.u) >= 0.5f) != (absfractional(uv.v) >= 0.5f) { a } else { b }
+}
+
+fn evalCheckerboardTexture3D(uv:TexCoord, p:Point, a : Color, b : Color) -> Color
+{
+    let i = bool2uint(absfractional(p.x) >= 0.5f)
+          ^ bool2uint(absfractional(p.y) >= 0.5f)
+          ^ bool2uint(absfractional(p.z) >= 0.5f);
+    if i == 0u { a } else { b }
+}
+
+fn evalNoiseTexture3D(p : Point, a : Color, b : Color, noise : &Noise) -> Color
+{
+    clerp(a, b, evalNoise(p, noise))
 }
 
 
-fn buildCheckerboardTexture2D(a : Color, b : Color) -> TextureFn
+fn evalTexture(uv:TexCoord, p:Point, mut tex : &Texture) -> Color
 {
-    //let cols = [a, b];
-    |uv:TexCoord, p:Point|
-    {
-        if (absfractional(uv.u) >= 0.5f) != (absfractional(uv.v) >= 0.5f) { a } else { b }
-    }
-}
-
-fn buildCheckerboardTexture3D(a : Color, b : Color) -> TextureFn
-{
-    //let cols = [a, b];
-    |uv:TexCoord, p:Point|
-    {
-        let i = bool2uint(absfractional(p.x) >= 0.5f)
-              ^ bool2uint(absfractional(p.y) >= 0.5f)
-              ^ bool2uint(absfractional(p.z) >= 0.5f);
-        //cols(i); // FIXME: what is faster?
-        if i == 0u { a } else { b }
-    }
-}
-
-fn buildNoiseTexture3D(a : Color, b : Color, noise : Noise) -> TextureFn
-{
-    let noiseFn = $buildNoiseFn(noise);
-    |uv:TexCoord, p:Point|
-    {
-        clerp(a, b, $noiseFn(p))
-    }
-}
-
-
-fn buildTextureFn(tex : Texture) -> TextureFn
-{
-    //     if(tex.ty == 0) { buildCheckerboardTexture2D(tex.color1, tex.color2) }
-    //else if(tex.ty == 1) { buildCheckerboardTexture3D(tex.color1, tex.color2) }
-    //else if(tex.ty == 2) { $buildNoiseTexture3D(tex.color1, tex.color2, tex.noise) } // FIXME: this makes compiling SLOOOOOW
-    /*else                 */{ buildConstantTexture(tex.color1) }
+         if(tex.ty == 0) { evalCheckerboardTexture2D(uv, p, tex.color1, tex.color2) }
+    else if(tex.ty == 1) { evalCheckerboardTexture3D(uv, p, tex.color1, tex.color2) }
+    else if(tex.ty == 2) { evalNoiseTexture3D(p, tex.color1, tex.color2, &tex.noise) } // FIXME: this makes compiling SLOOOOOW
+    else                 { tex.color1 }
 }

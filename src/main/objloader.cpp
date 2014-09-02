@@ -281,11 +281,21 @@ namespace {
     }
 
     void matCreate(MatLib* dest, MaterialInfo& matinfo, impala::Material *mats, size_t nmats, size_t *nmatsOverridden) {
-        if(mats && *nmatsOverridden < nmats) {
-            matinfo.mat = mats[*nmatsOverridden];
-            *nmatsOverridden += 1;
-        }
-		if (matinfo.name.length() && dest->find(matinfo.name) == dest->end()) { // do not overwrite stuff
+
+		if (matinfo.name.length() && dest->find(matinfo.name) == dest->end()) // do not overwrite stuff
+        {
+            if(mats && *nmatsOverridden < nmats)
+            {
+                matinfo.mat = mats[*nmatsOverridden];
+                std::cerr << "override mat idx " << *nmatsOverridden << " of " << nmats << " override mats total."
+                          << " diffuse=" << matinfo.mat.diffuse
+                          << " specular=" << matinfo.mat.specular
+                          << " emissive=" << matinfo.mat.emissive
+                          << " specExp=" << matinfo.mat.specExp
+                          << std::endl;
+                *nmatsOverridden += 1;
+
+            }
             std::cerr << "creating material " << matinfo.name << "\n";
             dest->insert(make_pair(matinfo.name, matinfo.mat));
         }
@@ -512,9 +522,28 @@ FileObject::FileObject(const std::string &path, const std::string &filename, Sce
         }
     }
     fileline.close();
-    delete matlib;
 
-    std::cout << "ObjLoader: Loaded " << verts.size() << " verts, " << normals.size() << " normals, " << texCoords.size() << " texcoords" << std::endl;
+
+    std::cout << "ObjLoader: Loaded "
+        << verts.size() << " verts, "
+        << normals.size() << " normals, "
+        << texCoords.size() << " texcoords "
+        << matlib->size() << " materials. "
+        << std::endl;
+
+    for(MatLib::iterator it = matlib->begin(); it != matlib->end(); ++it)
+    {
+        const impala::Material& mat = it->second;
+        std::cerr << "Mat[" << it->first << " @ " << materialName2Idx[it->first] << "]:"
+                  << " diffuse=" << mat.diffuse
+                  << " specular=" << mat.specular
+                  << " emissive=" << mat.emissive
+                  << " specExp=" <<  mat.specExp
+                  << std::endl;
+
+    }
+
+    delete matlib;
 }
 
 /*

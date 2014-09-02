@@ -14,7 +14,24 @@ extern fn impala_init(mut state : &State) -> ()
     state.integrator.maxDist = 0.0f;
 
     //scene_add_cube(state, 40.0f);
-    scene_add_file(state, 2, 0);
+
+    let mut cxtex = checkerboardTexture2D(color0(), color1(1.0f));
+
+    let turbnoise = Noise{ ty:2, octaves:3u, amplitude:0.8f, freq:0.6f, persistence:0.8f };
+    let mut turbtex = noiseTexture(color(0.0f, 0.3f, 0.6f), color(0.8f, 1.0f, 0.7f), turbnoise);
+
+    let turbtexID = scene_add_texture(state, &turbtex);
+    let cxtexID = scene_add_texture(state, &cxtex);
+
+    let cxmat = Material{ diffuse:cxtexID, specular:0u, emissive:0u, specExp:-1.0f };
+    let turbmat = Material{ diffuse:turbtexID, specular:0u, emissive:0u, specExp:-1.0f};
+
+    let mut mats = [
+        turbmat,
+        cxmat
+    ];
+
+    scene_add_file_mat(state, 2, 0, &mats, 2u);
     scene_build(state);
 
     // add point light

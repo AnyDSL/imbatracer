@@ -44,6 +44,13 @@ extern "C"
         state->sceneMgr->add(rt::FileObject("models/", std::to_string(id) + ".obj", state->sceneMgr, flags, overrideMats, nMats));
     }
 
+    unsigned scene_add_texture(impala::State *state, impala::Texture *tex)
+    {
+        size_t id = state->sceneMgr->addTexture(*tex);
+        std::cout << "Added texture; ID = " << id << std::endl;
+        return (unsigned)id;
+    }
+
     void scene_add_file(impala::State *state, int id, int flags)
     {
         scene_add_file_mat(state, id, flags, nullptr, 0);

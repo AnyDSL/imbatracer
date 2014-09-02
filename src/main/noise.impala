@@ -47,45 +47,42 @@ fn smoothNoise3D(v : Point) -> float
 
 type NoiseFn = fn(Point) -> float;
 
-fn perlinbase(octaves : uint, mut amplitude : float, mut freq : float, persistence : float, modifier : fn(float)->float, finalmodifier : fn(float)->float) -> NoiseFn
+fn perlinbase(p : Point, octaves : uint, mut amplitude : float, mut freq : float, persistence : float, modifier : fn(float)->float, finalmodifier : fn(float)->float) -> float
 {
-    |p:Point|
+    let mut sum = 0.0f;
+
+    for _ in $urange(0u, octaves)
     {
-        let mut sum = 0.0f;
-
-        for _ in $urange(0u, octaves)
-        {
-            sum = sum + @modifier($smoothNoise3D(@pfapply2(p, freq, mul)));
-            amplitude = amplitude * persistence;
-            freq = freq * 2.0f;
-        }
-
-        @finalmodifier(sum)
+        sum = sum + @modifier(smoothNoise3D(@pfapply2(p, freq, mul)));
+        amplitude = amplitude * persistence;
+        freq = freq * 2.0f;
     }
+
+    @finalmodifier(sum)
 }
 
-fn perlinfn(octaves : uint, amplitude : float, freq : float, persistence : float) -> NoiseFn
+fn evalPerlin(p : Point, octaves : uint, amplitude : float, freq : float, persistence : float) -> float
 {
-    $perlinbase(octaves, amplitude, freq, persistence, |x|x, |x|clamp(-1.0f, x, 1.0f))
+    perlinbase(p, octaves, amplitude, freq, persistence, |x|x, |x|clamp(-1.0f, x, 1.0f))
 }
 
-fn perlin01fn(octaves : uint, amplitude : float, freq : float, persistence : float) -> NoiseFn
+fn evalPerlin01(p : Point, octaves : uint, amplitude : float, freq : float, persistence : float) -> float
 {
-    $perlinbase(octaves, amplitude, freq, persistence, |x|x, |x|clamp(0.0f, x, 1.0f))
+    perlinbase(p, octaves, amplitude, freq, persistence, |x|x, |x|clamp(0.0f, x, 1.0f))
 }
 
-fn turbulence01fn(octaves : uint, amplitude : float, freq : float, persistence : float) -> NoiseFn
+fn evalTurbulence01(p : Point, octaves : uint, amplitude : float, freq : float, persistence : float) -> float
 {
-    $perlinbase(octaves, amplitude, freq, persistence, fabsf, |x|clamp(0.0f, x, 1.0f))
+    perlinbase(p, octaves, amplitude, freq, persistence, fabsf, |x|clamp(0.0f, x, 1.0f))
 }
 
 
-fn buildNoiseFn(n : Noise) -> NoiseFn
+fn evalNoise(p : Point, n : &Noise) -> float
 {
-         if(n.ty == 0) { $perlinfn(n.octaves, n.amplitude, n.freq, n.persistence) }
-    else if(n.ty == 1) { $perlin01fn(n.octaves, n.amplitude, n.freq, n.persistence) }
-    else if(n.ty == 2) { $turbulence01fn(n.octaves, n.amplitude, n.freq, n.persistence) }
-    else             { |_:Point|0.0f }
+         if(n.ty == 0) { $evalPerlin(p, n.octaves, n.amplitude, n.freq, n.persistence) }
+    else if(n.ty == 1) { $evalPerlin01(p, n.octaves, n.amplitude, n.freq, n.persistence) }
+    else if(n.ty == 2) { $evalTurbulence01(p, n.octaves, n.amplitude, n.freq, n.persistence) }
+    else             { 0.0f }
 }
 
 
