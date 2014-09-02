@@ -43,8 +43,10 @@ fn buildMaterial(mat : Material, scene : &Scene) -> (ReflectanceFn, EmissionFn)
 
     let reflectance = |texPoint:TexCoord, local:Point, normal:Vec, outDir:Vec, inDir:Vec| -> Color
     {
-        let lambertian = @cdiv(diffuseFn(texPoint, local), pi());
-        let phong = if mat.specExp > 0.0f { @cmul(specularFn(texPoint, local), @phongFactor(normal, outDir, inDir, mat.specExp)) } else { @color0() };
+        let diffuse = diffuseFn(texPoint, local);
+        let lambertian = @cdiv(diffuse, pi());
+        let specular = specularFn(texPoint, local);
+        let phong = if mat.specExp > 0.0f { @cmul(specular, @phongFactor(normal, outDir, inDir, mat.specExp)) } else { @color0() };
         let renderCos = @absdot(inDir, normal);
         @cmul(@ccadd(lambertian, phong), renderCos)
     };

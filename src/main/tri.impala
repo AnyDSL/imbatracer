@@ -112,6 +112,24 @@ fn triIntersectFirst(tri : uint, scene : &Scene, isec : &Intersection) -> ()
     }
 }
 
+fn triShadeIntersection(tri: uint, scene: &Scene, isec: &Intersection) -> ShadingIntersection
+{
+    let bar = @point(1f-isec.b.u-isec.b.v, isec.b.u, isec.b.v);
+    let shadingNormal =
+        if @triHasNormals(tri, scene) {
+            let n1 = @triVertNormal(tri, 0u, scene);
+            let n2 = @triVertNormal(tri, 1u, scene);
+            let n3 = @triVertNormal(tri, 2u, scene);
+            @normalize(@vlerpbarp(n1, n2, n3, bar))
+        }
+        else {
+            isec.surfaceNormal // surfce normal, already normalized
+        };
+    let uv = @triTexPoint(bar, tri, scene);
+    let local = @triLocalHitPoint(bar, tri, scene);
+    ShadingIntersection{ shadingNormal:shadingNormal, uv:uv, local:local }
+}
+
 fn triBBox(tri : uint, scene : &Scene) -> BBox
 {
     let a = @triPoint(tri, 0u, scene);

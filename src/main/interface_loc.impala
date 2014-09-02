@@ -8,7 +8,7 @@ extern fn impala_object_init(mut obj : &Object, root : uint) -> ()
 extern fn impala_init(mut state : &State) -> ()
 {
     state.time = 0.0f;
-    state.integrator.itype = 1; //4:debug, 1:raytrace
+    state.integrator.itype = 1; //4:debug, 1:raytrace, 0:cosine
     state.integrator.mode = 1;
     state.integrator.minDist = 0.0f;
     state.integrator.maxDist = 0.0f;

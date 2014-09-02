@@ -91,3 +91,8 @@ fn sceneIntersectAny(scene: &Scene, ray : Ray, maxdist : float) -> bool
     }
     false
 }
+
+fn sceneShadeIntersection(scene: &Scene, isec: &Intersection) -> ShadingIntersection
+{
+    objShadeIntersection(isec.obj, scene, isec)
+}

@@ -15,26 +15,34 @@ fn noObj() -> uint
 struct Intersection
 {
     dist : float,
-    obj : uint,
+    tri : uint,
     ray : Ray,
     // these are not really relevant for further intersections, but to compute with the data available for intersection of triangles
     surfaceNormal : Vec,
     b : TexCoord, // barycentric coordinates
     eps: float,
+    obj : uint, // the object our triangle belongs to
+}
+
+struct ShadingIntersection // all the stuff needed for shading that's missing above
+{
+    shadingNormal : Vec,
+    uv : TexCoord,
+    local : Point
 }
 
 fn intersection(ray : Ray, dist: float) -> Intersection
 {
-    @Intersection{ dist:dist, obj:@noObj(), ray:ray,
-        surfaceNormal:@vec0(), b:texCoord0(), eps:0.0f }
+    @Intersection{ dist:dist, tri:@noObj(), ray:ray,
+        surfaceNormal:@vec0(), b:texCoord0(), eps:0.0f, obj:@noObj() }
 }
 
-fn improveIntersection(mut isec : &Intersection, dist : float, obj : uint, surfaceNormal : Vec, b : TexCoord, eps : float) -> ()
+fn improveIntersection(mut isec : &Intersection, dist : float, tri : uint, surfaceNormal : Vec, b : TexCoord, eps : float) -> ()
 {
-    @assert(||dist < isec.dist && obj != @noObj(), "Improved intersection must have object at smaller distance");
+    @assert(||dist < isec.dist && tri != @noObj(), "Improved intersection must have object at smaller distance");
     @assert(||almost(vlen(surfaceNormal), 1.0f), "Improved intersection surface normal must be normalised");
     isec.dist = dist;
-    isec.obj = obj;
+    isec.tri = tri;
     isec.surfaceNormal = surfaceNormal;
     isec.b = b;
     isec.eps = eps;

@@ -11,9 +11,10 @@ struct Integrator
 
 
 // return a gray color whose value is the cosine between the ray direction and the hit surface normal
-fn cosineRadiance(isec : &Intersection) -> Color
+fn cosineRadiance(isec : &Intersection, scene : &Scene) -> Color
 {
-    @color1(absdot(isec.surfaceNormal, isec.ray.d)) // ignore normal direction by abs()ing
+    let sisec = @sceneShadeIntersection(scene, isec);
+    @color1(absdot(sisec.shadingNormal, isec.ray.d)) // ignore normal direction by abs()ing
 }
 
 fn debugRadianceNormalDir(isec : &Intersection) -> Color
@@ -39,7 +40,7 @@ fn debugRadianceDepth(isec : &Intersection) -> Color
     @color1(v)
 }
 
-/*
+
 fn integrateLightSources(scene : &Scene, hitP : Point, outDir : Vec, surfaceN : Vec, shadingN : Vec, uv : TexCoord, local : Point,
                          matReflectance : ReflectanceFn, rayEps : float) -> Color
 {
@@ -78,27 +79,28 @@ fn integrateLightSources(scene : &Scene, hitP : Point, outDir : Vec, surfaceN : 
 
 fn raytraceRadiance(isec : &Intersection, scene : &Scene) -> Color
 {
+    let sisec = @sceneShadeIntersection(scene, isec);
     let outDir = @vflip(isec.ray.d);
     let surfaceN = @intersectionSurfaceNormalTowardsOrigin(isec);
 
     // HACK: that there's some material to test
-    let matinfo = if @triHasMaterial(isec.obj, scene) { @triMaterial(isec.obj, scene) } else { @dummyMaterial() };
+    let matinfo = if @triHasMaterial(isec.tri, scene) { @triMaterial(isec.tri, scene) } else { @dummyMaterial() };
     let mat = @buildMaterial(matinfo, scene);
     let reflectance = mat(0);
     let emission = mat(1);
 
-    let uv = isec.uv;
-    let local = isec.local;
+    let uv = sisec.uv;
+    let local = sisec.local;
     let hitP = @intersectionWorldHitPoint(isec);
 
 	@ccadd(
         // we ignore any contribution not coming directly from a light source
-        integrateLightSources(scene, hitP, outDir, surfaceN, isec.shadingNormal, uv, local, reflectance, isec.eps),
+        @integrateLightSources(scene, hitP, outDir, surfaceN, sisec.shadingNormal, uv, local, reflectance, isec.eps),
         // and add the material's own light emission that is not dependent on light
         emission(uv, local, surfaceN, outDir)
     )
 }
-*/
+
 
 fn recraytraceRadiance(isec : &Intersection, scene : &Scene) -> Color
 {
@@ -128,8 +130,8 @@ fn debuggerRadiance(mode: int, minDist: float, maxDist: float, isec : &Intersect
 fn getRadianceForHit(integr : &Integrator, isec : &Intersection, scene : &Scene) -> Color
 {
     let ty = integr.itype;
-    if      ty == 0 { cosineRadiance(isec) }  // Cosine shading
-    else if ty == 1 { cosineRadiance(isec) }
+    if      ty == 0 { cosineRadiance(isec, scene) }  // Cosine shading
+    else if ty == 1 { raytraceRadiance(isec, scene) }
     else if ty == 2 { recraytraceRadiance(isec, scene) }
     else            { debuggerRadiance(integr.mode, integr.minDist, integr.maxDist, isec) }
 }
@@ -139,7 +141,7 @@ fn runIntegrator(integr : &Integrator, scene : &Scene, ray : Ray) -> Color
     let mut isec = @intersection(ray, @defaultDist());
     @sceneIntersectFirst(scene, &isec);
 
-    if isec.obj == @noObj() {
+    if isec.tri == @noObj() {
         @color(1.0f, 0.0f, 0.0f)
     }
     else {

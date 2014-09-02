@@ -74,8 +74,7 @@ fn renderSubsampled(level : uint, width : uint, height : uint, state : &State, s
 {
     let mut rtstate = RTState{ cam: state.cam, integrator: state.integrator, scene: state.scene };
 
-    if level <= 1u
-    {
+    if level <= 1u {
         for y in $urange(0u, height) {
             for x in $urange(0u, width) { // TODO: this used to be $inner_loop(), but wfv2 is too slow to be practical, for now
                 @setcolor(x as int, y as int, $getcolor(x as int, y as int, &rtstate));
