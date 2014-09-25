@@ -1,23 +1,102 @@
 
 struct DynArray {
-    elemSize: uint,
-    length: uint,
-    capacity: uint,
     data: &[u8],
+    elemSize: uint,
+    size: uint,
+    capacity: uint,
 }
 
-fn dynArrayInit() -> &DynArray
+fn dynArrayInit(elemSize : uint, initialCap : uint) -> DynArray
 {
-    ~DynArray{ elemSize: 0u, length: 0u, capacity: 0u, data: 0 as &[u8] }
+    let mut a:DynArray;
+    dynArrayInitInplace(&a, elemSize, initialCap);
+    a
+}
+
+fn dynArrayLoad(elemSize : uint, ptr : &u8, size : uint) -> DynArray
+{
+    let mut a:DynArray;
+    dynArrayLoadInplace(&a, elemSize, ptr, size);
+    a
+}
+
+fn dynArrayInitInplace(mut a : &DynArray, elemSize : uint, initialCap : uint) -> ()
+{
+    assert(||{elemSize > 0u}, "Can't store objects with size 0");
+    a.elemSize = elemSize;
+    a.data = (0 as &[u8]);
+    a.size = 0u;
+    a.capacity = 0u;
+    _dynArrayEnsureCapacity(a, initialCap);
+}
+
+fn dynArrayLoadInplace(mut a : &DynArray, elemSize : uint, ptr : &u8, size : uint) -> ()
+{
+    assert(||{elemSize > 0u}, "Can't load array with objects of size 0");
+    a.elemSize = elemSize;
+    a.data = (ptr as &[u8]);
+    a.size = size;
+    a.capacity = size;
+}
+
+fn dynArrayClear(mut a : &DynArray) -> ()
+{
+    thorin_free(a.data as &u8);
+    a.data = (0 as &[u8]);
+    a.size = 0u;
+    a.capacity = 0u;
+}
+
+fn _dynArrayEnsureCapacity(a : &DynArray, cap : uint) -> ()
+{
+    if(a.capacity < cap)
+    {
+        let newCap = 10u + umax(a.capacity + a.capacity / 2u, cap + cap / 4u); // heuristics
+        _dynArrayExpand(a, newCap);
+    }
+}
+
+fn _dynArrayExpand(mut a : &DynArray, newCap : uint) -> ()
+{
+    let newBytes = newCap * a.elemSize;
+    let newData = ~[newBytes:u8];
+    memcpy(newData as &u8, a.data as &u8, (a.size * a.elemSize) as size_t);
+    thorin_free(a.data as &u8);
+    a.data = newData;
+    a.capacity = newCap;
+}
+
+fn dynArrayReserve(a : &DynArray, cap : uint) -> ()
+{
+    _dynArrayEnsureCapacity(a, cap);
+}
+
+fn dynArrayResize(mut a : &DynArray, newSize : uint) -> ()
+{
+    _dynArrayEnsureCapacity(a, newSize);
+    a.size = newSize;
+}
+
+fn dynArraySize(a : &DynArray) -> uint
+{
+    a.size
 }
 
 // append an entry to the array, return its index
-fn dynArrayAppend(array: &DynArray, obj: &u8) -> uint
+fn dynArrayAppend(mut a: &DynArray, obj: &u8) -> uint
 {
-    0u // FIXME
+    let newSize = a.size + 1u;
+    _dynArrayEnsureCapacity(a, newSize);
+
+    let wpos = a.size * a.elemSize;
+    memcpy(&a.data(wpos) as &u8, obj as &u8, a.elemSize as size_t);
+    a.size = newSize;
+    wpos
 }
 
-fn dynArrayFetch(mut array: &DynArray, idx: uint) -> &u8
+fn dynArrayFetch(mut a: &DynArray, idx: uint) -> &u8
 {
-    &array.data(idx*array.elemSize)
+    assert(||{idx < a.size}, "DynArray out of bounds!");
+    &a.data(idx*a.elemSize)
 }
+
