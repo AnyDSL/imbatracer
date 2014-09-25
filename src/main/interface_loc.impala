@@ -37,7 +37,7 @@ extern fn impala_init(mut state : &State) -> ()
 
     let mut mats = [
         turbmat,
-        cxmat,
+        /*cxmat,*/ steelMirrorMaterial(),
     ];
 
     scene_add_cube(state, 120.0f, &mirrormat);
