@@ -1,25 +1,102 @@
 
 // abstract BVH construction function
-type objBoundsFn = fn(uint) -> BBox;
-type objCentroidFn = fn(uint) -> Point;
-type objFinalizeFn = fn(uint) -> uint; // called exactly once per object, return the index the object finally has
+type primBoundsFn = fn(uint) -> BBox;
+type primCentroidFn = fn(uint) -> Point;
+type primFinalizeFn = fn(uint) -> uint; // called exactly once per object, return the index the object finally has
 
-struct ObjData
+struct PrimData
 {
     bounds: BBox,
     centroid: Point,
 }
 
-fn constructBvh(nObjs: uint, objBounds: objBoundsFn, objCentroid: objCentroidFn, objFinalize: objFinalizeFn) -> ()
+struct SplitPlaneCandidate
+{
+    nLeft: uint,
+    leftBBox: BBox,
+    rightBBox: BBox,
+}
+
+struct NodeSplitInformation
+{
+    nLeft: uint,
+    left: &[uint],
+    right: &[uint],
+    leftBBox: BBox,
+    rightBBox: BBox,
+    bestAxis: int,
+    bestCost: float,
+};
+
+fn constructBvh(nPrims: uint, primBounds: primBoundsFn, primCentroid: primCentroidFn, primFinalize: primFinalizeFn) -> ()
 {
     // prepare working arena and object data
     let mut totalBounds = bboxEmpty();
-    let mut objData = ~[nObjs:ObjData];
-    for objIdx in urange(0u, nObjs) {
-        let bounds = @objBounds(objIdx);
-        objData(objIdx) = ObjData{ bounds:bounds, centroid:@objCentroid(objIdx) };
+    let mut primData = ~[nPrims:PrimData];
+    let splitPlaneCandidates = ~[nPrims:SplitPlaneCandidate];
+    let leftPrims = ~[nPrims*depthLimit:uint];
+    let rightPrims = ~[nPrims*depthLimit:uint];
+    let mut allPrims = ~[nPrims:uint];
+
+    for primIdx in urange(0u, nPrims) {
+        let bounds = @primBounds(nPrims);
+        primData(nPrims) = PrimData{ bounds:bounds, centroid:@primCentroid(nPrims) };
         totalBounds = bbextendb(totalBounds, bounds);
+        allPrims(primIdx) = nPrims; // TODO get rid of this array, it's just used to pass the initial to-split-list...
     }
 
+    buildBvhNode(allPrims, nPrims, totalBounds, 0u, leftPrims, rightPrims);
 
+}
+
+/* Build a BVH node from the primitives (in splitPrims). These are indices into the tris vector above!
+ * Put primitives into triBuf (starting at offset triBufOff), and the flattened nodes into nodeBuf.
+ * Return the index of the root (in nodeBuf).
+ */
+fn buildBvhNode(prims: &[uint], nPrims: uint, totalBounds: BBox, depth: uint, leftPrims: &[uint], rightPrims: &[uint]) -> ()
+{
+    let mut node:BVHNode;
+    node.bbox = totalBounds;
+
+    // split
+    let mut splitInfo = NodeSplitInformation{ left:leftPrims, right:rightPrims, leftBBox:@bboxEmpty(), rightBBox:@bboxEmpty(), bestAxis: -1,
+            nLeft: 0u, bestCost: 0.0f };
+    bvhDecideSplit(prims, nPrims, totalBounds, depth, &splitInfo);
+    node.axis = splitInfo.bestAxis as u16;
+
+    /*// did we get a leaf?
+    if (splitInfo.bestAxis < 0) {
+        // create a leaf
+        node.nPrim = nTris;
+        node.sndChildFirstPrim = state->nTris;
+        for (unsigned i = 0; i < nTris; ++i) {
+            // add references from tri buf to vert buf in appropriate position
+            state->addTri(tris[splitTris[i]]);
+        }
+        state->bvhNodes.push_back(node);
+        return insertIdx;
+    }
+
+    // Create an inner node
+    // node.secondChild is not yet known, will be fixed up below
+    node.nPrim = 0;
+    state->bvhNodes.push_back(node);
+
+    // Process child nodes recursively, using space further down in our arrays (after the space in leftPrims, rightPrims that we needed)
+    assert(splitInfo.nLeft <= nTris, "Keeping too few or too many triangles");
+    size_t firstChild  = buildBVHNode(leftTris , splitInfo.nLeft      , splitInfo.leftBBox,  depth+1, leftTris+nTris, rightTris+nTris);
+    size_t secondChild = buildBVHNode(rightTris, nTris-splitInfo.nLeft, splitInfo.rightBBox, depth+1, leftTris+nTris, rightTris+nTris);
+
+    // Make sure the children's order in the vector is as expected
+    UNUSED(firstChild);
+    assert(firstChild == insertIdx+1, "Left child doesn't come right after me");
+
+    // Now that the second child's index in the vector is known, fix it and be done
+    state->bvhNodes[insertIdx].sndChildFirstPrim = secondChild;
+    return insertIdx;*/
+}
+
+fn bvhDecideSplit(prims: &[uint], nPrims: uint, totalBounds: BBox, depth: uint, splitInfo: &NodeSplitInformation) -> ()
+{
+    // don't do any split
 }

@@ -7,6 +7,8 @@ struct BVHNode
     axis: u16,
 }
 
+static depthLimit = 16u; // keep in sync with the stack size below in bvhIntersectGeneric
+
 fn bvhBBoxComp(bounds : BBox, comp : bool) -> Point
 {
     if comp { bounds.cmax } else { bounds.cmin }
@@ -55,7 +57,7 @@ fn bvhIntersectGeneric(root: uint, scene : &Scene, ray : Ray, mut maxdist : floa
 
     // we roll our own stack
     let done = return;
-    let mut todo = [0u, ..16];
+    let mut todo = [0u, ..16]; // keep in sync with the constant at the top of this file (TODO?)
     let mut todoIdx = 0; // the first *free* index
 
     // CPS fun while passing the current node around as argument :-)
