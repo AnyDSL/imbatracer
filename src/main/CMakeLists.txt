@@ -10,6 +10,7 @@ set(cpp_SRC
 set(impala_shared_SRC
     util.impala
     extern_c.impala
+    dynarray.impala
     color.impala
     vector.impala
     matrix.impala
@@ -31,7 +32,6 @@ set(impala_shared_SRC
 )
 set(impala_loc_SRC
     assert_cpu.impala
-    dynarray.impala
     bvh_construction.impala
     interface_loc.impala
 )
