@@ -64,6 +64,9 @@ extern "C"
         scene_add_file_mat(state, id, flags, nullptr, 0);
     }
 
+    void load_file(const char *path, const char *filename, unsigned flags, DynList *overrideMaterials,
+                   DynList *vertices, DynList *normals, DynList *texCoords, DynList *materials, DynList *textures, DynList *triVerts, DynList *triData);
+
     void scene_build(impala::State *state)
     {
         state->sceneMgr->build();

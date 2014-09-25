@@ -277,6 +277,11 @@ namespace impala {
         void *user1;
     };
 
+    struct DynList {
+        unsigned length, capactiy, elemSize;
+        void *data;
+    };
+
 
     extern "C" {
         void impala_object_init(Object *obj, unsigned rootIdx);
