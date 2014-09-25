@@ -55,7 +55,7 @@ fn constructBvh(nPrims: uint, primBounds: primBoundsFn, primCentroid: primCentro
  * Put primitives into triBuf (starting at offset triBufOff), and the flattened nodes into nodeBuf.
  * Return the index of the root (in nodeBuf).
  */
-fn buildBvhNode(prims: &[uint], nPrims: uint, totalBounds: BBox, depth: uint, leftPrims: &[uint], rightPrims: &[uint],
+fn buildBvhNode(prims: &[uint], nPrims: uint, totalBounds: BBox, depth: uint, mut leftPrims: &[uint], mut rightPrims: &[uint],
         bvhNodes: &DynArray, primFinalize: primFinalizeFn) -> uint
 {
     let mut node:BVHNode;
@@ -86,20 +86,19 @@ fn buildBvhNode(prims: &[uint], nPrims: uint, totalBounds: BBox, depth: uint, le
     node.nPrims = 0u16;
     let nodeIdx = dynArrayAppend(bvhNodes, &node as &u8);
 
-    /*/ Process child nodes recursively, using space further down in our arrays (after the space in leftPrims, rightPrims that we needed)
-    assert(splitInfo.nLeft <= nTris, "Keeping too few or too many triangles");
-    size_t firstChild  = buildBVHNode(leftTris , splitInfo.nLeft      , splitInfo.leftBBox,  depth+1, leftTris+nTris, rightTris+nTris);
-    size_t secondChild = buildBVHNode(rightTris, nTris-splitInfo.nLeft, splitInfo.rightBBox, depth+1, leftTris+nTris, rightTris+nTris);
+    // Process child nodes recursively, using space further down in our arrays (after the space in leftPrims, rightPrims that we needed)
+    assert(||splitInfo.nLeft <= nPrims, "Keeping too many primitives");
+    let firstChild =  buildBvhNode(leftPrims , splitInfo.nLeft       , splitInfo.leftBBox , depth+1u, &leftPrims(nPrims) as &[u32], &rightPrims(nPrims) as &[u32],
+            bvhNodes, primFinalize);
+    let secondChild = buildBvhNode(rightPrims, nPrims-splitInfo.nLeft, splitInfo.rightBBox, depth+1u, &leftPrims(nPrims) as &[u32], &rightPrims(nPrims) as &[u32],
+            bvhNodes, primFinalize);
 
     // Make sure the children's order in the vector is as expected
-    UNUSED(firstChild);
-    assert(firstChild == insertIdx+1, "Left child doesn't come right after me");
+    assert(||firstChild == nodeIdx+1u, "Left child doesn't come right after me");
 
     // Now that the second child's index in the vector is known, fix it and be done
-    state->bvhNodes[insertIdx].sndChildFirstPrim = secondChild;
-    return insertIdx;*/
-
-    0u
+    let mut nodePtr = dynArrayFetch(bvhNodes, nodeIdx) as &BVHNode; nodePtr.sndChildFirstPrim = secondChild; // FIXME cannot put this into a single command
+    return(nodeIdx)
 }
 
 fn bvhDecideSplit(prims: &[uint], nPrims: uint, totalBounds: BBox, depth: uint, splitInfo: &NodeSplitInformation) -> ()
