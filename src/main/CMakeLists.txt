@@ -9,6 +9,7 @@ set(cpp_SRC
 
 set(impala_shared_SRC
     util.impala
+    dynarray.impala
     extern_c.impala
     color.impala
     vector.impala
