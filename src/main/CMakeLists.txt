@@ -27,7 +27,7 @@ set(impala_shared_SRC
     cameras.impala
     integrator.impala
     tri.impala
-    bvh.impala
+    bvh_traversal.impala
     render.impala
 )
 set(impala_loc_SRC
