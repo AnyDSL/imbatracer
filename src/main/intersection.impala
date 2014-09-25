@@ -1,13 +1,10 @@
 
 fn defaultRayEps() -> float
 {
-    2.0f*epsilon()
+    2.0f*epsilon
 }
 
-fn defaultDist() -> float
-{
-    1e10f // max. drawing distance
-}
+static defaultDist:float = FLT_MAX;
 
 fn noObj() -> uint
 { 0xFFFFFFFFu }

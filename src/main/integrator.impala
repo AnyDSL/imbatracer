@@ -123,9 +123,9 @@ fn runIntegrator(integr : &Integrator, scene : &Scene, ray : Ray) -> Color
 {
     //let mut isec = @intersection(ray, @defaultDist());
     let mut sisec:ShadingIntersection;
-    let dist = @sceneIntersectFirst(scene, ray, @defaultDist(), &sisec);
+    let dist = @sceneIntersectFirst(scene, ray, defaultDist, &sisec);
 
-    if dist >= @defaultDist() {
+    if dist >= defaultDist {
         @color(1.0f, 0.0f, 0.0f)
     }
     else {

@@ -56,14 +56,14 @@ extern fn impala_update(mut state : &State, dt : float) -> ()
     let pos = @point(-3.5f*scale*sinf(time), 1.2f*scale*sinf(0.2f*time), 3.7f*scale*cosf(time));
     let at = @point0();
     let up = @vec(0.0f, 1.0f, 0.0f);
-    let horzOpenAngle = @pi() / 4.0f;
-    let vertOpenAngle = @pi() / 3.0f;
+    let horzOpenAngle = pi / 4.0f;
+    let vertOpenAngle = pi / 3.0f;
     state.cam = @camPerspectiveLookAt(pos, at, up, horzOpenAngle, vertOpenAngle);
 
     // put light right where the cam was shortly ago, and on the other side
     state.scene.lights(0).pos = @point(-3.5f*scale*sinf(time-0.5f), +1.2f*scale*sinf(0.2f*time-0.5f), +3.7f*scale*cosf(time-0.5f));
     state.scene.lights(1).pos = @point(-3.5f*scale*sinf(time+0.5f), +1.9f*scale*sinf(0.2f*time+0.5f), +3.7f*scale*cosf(time+0.5f));
-    state.scene.lights(2).pos = @point(-3.5f*scale*sinf(time+0.5f+pi()), +2.2f*scale*sinf(0.2f*time+0.5f+pi()), +3.7f*scale*cosf(time+0.5f+pi()));
+    state.scene.lights(2).pos = @point(-3.5f*scale*sinf(time+0.5f+pi), +2.2f*scale*sinf(0.2f*time+0.5f+pi), +3.7f*scale*cosf(time+0.5f+pi));
 
     // scale our teapot
     let potScale = (fabsf(sinf(0.8f*time))/2.0f+0.5f);
@@ -82,8 +82,8 @@ extern fn impala_init_bench1(mut state : &State) -> ()
     let pos = @point(-3.5f*scale, 1.2f*scale, 3.7f*scale);
     let at = @point0();
     let up = @vec(0.0f, 1.0f, 0.0f);
-    let horzOpenAngle = @pi() / 4.0f;
-    let vertOpenAngle = @pi() / 3.0f;
+    let horzOpenAngle = pi / 4.0f;
+    let vertOpenAngle = pi / 3.0f;
     state.cam = @camPerspectiveLookAt(pos, at, up, horzOpenAngle, vertOpenAngle);
 }
 
@@ -108,12 +108,12 @@ extern fn impala_init_bench2(mut state : &State) -> ()
     let pos = @point(-3.5f*scale*sinf(time), 1.2f*scale*sinf(0.2f*time), 3.7f*scale*cosf(time));
     let at = @point0();
     let up = @vec(0.0f, 1.0f, 0.0f);
-    let horzOpenAngle = @pi() / 4.0f;
-    let vertOpenAngle = @pi() / 3.0f;
+    let horzOpenAngle = pi / 4.0f;
+    let vertOpenAngle = pi / 3.0f;
     state.cam = @camPerspectiveLookAt(pos, at, up, horzOpenAngle, vertOpenAngle);
 
     // put light right where the cam was shortly ago, and on the other side
     state.scene.lights(0).pos = @point(-3.5f*scale*sinf(time-0.5f), +1.2f*scale*sinf(0.2f*time-0.5f), +3.7f*scale*cosf(time-0.5f));
     state.scene.lights(1).pos = @point(-3.5f*scale*sinf(time+0.5f), +1.9f*scale*sinf(0.2f*time+0.5f), +3.7f*scale*cosf(time+0.5f));
-    state.scene.lights(2).pos = @point(-3.5f*scale*sinf(time+0.5f+pi()), +2.2f*scale*sinf(0.2f*time+0.5f+pi()), +3.7f*scale*cosf(time+0.5f+pi()));
+    state.scene.lights(2).pos = @point(-3.5f*scale*sinf(time+0.5f+pi), +2.2f*scale*sinf(0.2f*time+0.5f+pi), +3.7f*scale*cosf(time+0.5f+pi));
 }

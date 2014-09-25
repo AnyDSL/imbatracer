@@ -4,7 +4,22 @@ type objBoundsFn = fn(uint) -> BBox;
 type objCentroidFn = fn(uint) -> Point;
 type objFinalizeFn = fn(uint) -> uint; // called exactly once per object, return the index the object finally has
 
+struct ObjData
+{
+    bounds: BBox,
+    centroid: Point,
+}
+
 fn constructBvh(nObjs: uint, objBounds: objBoundsFn, objCentroid: objCentroidFn, objFinalize: objFinalizeFn) -> ()
 {
+    // prepare working arena and object data
+    let mut totalBounds = bboxEmpty();
+    let mut objData = ~[nObjs:ObjData];
+    for objIdx in urange(0u, nObjs) {
+        let bounds = @objBounds(objIdx);
+        objData(objIdx) = ObjData{ bounds:bounds, centroid:@objCentroid(objIdx) };
+        totalBounds = bbextendb(totalBounds, bounds);
+    }
+
 
 }

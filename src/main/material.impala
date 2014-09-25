@@ -29,14 +29,14 @@ fn phongFactor(normal:Vec, outDir:Vec, inDir:Vec, exponent:float) -> float
     let cosReflIn = @dot(inDir, mirroredOut);
     if (cosReflIn <= 0.0f) { return(0.0f) }
     // use this to compute the final factor applied to the texture
-    powf(cosReflIn, exponent)*(exponent+2.0f)/(2.0f*pi()) // TODO don't compute normalisation factor all the time
+    powf(cosReflIn, exponent)*(exponent+2.0f)/(2.0f*pi) // TODO don't compute normalisation factor all the time
 }
 
 fn evalMaterialReflectance(texPoint:TexCoord, local:Point, normal:Vec, outDir:Vec, inDir:Vec, mat : &Material, mut scene : &Scene) -> Color
 {
     let diffuse = evalTexture(texPoint, local, &scene.textures(mat.diffuse));
 
-    let lambertian = @cdiv(diffuse, @pi());
+    let lambertian = @cdiv(diffuse, pi);
     let phong = if mat.specExp > 0.0f {
             @cmul(evalTexture(texPoint, local, &scene.textures(mat.specular))
                 , @phongFactor(normal, outDir, inDir, mat.specExp)
