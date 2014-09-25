@@ -3,7 +3,7 @@ struct BVHNode
 {
     bbox : BBox,
     sndChildFirstPrim : uint, // for an inner node, the second child. for a leaf, the first primitive.
-    nPrim : u16, // number of primitives in child. 0 for inner node.
+    nPrims : u16, // number of primitives in child. 0 for inner node.
     axis: u16,
 }
 
@@ -85,7 +85,7 @@ fn bvhIntersectGeneric(root: uint, scene : &Scene, ray : Ray, mut maxdist : floa
             // inner loop: we assume the current node does not intersect
             let inner = continue;
 
-            let nPrim = scene.bvhNodes(curNode).nPrim;
+            let nPrim = scene.bvhNodes(curNode).nPrims;
             let sndChildFirstPrim = scene.bvhNodes(curNode).sndChildFirstPrim;
             if (nPrim > 0u16) {
                 // a leaf
