@@ -96,7 +96,7 @@ fn isstrictpos(a : float) -> bool { a > 0.0f }
 
 fn almost(a : float, b : float) -> bool
 {
-    fabsf(a - b) < epsilon()
+    fabsf(a - b) < epsilon
 }
 
 fn lerp(a : float, b : float, t : float) -> float
@@ -148,15 +148,9 @@ fn neg_infinity() -> float
 }
 */
 
-fn pi() -> float
-{
-    3.141592653589793f
-}
-
-fn epsilon() -> float
-{
-    1e-5f
-}
+static pi:float = 3.141592653589793f;
+static epsilon:float = 1e-5f;
+static FLT_MAX:float = 3.402823e+38f;
 
 
 fn isDebug() -> bool

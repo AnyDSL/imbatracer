@@ -14,7 +14,17 @@ fn bbox(a : Point, b : Point) -> BBox
     bboxUnsafe(@ppmin(a, b), @ppmax(a, b))
 }
 
+fn bboxEmpty() -> BBox
+{
+    BBox{ cmin:@point1(FLT_MAX), cmax:@point1(-FLT_MAX) }
+}
+
 fn bbextend(bb : BBox, p : Point) -> BBox
 {
-    bbox(ppmin(bb.cmin, p), ppmax(bb.cmax, p))
+    @bbox(@ppmin(bb.cmin, p), @ppmax(bb.cmax, p))
+}
+
+fn bbextendb(bb : BBox, bb2 : BBox) -> BBox
+{
+    @bbextend(@bbextend(bb, bb2.cmin), bb2.cmax)
 }

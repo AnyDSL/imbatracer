@@ -49,7 +49,3 @@ fn renderIteration(width : int, height : int, measureTime : bool, state : &State
         }
     });
 }
-
-fn assert(f : fn() -> bool, msg : &[u8]) -> ()
-{
-}

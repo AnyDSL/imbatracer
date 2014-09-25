@@ -27,14 +27,17 @@ set(impala_shared_SRC
     cameras.impala
     integrator.impala
     tri.impala
-    bvh.impala
-    render.impala
+    bvh_traversal.impala
 )
 set(impala_loc_SRC
-    mapping_cpu.impala
+    assert_cpu.impala
+    dynarray.impala
+    bvh_construction.impala
     interface_loc.impala
 )
 set(impala_acc_SRC
+    render.impala
+    assert_${DEVICE}.impala
     mapping_${DEVICE}.impala
     interface_acc.impala
 )
