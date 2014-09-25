@@ -212,6 +212,10 @@ namespace impala {
         float specExp;
         // ambient / emissive
         unsigned emissive;
+        // mirror
+        unsigned sampling;
+        float eta;
+        float etaSqrKappaSqr;
 
         static Material dummy()
         {
@@ -220,6 +224,9 @@ namespace impala {
                 .specular = 0,
                 .specExp = -1.0f,
                 .emissive = 0,
+                .sampling = 0, // SAMPLING_NOT_NEEDED
+                .eta = 0.0f,
+                .etaSqrKappaSqr = 0.0f,
             };
         }
     };
@@ -265,6 +272,7 @@ namespace impala {
         float minDist, maxDist;
         int mode;
         int itype;
+        int maxRecDepth;
     };
 
     struct State

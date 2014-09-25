@@ -1,4 +1,11 @@
 
+// Cheap replacement for enums
+type Sampling = uint;
+static SAMPLING_NOT_NEEDED = 0u; // the material can be rendered by iterating over the light sources
+static SAMPLING_SECONDARY = 1u; // you should iterate over the light sources, but also do sampling
+static SAMPLING_ALL = 2u; // iterating over the light sources is unproductive and you should sample the material directly
+
+
 // Indices into scene texture array
 struct Material
 {
@@ -9,6 +16,16 @@ struct Material
     specExp : float,
     // ambient / emissive
     emissive : uint,
+    // mirror
+    sampling : Sampling,
+    eta :float,
+    etaSqrKappaSqr : float,
+}
+
+struct SampleReflectance
+{
+    reflectance : Color,
+    direction : Vec,
 }
 
 // assumes two default textures at index 0 (white) and 1 (black)
@@ -18,8 +35,48 @@ fn dummyMaterial() -> Material
         diffuse:1u,
         specular:0u,
         specExp:-1.0f,
-        emissive:0u
+        emissive:0u,
+        eta:0.0f,
+        etaSqrKappaSqr:0.0f,
+        sampling:SAMPLING_NOT_NEEDED,
     }
+}
+
+fn mirrorMaterial(eta : float, kappa : float) -> Material
+{
+    Material {
+        diffuse:1u,
+        specular:0u,
+        specExp:-1.0f,
+        emissive:0u,
+        eta:eta,
+        etaSqrKappaSqr:(eta*eta + kappa*kappa),
+        sampling:SAMPLING_ALL,
+    }
+}
+
+fn steelMirrorMaterial() -> Material
+{
+    mirrorMaterial(2.485f, 3.433f)
+}
+
+fn silverMirrorMaterial() -> Material
+{
+    mirrorMaterial(0.177f, 3.638f)
+}
+
+fn fresnelFactor(m : &Material, cosOut : float) -> float
+{
+    assert(||{cosOut >= 0.0f}, "It must all be the same hemisphere");
+    let etaSqrKappaSqr = m.etaSqrKappaSqr;
+
+    let sqrSumTimesCosSqr = etaSqrKappaSqr*sqr(cosOut);
+    let twoEtaCos = 2.0f*m.eta*cosOut;
+    let rParallelSqr = (sqrSumTimesCosSqr + 1.0f - twoEtaCos) / (sqrSumTimesCosSqr + 1.0f + twoEtaCos);
+    let rOrthoSqr = (etaSqrKappaSqr + sqr(cosOut) - twoEtaCos) / (etaSqrKappaSqr + sqr(cosOut) + twoEtaCos);
+    let fr = 0.5f*(rParallelSqr + rOrthoSqr);
+    assert(||{0.1f <= fr && fr <= 1.1f}, "Fresnel term out of range");
+    fr
 }
 
 fn phongFactor(normal:Vec, outDir:Vec, inDir:Vec, exponent:float) -> float
@@ -43,6 +100,7 @@ fn evalMaterialReflectance(texPoint:TexCoord, local:Point, normal:Vec, outDir:Ve
             )
         } else { @color0() };
     let renderCos = @absdot(inDir, normal);
+
     @cmul(@ccadd(lambertian, phong), renderCos)
 }
 
@@ -52,4 +110,15 @@ fn evalMaterialEmission(texPoint:TexCoord, local:Point, normal:Vec, outDir:Vec, 
     evalTexture(texPoint, local, &scene.textures(mat.emissive))
 
     // TODO: other materials (glass etc)
+}
+
+fn evalMaterialSampleReflectance(mat : &Material, texPoint : Point, normal : Vec, outDir : Vec) -> SampleReflectance
+{
+    let cosOut = dot(normal, outDir); // this can be negative!
+    // direction: mirror at normal (this works correctly for both signs of cosOut, it'll just swap the normal properly)
+    let direction = @vsub(fvmul((2.0f * cosOut), normal), outDir);
+    // reflectance: Fresnel term
+    let reflectance = @color1(fresnelFactor(mat, fabsf(cosOut)));
+
+    SampleReflectance { direction:direction, reflectance:reflectance}
 }

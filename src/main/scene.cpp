@@ -395,7 +395,7 @@ void Scene::build()
 }
 
 /** CubeScene */
-Cube::Cube(float size)
+Cube::Cube(float size, unsigned matidx /* = 0 */)
 {
     float halfSize = size/2;
     verts.push_back(impala::Point(-halfSize, -halfSize, -halfSize));
@@ -424,6 +424,10 @@ Cube::Cube(float size)
 
     tris.push_back(Tri(7, 5, 4));
     tris.push_back(Tri(3, 5, 4));
+
+    if(matidx)
+        for(size_t i = 0; i < tris.size(); ++i)
+            tris[i].mat = matidx;
 }
 
 }

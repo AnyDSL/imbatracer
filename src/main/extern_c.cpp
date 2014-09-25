@@ -42,9 +42,12 @@ extern "C"
         state->sceneMgr->clear();
     }
 
-    void scene_add_cube(impala::State *state, float size)
+    void scene_add_cube(impala::State *state, float size, impala::Material *mat)
     {
-        state->sceneMgr->add(rt::Cube(size));
+        unsigned matidx = 0;
+        if(mat)
+            matidx = state->sceneMgr->addMaterial(*mat);
+        state->sceneMgr->add(rt::Cube(size, matidx));
     }
 
     void scene_add_file_mat(impala::State *state, int id, int flags, impala::Material *overrideMats, unsigned nMats)

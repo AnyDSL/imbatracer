@@ -14,7 +14,7 @@ extern "C"
 
     // scene creation functions
     fn scene_clear(&State) -> ();
-    fn scene_add_cube(&State, float) -> ();
+    fn scene_add_cube(&State, float, &Material) -> ();
     fn scene_add_file(&State, int, int) -> bool;
     fn scene_add_file_mat(&State, int, int, &[Material], uint) -> bool;
     fn scene_add_texture(&State, &Texture) -> uint; // index of added texture

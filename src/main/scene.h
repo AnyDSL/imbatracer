@@ -128,7 +128,7 @@ private:
 class Cube : public Object
 {
 public:
-    Cube(float size = 1.0f);
+    Cube(float size = 1.0f, unsigned matidx = 0);
 };
 
 

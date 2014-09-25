@@ -46,6 +46,7 @@ fn cmul(a : Color, v : float) -> Color { cfapply2(a, v, mul) }
 fn cdiv(a : Color, v : float) -> Color { cfapply2(a, v, div) }
 fn cadd(a : Color, v : float) -> Color { cfapply2(a, v, add) }
 fn ccadd(a : Color, b : Color) -> Color { ccapply2(a, b, add) }
+fn ccmul(a : Color, b : Color) -> Color { ccapply2(a, b, mul) }
 
 fn clerp(c1 : Color, c2 : Color, t : float) -> Color
 {

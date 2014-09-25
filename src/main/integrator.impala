@@ -6,7 +6,8 @@ struct Integrator
     maxDist : float,
     mode : int,
 
-    itype : int
+    itype : int,
+    maxRecDepth : uint,
 }
 
 
@@ -68,10 +69,7 @@ fn raytraceRadiance(ray: Ray, dist:float, sisec: &ShadingIntersection, mut scene
 {
     let outDir = @vflip(ray.d);
     let surfaceN = @normalTowardsOrigin(sisec.surfaceNormal, ray);
-
-    // HACK: that there's some material to test
     let mat = &scene.materials(sisec.materialIdx);
-
     let uv = sisec.uv;
     let local = sisec.local;
     let hitP = @rayP(ray, dist);
@@ -85,9 +83,38 @@ fn raytraceRadiance(ray: Ray, dist:float, sisec: &ShadingIntersection, mut scene
 }
 
 
-fn recraytraceRadiance(ray: Ray, dist:float, sisec: &ShadingIntersection, scene : &Scene) -> Color
+fn recraytraceRadiance(theRay: Ray, dist:float, sisec: &ShadingIntersection, mut scene : &Scene, integr : &Integrator, recRemain : uint) -> Color
 {
-    color0() // TODO
+    let outDir = @vflip(theRay.d);
+    let surfaceN = @normalTowardsOrigin(sisec.surfaceNormal, theRay);
+    let mat = &scene.materials(sisec.materialIdx);
+    let uv = sisec.uv;
+    let local = sisec.local;
+    let hitP = @rayP(theRay, dist);
+    let sampling = mat.sampling;
+
+    let mut c = @color0();
+
+    if sampling != SAMPLING_NOT_NEEDED && recRemain > 0u
+    {
+        let sr = evalMaterialSampleReflectance(mat, local, sisec.shadingNormal, outDir);
+        if cAny(sr.reflectance, isstrictpos)
+        {
+            let startPos:Point = @pvadd(hitP, vfmul(sr.direction, sisec.eps));
+            let recray = @ray(startPos, sr.direction);
+            // partial specialize for rec raytrace so we get rid of the branching in getRadianceForHit()
+            let rc = $runIntegratorRec(2, integr, scene, recray, recRemain-1u); // TODO: enable PE again
+            @assert(||{!cAny(sr.reflectance, isneg)}, "light stolen!");
+            c = @ccadd(c, @ccmul(rc, sr.reflectance));
+        }
+    }
+    if sampling != SAMPLING_ALL
+    {
+        let cl = @integrateLightSources(scene, hitP, outDir, surfaceN, sisec.shadingNormal, uv, local, mat, sisec.eps);
+        c = @ccadd(c, cl);
+    }
+
+    @ccadd(c, evalMaterialEmission(uv, local, surfaceN, outDir, mat, scene))
 }
 
 fn makeDistanceScaled(minDist: float, maxDist: float, dist:float, sisec: &ShadingIntersection, getcol: fn(float, &ShadingIntersection) -> Color) -> Color
@@ -110,16 +137,15 @@ fn debuggerRadiance(mode: int, minDist: float, maxDist: float, dist:float, sisec
         )
 }
 
-fn getRadianceForHit(integr : &Integrator, ray: Ray, dist:float, sisec: &ShadingIntersection, scene : &Scene) -> Color
+fn getRadianceForHit(ty : int, integr : &Integrator, ray: Ray, dist:float, sisec: &ShadingIntersection, scene : &Scene, recRemain : uint) -> Color
 {
-    let ty = integr.itype;
-    if      ty == 0 { @cosineRadiance(ray, dist, sisec) }
-    else if ty == 1 { @raytraceRadiance(ray, dist, sisec, scene) }
-    else if ty == 2 { @recraytraceRadiance(ray, dist, sisec, scene) }
-    else            { @debuggerRadiance(integr.mode, integr.minDist, integr.maxDist, dist, sisec) }
+    if      ty == 0 { cosineRadiance(ray, dist, sisec) }
+    else if ty == 1 { raytraceRadiance(ray, dist, sisec, scene) }
+    else if ty == 2 { recraytraceRadiance(ray, dist, sisec, scene, integr, recRemain) }
+    else            { debuggerRadiance(integr.mode, integr.minDist, integr.maxDist, dist, sisec) }
 }
 
-fn runIntegrator(integr : &Integrator, scene : &Scene, ray : Ray) -> Color
+fn runIntegratorRec(ty : int, integr : &Integrator, scene : &Scene, ray : Ray, recRemain : uint) -> Color
 {
     //let mut isec = @intersection(ray, @defaultDist());
     let mut sisec:ShadingIntersection;
@@ -130,7 +156,12 @@ fn runIntegrator(integr : &Integrator, scene : &Scene, ray : Ray) -> Color
     }
     else {
         //@sceneShadeIntersection(scene, &isec, &sisec);
-        @getRadianceForHit(integr, ray, dist, &sisec, scene)
+        getRadianceForHit(ty, integr, ray, dist, &sisec, scene, recRemain)
     }
+}
+
+fn runIntegrator(integr : &Integrator, scene : &Scene, ray : Ray) -> Color
+{
+    $runIntegratorRec(integr.itype, integr, scene, ray, integr.maxRecDepth) // HACK: allow 3 recursions, but don't specialize
 }
 
