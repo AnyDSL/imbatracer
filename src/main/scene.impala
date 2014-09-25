@@ -10,12 +10,7 @@ struct Scene
     tris: RTTris,
 
     // shading data
-    materials: &[Material],
-    textures : &[Texture],
-
-    lights: &[Light],
-    nLights : uint,
-
+    shadingData: RTShadingData,
 }
 
 

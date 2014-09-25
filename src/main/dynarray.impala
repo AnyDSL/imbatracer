@@ -86,7 +86,7 @@ fn dynArraySize(a : &DynArray) -> uint
 fn dynArrayAppend(mut a: &DynArray, obj: &u8) -> uint
 {
     let newSize = a.size + 1u;
-    _dynArrayEnsureCapacity(a, newSize);
+    $_dynArrayEnsureCapacity(a, newSize);
 
     let wpos = a.size * a.elemSize;
     memcpy(&a.data(wpos) as &u8, obj as &u8, a.elemSize as size_t);
@@ -100,3 +100,14 @@ fn dynArrayFetch(mut a: &DynArray, idx: uint) -> &u8
     &a.data(idx*a.elemSize)
 }
 
+
+
+// specialized helper functions
+fn dynArrayAppendUint(a: &DynArray, mut u: uint) -> uint
+{
+    @dynArrayAppend(a, &u as &u8)
+}
+fn dynArrayAppendPoint(a: &DynArray, mut p: Point) -> uint
+{
+    @dynArrayAppend(a, &p as &u8)
+}

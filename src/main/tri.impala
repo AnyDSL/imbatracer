@@ -6,8 +6,14 @@ struct Tris
     triVerts : DynArray, // of uint, 3 successive entries are the three indices of the vertices of a triangle
 
     normals : DynArray, // of Vec
-    texcoords: DynArray, // of TexCoord
+    texCoords: DynArray, // of TexCoord
     triData : DynArray, // of uint, 7 successive indices belong to one triangle: 3 normals, 3 texcoors, 1 material
+}
+fn createTris() -> Tris
+{
+    // HACK these are sizes FIXME NEED SIZEOF
+    Tris{ verts: @dynArrayInit(3u*4u, 0u), triVerts: @dynArrayInit(4u, 0u),
+            normals: @dynArrayInit(3u*4u, 0u), texCoords: @dynArrayInit(2u*4u, 0u), triData: @dynArrayInit(4u, 0u) }
 }
 struct RTTris
 {
@@ -21,9 +27,50 @@ struct RTTris
 }
 
 // = construction functions =
-fn trisAddCube(tris: &Tris) -> ()
+fn trisAddTriBasic(mut tris: &Tris, v1: uint, v2: uint, v3: uint, mat: uint) -> ()
 {
-    // FIXME add a cube
+    // add triangle vertices
+    dynArrayAppendUint(&tris.triVerts, v1);
+    dynArrayAppendUint(&tris.triVerts, v2);
+    dynArrayAppendUint(&tris.triVerts, v3);
+    // add triangle data
+    for i in @range(0, 6) {
+        dynArrayAppendUint(&tris.triData, noIdx);
+    }
+    dynArrayAppendUint(&tris.triData, mat);
+}
+fn trisAddCube(mut tris: &Tris, size: float, mat: uint) -> ()
+{
+    let vertOffset = dynArraySize(&tris.verts);
+
+    let halfSize = size/2.0f;
+    dynArrayAppendPoint(&tris.verts, @point(-halfSize, -halfSize, -halfSize));
+    dynArrayAppendPoint(&tris.verts, @point(-halfSize, -halfSize, -halfSize));
+    dynArrayAppendPoint(&tris.verts, @point( halfSize, -halfSize, -halfSize));
+    dynArrayAppendPoint(&tris.verts, @point(-halfSize,  halfSize, -halfSize));
+    dynArrayAppendPoint(&tris.verts, @point(-halfSize, -halfSize,  halfSize));
+    dynArrayAppendPoint(&tris.verts, @point(-halfSize,  halfSize,  halfSize));
+    dynArrayAppendPoint(&tris.verts, @point( halfSize, -halfSize,  halfSize));
+    dynArrayAppendPoint(&tris.verts, @point( halfSize,  halfSize, -halfSize));
+    dynArrayAppendPoint(&tris.verts, @point( halfSize,  halfSize,  halfSize));
+
+    trisAddTriBasic(tris, vertOffset+0u, vertOffset+1u, vertOffset+2u, mat);
+    trisAddTriBasic(tris, vertOffset+6u, vertOffset+1u, vertOffset+2u, mat);
+
+    trisAddTriBasic(tris, vertOffset+0u, vertOffset+1u, vertOffset+3u, mat);
+    trisAddTriBasic(tris, vertOffset+5u, vertOffset+1u, vertOffset+3u, mat);
+
+    trisAddTriBasic(tris, vertOffset+0u, vertOffset+2u, vertOffset+3u, mat);
+    trisAddTriBasic(tris, vertOffset+4u, vertOffset+2u, vertOffset+3u, mat);
+
+    trisAddTriBasic(tris, vertOffset+7u, vertOffset+6u, vertOffset+5u, mat);
+    trisAddTriBasic(tris, vertOffset+1u, vertOffset+6u, vertOffset+5u, mat);
+
+    trisAddTriBasic(tris, vertOffset+7u, vertOffset+6u, vertOffset+4u, mat);
+    trisAddTriBasic(tris, vertOffset+2u, vertOffset+6u, vertOffset+4u, mat);
+
+    trisAddTriBasic(tris, vertOffset+7u, vertOffset+5u, vertOffset+4u, mat);
+    trisAddTriBasic(tris, vertOffset+3u, vertOffset+5u, vertOffset+4u, mat);
 }
 
 // = traversal functions =

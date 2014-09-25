@@ -46,7 +46,7 @@ extern fn impala_init(mut state : &State) -> ()
     scene_build(state);
 
     // add point light
-    let mut lights = ~[3:Light];
+    /*let mut lights = ~[3:Light];
     let intens = 4.1f;
     lights(0) = @pointLight(point0(), color(intens*500.0f, intens*500.0f, intens*500.0f));
     lights(1) = @pointLight(point0(), color(intens*100.0f, intens*100.0f, intens*100.0f));
@@ -54,7 +54,7 @@ extern fn impala_init(mut state : &State) -> ()
     state.scene.nLights = 3u;
     state.scene.lights = lights;
 
-    state.user1 = (0 as &u8);
+    state.user1 = (0 as &u8);*/
 }
 
 extern fn impala_update(mut state : &State, dt : float) -> ()
@@ -70,9 +70,9 @@ extern fn impala_update(mut state : &State, dt : float) -> ()
     state.cam = @camPerspectiveLookAt(pos, at, up, horzOpenAngle, vertOpenAngle);
 
     // put light right where the cam was shortly ago, and on the other side
-    state.scene.lights(0).pos = @point(-3.5f*scale*sinf(time-0.5f), +1.2f*scale*sinf(0.2f*time-0.5f), +3.7f*scale*cosf(time-0.5f));
+    /*state.scene.lights(0).pos = @point(-3.5f*scale*sinf(time-0.5f), +1.2f*scale*sinf(0.2f*time-0.5f), +3.7f*scale*cosf(time-0.5f));
     state.scene.lights(1).pos = @point(-3.5f*scale*sinf(time+0.5f), +1.9f*scale*sinf(0.2f*time+0.5f), +3.7f*scale*cosf(time+0.5f));
-    state.scene.lights(2).pos = @point(-3.5f*scale*sinf(time+0.5f+pi), +2.2f*scale*sinf(0.2f*time+0.5f+pi), +3.7f*scale*cosf(time+0.5f+pi));
+    state.scene.lights(2).pos = @point(-3.5f*scale*sinf(time+0.5f+pi), +2.2f*scale*sinf(0.2f*time+0.5f+pi), +3.7f*scale*cosf(time+0.5f+pi));*/
 
     // scale our teapot
     /*let potScale = (fabsf(sinf(0.8f*time))/2.0f+0.5f);
@@ -104,7 +104,7 @@ extern fn impala_init_bench2(mut state : &State) -> ()
     scene_build(state);
 
     // add point lights
-    let mut lights = ~[3:Light];
+    /*let mut lights = ~[3:Light];
     let intens = 4.1f;
     lights(0) = @pointLight(point0(), color(intens*500.0f, intens*500.0f, intens*500.0f));
     lights(1) = @pointLight(point0(), color(intens*100.0f, intens*100.0f, intens*100.0f));
@@ -124,5 +124,5 @@ extern fn impala_init_bench2(mut state : &State) -> ()
     // put light right where the cam was shortly ago, and on the other side
     state.scene.lights(0).pos = @point(-3.5f*scale*sinf(time-0.5f), +1.2f*scale*sinf(0.2f*time-0.5f), +3.7f*scale*cosf(time-0.5f));
     state.scene.lights(1).pos = @point(-3.5f*scale*sinf(time+0.5f), +1.9f*scale*sinf(0.2f*time+0.5f), +3.7f*scale*cosf(time+0.5f));
-    state.scene.lights(2).pos = @point(-3.5f*scale*sinf(time+0.5f+pi), +2.2f*scale*sinf(0.2f*time+0.5f+pi), +3.7f*scale*cosf(time+0.5f+pi));
+    state.scene.lights(2).pos = @point(-3.5f*scale*sinf(time+0.5f+pi), +2.2f*scale*sinf(0.2f*time+0.5f+pi), +3.7f*scale*cosf(time+0.5f+pi));*/
 }

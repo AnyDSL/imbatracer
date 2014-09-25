@@ -91,11 +91,11 @@ fn phongFactor(normal:Vec, outDir:Vec, inDir:Vec, exponent:float) -> float
 
 fn evalMaterialReflectance(texPoint:TexCoord, local:Point, normal:Vec, outDir:Vec, inDir:Vec, mat : &Material, mut scene : &Scene) -> Color
 {
-    let diffuse = evalTexture(texPoint, local, &scene.textures(mat.diffuse));
+    let diffuse = evalTexture(texPoint, local, &scene.shadingData.textures(mat.diffuse));
 
     let lambertian = @cdiv(diffuse, pi);
     let phong = if mat.specExp > 0.0f {
-            @cmul(evalTexture(texPoint, local, &scene.textures(mat.specular))
+            @cmul(evalTexture(texPoint, local, &scene.shadingData.textures(mat.specular))
                 , @phongFactor(normal, outDir, inDir, mat.specExp)
             )
         } else { @color0() };
@@ -107,7 +107,7 @@ fn evalMaterialReflectance(texPoint:TexCoord, local:Point, normal:Vec, outDir:Ve
 fn evalMaterialEmission(texPoint:TexCoord, local:Point, normal:Vec, outDir:Vec, mat : &Material, mut scene : &Scene) -> Color
 {
     // texture material
-    evalTexture(texPoint, local, &scene.textures(mat.emissive))
+    evalTexture(texPoint, local, &scene.shadingData.textures(mat.emissive))
 
     // TODO: other materials (glass etc)
 }

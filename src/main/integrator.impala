@@ -10,6 +10,22 @@ struct Integrator
     maxRecDepth : uint,
 }
 
+struct ShadingData
+{
+    materials: DynArray, // &[Material],
+    textures : DynArray, // &[Texture],
+
+    lights: DynArray, // &[Light],
+}
+struct RTShadingData
+{
+    materials: &[Material],
+    textures : &[Texture],
+
+    lights: &[Light],
+    nLights : uint,
+}
+
 
 // return a gray color whose value is the cosine between the ray direction and the hit surface normal
 fn cosineRadiance(ray: Ray, dist:float, sisec: &ShadingIntersection) -> Color
@@ -36,9 +52,9 @@ fn integrateLightSources(mut scene : &Scene, hitP : Point, outDir : Vec, surface
 {
     let mut c = @color0();
 
-    for i in @urange(0u, scene.nLights)
+    for i in @urange(0u, scene.shadingData.nLights)
     {
-        let light = &scene.lights(i);
+        let light = &scene.shadingData.lights(i);
         let lhit = evalLightHit(light, hitP);
         @assert(||almost(vlensq(lhit.dir), 1.0f), "Light source hit direction must be normalised");
 
@@ -69,7 +85,7 @@ fn raytraceRadiance(ray: Ray, dist:float, sisec: &ShadingIntersection, mut scene
 {
     let outDir = @vflip(ray.d);
     let surfaceN = @normalTowardsOrigin(sisec.surfaceNormal, ray);
-    let mat = &scene.materials(sisec.materialIdx);
+    let mat = &scene.shadingData.materials(sisec.materialIdx);
     let uv = sisec.uv;
     let local = sisec.local;
     let hitP = @rayP(ray, dist);
@@ -87,7 +103,7 @@ fn recraytraceRadiance(theRay: Ray, dist:float, sisec: &ShadingIntersection, mut
 {
     let outDir = @vflip(theRay.d);
     let surfaceN = @normalTowardsOrigin(sisec.surfaceNormal, theRay);
-    let mat = &scene.materials(sisec.materialIdx);
+    let mat = &scene.shadingData.materials(sisec.materialIdx);
     let uv = sisec.uv;
     let local = sisec.local;
     let hitP = @rayP(theRay, dist);
