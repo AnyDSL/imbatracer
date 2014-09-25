@@ -31,7 +31,7 @@ struct NodeSplitInformation
 fn constructBvh(nPrims: uint, primBounds: primBoundsFn, primCentroid: primCentroidFn, primFinalize: primFinalizeFn) -> ()
 {
     // prepare working arena and object data
-    let bvhNodes = dynArrayInit();
+    let mut bvhNodes = dynArrayInit(0u, nPrims / 4u); // FIXME: sizeof()
     let mut totalBounds = bboxEmpty();
     let mut primData = ~[nPrims:PrimData];
     let splitPlaneCandidates = ~[nPrims:SplitPlaneCandidate];
@@ -47,7 +47,7 @@ fn constructBvh(nPrims: uint, primBounds: primBoundsFn, primCentroid: primCentro
     }
 
     buildBvhNode(allPrims, nPrims, totalBounds, 0u, leftPrims, rightPrims,
-            bvhNodes, primFinalize);
+            &bvhNodes, primFinalize);
 
 }
 
