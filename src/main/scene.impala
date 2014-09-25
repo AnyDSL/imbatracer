@@ -1,20 +1,17 @@
+// compose layers of stuff together to form a scene one can intersect against
 
+type IntersectFirstFn = fn(uint, &Ray, float, &ShadingIntersection) -> float;
+type IntersectAnyFn   = fn(uint, &Ray, float) -> bool;
 
 struct Scene
 {
-    bvhNodes: &[BVHNode],
+    // scene geometry
+    bvh: BVHTree,
+    tris: RTTris,
 
-    verts : &[Point],
-    triVerts : &[uint], // 3 successive entries are the three indices of the vertices of a triangle
-
-    normals : &[Vec],
-    texcoords: &[TexCoord],
+    // shading data
     materials: &[Material],
     textures : &[Texture],
-    triData : &[uint], // 7 successive indices belong to one triangle: 3 normals, 2 texcoors, 1 material
-
-    objs: &[Object],
-    nObjs : uint,
 
     lights: &[Light],
     nLights : uint,
@@ -22,78 +19,19 @@ struct Scene
 }
 
 
-fn noIdx() -> uint // the ID to be used when "nothing" is referenced (not valid for vertices; either one normal/texCoord or all of them must be absent)
-{ 0xFFFFFFFFu }
-
-// accessor functions
-fn triPoint(tri : uint, n : uint, scene : &Scene) -> Point
-{
-    @assert(||n < 3u, "Accessing invalid triangle point");
-    let idx = scene.triVerts(3u*tri + n);
-    scene.verts(idx)
-}
-
-fn triHasNormals(tri : uint, scene : &Scene) -> bool
-{
-    scene.triData(7u*tri) != noIdx()
-}
-
-fn triVertNormal(tri : uint, n : uint, scene : &Scene) -> Vec
-{
-    @assert(||n < 3u, "Accessing invalid triangle normal");
-    let idx = scene.triData(7u*tri + n);
-    scene.normals(idx)
-}
-
-fn triHasTexcoord(tri : uint, scene : &Scene) -> bool
-{
-    scene.triData(7u*tri+3u) != noIdx()
-}
-
-fn triTexCoord(tri : uint, n : uint, scene : &Scene) -> TexCoord
-{
-    @assert(||n < 3u, "Accessing invalid triangle texture coordinate");
-    let idx = scene.triData(7u*tri + 3u + n);
-    scene.texcoords(idx)
-}
-
-fn triMaterialIdx(tri : uint, scene : &Scene) -> uint
-{
-    let idx = scene.triData(7u*tri + 6u);
-    idx
-}
-
-/* Object API: Provide three functions
+/* Object API: Provide two functions
  * - IntersectFirst takes a scene, a ray, the max. distance, a pointer to the shading intersection and returns the new max. distance (if an intersection was found),
  *   or the old one if nothing was found
  * - IntersectAny takes ascene, a ray, and the max. distance and returns whether there's a hit in that range
- * - ShadeIntersection currently does nothing useful
  */
 
 // TODO: Figure out the best way to pass around stuff. Scene as pointer or as copy? Intersection as pointer, or as function from Ray to isect?
-fn sceneIntersectFirst(scene: &Scene, ray : Ray, mut maxdist : float, sisec : &ShadingIntersection) -> float
+fn sceneIntersectFirst(mut scene: &Scene, ray : &Ray, maxdist : float, sisec : &ShadingIntersection) -> float
 {
-    for obj in urange(0u, scene.nObjs)
-    {
-        maxdist = @objIntersectFirst(obj, scene, ray, maxdist, sisec);
-    };
-    maxdist
+    @bvhIntersectFirst(&scene.bvh, ray, maxdist, sisec, |idx, ray, maxdist, sisec|trisIntersectFirst(idx, &scene.tris, ray, maxdist, sisec))
 }
 
-fn sceneIntersectAny(scene: &Scene, ray : Ray, maxdist : float) -> bool
+fn sceneIntersectAny(mut scene: &Scene, ray : &Ray, maxdist : float) -> bool
 {
-    for obj in urange(0u, scene.nObjs)
-    {
-        if @objIntersectAny(obj, scene, ray, maxdist)
-        {
-            return(true)
-        }
-    }
-    false
+    @bvhIntersectAny(&scene.bvh, ray, maxdist, |idx, ray, maxdist|trisIntersectAny(idx, &scene.tris, ray, maxdist))
 }
-/*
-fn sceneShadeIntersection(scene: &Scene, isec: &Intersection, sisec: &ShadingIntersection) -> ()
-{
-    @objShadeIntersection(isec.obj, scene, isec, sisec)
-}
-*/

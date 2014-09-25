@@ -5,9 +5,7 @@ fn defaultRayEps() -> float
 }
 
 static defaultDist:float = FLT_MAX;
-
-fn noObj() -> uint
-{ 0xFFFFFFFFu }
+static noIdx = 0xFFFFFFFFu;
 
 /*
 struct Intersection

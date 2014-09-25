@@ -90,7 +90,7 @@ public:
     /** Add an objects */
     void addObj(unsigned rootIdx)
     {
-        impala_object_init(&scene->objs[nObjs], rootIdx);
+        // FIXME impala_object_init(&scene->objs[nObjs], rootIdx);
         nObjs += 1;
     }
     /** Dump BVH nodes to Impala */

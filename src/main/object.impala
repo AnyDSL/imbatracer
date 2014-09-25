@@ -1,4 +1,4 @@
-
+/*
 struct Object
 {
     bvhRoot : uint,
@@ -42,20 +42,5 @@ fn objIntersectAny(objidx : uint, scene : &Scene, theRay : Ray, maxdist : float)
     let unitLen = @vlen(idir);
     let subRay = @ray(io, @vfdiv(idir, unitLen));
     bvhIntersectAny(scene.objs(objidx).bvhRoot, scene, subRay, maxdist)
-}
-
-/*
-fn objShadeIntersection(objidx: uint, scene: &Scene, isec: &Intersection, mut sisec: &ShadingIntersection) -> ()
-{
-    @triShadeIntersection(isec.tri, scene, isec, sisec);
-
-    // and translate it back
-    let transformNormal = |v:Vec|->Vec{
-        let vT = @mmul_transposed3x3(scene.objs(objidx).w2o, v);
-        @normalize(if scene.objs(objidx).swapsHandedness { @vflip(v) } else { v })
-    };
-    sisec.surfaceNormal = @transformNormal(sisec.surfaceNormal);
-    sisec.shadingNormal = @transformNormal(sisec.shadingNormal);
-    sisec.eps = sisec.eps*@max(isec.unitLen, 1.0f/isec.unitLen);
 }
 */

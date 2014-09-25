@@ -1,9 +1,9 @@
-extern fn impala_object_init(mut obj : &Object, root : uint) -> ()
+/*extern fn impala_object_init(mut obj : &Object, root : uint) -> ()
 {
     obj.bvhRoot = root;
     obj.w2o = @matrix0();
     obj.swapsHandedness = false;
-}
+}*/
 
 extern fn impala_init(mut state : &State) -> ()
 {
@@ -75,9 +75,9 @@ extern fn impala_update(mut state : &State, dt : float) -> ()
     state.scene.lights(2).pos = @point(-3.5f*scale*sinf(time+0.5f+pi), +2.2f*scale*sinf(0.2f*time+0.5f+pi), +3.7f*scale*cosf(time+0.5f+pi));
 
     // scale our teapot
-    let potScale = (fabsf(sinf(0.8f*time))/2.0f+0.5f);
+    /*let potScale = (fabsf(sinf(0.8f*time))/2.0f+0.5f);
     state.scene.objs(0).w2o = @matrix_scalingv(@vec(potScale, 1.0f, 1.2f*potScale));
-    state.scene.objs(0).swapsHandedness = false;
+    state.scene.objs(0).swapsHandedness = false;*/
 }
 
 extern fn impala_init_bench1(mut state : &State) -> ()

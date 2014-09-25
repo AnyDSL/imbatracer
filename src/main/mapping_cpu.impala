@@ -33,6 +33,7 @@ fn free_PixelBuffer(p : &PixelBuffer) -> ()
     thorin_free(p as &u8);
 }
 
+static maxColorDist = 0.1f;
 
 fn preparePixelBuffer(level : uint, mut state : &State, w : uint, h : uint) -> &PixelBuffer
 {
@@ -123,8 +124,6 @@ fn renderBlock(body : RenderFunc, setcolor: SetColorFn, pixcache : &PixelBuffer,
 fn renderBlock2(body : RenderFunc, setcolor: SetColorFn, pixcache : &PixelBuffer, x : uint, y : uint, w : uint, h : uint, level : uint, topleft : &PixelInfo) -> ()
 {
     assert(||{(level%2u)==0u && level>1u}, "Subsampling Level must be even and > 1");
-
-    let maxColorDist = 0.1f;
 
     let topright = @getCachePixel(body, pixcache, x + level, y, x+level < w);
     let bottomleft = @getCachePixel(body, pixcache, x, y + level, y+level < h);

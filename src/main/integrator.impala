@@ -53,9 +53,9 @@ fn integrateLightSources(mut scene : &Scene, hitP : Point, outDir : Vec, surface
 
             if @cAny(contrib, isstrictpos)
             {
-                let shadowRay = @ray(pvadd(hitP, vfmul(surfaceN, rayEps)), lhit.dir);
+                let mut shadowRay = @ray(pvadd(hitP, vfmul(surfaceN, rayEps)), lhit.dir);
                 let dist = lhit.dist - 2.0f*rayEps; // we substract rayEps at both ends
-                if @!sceneIntersectAny(scene, shadowRay, dist)
+                if @!sceneIntersectAny(scene, &shadowRay, dist)
                 {
                     c = @ccapply2(c, contrib, add); // light shines on hit point
                 }
@@ -145,11 +145,11 @@ fn getRadianceForHit(ty : int, integr : &Integrator, ray: Ray, dist:float, sisec
     else            { debuggerRadiance(integr.mode, integr.minDist, integr.maxDist, dist, sisec) }
 }
 
-fn runIntegratorRec(ty : int, integr : &Integrator, scene : &Scene, ray : Ray, recRemain : uint) -> Color
+fn runIntegratorRec(ty : int, integr : &Integrator, scene : &Scene, mut ray : Ray, recRemain : uint) -> Color
 {
     //let mut isec = @intersection(ray, @defaultDist());
     let mut sisec:ShadingIntersection;
-    let dist = @sceneIntersectFirst(scene, ray, defaultDist, &sisec);
+    let dist = @sceneIntersectFirst(scene, &ray, defaultDist, &sisec);
 
     if dist >= defaultDist {
         @color(1.0f, 0.0f, 0.0f)

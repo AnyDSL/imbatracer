@@ -1,5 +1,72 @@
 
-fn triIntersectGeneric(tri : uint, scene : &Scene, ray : Ray, maxDistance : float, mut sisec: &ShadingIntersection) -> float
+// a container for a bunch of triangles
+struct Tris
+{
+    verts : DynArray, // of Point
+    triVerts : DynArray, // of uint, 3 successive entries are the three indices of the vertices of a triangle
+
+    normals : DynArray, // of Vec
+    texcoords: DynArray, // of TexCoord
+    triData : DynArray, // of uint, 7 successive indices belong to one triangle: 3 normals, 3 texcoors, 1 material
+}
+struct RTTris
+{
+    verts : &[Point],
+    triVerts : &[uint], // 3 successive entries are the three indices of the vertices of a triangle
+
+    normals : &[Vec],
+    texcoords: &[TexCoord],
+    textures : &[Texture],
+    triData : &[uint], // 7 successive indices belong to one triangle: 3 normals, 2 texcoors, 1 material
+}
+
+// = construction functions =
+fn trisAddCube(tris: &Tris) -> ()
+{
+    // FIXME add a cube
+}
+
+// = traversal functions =
+
+// accessor functions
+fn triPoint(tri : uint, n : uint, tris : &RTTris) -> Point
+{
+    @assert(||n < 3u, "Accessing invalid triangle point");
+    let idx = tris.triVerts(3u*tri + n);
+    tris.verts(idx)
+}
+
+fn triHasNormals(tri : uint, tris : &RTTris) -> bool
+{
+    tris.triData(7u*tri) != noIdx
+}
+
+fn triVertNormal(tri : uint, n : uint, tris : &RTTris) -> Vec
+{
+    @assert(||n < 3u, "Accessing invalid triangle normal");
+    let idx = tris.triData(7u*tri + n);
+    tris.normals(idx)
+}
+
+fn triHasTexcoord(tri : uint, tris : &RTTris) -> bool
+{
+    tris.triData(7u*tri+3u) != noIdx
+}
+
+fn triTexCoord(tri : uint, n : uint, tris : &RTTris) -> TexCoord
+{
+    @assert(||n < 3u, "Accessing invalid triangle texture coordinate");
+    let idx = tris.triData(7u*tri + 3u + n);
+    tris.texcoords(idx)
+}
+
+fn triMaterialIdx(tri : uint, tris : &RTTris) -> uint
+{
+    let idx = tris.triData(7u*tri + 6u);
+    idx
+}
+
+fn triIntersectGeneric(tri : uint, tris : &RTTris, ray : &Ray, maxDistance : float, mut sisec: &ShadingIntersection) -> float
 {
     /* Directly compute barycentric coordinates and t, and cancel early if we notice the ray is not going to hit
      * Surface parameterization: with barycentric coordinates b1, b2, it is p(b1, b2) = (1-b1-b2)*a + b1*b + b2*c
@@ -15,9 +82,9 @@ fn triIntersectGeneric(tri : uint, scene : &Scene, ray : Ray, maxDistance : floa
      * detA = e1*f1, t = e2*f2, / detA, b1 = s*f1, b2 = -d*-f2 = d*f2
      */
     // compute inverse determinant
-    let a = @triPoint(tri, 0u, scene);
-    let e1 = to(a, @triPoint(tri, 1u, scene));
-    let e2 = to(a, @triPoint(tri, 2u, scene));
+    let a = @triPoint(tri, 0u, tris);
+    let e1 = to(a, @triPoint(tri, 1u, tris));
+    let e2 = to(a, @triPoint(tri, 2u, tris));
     let f1 = cross(ray.d, e2);
     let detA = dot(e1, f1);
     let invDetA = 1.0f / detA;
@@ -49,79 +116,57 @@ fn triIntersectGeneric(tri : uint, scene : &Scene, ray : Ray, maxDistance : floa
         sisec.eps = @sqrtf((@vlensq(e1)+@vlensq(e2)))*defaultRayEps();
         sisec.surfaceNormal = surfaceNormal;
         sisec.shadingNormal =
-            if @triHasNormals(tri, scene) {
-                let n1 = @triVertNormal(tri, 0u, scene);
-                let n2 = @triVertNormal(tri, 1u, scene);
-                let n3 = @triVertNormal(tri, 2u, scene);
+            if @triHasNormals(tri, tris) {
+                let n1 = @triVertNormal(tri, 0u, tris);
+                let n2 = @triVertNormal(tri, 1u, tris);
+                let n3 = @triVertNormal(tri, 2u, tris);
                 @normalize(@vlerpbarp(n1, n2, n3, bar))
             }
             else {
                 surfaceNormal // surfce normal, already normalized
             };
-        sisec.uv = @triTexPoint(bar, tri, scene);
-        sisec.local = @triLocalHitPoint(bar, tri, scene); // TODO directly use b1, b2, e1, e2, a
-        sisec.materialIdx = @triMaterialIdx(tri, scene);
+        sisec.uv = @triTexPoint(bar, tri, tris);
+        sisec.local = @triLocalHitPoint(bar, tri, tris); // TODO directly use b1, b2, e1, e2, a
+        sisec.materialIdx = @triMaterialIdx(tri, tris);
         return (t)
     }
 }
 
-fn triIntersectAny(tri : uint, scene : &Scene, ray : Ray, maxDistance : float) -> bool
+fn trisIntersectAny(idx : uint, tris : &RTTris, ray : &Ray, maxDistance : float) -> bool
 {
-    @triIntersectGeneric(tri, scene, ray, maxDistance, 0u as &ShadingIntersection) < maxDistance
+    @triIntersectGeneric(idx, tris, ray, maxDistance, 0u as &ShadingIntersection) < maxDistance
 }
 
-fn triIntersectFirst(tri : uint, scene : &Scene, ray : Ray, maxdist: float, sisec: &ShadingIntersection) -> float
+fn trisIntersectFirst(idx : uint, tris : &RTTris, ray : &Ray, maxdist: float, sisec: &ShadingIntersection) -> float
 {
-    @triIntersectGeneric(tri, scene, ray, maxdist, sisec)
+    @triIntersectGeneric(idx, tris, ray, maxdist, sisec)
 }
-/*
-fn triShadeIntersection(tri: uint, scene: &Scene, isec: &Intersection, mut sisec: &ShadingIntersection) -> ()
+
+
+fn triBBox(tri : uint, tris : &RTTris) -> BBox
 {
-    let a = @triPoint(tri, 0u, scene);
-    let e1 = @to(a, @triPoint(tri, 1u, scene));
-    let e2 = @to(a, @triPoint(tri, 2u, scene));
-    let bar = @point(1f-isec.b.u-isec.b.v, isec.b.u, isec.b.v);
-    sisec.eps = @sqrtf((@vlensq(e1)+@vlensq(e2))*defaultRayEps());
-    sisec.surfaceNormal = @normalize(cross(e1, e2));
-    sisec.shadingNormal =
-        if @triHasNormals(tri, scene) {
-            let n1 = @triVertNormal(tri, 0u, scene);
-            let n2 = @triVertNormal(tri, 1u, scene);
-            let n3 = @triVertNormal(tri, 2u, scene);
-            @normalize(@vlerpbarp(n1, n2, n3, bar))
-        }
-        else {
-            sisec.surfaceNormal // surfce normal, already normalized
-        };
-    sisec.uv = @triTexPoint(bar, tri, scene);
-    sisec.local = @triLocalHitPoint(bar, tri, scene);
-    sisec.materialIdx = @triMaterialIdx(tri, scene);
-}
-*/
-fn triBBox(tri : uint, scene : &Scene) -> BBox
-{
-    let a = @triPoint(tri, 0u, scene);
-    let b = @triPoint(tri, 1u, scene);
-    let c = @triPoint(tri, 2u, scene);
+    let a = @triPoint(tri, 0u, tris);
+    let b = @triPoint(tri, 1u, tris);
+    let c = @triPoint(tri, 2u, tris);
     @bbextend(bbox(a, b), c)
 }
 
-fn triArea(tri : uint, scene : &Scene) -> float
+fn triArea(tri : uint, tris : &RTTris) -> float
 {
-    let a = @triPoint(tri, 0u, scene);
-    let e1 = to(a, @triPoint(tri, 1u, scene));
-    let e2 = to(a, @triPoint(tri, 2u, scene));
+    let a = @triPoint(tri, 0u, tris);
+    let e1 = to(a, @triPoint(tri, 1u, tris));
+    let e2 = to(a, @triPoint(tri, 2u, tris));
     @vlen(cross(e1, e2))*0.5f
 }
 
 // map hit point to triangle texture coord
-fn triTexPoint(isecBar : Point, tri : uint, scene : &Scene) -> TexCoord
+fn triTexPoint(isecBar : Point, tri : uint, tris : &RTTris) -> TexCoord
 {
-    if @triHasTexcoord(tri, scene)
+    if @triHasTexcoord(tri, tris)
     {
-        let t1 = @triTexCoord(tri, 0u, scene);
-        let t2 = @triTexCoord(tri, 1u, scene);
-        let t3 = @triTexCoord(tri, 2u, scene);
+        let t1 = @triTexCoord(tri, 0u, tris);
+        let t2 = @triTexCoord(tri, 1u, tris);
+        let t3 = @triTexCoord(tri, 2u, tris);
 
         @plerpbart(t1, t2, t3, isecBar)
     }
@@ -131,11 +176,11 @@ fn triTexPoint(isecBar : Point, tri : uint, scene : &Scene) -> TexCoord
     }
 }
 
-fn triLocalHitPoint(isecBar : Point, tri : uint, scene : &Scene) -> Point
+fn triLocalHitPoint(isecBar : Point, tri : uint, tris : &RTTris) -> Point
 {
-    let t1 = @triPoint(tri, 0u, scene);
-    let t2 = @triPoint(tri, 1u, scene);
-    let t3 = @triPoint(tri, 2u, scene);
+    let t1 = @triPoint(tri, 0u, tris);
+    let t2 = @triPoint(tri, 1u, tris);
+    let t3 = @triPoint(tri, 2u, tris);
 
     @plerpbarp(t1, t2, t3, isecBar)
 }

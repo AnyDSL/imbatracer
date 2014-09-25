@@ -1,10 +1,21 @@
 
+
 struct BVHNode
 {
     bbox : BBox,
     sndChildFirstPrim : uint, // for an inner node, the second child. for a leaf, the first primitive.
     nPrims : u16, // number of primitives in child. 0 for inner node.
     axis: u16,
+}
+
+struct BVHTree
+{
+    bvhNodes: &[BVHNode],
+}
+struct BVHTrees
+{
+    roots: &[u32],
+    bvhNodes: &[BVHNode],
 }
 
 static depthLimit = 16u; // keep in sync with the stack size below in bvhIntersectGeneric
@@ -50,7 +61,7 @@ fn bvhIntersectNode(bounds : BBox, o : Point, maxDist : float, invDir : Vec, neg
     }
 }
 
-fn bvhIntersectGeneric(root: uint, scene : &Scene, ray : Ray, mut maxdist : float, checkIntersect : fn(uint, float) -> float) -> float
+fn bvhIntersectGeneric(root: uint, bvhNodes : &[BVHNode], ray : &Ray, mut maxdist : float, checkIntersect : fn(uint, float) -> float) -> float
 {
     let invDir = @vapply1(ray.d, |f|1.0f/f);
     let neg = @bvhMakeNeg(invDir);
@@ -80,13 +91,13 @@ fn bvhIntersectGeneric(root: uint, scene : &Scene, ray : Ray, mut maxdist : floa
             }
         }
 
-        if @bvhIntersectNode(scene.bvhNodes(curNode).bbox, ray.o, maxdist, invDir, neg)
+        if @bvhIntersectNode(bvhNodes(curNode).bbox, ray.o, maxdist, invDir, neg)
         {
             // inner loop: we assume the current node does not intersect
             let inner = continue;
 
-            let nPrim = scene.bvhNodes(curNode).nPrims;
-            let sndChildFirstPrim = scene.bvhNodes(curNode).sndChildFirstPrim;
+            let nPrim = bvhNodes(curNode).nPrims;
+            let sndChildFirstPrim = bvhNodes(curNode).sndChildFirstPrim;
             if (nPrim > 0u16) {
                 // a leaf
                 for tri in urange(sndChildFirstPrim, sndChildFirstPrim+(nPrim as uint)) {
@@ -101,7 +112,7 @@ fn bvhIntersectGeneric(root: uint, scene : &Scene, ray : Ray, mut maxdist : floa
                     continue(fstNode)
                 }
                 // an inner node, which child do we get to first?
-                if @bvhDirIsNeg(neg, scene.bvhNodes(curNode).axis as uint) {
+                if @bvhDirIsNeg(neg, bvhNodes(curNode).axis as uint) {
                     @descend(sndChildFirstPrim, curNode+1u) // do the left child later
                 }
                 else {
@@ -119,25 +130,55 @@ fn bvhIntersectGeneric(root: uint, scene : &Scene, ray : Ray, mut maxdist : floa
     maxdist
 }
 
-fn bvhIntersectFirst(root: uint, scene : &Scene, ray: Ray, maxdist: float, sisec : &ShadingIntersection) -> float
+fn bvhsIntersectFirst(idx: uint, bvhTrees: &BVHTrees, ray: &Ray, maxdist: float, sisec : &ShadingIntersection, subIntersectFirst: IntersectFirstFn) -> float
 {
-    @bvhIntersectGeneric(root, scene, ray, maxdist,
-        |tri, maxdist|
+    @bvhIntersectGeneric(bvhTrees.roots(idx), bvhTrees.bvhNodes, ray, maxdist,
+        |subIdx, maxdist|
         {
-            triIntersectFirst(tri, scene, ray, maxdist, sisec) // returns new maxdist
+            @subIntersectFirst(subIdx, ray, maxdist, sisec) // returns new maxdist
         }
     )
 }
 
 
-fn bvhIntersectAny(root: uint, scene : &Scene, ray : Ray, maxdist : float) -> bool
+fn bvhsIntersectAny(idx: uint, bvhTrees : &BVHTrees, ray : &Ray, maxdist : float, subIntersectAny: IntersectAnyFn) -> bool
 {
     let success = return; // jump out once we hit anything
 
-    @bvhIntersectGeneric(root, scene, ray, maxdist,
-        |tri, maxdist|
+    @bvhIntersectGeneric(bvhTrees.roots(idx), bvhTrees.bvhNodes, ray, maxdist,
+        |subIdx, maxdist|
         {
-            if @triIntersectAny(tri, scene, ray, maxdist) {
+            if @subIntersectAny(subIdx, ray, maxdist) {
+                success(true)
+            }
+            else {
+                maxdist
+            }
+        }
+    );
+
+    false
+}
+
+fn bvhIntersectFirst(bvhTree: &BVHTree, ray: &Ray, maxdist: float, sisec : &ShadingIntersection, subIntersectFirst: IntersectFirstFn) -> float
+{
+    @bvhIntersectGeneric(0u, bvhTree.bvhNodes, ray, maxdist,
+        |subIdx, maxdist|
+        {
+            @subIntersectFirst(subIdx, ray, maxdist, sisec) // returns new maxdist
+        }
+    )
+}
+
+
+fn bvhIntersectAny(bvhTree : &BVHTree, ray : &Ray, maxdist : float, subIntersectAny: IntersectAnyFn) -> bool
+{
+    let success = return; // jump out once we hit anything
+
+    @bvhIntersectGeneric(0u, bvhTree.bvhNodes, ray, maxdist,
+        |subIdx, maxdist|
+        {
+            if @subIntersectAny(subIdx, ray, maxdist) {
                 success(true)
             }
             else {
