@@ -64,9 +64,9 @@ extern "C"
         scene_add_file_mat(state, id, flags, nullptr, 0);
     }
 
-    void load_file(const char *path, const char *filename, unsigned flags, impala::DynList *overrideMaterials,
-                   impala::DynList *vertices, impala::DynList *normals, impala::DynList *texCoords, impala::DynList *materials, impala::DynList *textures,
-                   impala::DynList *triVerts, impala::DynList *triData);
+    //void load_file(const char *path, const char *filename, unsigned flags, impala::DynList *overrideMaterials,
+    //               impala::DynList *vertices, impala::DynList *normals, impala::DynList *texCoords, impala::DynList *materials, impala::DynList *textures,
+    //               impala::DynList *triVerts, impala::DynList *triData);
 
     void scene_build(impala::State *state)
     {
