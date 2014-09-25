@@ -28,13 +28,15 @@ set(impala_shared_SRC
     integrator.impala
     tri.impala
     bvh_traversal.impala
-    render.impala
 )
 set(impala_loc_SRC
-    mapping_cpu.impala
+    assert_cpu.impala
+    bvh_construction.impala
     interface_loc.impala
 )
 set(impala_acc_SRC
+    render.impala
+    assert_${DEVICE}.impala
     mapping_${DEVICE}.impala
     interface_acc.impala
 )

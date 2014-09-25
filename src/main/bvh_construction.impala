@@ -1,0 +1,10 @@
+
+// abstract BVH construction function
+type objBoundsFn = fn(uint) -> BBox;
+type objCentroidFn = fn(uint) -> Point;
+type objFinalizeFn = fn(uint) -> uint; // called exactly once per object, return the index the object finally has
+
+fn constructBvh(nObjs: uint, objBounds: objBoundsFn, objCentroid: objCentroidFn, objFinalize: objFinalizeFn) -> ()
+{
+
+}
