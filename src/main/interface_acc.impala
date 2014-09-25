@@ -1,4 +1,5 @@
 
+// render the scene, based on the opaque pointer returned by the init function
 extern fn impala_render(buf : &[u32], width : int, height : int, measureTime : bool, state : &State) -> ()
 {
     for x, y, mut rtstate in renderImage(buf, width, height, measureTime, state) {

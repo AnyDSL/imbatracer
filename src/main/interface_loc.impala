@@ -5,8 +5,10 @@
     obj.swapsHandedness = false;
 }*/
 
-extern fn impala_init(mut state : &State) -> ()
+// initialize the scene, return an opaque pointer
+extern fn impala_init() -> &State
 {
+    let mut state = ~State;
     state.time = 0.0f;
     state.integrator.itype = 2; //4:debug, 2:recraytrace, 1:raytrace, 0:cosine
     state.integrator.mode = 1;
@@ -14,7 +16,7 @@ extern fn impala_init(mut state : &State) -> ()
     state.integrator.maxDist = 1.0f;
     state.integrator.maxRecDepth = 6u;
 
-    let mut cxtex = checkerboardTexture2D(color0(), color1(1.0f));
+    /*let mut cxtex = checkerboardTexture2D(color0(), color1(1.0f));
 
     let turbnoise = Noise{ ty:2, octaves:3u, amplitude:0.8f, freq:0.6f, persistence:0.8f };
     let slownoise = Noise{ ty:1, octaves:2u, amplitude:0.6f, freq:0.14f, persistence:0.5f };
@@ -46,7 +48,7 @@ extern fn impala_init(mut state : &State) -> ()
     scene_build(state);
 
     // add point light
-    /*let mut lights = ~[3:Light];
+    let mut lights = ~[3:Light];
     let intens = 4.1f;
     lights(0) = @pointLight(point0(), color(intens*500.0f, intens*500.0f, intens*500.0f));
     lights(1) = @pointLight(point0(), color(intens*100.0f, intens*100.0f, intens*100.0f));
@@ -55,8 +57,17 @@ extern fn impala_init(mut state : &State) -> ()
     state.scene.lights = lights;
 
     state.user1 = (0 as &u8);*/
+
+    let mut scene = sceneInit();
+    let mut cube = trisCreateCube(5.0f, 0u);
+    let cubeidx = sceneAddMesh(&scene, &cube);
+    sceneAddObject(&scene, cubeidx);
+
+    sceneCompile(&scene, &state.scene);
+    return(state);
 }
 
+// update the scene, based on the opaque pointer returned by impala_init
 extern fn impala_update(mut state : &State, dt : float) -> ()
 {
     let time = state.time;
@@ -80,7 +91,7 @@ extern fn impala_update(mut state : &State, dt : float) -> ()
     state.scene.objs(0).swapsHandedness = false;*/
 }
 
-extern fn impala_init_bench1(mut state : &State) -> ()
+extern fn impala_init_bench1() -> &State
 {
     state.integrator.itype = 0;
 
@@ -96,7 +107,7 @@ extern fn impala_init_bench1(mut state : &State) -> ()
     state.cam = @camPerspectiveLookAt(pos, at, up, horzOpenAngle, vertOpenAngle);
 }
 
-extern fn impala_init_bench2(mut state : &State) -> ()
+extern fn impala_init_bench2() -> &State
 {
     state.integrator.itype = 1;
 

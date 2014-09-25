@@ -1,14 +1,13 @@
 
-struct SceneMgr {} // opaque pointer, C++ puts stuff here
-
 
 struct State
 {
     time : float,
     cam : Cam,
     integrator : Integrator,
-    scene : Scene,
+    scene : RTScene,
 
+    // FIXME what't this??
     sceneMgr : &SceneMgr,
     user1 : &u8,
 }
@@ -17,5 +16,5 @@ struct RTState
 {
     cam : Cam,
     integrator : Integrator,
-    scene : Scene,
+    scene : RTScene,
 }

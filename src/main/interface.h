@@ -108,75 +108,6 @@ namespace impala {
         TexCoord(float u, float v) : u(u), v(v) {}
     };
 
-    struct Object
-    {
-        unsigned bvhRoot;
-        //Matrix o2w;
-        Matrix w2o;
-        bool swapsHandedness;
-    };
-
-    struct BBox
-    {
-        Point cmin, cmax;
-
-        BBox() = default;
-        BBox(const Point &p) : cmin(p), cmax(p) {}
-        static BBox empty()
-        {
-            BBox b;
-            b.cmin = Point(FLT_MAX, FLT_MAX, FLT_MAX);
-            b.cmax = Point(FLT_MIN, FLT_MIN, FLT_MIN);
-            return b;
-        }
-
-        Point centroid() const
-        {
-            return Point(0.5*cmin.x + 0.5*cmax.x, 0.5*cmin.y + 0.5*cmax.y, 0.5*cmin.z + 0.5*cmax.z);
-        }
-        BBox &extend(const Point &p)
-        {
-            cmin = Point(std::min(cmin.x, p.x), std::min(cmin.y, p.y), std::min(cmin.z, p.z));
-            cmax = Point(std::max(cmax.x, p.x), std::max(cmax.y, p.y), std::max(cmax.z, p.z));
-            return *this;
-        }
-        BBox &extend(const BBox &b)
-        {
-            return extend(b.cmin).extend(b.cmax);
-        }
-        static BBox unite(const BBox &b1, const BBox &b2)
-        {
-            return BBox(b1).extend(b2);
-        }
-        unsigned longestAxis() const
-        {
-            float xlen = cmax.x-cmin.x;
-            float ylen = cmax.y-cmin.y;
-            float zlen = cmax.z-cmin.z;
-            if (xlen > ylen) {
-                return xlen > zlen ? 0 : 2;
-            }
-            else {
-                return ylen > zlen ? 1 : 2;
-            }
-        }
-        float surface() const
-        {
-            float xlen = cmax.x-cmin.x, ylen = cmax.y-cmin.y, zlen = cmax.z-cmin.z;
-            return 2*(xlen*ylen + xlen*zlen + ylen*zlen);
-        }
-    };
-
-    struct BVHNode
-    {
-        BBox bbox;
-        unsigned sndChildFirstPrim;
-        uint16_t nPrim, axis;
-
-        BVHNode() = default;
-        BVHNode(const BBox &bbox) : bbox(bbox) {}
-    };
-
     struct Noise
     {
         int ty;
@@ -231,71 +162,17 @@ namespace impala {
         }
     };
 
-    struct Light; // opaque to C++
-
-    struct Scene
-    {
-        BVHNode *bvhNodes;
-
-        Point *verts;
-        unsigned *triVerts; // 3 successive entries are the three indices of the vertices of a triangle
-
-        Vec *normals;
-        TexCoord *texcoords;
-        Material *materials;
-        Texture *textures;
-        unsigned *triData; // 7 successive indices belong to one triangle: 3 normals, 2 texcoors, 1 material
-
-        Object *objs;
-        unsigned nObjs;
-
-        Light *lights;
-        unsigned nLights;
-    };
-
-    struct View
-    {
-        Point origin;
-        Vec forward, up, right, originalUp;
-        float rightFactor, upFactor;
-    };
-
-    struct Cam
-    {
-        View view;
-        float param1, param2;
-        int camtype;
-    };
-
-    struct Integrator
-    {
-        float minDist, maxDist;
-        int mode;
-        int itype;
-        int maxRecDepth;
-    };
-
-    struct State
-    {
-        float time;
-        Cam cam;
-        Integrator integrator;
-        Scene scene;
-        rt::Scene *sceneMgr;
-        void *user1;
-    };
-
 
     extern "C" {
         void impala_object_init(Object *obj, unsigned rootIdx);
 
-        void impala_init(State *state);
-        void impala_update(State *state, float dt);
+        void *impala_init();
+        void impala_update(void *state, float dt);
 
-        void impala_init_bench1(State *state);
-        void impala_init_bench2(State *state);
+        void *impala_init_bench1();
+        void *impala_init_bench2();
 
-        void impala_render(unsigned *buf, int w, int h, bool measureTime, State *state);
+        void impala_render(unsigned *buf, int w, int h, bool measureTime, void *state);
     }
 
     // test that these are all POD
@@ -307,17 +184,9 @@ namespace impala {
         static_assert(std::is_pod<impala::Matrix>::value, "impala::Matrix must be a POD");
         static_assert(std::is_pod<impala::Color>::value, "impala::Color must be a POD");
         static_assert(std::is_pod<impala::TexCoord>::value, "impala::TexCoord must be a POD");
-        static_assert(std::is_pod<impala::Object>::value, "impala::Object must be a POD");
-        static_assert(std::is_pod<impala::BBox>::value, "impala::BBox must be a POD");
-        static_assert(std::is_pod<impala::BVHNode>::value, "impala::BVHNode must be a POD");
         static_assert(std::is_pod<impala::Texture>::value, "impala::Texture must be a POD");
         static_assert(std::is_pod<impala::Noise>::value, "impala::Noise must be a POD");
         static_assert(std::is_pod<impala::Material>::value, "impala::Material must be a POD");
-        static_assert(std::is_pod<impala::Scene>::value, "impala::Scene must be a POD");
-        static_assert(std::is_pod<impala::View>::value, "impala::View must be a POD");
-        static_assert(std::is_pod<impala::Cam>::value, "impala::Cam must be a POD");
-        static_assert(std::is_pod<impala::Integrator>::value, "impala::Integrator must be a POD");
-        static_assert(std::is_pod<impala::State>::value, "impala::State must be a POD");
     }
 
 }

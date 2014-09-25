@@ -1,7 +1,6 @@
 
 // abstract BVH construction function
 type primBoundsFn = fn(uint) -> BBox;
-type primCentroidFn = fn(uint) -> Point;
 type primFinalizeFn = fn(uint) -> uint; // called exactly once per object, return the index the object finally has
 
 struct PrimData
@@ -28,7 +27,7 @@ struct NodeSplitInformation
     bestCost: float,
 }
 
-fn constructBvh(nPrims: uint, primBounds: primBoundsFn, primCentroid: primCentroidFn, primFinalize: primFinalizeFn) -> ()
+fn constructBvh(nPrims: uint, primBounds: primBoundsFn, primFinalize: primFinalizeFn) -> ()
 {
     // prepare working arena and object data
     let mut bvhNodes = dynArrayInit(0u, nPrims / 4u); // FIXME: sizeof()

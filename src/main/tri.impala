@@ -9,7 +9,7 @@ struct Tris
     texCoords: DynArray, // of TexCoord
     triData : DynArray, // of uint, 7 successive indices belong to one triangle: 3 normals, 3 texcoors, 1 material
 }
-fn createTris() -> Tris
+fn trisInit() -> Tris
 {
     // HACK these are sizes FIXME NEED SIZEOF
     Tris{ verts: @dynArrayInit(3u*4u, 0u), triVerts: @dynArrayInit(4u, 0u),
@@ -71,6 +71,12 @@ fn trisAddCube(mut tris: &Tris, size: float, mat: uint) -> ()
 
     trisAddTriBasic(tris, vertOffset+7u, vertOffset+5u, vertOffset+4u, mat);
     trisAddTriBasic(tris, vertOffset+3u, vertOffset+5u, vertOffset+4u, mat);
+}
+fn trisCreateCube(size: float, mat: uint) -> Tris
+{
+    let mut tris = tris();
+    trisAddCube(&tris, size, mat);
+    tris
 }
 
 // = traversal functions =
