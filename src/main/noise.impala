@@ -22,6 +22,7 @@ fn noise(x : int, y : int, z : int) -> float
 	1.0f - ( (n * (n * n * 15731 + 789221) + 1376312589) & 0x7fffffff) as float / 1073741824.0f
 }
 
+/*  FIXME enable this again
 fn smoothNoise3D(v : Point) -> float
 {
 	let x = floorf(v.x);
@@ -85,5 +86,5 @@ fn evalNoise(p : Point, n : &Noise) -> float
     else if(n.ty == 2) { $evalTurbulence01(p, n.octaves, n.amplitude, n.freq, n.persistence) }
     else             { 0.0f }
 }
-
+*/
 
