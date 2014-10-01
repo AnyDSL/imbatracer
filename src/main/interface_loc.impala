@@ -10,7 +10,9 @@ extern fn impala_init() -> &State
 {
     let mut state = ~[1:State] as &State;
     state.time = 0.0f;
-    state.integrator.itype = 2; //4:debug, 2:recraytrace, 1:raytrace, 0:cosine
+
+    // initialise integrator
+    state.integrator.itype = 0; //4:debug, 2:recraytrace, 1:raytrace, 0:cosine
     state.integrator.mode = 1;
     state.integrator.minDist = 0.0f;
     state.integrator.maxDist = 1.0f;
@@ -64,6 +66,7 @@ extern fn impala_init() -> &State
     //sceneAddObject(&scene, cubeidx);
 
     sceneCompile(&scene, &state.scene);
+    print_s("Your state is ready!");
     return(state)
 }
 
@@ -72,6 +75,8 @@ extern fn impala_update(mut state : &State, dt : float) -> ()
 {
     let time = state.time;
     state.time = time + dt;
+
+    // initialise camera
     let scale = 10.0f;
     let pos = @point(-3.5f*scale*sinf(time), 1.2f*scale*sinf(0.2f*time), 3.7f*scale*cosf(time));
     let at = @point0();
@@ -79,6 +84,7 @@ extern fn impala_update(mut state : &State, dt : float) -> ()
     let horzOpenAngle = pi / 4.0f;
     let vertOpenAngle = pi / 3.0f;
     state.cam = @camPerspectiveLookAt(pos, at, up, horzOpenAngle, vertOpenAngle);
+
 
     // put light right where the cam was shortly ago, and on the other side
     /*state.scene.lights(0).pos = @point(-3.5f*scale*sinf(time-0.5f), +1.2f*scale*sinf(0.2f*time-0.5f), +3.7f*scale*cosf(time-0.5f));

@@ -12,6 +12,10 @@ extern "C"
     {
       std::cout << "Impala print: " << s << std::endl;
     }
+    void print_sptr(const char *s, void *p)
+    {
+      std::cout << "Impala print: " << s << " " << p << std::endl;
+    }
     void print_si(const char *s, int x)
     {
       std::cout << "Impala print: " << s << " " << x << std::endl;

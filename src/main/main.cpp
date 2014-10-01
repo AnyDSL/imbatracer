@@ -40,8 +40,8 @@ protected:
     virtual void _Render(CountedPtr<Image> img, float dt)
     {
         if (sceneKind == SceneKind::Main)
-            impala::impala_update(&state, dt);
-        impala::impala_render(img->getPtr(), img->width(), img->height(), false, &state);
+            impala::impala_update(state, dt);
+        impala::impala_render(img->getPtr(), img->width(), img->height(), false, state);
     }
 
     SceneKind sceneKind;

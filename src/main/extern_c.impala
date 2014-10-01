@@ -7,6 +7,7 @@ extern "C"
     // Debugging
     fn print_s(&[u8]) -> ();
     fn print_si(&[u8], int) -> ();
+    fn print_sptr(&[u8], &u8) -> ();
     fn print_ssi(&[u8], &[u8], int) -> ();
     fn print_sii(&[u8], int, int) -> ();
     fn print_sf(&[u8], float) -> ();

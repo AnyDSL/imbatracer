@@ -171,6 +171,7 @@ fn runIntegratorRec(ty : int, integr : &Integrator, scene : &RTScene, mut ray : 
 {
     //let mut isec = @intersection(ray, @defaultDist());
     let mut sisec:ShadingIntersection;
+    //print_s("Tracing a ray");
     let dist = @sceneIntersectFirst(scene, &ray, defaultDist, &sisec);
 
     if dist >= defaultDist {
@@ -178,6 +179,7 @@ fn runIntegratorRec(ty : int, integr : &Integrator, scene : &RTScene, mut ray : 
     }
     else {
         //@sceneShadeIntersection(scene, &isec, &sisec);
+        //print_s("Doing shading");
         getRadianceForHit(ty, integr, ray, dist, &sisec, scene, recRemain)
     }
 }

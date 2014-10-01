@@ -73,6 +73,7 @@ fn bvhIntersectGeneric(root: uint, bvhNodes : &[BVHNode], ray : &Ray, mut maxdis
 
     // CPS fun while passing the current node around as argument :-)
     for curNode in ever1(root) { // we shouldn't unroll this, but adding a $ here makes stuff go slower
+        //print_si("Traversing through BVH node <id>:", curNode as int);
         // stack helper functions
         fn pushNode(node : uint) -> ()
         {
