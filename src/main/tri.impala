@@ -132,7 +132,6 @@ fn trisAddCube(mut tris: &Tris, size: float, mat: uint) -> ()
 
     let halfSize = size/2.0f;
     dynArrayAppendPoint(&tris.verts, @point(-halfSize, -halfSize, -halfSize));
-    dynArrayAppendPoint(&tris.verts, @point(-halfSize, -halfSize, -halfSize));
     dynArrayAppendPoint(&tris.verts, @point( halfSize, -halfSize, -halfSize));
     dynArrayAppendPoint(&tris.verts, @point(-halfSize,  halfSize, -halfSize));
     dynArrayAppendPoint(&tris.verts, @point(-halfSize, -halfSize,  halfSize));
