@@ -103,7 +103,7 @@ fn dynArrayAppend(mut a: &DynArray, obj: &u8) -> uint
     let wpos = a.size * a.elemSize;
     memcpy(&a.data(wpos) as &u8, obj as &u8, a.elemSize as size_t);
     a.size = newSize;
-    wpos
+    newSize-1u
 }
 
 fn dynArrayFetch(mut a: &DynArray, idx: uint) -> &u8

@@ -8,8 +8,7 @@
 // initialize the scene, return an opaque pointer
 extern fn impala_init() -> &State
 {
-    let mut state = ~[1:State] as &State;
-    state.time = 0.0f;
+    let mut state = stateInit();
 
     // initialise integrator
     state.integrator.itype = 1; //4:debug, 2:recraytrace, 1:raytrace, 0:cosine
@@ -19,7 +18,7 @@ extern fn impala_init() -> &State
     state.integrator.maxRecDepth = 6u;
 
     // initialise scene
-    let mut scene = sceneInit();
+    let mut scene = @sceneInit();
 
     let mut cxtex = checkerboardTexture2D(color0(), color1(1.0f));
 
@@ -54,20 +53,17 @@ extern fn impala_init() -> &State
     scene_add_file_mat(state, 2, 0, &mats, 2u);
     scene_build(state);
 
-    // add point light
-    let mut lights = ~[3:Light];
-    let intens = 4.1f;
-    lights(0) = @pointLight(point0(), color(intens*500.0f, intens*500.0f, intens*500.0f));
-    lights(1) = @pointLight(point0(), color(intens*100.0f, intens*100.0f, intens*100.0f));
-    lights(2) = @pointLight(point0(), color(intens*300.0f, intens*300.0f, intens*300.0f));
-    state.scene.nLights = 3u;
-    state.scene.lights = lights;
+    */
 
-    state.user1 = (0 as &u8);*/
-
-    let mut cube = trisCreateCube(5.0f, 0u);
+    let mut cube = trisCreateCube(10.0f, turbmatID);
     let cubeidx = sceneAddMesh(&scene, &cube);
     //sceneAddObject(&scene, cubeidx);
+
+    // add some light
+    let intens = 4.1f;
+    sceneAddLightV(&scene, @pointLight(point0(), color(intens*500.0f, intens*500.0f, intens*500.0f)));
+    sceneAddLightV(&scene, @pointLight(point0(), color(intens*100.0f, intens*100.0f, intens*100.0f)));
+    sceneAddLightV(&scene, @pointLight(point0(), color(intens*300.0f, intens*300.0f, intens*300.0f)));
 
     // finalize scene
     sceneCompile(&scene, &state.scene);
@@ -92,9 +88,9 @@ extern fn impala_update(mut state : &State, dt : float) -> ()
 
 
     // put light right where the cam was shortly ago, and on the other side
-    /*state.scene.lights(0).pos = @point(-3.5f*scale*sinf(time-0.5f), +1.2f*scale*sinf(0.2f*time-0.5f), +3.7f*scale*cosf(time-0.5f));
-    state.scene.lights(1).pos = @point(-3.5f*scale*sinf(time+0.5f), +1.9f*scale*sinf(0.2f*time+0.5f), +3.7f*scale*cosf(time+0.5f));
-    state.scene.lights(2).pos = @point(-3.5f*scale*sinf(time+0.5f+pi), +2.2f*scale*sinf(0.2f*time+0.5f+pi), +3.7f*scale*cosf(time+0.5f+pi));*/
+    state.scene.shadingData.lights(0).pos = @point(-3.5f*scale*sinf(time-0.5f), +1.2f*scale*sinf(0.2f*time-0.5f), +3.7f*scale*cosf(time-0.5f));
+    state.scene.shadingData.lights(1).pos = @point(-3.5f*scale*sinf(time+0.5f), +1.9f*scale*sinf(0.2f*time+0.5f), +3.7f*scale*cosf(time+0.5f));
+    state.scene.shadingData.lights(2).pos = @point(-3.5f*scale*sinf(time+0.5f+pi), +2.2f*scale*sinf(0.2f*time+0.5f+pi), +3.7f*scale*cosf(time+0.5f+pi));
 
     // scale our teapot
     /*let potScale = (fabsf(sinf(0.8f*time))/2.0f+0.5f);
