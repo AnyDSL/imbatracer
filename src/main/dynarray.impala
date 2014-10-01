@@ -1,45 +1,48 @@
 
 struct DynArray {
     data: &[u8],
+    name: &[u8],
     elemSize: uint,
     size: uint,
     capacity: uint,
 }
-static DynArray_SIZEOF = pointer_SIZEOF + 3u*uint_SIZEOF;
+static DynArray_SIZEOF = 2u*pointer_SIZEOF + 3u*uint_SIZEOF + 4u; // omg padding...
 
-fn dynArray(elemSize: uint) -> DynArray
+fn dynArray(elemSize: uint, name: &[u8]) -> DynArray
 {
-    @dynArrayInit(elemSize, 0u)
+    @dynArrayInit(elemSize, 0u, name)
 }
-fn dynArrayInit(elemSize : uint, initialCap : uint) -> DynArray
+fn dynArrayInit(elemSize : uint, initialCap : uint, name: &[u8]) -> DynArray
 {
     let mut a:DynArray;
-    dynArrayInitInplace(&a, elemSize, initialCap);
+    dynArrayInitInplace(&a, elemSize, initialCap, name);
     a
 }
 
-fn dynArrayLoad(elemSize : uint, ptr : &u8, size : uint) -> DynArray
+fn dynArrayLoad(elemSize : uint, ptr : &u8, size : uint, name: &[u8]) -> DynArray
 {
     let mut a:DynArray;
-    dynArrayLoadInplace(&a, elemSize, ptr, size);
+    dynArrayLoadInplace(&a, elemSize, ptr, size, name);
     a
 }
 
-fn dynArrayInitInplace(mut a : &DynArray, elemSize : uint, initialCap : uint) -> ()
+fn dynArrayInitInplace(mut a : &DynArray, elemSize : uint, initialCap : uint, name: &[u8]) -> ()
 {
-    assert(||{elemSize > 0u}, "Can't store objects with size 0");
+    @assert(||{elemSize > 0u}, "dynArrayInitInplace: Can't store objects with size 0");
     a.elemSize = elemSize;
     a.data = (0 as &[u8]);
+    a.name = name;
     a.size = 0u;
     a.capacity = 0u;
     _dynArrayEnsureCapacity(a, initialCap);
 }
 
-fn dynArrayLoadInplace(mut a : &DynArray, elemSize : uint, ptr : &u8, size : uint) -> ()
+fn dynArrayLoadInplace(mut a : &DynArray, elemSize : uint, ptr : &u8, size : uint, name: &[u8]) -> ()
 {
-    assert(||{elemSize > 0u}, "Can't load array with objects of size 0");
+    @assert(||{elemSize > 0u}, "dynArrayLoadInplace: Can't load array with objects of size 0");
     a.elemSize = elemSize;
     a.data = (ptr as &[u8]);
+    a.name = name;
     a.size = size;
     a.capacity = size;
 }
@@ -105,7 +108,8 @@ fn dynArrayAppend(mut a: &DynArray, obj: &u8) -> uint
 
 fn dynArrayFetch(mut a: &DynArray, idx: uint) -> &u8
 {
-    assert(||{idx < a.size}, "DynArray out of bounds!");
+    //print_ssi("Accessing <name> at <pos>: ", a.name, idx as int);
+    @assert(||{idx < a.size}, "dynArrayFetch: DynArray out of bounds!");
     &a.data(idx*a.elemSize)
 }
 

@@ -12,7 +12,7 @@ struct BVHTrees
 }
 fn bvhTrees() -> BVHTrees
 {
-    BVHTrees{ roots: @dynArray(uint_SIZEOF), bvhNodes:@dynArray(BVHNode_SIZEOF) }
+    BVHTrees{ roots: @dynArray(uint_SIZEOF, "BVHTrees.roots"), bvhNodes:@dynArray(BVHNode_SIZEOF, "BVHTrees.bvhNodes") }
 }
 
 
@@ -53,14 +53,25 @@ fn constructBvh(bvhNodes: &DynArray, nPrims: uint, primBounds: primBoundsFn, pri
     let mut allPrims = ~[nPrims:uint];
 
     for primIdx in urange(0u, nPrims) {
-        let bounds = @primBounds(nPrims);
-        primData(nPrims) = PrimData{ bounds:bounds, centroid:@bboxCentroid(bounds) };
+        let bounds = @primBounds(primIdx);
+        primData(primIdx) = PrimData{ bounds:bounds, centroid:@bboxCentroid(bounds) };
         totalBounds = bbextendb(totalBounds, bounds);
-        allPrims(primIdx) = nPrims; // TODO get rid of this array, it's just used to pass the initial to-split-list...
+        allPrims(primIdx) = primIdx; // TODO get rid of this array, it's just used to pass the initial to-split-list...
     }
 
-    buildBvhNode(allPrims, nPrims, totalBounds, 0u, leftPrims, rightPrims,
-            bvhNodes, primFinalize)
+    let oldSize = @dynArraySize(bvhNodes);
+    let root = buildBvhNode(allPrims, nPrims, totalBounds, 0u, leftPrims, rightPrims,
+            bvhNodes, primFinalize);
+
+    // clean up
+    thorin_free(primData as &u8);
+    thorin_free(splitPlaneCandidates as &u8);
+    thorin_free(leftPrims as &u8);
+    thorin_free(rightPrims as &u8);
+    thorin_free(allPrims as &u8);
+
+    print_sii("Constructed a BVH tree with <num> primitives having <num> nodes:", nPrims as int, (@dynArraySize(bvhNodes)-oldSize) as int);
+    return(root)
 
 }
 
@@ -104,7 +115,8 @@ fn buildBvhNode(prims: &[uint], nPrims: uint, totalBounds: BBox, depth: uint, mu
     /*let firstChild =  $buildBvhNode(leftPrims , splitInfo.nLeft       , splitInfo.leftBBox , depth+1u, &leftPrims(nPrims) as &[u32], &rightPrims(nPrims) as &[u32],
             bvhNodes, primFinalize);
     let secondChild = $buildBvhNode(rightPrims, nPrims-splitInfo.nLeft, splitInfo.rightBBox, depth+1u, &leftPrims(nPrims) as &[u32], &rightPrims(nPrims) as &[u32],
-            bvhNodes, primFinalize); FIXME */
+            bvhNodes, primFinalize); FIXME this code ought to be run */
+    assert_failed("buildBvhNode: Cannot split!");
     let firstChild = 0u; let secondChild = 0u;
 
     // Make sure the children's order in the vector is as expected

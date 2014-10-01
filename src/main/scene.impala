@@ -15,7 +15,7 @@ struct Scene
 }
 fn sceneInit() -> Scene
 {
-    Scene{ meshes:@dynArray(Tris_SIZEOF), shadingData:@initShadingData() }
+    Scene{ meshes:@dynArray(Tris_SIZEOF, "Scene.meshes"), shadingData:@initShadingData() }
 }
 
 struct RTScene
@@ -40,6 +40,7 @@ fn sceneCompile(mut scene: &Scene, mut rtScene: &RTScene) -> ()
     // build BVHs for meshes
     let mut bvhMeshes = bvhTrees();
     for objidx in urange(0u, dynArraySize(&scene.meshes)) {
+        print_si("Compiling mesh <id>", objidx as int);
         let tris = dynArrayFetch(&scene.meshes, objidx) as &Tris;
         let triFinalize = trisPrepareCopy(tris, &rtScene.tris); // copy triangles to the RTScene
         bvhsAddTree(&bvhMeshes, trisSize(tris), |triidx|triBounds(tris, triidx), triFinalize);

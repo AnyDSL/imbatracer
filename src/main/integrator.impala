@@ -19,7 +19,8 @@ struct ShadingData
 }
 fn initShadingData() -> ShadingData
 {
-    ShadingData{ materials: @dynArray(Material_SIZEOF), textures: @dynArray(Texture_SIZEOF), lights: @dynArray(Light_SIZEOF) }
+    ShadingData{ materials: @dynArray(Material_SIZEOF, "ShadingData.materials"), textures: @dynArray(Texture_SIZEOF, "ShadingData.textures"),
+                 lights: @dynArray(Light_SIZEOF, "ShadingData.lights") }
 }
 
 struct RTShadingData

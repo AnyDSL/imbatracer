@@ -12,8 +12,8 @@ struct Tris
 static Tris_SIZEOF = 5u*DynArray_SIZEOF;
 fn trisInit() -> Tris
 {
-    Tris{ verts: @dynArray(Point_SIZEOF), triVerts: @dynArray(uint_SIZEOF),
-            normals: @dynArray(Vec_SIZEOF), texCoords: @dynArray(TexCoord_SIZEOF), triData: @dynArray(uint_SIZEOF) }
+    Tris{ verts: @dynArray(Point_SIZEOF, "Tris.verts"), triVerts: @dynArray(uint_SIZEOF, "Tris.triVerts"),
+          normals: @dynArray(Vec_SIZEOF, "Tris.normals"), texCoords: @dynArray(TexCoord_SIZEOF, "Tris.texCoords"), triData: @dynArray(uint_SIZEOF, "Tris.triData") }
 }
 
 
@@ -56,6 +56,7 @@ fn trisPrepareCopy(mut tris: &Tris, mut rtTris: &RTTris) -> primFinalizeFn
 
     let mut curIdx = 0u;
     |copyIdx|{
+        //print_sii("Copying triangle with <id1> (that's number <id2>)", copyIdx as int, curIdx as int);
         // append triangle curIdx in tris, to the list of triangles in rtTris
         for i in @urange(0u, 3u) {
             rtTris.triVerts(3u*curIdx+i) = @dynArrayFetchUint(&tris.triVerts, 3u*copyIdx+i);
