@@ -49,7 +49,8 @@ fn sceneCompile(mut scene: &Scene, mut rtScene: &RTScene) -> ()
     // FIXME TEMP HACK
     rtScene.bvhInners.bvhNodes = @dynArrayData(&bvhMeshes.bvhNodes) as &[BVHNode];
     @assert(||@dynArrayFetchUint(&bvhMeshes.roots, 0u) == 0u, "root has wrong index");
-    rtScene.bvhInners.roots = ~[0u];
+    rtScene.bvhInners.roots = ~[1:uint];
+    rtScene.bvhInners.roots(0) = 0u;
     /*let bvhMeshFinalize = bvhsPrepareCopy(&bvhMeshes, &rtScene.bvhInners);
     let mut bvhObjects = bvhTree();
     bvhCreateTree(&bvhObjects, dynArraySize(&scene.objects),
