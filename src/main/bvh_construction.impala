@@ -51,6 +51,7 @@ fn constructBvh(bvhNodes: &DynArray, nPrims: uint, primBounds: primBoundsFn, pri
     let leftPrims = ~[nPrims*depthLimit:uint];
     let rightPrims = ~[nPrims*depthLimit:uint];
     let mut allPrims = ~[nPrims:uint];
+    let mut primFinalizeOrder = @dynArrayInit(uint_SIZEOF, nPrims, "BVH Construction: primFinalizeOrder");
 
     for primIdx in urange(0u, nPrims) {
         let bounds = @primBounds(primIdx);
@@ -60,8 +61,15 @@ fn constructBvh(bvhNodes: &DynArray, nPrims: uint, primBounds: primBoundsFn, pri
     }
 
     let oldSize = @dynArraySize(bvhNodes);
-    let root = buildBvhNode(allPrims, nPrims, totalBounds, 0u, leftPrims, rightPrims,
-            bvhNodes, primFinalize);
+    let root = $buildBvhNode(allPrims, nPrims, totalBounds, 0u, leftPrims, rightPrims,
+                             bvhNodes, &primFinalizeOrder);
+
+    // do the primitive finalisation
+    @assert(||@dynArraySize(&primFinalizeOrder) == nPrims, "constructBvh: Somehow we got the number of primitives wrong");
+    for i in urange(0u, nPrims) {
+        let idx = primFinalize(dynArrayFetchUint(&primFinalizeOrder, i));
+        @assert(||idx == i, "constructBvh: primFinalize is misbehaving");
+    }
 
     // clean up
     thorin_free(primData as &u8);
@@ -80,7 +88,7 @@ fn constructBvh(bvhNodes: &DynArray, nPrims: uint, primBounds: primBoundsFn, pri
  * Return the index of the root (in nodeBuf).
  */
 fn buildBvhNode(prims: &[uint], nPrims: uint, totalBounds: BBox, depth: uint, mut leftPrims: &[uint], mut rightPrims: &[uint],
-        bvhNodes: &DynArray, primFinalize: primFinalizeFn) -> uint
+        bvhNodes: &DynArray, primFinalizeOrder: &DynArray) -> uint
 {
     let mut node:BVHNode;
     node.bbox = totalBounds;
@@ -95,7 +103,7 @@ fn buildBvhNode(prims: &[uint], nPrims: uint, totalBounds: BBox, depth: uint, mu
         // create a leaf
         node.nPrims = nPrims as u16;
         for primIdxIdx in urange(0u, nPrims) {
-            let primFinalIdx = primFinalize(prims(primIdxIdx));
+            let primFinalIdx = dynArrayAppendUint(primFinalizeOrder, primIdxIdx);
             if primIdxIdx == 0u {
                 // store the final index of the first primitive
                 node.sndChildFirstPrim = primFinalIdx;
@@ -111,13 +119,11 @@ fn buildBvhNode(prims: &[uint], nPrims: uint, totalBounds: BBox, depth: uint, mu
     let nodeIdx = dynArrayAppend(bvhNodes, &node as &u8);
 
     // Process child nodes recursively, using space further down in our arrays (after the space in leftPrims, rightPrims that we needed)
-    assert(||splitInfo.nLeft <= nPrims, "Keeping too many primitives");
-    /*let firstChild =  $buildBvhNode(leftPrims , splitInfo.nLeft       , splitInfo.leftBBox , depth+1u, &leftPrims(nPrims) as &[u32], &rightPrims(nPrims) as &[u32],
-            bvhNodes, primFinalize);
+    assert(||splitInfo.nLeft <= nPrims, "buildBvhNode: Keeping too many primitives");
+    let firstChild =  $buildBvhNode(leftPrims , splitInfo.nLeft       , splitInfo.leftBBox , depth+1u, &leftPrims(nPrims) as &[u32], &rightPrims(nPrims) as &[u32],
+            bvhNodes, primFinalizeOrder);
     let secondChild = $buildBvhNode(rightPrims, nPrims-splitInfo.nLeft, splitInfo.rightBBox, depth+1u, &leftPrims(nPrims) as &[u32], &rightPrims(nPrims) as &[u32],
-            bvhNodes, primFinalize); FIXME this code ought to be run */
-    assert_failed("buildBvhNode: Cannot split!");
-    let firstChild = 0u; let secondChild = 0u;
+            bvhNodes, primFinalizeOrder);
 
     // Make sure the children's order in the vector is as expected
     assert(||firstChild == nodeIdx+1u, "Left child doesn't come right after me");

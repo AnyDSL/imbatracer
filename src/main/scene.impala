@@ -75,6 +75,7 @@ fn sceneCompile(mut scene: &Scene, mut rtScene: &RTScene) -> ()
         let tris = dynArrayFetch(&scene.meshes, objidx) as &Tris;
         let triFinalize = trisPrepareCopy(tris, &rtScene.tris); // copy triangles to the RTScene
         bvhsAddTree(&bvhMeshes, trisSize(tris), |triidx|triBounds(tris, triidx), triFinalize);
+        trisFinishCopy(tris, &rtScene.tris);
     }
 
     // build BVH of objects

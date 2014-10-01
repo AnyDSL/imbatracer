@@ -64,14 +64,16 @@ fn trisPrepareCopy(mut tris: &Tris, mut rtTris: &RTTris) -> primFinalizeFn
         for i in @urange(0u, 7u) {
             rtTris.triData(7u*curIdx+i) = @dynArrayFetchUint(&tris.triData, 7u*copyIdx+i);
         }
-        ++curIdx;
-        // clean up after last index
-        if curIdx == nTris {
-            @dynArrayClear(&tris.triVerts);
-            @dynArrayClear(&tris.triData);
-        };
-        curIdx-1u // this is the index we assigned to it
+        // increment and return
+        let idx = curIdx;
+        curIdx = idx+1u;
+        idx
     }
+}
+fn trisFinishCopy(mut tris: &Tris, rtTris: &RTTris) -> ()
+{
+    @dynArrayClear(&tris.triVerts);
+    @dynArrayClear(&tris.triData);
 }
 
 
