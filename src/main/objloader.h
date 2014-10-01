@@ -17,7 +17,8 @@ namespace rt {
     };
 
     extern "C" {
-        void load_object_from_file(const char *path, const char *filename, unsigned flags, impala::Material *materials, unsigned nMaterials, impala::Scene *scene, impala::Tris *tris);
+        void load_object_from_file(const char *path, const char *filename, unsigned flags, impala::Material *materials, unsigned nMaterials,
+                                   impala::Scene *scene, impala::Tris *tris);
     }
 }
 

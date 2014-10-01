@@ -57,7 +57,7 @@ fn trisPrepareCopy(mut tris: &Tris, mut rtTris: &RTTris) -> primFinalizeFn
 
     let mut curIdx = 0u;
     |copyIdx|{
-        print_sii("Copying triangle with <id1> (that's number <id2>)", copyIdx as int, curIdx as int);
+        //print_sii("Copying triangle with <id1> (that's number <id2>)", copyIdx as int, curIdx as int);
         // append triangle curIdx in tris, to the list of triangles in rtTris
         for i in @urange(0u, 3u) {
             rtTris.triVerts(3u*curIdx+i) = @dynArrayFetchUint(&tris.triVerts, 3u*copyIdx+i);
@@ -213,8 +213,9 @@ fn trisCreateCube(size: float, mat: uint) -> Tris
 // object loader
 fn trisAddFromFile(tris: &Tris, path: &[u8], filename: &[u8], flags: uint, materials: &DynArray, scene: &Scene) -> ()
 {
-    print_s("I'm right there");
-    load_object_from_file(path, filename, flags, dynArrayData(materials) as &[Material], dynArraySize(materials), scene, tris);
+    let mats = if materials == 0u as &DynArray { 0u as &[Material] } else { dynArrayData(materials) as &[Material] };
+    let nmats = if materials == 0u as &DynArray { 0u } else { dynArraySize(materials) };
+    load_object_from_file(path, filename, flags, mats, nmats, scene, tris);
 }
 fn trisCreateFromFile(path: &[u8], filename: &[u8], flags: uint, materials: &DynArray, scene: &Scene) -> Tris
 {

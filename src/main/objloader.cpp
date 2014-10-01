@@ -360,11 +360,8 @@ parse_err_found:
     matCreate(dest, material, mats, nmats, nmatsOverridden);
 }
 
-
 void load_object_from_file(const char *path, const char *filename, unsigned flags, impala::Material *materials, unsigned nMaterials, impala::Scene *scene, impala::Tris *tris)
 {
-    impala::impala_trisNumTexCoords(nullptr);
-    std::cout << "Here I am" << std::endl;
     MatLib* matlib = new MatLib;
 
     std::map<std::string, unsigned> materialName2Idx;
@@ -512,6 +509,7 @@ void load_object_from_file(const char *path, const char *filename, unsigned flag
 
     delete matlib;
 }
+
 
 }
 

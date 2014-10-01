@@ -77,7 +77,7 @@ extern fn impala_init() -> &State
     let cxtexID = sceneAddTexture(&scene, &cxtex);
     let phtexID = sceneAddTexture(&scene, &phongtex);
 
-    let cxmat = Material{ diffuse:cxtexID, specular:0u, emissive:0u, specExp:-1.0f, sampling:SAMPLING_NOT_NEEDED, eta:0.0f, etaSqrKappaSqr:0.0f };
+    let mut cxmat = Material{ diffuse:cxtexID, specular:0u, emissive:0u, specExp:-1.0f, sampling:SAMPLING_NOT_NEEDED, eta:0.0f, etaSqrKappaSqr:0.0f };
     let mut turbmat = Material{ diffuse:turbtexID, specular:phtexID, emissive:0u, specExp:1.6f,  sampling:SAMPLING_NOT_NEEDED, eta:0.0f, etaSqrKappaSqr:0.0f };
     let mut mirrormat = silverMirrorMaterial();
     mirrormat.sampling = SAMPLING_SECONDARY;
@@ -85,7 +85,9 @@ extern fn impala_init() -> &State
     mirrormat.diffuse = slowtexID;
 
     let turbmatID = sceneAddMaterial(&scene, &turbmat);
-
+    let mut matOverrides = @dynArray(Material_SIZEOF, "matOverrides");
+    dynArrayAppend(&matOverrides, &turbmat as &u8);
+    dynArrayAppend(&matOverrides, &cxmat as &u8);
 
     /*let mut mats = [
         turbmat,
@@ -102,7 +104,7 @@ extern fn impala_init() -> &State
     let mut cube = trisCreateCube(10.0f, turbmatID);
     //let cubeIdx = sceneAddMesh(&scene, &cube);
     print_s("Adding a mesh now");
-    let revisionIdx = sceneAddMeshFromFile(&scene, "models/", "revision.obj", /*Flags*/0u, /*Materials*/0u as &DynArray);
+    let revisionIdx = sceneAddMeshFromFile(&scene, "models/", "teapot.obj", /*Flags*/0u, /*Materials*/&matOverrides);
     //sceneAddObject(&scene, cubeidx);
 
     // add some light
