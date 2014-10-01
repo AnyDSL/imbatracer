@@ -20,6 +20,7 @@ fn trisInit() -> Tris
 
 fn trisSize(mut tris: &Tris) -> uint
 {
+    print_sii("The two lists have length", dynArraySize(&tris.triVerts) as i32, dynArraySize(&tris.triData) as i32);
     let nTris = dynArraySize(&tris.triVerts)/3u;
     @assert(||nTris == dynArraySize(&tris.triData)/7u, "Triangle list sizes do not match");
     nTris
