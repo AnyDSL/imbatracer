@@ -1,8 +1,6 @@
 set(cpp_SRC
-#    scene.h
-#    scene.cpp
-#    objloader.h
-#    objloader.cpp
+    objloader.h
+    objloader.cpp
     interface.h
     extern_c.cpp
 )
@@ -49,12 +47,13 @@ THORIN_RUNTIME_WRAP(impala_loc_OBJ impala_loc_LIB
     RTTYPE none
     FILES ${impala_shared_SRC} ${impala_loc_SRC})
 
-add_library(rt ${cpp_SRC} ${impala_shared_SRC} ${impala_loc_SRC} ${impala_acc_SRC} ${impala_loc_OBJ} ${impala_acc_OBJ})
-target_link_libraries(rt core ${impala_loc_LIB} ${impala_acc_LIB})
+set(rt_SRC ${cpp_SRC} ${impala_shared_SRC} ${impala_loc_SRC} ${impala_acc_SRC} ${impala_loc_OBJ} ${impala_acc_OBJ})
 
-add_executable(main main.cpp)
+# we could put rt_SRC into a library and link that into main and bench, but then we'd loose "undefined symbol" warnings...
+
+add_executable(main main.cpp ${rt_SRC})
 target_link_libraries(main rt io)
 
-add_executable(bench bench.cpp)
+add_executable(bench bench.cpp ${rt_SRC})
 target_link_libraries(bench rt)
 

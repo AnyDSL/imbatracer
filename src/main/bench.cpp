@@ -3,13 +3,13 @@
 
 #include "interface.h"
 
-typedef impala::state (&InitBenchFun)();
+typedef impala::State *(&InitBenchFun)();
 
 void run_bench(InitBenchFun initBenchFun, const char *name, unsigned n, int w, int h)
 {
     std::cout << "Running " << name << std::endl;
 
-    impala::state state = initBenchFun();
+    impala::State *state = initBenchFun();
 
     unsigned *buf = thorin_new<unsigned>(w*h);
     for (unsigned i = 0; i < n; ++i) {

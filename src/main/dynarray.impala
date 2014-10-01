@@ -124,11 +124,3 @@ fn dynArrayFetchUint(a: &DynArray, idx: uint) -> uint
 {
     *(@dynArrayFetch(a, idx) as &uint)
 }
-fn dynArrayAppendPoint(a: &DynArray, mut p: Point) -> uint
-{
-    @dynArrayAppend(a, &p as &u8)
-}
-fn dynArrayFetchPoint(a: &DynArray, idx: uint) -> Point
-{
-    *(@dynArrayFetch(a, idx) as &Point)
-}

@@ -14,6 +14,9 @@ extern "C"
     fn print_sfff(&[u8], float, float, float) -> ();
     fn assert_failed(&[u8]) -> ();
 
+    // object loader
+    fn load_object_from_file(path: &[u8], filename: &[u8], flags: uint, materials: &[Material], nMaterials: uint, scene: &Scene, tris: &Tris) -> ();
+
     // runtime, but not yet provided by thorin
     fn thorin_free(&u8) -> ();
     fn memset(&u8, int, size_t) -> ();

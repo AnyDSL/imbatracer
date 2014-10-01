@@ -42,9 +42,4 @@ extern "C"
         std::cerr << "Impala assertion failed: " << str << std::endl;
         rt::debugAbort();
     }
-
-
-    //void load_file(const char *path, const char *filename, unsigned flags, impala::DynList *overrideMaterials,
-    //               impala::DynList *vertices, impala::DynList *normals, impala::DynList *texCoords, impala::DynList *materials, impala::DynList *textures,
-    //               impala::DynList *triVerts, impala::DynList *triData);
 }

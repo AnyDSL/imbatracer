@@ -5,99 +5,11 @@
 #include <iostream>
 #include <float.h>
 
-namespace rt {
-    class Scene;
-}
-
 namespace impala {
-    // C-side of the Impala structs
-    struct Point
-    {
-        float x, y, z;
-
-        Point() = default;
-        Point(float x, float y, float z) : x(x), y(y), z(z) {}
-
-        float &operator[](unsigned i) {
-            switch (i) {
-            case 0:  return x;
-            case 1:  return y;
-            default: return z;
-            }
-        }
-        float operator[](unsigned i) const {
-            switch (i) {
-            case 0:  return x;
-            case 1:  return y;
-            default: return z;
-            }
-        }
-    };
-    inline std::ostream &operator<<(std::ostream &o, const Point &p)
-    {
-        return o << "(" << p.x << ", " << p.y << ", " << p.z << ")";
-    }
-
-    struct Vec
-    {
-        float x, y, z;
-
-        Vec() = default;
-        Vec(float x, float y, float z) : x(x), y(y), z(z) {}
-
-        float &operator[](unsigned i) {
-            switch (i) {
-            case 0:  return x;
-            case 1:  return y;
-            default: return z;
-            }
-        }
-        float operator[](unsigned i) const {
-            switch (i) {
-            case 0:  return x;
-            case 1:  return y;
-            default: return z;
-            }
-        }
-        float len() const { return sqrtf(x*x + y*y + z*z); }
-        Vec normal() const { if(!x && !y && !z) return Vec(0,0,0); float il=1/len(); return Vec(il*x, il*y, il*z); }
-    };
-    inline std::ostream &operator<<(std::ostream &o, const Vec &v)
-    {
-        return o << "(" << v.x << ", " << v.y << ", " << v.z << ")";
-    }
-
-    struct Float4
-    {
-        float x, y, z, w;
-    };
-
-    struct Matrix
-    {
-        Float4 rows[4];
-    };
-
+    // C-side of the Impala structs: Needed to create textures and materials in the object loader
     struct Color
     {
         float r, g, b;
-
-        Color() = default;
-        Color(float r, float g, float b) : r(r), g(g), b(b) {}
-
-        float &operator[](unsigned i) {
-            switch (i) {
-            case 0:  return r;
-            case 1:  return g;
-            default: return b;
-            }
-        }
-        float operator[](unsigned i) const {
-            switch (i) {
-            case 0:  return r;
-            case 1:  return g;
-            default: return b;
-            }
-        }
     };
 
     struct Noise
@@ -115,15 +27,6 @@ namespace impala {
         Color color1;
         Color color2;
         Noise noise;
-
-        static Texture constant(const Color& c)
-        {
-            return (Texture) {
-                .ty = -1,
-                .color1 = c,
-                .color2 = c,
-            };
-        }
     };
 
     struct Material
@@ -139,43 +42,48 @@ namespace impala {
         unsigned sampling;
         float eta;
         float etaSqrKappaSqr;
-
-        static Material dummy()
-        {
-            return (Material) {
-                .diffuse = 1,
-                .specular = 0,
-                .specExp = -1.0f,
-                .emissive = 0,
-                .sampling = 0, // SAMPLING_NOT_NEEDED
-                .eta = 0.0f,
-                .etaSqrKappaSqr = 0.0f,
-            };
-        }
     };
 
-    typedef void *state; // some opaque pointer
+    struct State; // some opaque datatype
+    struct Tris; // some other opaque datatype
+    struct Scene; // and another one
 
     extern "C" {
+        // functiosn working on the state
+        State *impala_init();
+        void impala_update(State*, float dt);
 
-        state impala_init();
-        void impala_update(state, float dt);
+        State *impala_init_bench1();
+        State *impala_init_bench2();
 
-        state impala_init_bench1();
-        state impala_init_bench2();
+        void impala_render(unsigned *buf, int w, int h, bool measureTime, State*);
 
-        void impala_render(unsigned *buf, int w, int h, bool measureTime, state);
+        void impala_finish(State*);
 
-        void impala_finish(state);
+        // functions working on materials and textures
+        unsigned impala_noIdx();
+        void impala_dummyMaterial(Material *mat);
+        void impala_constantTexture(Texture *tex, float r, float g, float b);
+        unsigned impala_sceneAddTexture(Scene *scene, Texture *tex);
+        unsigned impala_sceneAddMaterial(Scene *scene, Material *mat);
+
+        // functions working on triangle bunches
+        unsigned impala_trisAppendVertex(Tris *tris, float x, float y, float z);
+        unsigned impala_trisNumVertices(Tris *tris);
+        unsigned impala_trisAppendNormal(Tris *tris, float x, float y, float z);
+        unsigned impala_trisNumNormals(Tris *tris);
+        unsigned impala_trisAppendTexCoord(Tris *tris, float x, float y);
+        unsigned impala_trisNumTexCoords(Tris *tris);
+        void impala_trisAppendTriangle(Tris *tris,
+                                       unsigned p1, unsigned p2, unsigned p3,
+                                       unsigned n1, unsigned n2, unsigned n3,
+                                       unsigned t1, unsigned t2, unsigned t3,
+                                       unsigned mat);
     }
 
     // test that these are all POD
     inline static void test_for_pod()
     {
-        static_assert(std::is_pod<impala::Point>::value, "impala::Point must be a POD");
-        static_assert(std::is_pod<impala::Vec>::value, "impala::Vec must be a POD");
-        static_assert(std::is_pod<impala::Float4>::value, "impala::Float4 must be a POD");
-        static_assert(std::is_pod<impala::Matrix>::value, "impala::Matrix must be a POD");
         static_assert(std::is_pod<impala::Color>::value, "impala::Color must be a POD");
         static_assert(std::is_pod<impala::Texture>::value, "impala::Texture must be a POD");
         static_assert(std::is_pod<impala::Noise>::value, "impala::Noise must be a POD");

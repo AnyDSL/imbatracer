@@ -1,9 +1,53 @@
-/*extern fn impala_object_init(mut obj : &Object, root : uint) -> ()
+// provide some APIs to C
+extern fn impala_noIdx() -> uint
 {
-    obj.bvhRoot = root;
-    obj.w2o = @matrix0();
-    obj.swapsHandedness = false;
-}*/
+    noIdx
+}
+extern fn impala_constantTexture(mut tex: &Texture, r: float, g: float, b: float) -> ()
+{
+    *tex = constantTexture(@color(r, g, b));
+}
+extern fn impala_dummyMaterial(mut mat: &Material) -> ()
+{
+    *mat = dummyMaterial();
+}
+extern fn impala_sceneAddTexture(scene: &Scene, tex: &Texture) -> uint
+{
+    sceneAddTexture(scene, tex)
+}
+extern fn impala_sceneAddMaterial(scene: &Scene, mat: &Material) -> uint
+{
+    sceneAddMaterial(scene, mat)
+}
+
+extern fn impala_trisAppendVertex(tris: &Tris, x: float, y: float, z: float) -> uint
+{
+    trisAddVertex(tris, @point(x, y, z))
+}
+extern fn impala_trisNumVertices(tris: &Tris) -> uint
+{
+    trisNumVertices(tris)
+}
+extern fn impala_trisAppendNormal(tris: &Tris, x: float, y: float, z: float) -> uint
+{
+    trisAddNormal(tris, @vec(x, y, z))
+}
+extern fn impala_trisNumNormals(tris: &Tris) -> uint
+{
+    trisNumNormals(tris)
+}
+extern fn impala_trisAppendTexCoord(tris: &Tris,x: float, y: float) -> uint
+{
+    trisAddTexCoord(tris, @texCoord(x, y))
+}
+extern fn impala_trisNumTexCoords(tris: &Tris) -> uint
+{
+    trisNumTexCoords(tris)
+}
+extern fn impala_trisAppendTriangle(tris: &Tris, p1: uint, p2: uint, p3: uint, n1: uint, n2: uint, n3: uint, t1: uint, t2: uint, t3: uint, mat: uint) -> ()
+{
+    trisAddTri(tris, p1, p2, p3, n1, n2, n3, t1, t2, t3, mat)
+}
 
 // initialize the scene, return an opaque pointer
 extern fn impala_init() -> &State
@@ -56,7 +100,9 @@ extern fn impala_init() -> &State
     */
 
     let mut cube = trisCreateCube(10.0f, turbmatID);
-    let cubeidx = sceneAddMesh(&scene, &cube);
+    //let cubeIdx = sceneAddMesh(&scene, &cube);
+    print_s("Adding a mesh now");
+    let revisionIdx = sceneAddMeshFromFile(&scene, "models/", "revision.obj", /*Flags*/0u, /*Materials*/0u as &DynArray);
     //sceneAddObject(&scene, cubeidx);
 
     // add some light

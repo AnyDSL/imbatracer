@@ -6,17 +6,7 @@
 #include <core/macros.h>
 #include "interface.h"
 
-//#include <core/interpolate.h>
-//#include <rt/groups/kdtree.h>
-//#include <rt/solids/solid.h>
-
 namespace rt {
-
-
-/*
-class FileObject : public Object
-{
-public:
 
     enum Flags : unsigned
     {
@@ -26,10 +16,9 @@ public:
         IgnoreMatLibs = 1 << 2,
     };
 
-    FileObject(const std::string &path, const std::string &filename, Scene *scene, unsigned flags = None, impala::Material *mats = nullptr, size_t nmats = 0);
-};
-*/
-
+    extern "C" {
+        void load_object_from_file(const char *path, const char *filename, unsigned flags, impala::Material *materials, unsigned nMaterials, impala::Scene *scene, impala::Tris *tris);
+    }
 }
 
 #endif

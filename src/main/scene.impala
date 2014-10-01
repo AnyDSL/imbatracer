@@ -37,10 +37,17 @@ struct RTScene
 }
 
 /* Static Scene API: Add stuff, and compile it */
-fn sceneAddMesh(mut scene: &Scene, tris: &Tris) -> ()
+fn sceneAddMesh(mut scene: &Scene, tris: &Tris) -> uint
 {
-    dynArrayAppend(&scene.meshes, tris as &u8);
+    dynArrayAppend(&scene.meshes, tris as &u8)
 }
+fn sceneAddMeshFromFile(scene: &Scene, path: &[u8], filename: &[u8], flags: uint, materials: &DynArray) -> uint
+{
+    let mut tris = @trisInit();
+    @trisAddFromFile(&tris, path, filename, flags, materials, scene);
+    @sceneAddMesh(scene, &tris)
+}
+
 fn sceneAddTextureV(scene: &Scene, mut tex: Texture) -> uint
 {
     sceneAddTexture(scene, &tex)

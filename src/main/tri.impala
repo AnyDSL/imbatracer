@@ -28,7 +28,8 @@ fn trisSize(mut tris: &Tris) -> uint
 fn triPointC(mut tris: &Tris, tri: uint, n: uint) -> Point
 {
     let idx = @dynArrayFetchUint(&tris.triVerts, 3u*tri+n);
-    @dynArrayFetchPoint(&tris.verts, idx)
+    let p = @dynArrayFetch(&tris.verts, idx) as &Point;
+    *p
 }
 fn triBounds(tris: &Tris, idx: uint) -> BBox
 {
@@ -75,6 +76,7 @@ fn trisFinishCopy(mut tris: &Tris, rtTris: &RTTris) -> ()
     @dynArrayClear(&tris.triVerts);
     @dynArrayClear(&tris.triData);
 }
+
 
 
 // accessor functions
@@ -128,19 +130,59 @@ fn trisAddTriBasic(mut tris: &Tris, v1: uint, v2: uint, v3: uint, mat: uint) -> 
     }
     dynArrayAppendUint(&tris.triData, mat);
 }
+fn trisAddTri(mut tris: &Tris, v1: uint, v2: uint, v3: uint, n1: uint, n2: uint, n3: uint, t1: uint, t2: uint, t3: uint, mat: uint) -> ()
+{
+    // add triangle vertices
+    dynArrayAppendUint(&tris.triVerts, v1);
+    dynArrayAppendUint(&tris.triVerts, v2);
+    dynArrayAppendUint(&tris.triVerts, v3);
+    // add triangle data
+    dynArrayAppendUint(&tris.triData, n1);
+    dynArrayAppendUint(&tris.triData, n2);
+    dynArrayAppendUint(&tris.triData, n3);
+    dynArrayAppendUint(&tris.triData, t1);
+    dynArrayAppendUint(&tris.triData, t2);
+    dynArrayAppendUint(&tris.triData, t3);
+    dynArrayAppendUint(&tris.triData, mat);
+}
+fn trisAddVertex(mut tris: &Tris, mut p: Point) -> uint
+{
+    @dynArrayAppend(&tris.verts, &p as &u8)
+}
+fn trisNumVertices(mut tris: &Tris) -> uint
+{
+    @dynArraySize(&tris.verts)
+}
+fn trisAddNormal(mut tris: &Tris, mut v: Vec) -> uint
+{
+    @dynArrayAppend(&tris.normals, &v as &u8)
+}
+fn trisNumNormals(mut tris: &Tris) -> uint
+{
+    @dynArraySize(&tris.normals)
+}
+fn trisAddTexCoord(mut tris: &Tris, mut t: TexCoord) -> uint
+{
+    @dynArrayAppend(&tris.texCoords, &t as &u8)
+}
+fn trisNumTexCoords(mut tris: &Tris) -> uint
+{
+    @dynArraySize(&tris.texCoords)
+}
+
 fn trisAddCube(mut tris: &Tris, size: float, mat: uint) -> ()
 {
     let vertOffset = dynArraySize(&tris.verts);
 
     let halfSize = size/2.0f;
-    dynArrayAppendPoint(&tris.verts, @point(-halfSize, -halfSize, -halfSize));
-    dynArrayAppendPoint(&tris.verts, @point( halfSize, -halfSize, -halfSize));
-    dynArrayAppendPoint(&tris.verts, @point(-halfSize,  halfSize, -halfSize));
-    dynArrayAppendPoint(&tris.verts, @point(-halfSize, -halfSize,  halfSize));
-    dynArrayAppendPoint(&tris.verts, @point(-halfSize,  halfSize,  halfSize));
-    dynArrayAppendPoint(&tris.verts, @point( halfSize, -halfSize,  halfSize));
-    dynArrayAppendPoint(&tris.verts, @point( halfSize,  halfSize, -halfSize));
-    dynArrayAppendPoint(&tris.verts, @point( halfSize,  halfSize,  halfSize));
+    trisAddVertex(tris, @point(-halfSize, -halfSize, -halfSize));
+    trisAddVertex(tris, @point( halfSize, -halfSize, -halfSize));
+    trisAddVertex(tris, @point(-halfSize,  halfSize, -halfSize));
+    trisAddVertex(tris, @point(-halfSize, -halfSize,  halfSize));
+    trisAddVertex(tris, @point(-halfSize,  halfSize,  halfSize));
+    trisAddVertex(tris, @point( halfSize, -halfSize,  halfSize));
+    trisAddVertex(tris, @point( halfSize,  halfSize, -halfSize));
+    trisAddVertex(tris, @point( halfSize,  halfSize,  halfSize));
 
     trisAddTriBasic(tris, vertOffset+0u, vertOffset+1u, vertOffset+2u, mat);
     trisAddTriBasic(tris, vertOffset+6u, vertOffset+1u, vertOffset+2u, mat);
@@ -164,6 +206,20 @@ fn trisCreateCube(size: float, mat: uint) -> Tris
 {
     let mut tris = trisInit();
     trisAddCube(&tris, size, mat);
+    tris
+}
+
+
+// object loader
+fn trisAddFromFile(tris: &Tris, path: &[u8], filename: &[u8], flags: uint, materials: &DynArray, scene: &Scene) -> ()
+{
+    print_s("I'm right there");
+    load_object_from_file(path, filename, flags, dynArrayData(materials) as &[Material], dynArraySize(materials), scene, tris);
+}
+fn trisCreateFromFile(path: &[u8], filename: &[u8], flags: uint, materials: &DynArray, scene: &Scene) -> Tris
+{
+    let mut tris = trisInit();
+    @trisAddFromFile(&tris, path, filename, flags, materials, scene);
     tris
 }
 

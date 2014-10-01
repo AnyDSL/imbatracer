@@ -1,30 +1,14 @@
 #include "objloader.h"
-//#include <rt/groups/group.h>
 #include <core/assert.h>
 #include <string>
 #include <fstream>
-//#include <rt/solids/triangle.h>
 #include <set>
 #include <cstring>
 
-/*
-#include <rt/materials/material.h>
-
-#include <rt/materials/dummy.h>
-#include <rt/coordmappers/local.h>
-
-#include <rt/coordmappers/world.h>
-#include <rt/coordmappers/tmapper.h>
-
-#include <rt/solids/striangle.h>
-*/
 
 namespace rt {
 
 namespace {
-    using impala::Point;
-    using impala::TexCoord;
-    typedef impala::Vec Vector;
 
 enum Instruction {
     Obj_None, //no instruction at all
@@ -68,21 +52,6 @@ enum Instruction {
 
 struct Int3 {
     int vidx, tidx, nidx;
-};
-struct Float2 {
-    float x, y;
-    operator TexCoord() {
-        return TexCoord(x,y);
-    }
-};
-struct Float3 {
-    float x, y, z;
-    operator Point() {
-        return Point(x,y,z);
-    }
-    operator Vector() {
-        return Vector(x,y,z);
-    }
 };
 
 struct FileLine {
@@ -256,11 +225,13 @@ Int3 FileLine::fetchVertex() {
 
 namespace {
 
+    typedef std::map<std::string, impala::Material > MatLib;
+
     struct MaterialInfo {
         std::string name;
         impala::Material mat;
 
-        MaterialInfo() : mat(impala::Material::dummy()) {}
+        MaterialInfo() { impala_dummyMaterial(&mat); }
     };
 
     void skipWS(const char * &aStr)
@@ -304,7 +275,7 @@ namespace {
 }
 
 
-void loadOBJMat(Scene *scene, MatLib* dest, const std::string& path, const std::string& filename, impala::Material *mats, size_t nmats, size_t *nmatsOverridden) {
+void loadOBJMat(impala::Scene *scene, MatLib* dest, const std::string& path, const std::string& filename, impala::Material *mats, size_t nmats, size_t *nmatsOverridden) {
     std::string fullname = path + filename;
     std::ifstream matInput(fullname.c_str(), std::ios_base::in);
     std::string buf;
@@ -339,7 +310,7 @@ void loadOBJMat(Scene *scene, MatLib* dest, const std::string& path, const std::
         {
             char coeffType = *(cmd + 1);
 
-            impala::Color color;
+            float color[3];
             cmd += 2;
 
             char *newCmdString;
@@ -352,15 +323,17 @@ void loadOBJMat(Scene *scene, MatLib* dest, const std::string& path, const std::
             }
 
             // TODO: use delayed texture allocation in case a material isn't used
+            impala::Texture tex;
+            impala::impala_constantTexture(&tex, color[0], color[1], color[2]);
             switch (coeffType)
             {
             case 'd':
-                material.mat.diffuse = scene->addTexture(impala::Texture::constant(color)); break;
+                material.mat.diffuse = impala::impala_sceneAddTexture(scene, &tex); break;
             case 'a':
-                material.mat.emissive = scene->addTexture(impala::Texture::constant(color)); break;
+                material.mat.emissive = impala::impala_sceneAddTexture(scene, &tex); break;
             case 's':
                 if (material.mat.specExp < 0) material.mat.specExp = 1;
-                material.mat.specular = scene->addTexture(impala::Texture::constant(color)); break;
+                material.mat.specular = impala::impala_sceneAddTexture(scene, &tex); break;
             }
         }
         else if(std::strncmp(cmd,  "Ns", 2) == 0)
@@ -388,8 +361,10 @@ parse_err_found:
 }
 
 
-FileObject::FileObject(const std::string &path, const std::string &filename, Scene *scene, unsigned flags, impala::Material *mats, size_t nmats)
+void load_object_from_file(const char *path, const char *filename, unsigned flags, impala::Material *materials, unsigned nMaterials, impala::Scene *scene, impala::Tris *tris)
 {
+    impala::impala_trisNumTexCoords(nullptr);
+    std::cout << "Here I am" << std::endl;
     MatLib* matlib = new MatLib;
 
     std::map<std::string, unsigned> materialName2Idx;
@@ -401,10 +376,15 @@ FileObject::FileObject(const std::string &path, const std::string &filename, Sce
     size_t nmatsOverridden = 0;
 
     FileLine fileline;
-    if(!fileline.open(path+filename)) {
+    if(!fileline.open(std::string(path)+filename)) {
         std::cerr << "ERROR: Cannot open " << filename << std::endl;
         return;
     }
+
+    const unsigned vertOffset = impala::impala_trisNumVertices(tris);
+    const unsigned normOffset = impala::impala_trisNumNormals(tris);
+    const unsigned texCoordOffset = impala::impala_trisNumTexCoords(tris);
+    const unsigned noIdx = impala::impala_noIdx();
 
     while (!fileline.eof()) {
         fileline.nextLine();
@@ -413,24 +393,24 @@ FileObject::FileObject(const std::string &path, const std::string &filename, Sce
         switch (i) {
             case Obj_Vertex:
             case Obj_NormalVertex: {
-                Float3 v;
-                v.x = fileline.fetchFloat();
-                v.y = fileline.fetchFloat();
-                v.z = fileline.fetchFloat();
+                float x, y, z;
+                x = fileline.fetchFloat();
+                y = fileline.fetchFloat();
+                z = fileline.fetchFloat();
                 float w = fileline.fetchFloat(1.0f);
-                if (w != 1.0f) { v.x/=w; v.y/=w; v.z/=w; }
+                if (w != 1.0f) { x/=w; y/=w; z/=w; }
                 if (i == Obj_Vertex)
-                    verts.push_back(v);
+                    impala::impala_trisAppendVertex(tris, x, y, z);
                 else
-                    normals.push_back(Vector(v).normal());
+                    impala::impala_trisAppendNormal(tris, x, y, z);
                 break;
             }
             case Obj_TexVertex: {
-                Float2 v;
-                v.x = fileline.fetchFloat();
-                v.y = 1-fileline.fetchFloat(0.0f);
+                float x, y;
+                x = fileline.fetchFloat();
+                y = 1-fileline.fetchFloat(0.0f);
                 fileline.fetchFloat(0.0f); //u, v, w. Ignore w
-                texCoords.push_back(v);
+                impala::impala_trisAppendTexCoord(tris, x, y);
                 break;
             }
             case Obj_Face: {
@@ -439,53 +419,52 @@ FileObject::FileObject(const std::string &path, const std::string &filename, Sce
 
                 Int3 v[3];
 
-                v[0] = fileline.fetchVertex();
-                release_assert(v[0].vidx != 0, "Error in file ", fileline.filename, ":", fileline.lineIdx, ".", fileline.pos, " : Vertex index cannot be 0");
-                if (v[0].vidx<0) v[0].vidx = verts.size() - v[0].vidx; else { --v[0].vidx; }
-                if (v[0].tidx == 0) skiptex=true;
-                else if (v[0].tidx<0) v[0].tidx = texCoords.size() - v[0].tidx; else { --v[0].tidx; }
-                if (v[0].nidx == 0) skipnormal=true;
-                else if (v[0].nidx<0) v[0].nidx = normals.size() - v[0].nidx; else { --v[0].nidx; }
+                for (int i = 0; i < 3; ++i) {
+                    v[i] = fileline.fetchVertex();
+                    release_assert(v[i].vidx != 0, "Error in file ", fileline.filename, ":", fileline.lineIdx, ".", fileline.pos, " : Vertex index cannot be 0");
 
+                    if (v[i].vidx<0) v[i].vidx = impala::impala_trisNumVertices(tris) - v[i].vidx;
+                    else { v[i].vidx += vertOffset-1; }
 
-                v[1] = fileline.fetchVertex();
-                release_assert(v[1].vidx != 0, "Error in file ", fileline.filename, ":", fileline.lineIdx, ".", fileline.pos, " : Vertex index cannot be 0");
-                if (v[1].vidx<0) v[1].vidx = verts.size() - v[1].vidx; else { --v[1].vidx; }
-                if (v[1].tidx == 0) skiptex=true;
-                else if (v[1].tidx<0) v[1].tidx = texCoords.size() - v[1].tidx; else { --v[1].tidx; }
-                if (v[1].nidx == 0) skipnormal=true;
-                else if (v[1].nidx<0) v[1].nidx = normals.size() - v[1].nidx; else { --v[1].nidx; }
+                    if (v[i].tidx == 0) skiptex=true;
+                    else if (v[i].tidx<0) v[i].tidx = impala::impala_trisNumTexCoords(tris) - v[i].tidx;
+                    else { v[i].tidx += texCoordOffset-1; }
 
-                v[2] = fileline.fetchVertex();
-                release_assert(v[2].vidx != 0, "Error in file ", fileline.filename, ":", fileline.lineIdx, ".", fileline.pos, " : Vertex index cannot be 0");
-                if (v[2].vidx<0) v[2].vidx = verts.size() - v[2].vidx; else { --v[2].vidx; }
-                if (v[2].tidx == 0) skiptex=true;
-                else if (v[2].tidx<0) v[2].tidx = texCoords.size() - v[2].tidx; else { --v[2].tidx; }
-                if (v[2].nidx == 0) skipnormal=true;
-                else if (v[2].nidx<0) v[2].nidx = normals.size() - v[2].nidx; else { --v[2].nidx; }
+                    if (v[i].nidx == 0) skipnormal=true;
+                    else if (v[i].nidx<0) v[i].nidx = impala::impala_trisNumNormals(tris) - v[i].nidx;
+                    else { v[i].nidx += normOffset-1; }
+                }
 
                 while(true) {
-                    tris.push_back(Tri(v[0].vidx, v[1].vidx, v[2].vidx,
-                                       skipnormal ? NoIdx : v[0].nidx, skipnormal ? NoIdx : v[1].nidx, skipnormal ? NoIdx : v[2].nidx,
-                                       skiptex ? NoIdx : v[0].tidx, skiptex ? NoIdx : v[1].tidx, skiptex ? NoIdx : v[2].tidx,
-                                       curMatIdx));
+                    impala::impala_trisAppendTriangle(tris,
+                                                      v[0].vidx, v[1].vidx, v[2].vidx,
+                                                      skipnormal ? noIdx : v[0].nidx, skipnormal ? noIdx : v[1].nidx, skipnormal ? noIdx : v[2].nidx,
+                                                      skiptex ? noIdx : v[0].tidx, skiptex ? noIdx : v[1].tidx, skiptex ? noIdx : v[2].tidx,
+                                                      curMatIdx);
 
                     // advance to next vertex
                     v[1] = v[2];
-                    v[2] = fileline.fetchVertex();
-                    if (v[2].vidx == 0) break;
-                    if (v[2].vidx<0) v[2].vidx = verts.size() - v[2].vidx; else { --v[2].vidx; }
-                    if (v[2].tidx == 0) skiptex=true;
-                    else if (v[2].tidx<0) v[2].tidx = texCoords.size() - v[2].tidx; else { --v[2].tidx; }
-                    if (v[2].nidx == 0) skipnormal=true;
-                    else if (v[2].nidx<0) v[2].nidx = normals.size() - v[2].nidx; else { --v[2].nidx; }
+                    const int i = 2;
+                    v[i] = fileline.fetchVertex();
+                    if (v[i].vidx == 0) break;
+
+                    if (v[i].vidx<0) v[i].vidx = impala::impala_trisNumVertices(tris) - v[i].vidx;
+                    else { v[i].vidx += vertOffset-1; }
+
+                    if (v[i].tidx == 0) skiptex=true;
+                    else if (v[i].tidx<0) v[i].tidx = impala::impala_trisNumTexCoords(tris) - v[i].tidx;
+                    else { v[i].tidx += texCoordOffset-1; }
+
+                    if (v[i].nidx == 0) skipnormal=true;
+                    else if (v[i].nidx<0) v[i].nidx = impala::impala_trisNumNormals(tris) - v[i].nidx;
+                    else { v[i].nidx += normOffset-1; }
                 }
                 break;
             }
             case Obj_MaterialLibrary: {
                 if (!(flags & IgnoreMatLibs)) {
                     std::string libname = fileline.fetchString();
-                    loadOBJMat(scene, matlib, path, libname, mats, nmats, &nmatsOverridden);
+                    loadOBJMat(scene, matlib, path, libname, materials, nMaterials, &nmatsOverridden);
                 }
                 break;
             }
@@ -500,7 +479,7 @@ FileObject::FileObject(const std::string &path, const std::string &filename, Sce
                     }
                     else {
                         // register material
-                        curMatIdx = scene->addMaterial(i->second);
+                        curMatIdx = impala::impala_sceneAddMaterial(scene, &i->second);
                         materialName2Idx.insert(std::make_pair(matname, curMatIdx));
                     }
                 }
@@ -525,39 +504,14 @@ FileObject::FileObject(const std::string &path, const std::string &filename, Sce
 
 
     std::cout << "ObjLoader: Loaded "
-        << verts.size() << " verts, "
-        << normals.size() << " normals, "
-        << texCoords.size() << " texcoords "
+        << impala::impala_trisNumVertices(tris)-vertOffset << " verts, "
+        << impala::impala_trisNumNormals(tris)-normOffset << " normals, "
+        << impala::impala_trisNumTexCoords(tris)-texCoordOffset << " texcoords "
         << matlib->size() << " materials. "
         << std::endl;
 
-    for(MatLib::iterator it = matlib->begin(); it != matlib->end(); ++it)
-    {
-        const impala::Material& mat = it->second;
-        std::cerr << "Mat[" << it->first << " @ " << materialName2Idx[it->first] << "]:"
-                  << " diffuse=" << mat.diffuse
-                  << " specular=" << mat.specular
-                  << " emissive=" << mat.emissive
-                  << " specExp=" <<  mat.specExp
-                  << std::endl;
-
-    }
-
     delete matlib;
 }
-
-/*
-void ObjLoader::updateMaterials(MatLib *matlib)
-{
-    // for all out surfaces, maybe we have to update them
-    for (std::vector<CountedPtr<MeshSurface> >::iterator it = surfaces.begin(); it != surfaces.end(); ++it) {
-        MatLib::iterator matit = matlib->find((*it)->name);
-        if (matit != matlib->end()) {
-            (*it)->material = matit->second;
-        }
-    }
-}
-*/
 
 }
 

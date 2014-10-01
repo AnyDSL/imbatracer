@@ -45,7 +45,7 @@ protected:
     }
 
     SceneKind sceneKind;
-    impala::state state;
+    impala::State *state;
 };
 
 int main(int argc, char *argv[])
