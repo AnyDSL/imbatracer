@@ -47,7 +47,7 @@ fn debugRadianceNormalSign(dist:float, sisec: &ShadingIntersection) -> Color
            @scaleLin(n.z, -1.0f, 1.0f, 0.0f, 1.0f))
 }
 
-fn integrateLightSources(mut scene : &Scene, hitP : Point, outDir : Vec, surfaceN : Vec, shadingN : Vec, uv : TexCoord, local : Point,
+fn integrateLightSources(mut scene : &RTScene, hitP : Point, outDir : Vec, surfaceN : Vec, shadingN : Vec, uv : TexCoord, local : Point,
                          mat : &Material, rayEps : float) -> Color
 {
     let mut c = @color0();
@@ -61,7 +61,7 @@ fn integrateLightSources(mut scene : &Scene, hitP : Point, outDir : Vec, surface
         if @dot(lhit.dir, surfaceN) >= 0.0f // light comes towards us, on same side of surface?
         {
             let irrIntensity = @evalLightIntensity(light, lhit);
-            let reflected = @evalMaterialReflectance(uv, local, shadingN, outDir, lhit.dir, mat, scene);
+            let reflected = @evalMaterialReflectance(uv, local, shadingN, outDir, lhit.dir, mat, &scene.shadingData);
             let contrib = @ccapply2(irrIntensity, reflected, mul);
             //print_sc("Total contrib", contrib);
 
@@ -81,7 +81,7 @@ fn integrateLightSources(mut scene : &Scene, hitP : Point, outDir : Vec, surface
     c
 }
 
-fn raytraceRadiance(ray: Ray, dist:float, sisec: &ShadingIntersection, mut scene : &Scene) -> Color
+fn raytraceRadiance(ray: Ray, dist:float, sisec: &ShadingIntersection, mut scene : &RTScene) -> Color
 {
     let outDir = @vflip(ray.d);
     let surfaceN = @normalTowardsOrigin(sisec.surfaceNormal, ray);
@@ -94,12 +94,12 @@ fn raytraceRadiance(ray: Ray, dist:float, sisec: &ShadingIntersection, mut scene
         // we ignore any contribution not coming directly from a light source
         @integrateLightSources(scene, hitP, outDir, surfaceN, sisec.shadingNormal, uv, local, mat, sisec.eps),
         // and add the material's own light emission that is not dependent on light
-        evalMaterialEmission(uv, local, surfaceN, outDir, mat, scene)
+        evalMaterialEmission(uv, local, surfaceN, outDir, mat, &scene.shadingData)
     )
 }
 
 
-fn recraytraceRadiance(theRay: Ray, dist:float, sisec: &ShadingIntersection, mut scene : &Scene, integr : &Integrator, recRemain : uint) -> Color
+fn recraytraceRadiance(theRay: Ray, dist:float, sisec: &ShadingIntersection, mut scene : &RTScene, integr : &Integrator, recRemain : uint) -> Color
 {
     let outDir = @vflip(theRay.d);
     let surfaceN = @normalTowardsOrigin(sisec.surfaceNormal, theRay);
@@ -130,7 +130,7 @@ fn recraytraceRadiance(theRay: Ray, dist:float, sisec: &ShadingIntersection, mut
         c = @ccadd(c, cl);
     }
 
-    @ccadd(c, evalMaterialEmission(uv, local, surfaceN, outDir, mat, scene))
+    @ccadd(c, evalMaterialEmission(uv, local, surfaceN, outDir, mat, &scene.shadingData))
 }
 
 fn makeDistanceScaled(minDist: float, maxDist: float, dist:float, sisec: &ShadingIntersection, getcol: fn(float, &ShadingIntersection) -> Color) -> Color
@@ -153,7 +153,7 @@ fn debuggerRadiance(mode: int, minDist: float, maxDist: float, dist:float, sisec
         )
 }
 
-fn getRadianceForHit(ty : int, integr : &Integrator, ray: Ray, dist:float, sisec: &ShadingIntersection, scene : &Scene, recRemain : uint) -> Color
+fn getRadianceForHit(ty : int, integr : &Integrator, ray: Ray, dist:float, sisec: &ShadingIntersection, scene : &RTScene, recRemain : uint) -> Color
 {
     if      ty == 0 { cosineRadiance(ray, dist, sisec) }
     else if ty == 1 { raytraceRadiance(ray, dist, sisec, scene) }
@@ -161,7 +161,7 @@ fn getRadianceForHit(ty : int, integr : &Integrator, ray: Ray, dist:float, sisec
     else            { debuggerRadiance(integr.mode, integr.minDist, integr.maxDist, dist, sisec) }
 }
 
-fn runIntegratorRec(ty : int, integr : &Integrator, scene : &Scene, mut ray : Ray, recRemain : uint) -> Color
+fn runIntegratorRec(ty : int, integr : &Integrator, scene : &RTScene, mut ray : Ray, recRemain : uint) -> Color
 {
     //let mut isec = @intersection(ray, @defaultDist());
     let mut sisec:ShadingIntersection;
@@ -176,7 +176,7 @@ fn runIntegratorRec(ty : int, integr : &Integrator, scene : &Scene, mut ray : Ra
     }
 }
 
-fn runIntegrator(integr : &Integrator, scene : &Scene, ray : Ray) -> Color
+fn runIntegrator(integr : &Integrator, scene : &RTScene, ray : Ray) -> Color
 {
     $runIntegratorRec(integr.itype, integr, scene, ray, integr.maxRecDepth) // HACK: allow 3 recursions, but don't specialize
 }

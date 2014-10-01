@@ -1,7 +1,22 @@
 
-// abstract BVH construction function
+// abstract BVH construction functions
 type primBoundsFn = fn(uint) -> BBox;
 type primFinalizeFn = fn(uint) -> uint; // called exactly once per object, return the index the object finally has
+
+
+
+struct BVHTrees
+{
+    roots: DynArray, // of uint
+    bvhNodes: DynArray, // of BVHNode
+}
+fn bvhTrees() -> BVHTrees
+{
+    // FIXME HACK NEED SIZEOF
+    BVHTrees{ roots: @dynArray(4u), bvhNodes:@dynArray(2u*3u*4u + 4u + 2u*2u) }
+}
+
+
 
 struct PrimData
 {
@@ -27,10 +42,10 @@ struct NodeSplitInformation
     bestCost: float,
 }
 
-fn constructBvh(nPrims: uint, primBounds: primBoundsFn, primFinalize: primFinalizeFn) -> ()
+// construct a BVH tree, adding the nodes to the vbHnodes array. Returns the index of the root.
+fn constructBvh(bvhNodes: &DynArray, nPrims: uint, primBounds: primBoundsFn, primFinalize: primFinalizeFn) -> uint
 {
     // prepare working arena and object data
-    let mut bvhNodes = dynArrayInit(0u, nPrims / 4u); // FIXME: sizeof()
     let mut totalBounds = bboxEmpty();
     let mut primData = ~[nPrims:PrimData];
     let splitPlaneCandidates = ~[nPrims:SplitPlaneCandidate];
@@ -40,13 +55,13 @@ fn constructBvh(nPrims: uint, primBounds: primBoundsFn, primFinalize: primFinali
 
     for primIdx in urange(0u, nPrims) {
         let bounds = @primBounds(nPrims);
-        primData(nPrims) = PrimData{ bounds:bounds, centroid:@primCentroid(nPrims) };
+        primData(nPrims) = PrimData{ bounds:bounds, centroid:@bboxCentroid(bounds) };
         totalBounds = bbextendb(totalBounds, bounds);
         allPrims(primIdx) = nPrims; // TODO get rid of this array, it's just used to pass the initial to-split-list...
     }
 
     buildBvhNode(allPrims, nPrims, totalBounds, 0u, leftPrims, rightPrims,
-            &bvhNodes, primFinalize);
+            bvhNodes, primFinalize)
 
 }
 
@@ -87,9 +102,9 @@ fn buildBvhNode(prims: &[uint], nPrims: uint, totalBounds: BBox, depth: uint, mu
 
     // Process child nodes recursively, using space further down in our arrays (after the space in leftPrims, rightPrims that we needed)
     assert(||splitInfo.nLeft <= nPrims, "Keeping too many primitives");
-    let firstChild =  buildBvhNode(leftPrims , splitInfo.nLeft       , splitInfo.leftBBox , depth+1u, &leftPrims(nPrims) as &[u32], &rightPrims(nPrims) as &[u32],
+    let firstChild =  $buildBvhNode(leftPrims , splitInfo.nLeft       , splitInfo.leftBBox , depth+1u, &leftPrims(nPrims) as &[u32], &rightPrims(nPrims) as &[u32],
             bvhNodes, primFinalize);
-    let secondChild = buildBvhNode(rightPrims, nPrims-splitInfo.nLeft, splitInfo.rightBBox, depth+1u, &leftPrims(nPrims) as &[u32], &rightPrims(nPrims) as &[u32],
+    let secondChild = $buildBvhNode(rightPrims, nPrims-splitInfo.nLeft, splitInfo.rightBBox, depth+1u, &leftPrims(nPrims) as &[u32], &rightPrims(nPrims) as &[u32],
             bvhNodes, primFinalize);
 
     // Make sure the children's order in the vector is as expected
@@ -103,4 +118,13 @@ fn buildBvhNode(prims: &[uint], nPrims: uint, totalBounds: BBox, depth: uint, mu
 fn bvhDecideSplit(prims: &[uint], nPrims: uint, totalBounds: BBox, depth: uint, splitInfo: &NodeSplitInformation) -> ()
 {
     // don't do any split
+}
+
+/* Some more convenient wrapper functions */
+fn bvhsAddTree(mut trees: &BVHTrees, nPrim: uint, primBounds: primBoundsFn, primFinalize: primFinalizeFn) -> ()
+{
+    let oldSize = @dynArraySize(&trees.bvhNodes);
+    let root = constructBvh(&trees.bvhNodes, nPrim, primBounds, primFinalize);
+    @assert(||oldSize == root, "bvhsAddTree: root got the wrong index");
+    dynArrayAppendUint(&trees.roots, root);
 }

@@ -28,3 +28,8 @@ fn bbextendb(bb : BBox, bb2 : BBox) -> BBox
 {
     @bbextend(@bbextend(bb, bb2.cmin), bb2.cmax)
 }
+
+fn bboxCentroid(bb: BBox) -> Point
+{
+    @ppapply2(bb.cmin, bb.cmax, |a, b|(a+b)/2.0f)
+}

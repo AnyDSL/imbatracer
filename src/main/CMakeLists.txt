@@ -29,10 +29,10 @@ set(impala_shared_SRC
     integrator.impala
     tri.impala
     bvh_traversal.impala
+    bvh_construction.impala
 )
 set(impala_loc_SRC
     assert_cpu.impala
-    bvh_construction.impala
     interface_loc.impala
 )
 set(impala_acc_SRC

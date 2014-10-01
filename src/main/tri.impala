@@ -12,18 +12,103 @@ struct Tris
 fn trisInit() -> Tris
 {
     // HACK these are sizes FIXME NEED SIZEOF
-    Tris{ verts: @dynArrayInit(3u*4u, 0u), triVerts: @dynArrayInit(4u, 0u),
-            normals: @dynArrayInit(3u*4u, 0u), texCoords: @dynArrayInit(2u*4u, 0u), triData: @dynArrayInit(4u, 0u) }
+    Tris{ verts: @dynArray(3u*4u), triVerts: @dynArray(4u),
+            normals: @dynArray(3u*4u), texCoords: @dynArray(2u*4u), triData: @dynArray(4u) }
 }
+
+
+
+fn trisSize(mut tris: &Tris) -> uint
+{
+    let nTris = dynArraySize(&tris.triVerts)/3u;
+    @assert(||nTris == dynArraySize(&tris.triData)/7u, "Triangle list sizes do not match");
+    nTris
+}
+fn triPointC(mut tris: &Tris, tri: uint, n: uint) -> Point
+{
+    let idx = @dynArrayFetchUint(&tris.triVerts, 3u*tri+n);
+    @dynArrayFetchPoint(&tris.verts, idx)
+}
+fn triBounds(tris: &Tris, idx: uint) -> BBox
+{
+    bbextend(bbox(@triPointC(tris, idx, 0u), @triPointC(tris, idx, 1u)), @triPointC(tris, idx, 2u))
+}
+
 struct RTTris
 {
     verts : &[Point],
     triVerts : &[uint], // 3 successive entries are the three indices of the vertices of a triangle
 
     normals : &[Vec],
-    texcoords: &[TexCoord],
-    textures : &[Texture],
-    triData : &[uint], // 7 successive indices belong to one triangle: 3 normals, 2 texcoors, 1 material
+    texCoords: &[TexCoord],
+    triData : &[uint], // 7 successive indices belong to one triangle: 3 normals, 2 texcoors, 1 material; same order of triangles as in triVerts
+}
+fn trisPrepareCopy(mut tris: &Tris, mut rtTris: &RTTris) -> primFinalizeFn
+{
+    rtTris.verts = @dynArrayData(&tris.verts) as &[Point];
+    rtTris.normals = @dynArrayData(&tris.normals) as &[Vec];
+    rtTris.texCoords = @dynArrayData(&tris.texCoords) as &[TexCoord];
+
+    let nTris = trisSize(tris);
+    rtTris.triVerts = ~[3u*nTris:uint];
+    rtTris.triData  = ~[7u*nTris:uint];
+
+    let mut curIdx = 0u;
+    |copyIdx|{
+        // append triangle curIdx in tris, to the list of triangles in rtTris
+        for i in @urange(0u, 3u) {
+            rtTris.triVerts(3u*curIdx+i) = @dynArrayFetchUint(&tris.triVerts, 3u*copyIdx+i);
+        }
+        for i in @urange(0u, 7u) {
+            rtTris.triData(7u*curIdx+i) = @dynArrayFetchUint(&tris.triData, 7u*copyIdx+i);
+        }
+        ++curIdx;
+        // clean up after last index
+        if curIdx == nTris {
+            @dynArrayClear(&tris.triVerts);
+            @dynArrayClear(&tris.triData);
+        };
+        curIdx-1u // this is the index we assigned to it
+    }
+}
+
+
+// accessor functions
+fn triPoint(tri : uint, n : uint, tris : &RTTris) -> Point
+{
+    @assert(||n < 3u, "Accessing invalid triangle point");
+    let idx = tris.triVerts(3u*tri + n);
+    tris.verts(idx)
+}
+
+fn triHasNormals(tri : uint, tris : &RTTris) -> bool
+{
+    tris.triData(7u*tri) != noIdx
+}
+
+fn triVertNormal(tri : uint, n : uint, tris : &RTTris) -> Vec
+{
+    @assert(||n < 3u, "Accessing invalid triangle normal");
+    let idx = tris.triData(7u*tri + n);
+    tris.normals(idx)
+}
+
+fn triHasTexcoord(tri : uint, tris : &RTTris) -> bool
+{
+    tris.triData(7u*tri+3u) != noIdx
+}
+
+fn triTexCoord(tri : uint, n : uint, tris : &RTTris) -> TexCoord
+{
+    @assert(||n < 3u, "Accessing invalid triangle texture coordinate");
+    let idx = tris.triData(7u*tri + 3u + n);
+    tris.texCoords(idx)
+}
+
+fn triMaterialIdx(tri : uint, tris : &RTTris) -> uint
+{
+    let idx = tris.triData(7u*tri + 6u);
+    idx
 }
 
 // = construction functions =
@@ -74,51 +159,12 @@ fn trisAddCube(mut tris: &Tris, size: float, mat: uint) -> ()
 }
 fn trisCreateCube(size: float, mat: uint) -> Tris
 {
-    let mut tris = tris();
+    let mut tris = trisInit();
     trisAddCube(&tris, size, mat);
     tris
 }
 
 // = traversal functions =
-
-// accessor functions
-fn triPoint(tri : uint, n : uint, tris : &RTTris) -> Point
-{
-    @assert(||n < 3u, "Accessing invalid triangle point");
-    let idx = tris.triVerts(3u*tri + n);
-    tris.verts(idx)
-}
-
-fn triHasNormals(tri : uint, tris : &RTTris) -> bool
-{
-    tris.triData(7u*tri) != noIdx
-}
-
-fn triVertNormal(tri : uint, n : uint, tris : &RTTris) -> Vec
-{
-    @assert(||n < 3u, "Accessing invalid triangle normal");
-    let idx = tris.triData(7u*tri + n);
-    tris.normals(idx)
-}
-
-fn triHasTexcoord(tri : uint, tris : &RTTris) -> bool
-{
-    tris.triData(7u*tri+3u) != noIdx
-}
-
-fn triTexCoord(tri : uint, n : uint, tris : &RTTris) -> TexCoord
-{
-    @assert(||n < 3u, "Accessing invalid triangle texture coordinate");
-    let idx = tris.triData(7u*tri + 3u + n);
-    tris.texcoords(idx)
-}
-
-fn triMaterialIdx(tri : uint, tris : &RTTris) -> uint
-{
-    let idx = tris.triData(7u*tri + 6u);
-    idx
-}
-
 fn triIntersectGeneric(tri : uint, tris : &RTTris, ray : &Ray, maxDistance : float, mut sisec: &ShadingIntersection) -> float
 {
     /* Directly compute barycentric coordinates and t, and cancel early if we notice the ray is not going to hit

@@ -41,12 +41,16 @@ fn sceneCompile(mut scene: &Scene, mut rtScene: &RTScene) -> ()
     }
 
     // build BVH of objects
-    let bvhMeshFinalize = bvhsPrepareCopy(&bvhMeshes, &rtScene.bvhInners);
+    // FIXME TEMP HACK
+    rtScene.bvhInners.bvhNodes = @dynArrayData(&bvhMeshes.bvhNodes) as &[BVHNode];
+    @assert(||@dynArrayFetchUint(&bvhMeshes.roots, 0u) == 0u, "root has wrong index");
+    rtScene.bvhInners.roots = ~[0u];
+    /*let bvhMeshFinalize = bvhsPrepareCopy(&bvhMeshes, &rtScene.bvhInners);
     let mut bvhObjects = bvhTree();
     bvhCreateTree(&bvhObjects, dynArraySize(&scene.objects),
         |objidx|instanceBounds(dynArrayFetch(&scene.objects, objidx) as &Instance, |meshidx|bvhBounds(bvhMeshes, meshidx)),
         bvhMeshFinalize);
-    bvhCompile(&bvhObjects, &rtScene.bvhOuter);
+    bvhCompile(&bvhObjects, &rtScene.bvhOuter);*/
 }
 
 
@@ -59,10 +63,10 @@ fn sceneCompile(mut scene: &Scene, mut rtScene: &RTScene) -> ()
 // TODO: Figure out the best way to pass around stuff. Scene as pointer or as copy? Intersection as pointer, or as function from Ray to isect?
 fn sceneIntersectFirst(mut scene: &RTScene, ray : &Ray, maxdist : float, sisec : &ShadingIntersection) -> float
 {
-    @bvhIntersectFirst(&scene.bvh, ray, maxdist, sisec, |idx, ray, maxdist, sisec|trisIntersectFirst(idx, &scene.tris, ray, maxdist, sisec))
+    @bvhsIntersectFirst(0u, &scene.bvhInners, ray, maxdist, sisec, |idx, ray, maxdist, sisec|trisIntersectFirst(idx, &scene.tris, ray, maxdist, sisec))
 }
 
 fn sceneIntersectAny(mut scene: &RTScene, ray : &Ray, maxdist : float) -> bool
 {
-    @bvhIntersectAny(&scene.bvh, ray, maxdist, |idx, ray, maxdist|trisIntersectAny(idx, &scene.tris, ray, maxdist))
+    @bvhsIntersectAny(0u, &scene.bvhInners, ray, maxdist, |idx, ray, maxdist|trisIntersectAny(idx, &scene.tris, ray, maxdist))
 }

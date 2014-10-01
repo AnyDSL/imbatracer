@@ -6,6 +6,10 @@ struct DynArray {
     capacity: uint,
 }
 
+fn dynArray(elemSize: uint) -> DynArray
+{
+    @dynArrayInit(elemSize, 0u)
+}
 fn dynArrayInit(elemSize : uint, initialCap : uint) -> DynArray
 {
     let mut a:DynArray;
@@ -81,6 +85,10 @@ fn dynArraySize(a : &DynArray) -> uint
 {
     a.size
 }
+fn dynArrayData(a: &DynArray) -> &[u8]
+{
+    a.data
+}
 
 // append an entry to the array, return its index
 fn dynArrayAppend(mut a: &DynArray, obj: &u8) -> uint
@@ -107,7 +115,15 @@ fn dynArrayAppendUint(a: &DynArray, mut u: uint) -> uint
 {
     @dynArrayAppend(a, &u as &u8)
 }
+fn dynArrayFetchUint(a: &DynArray, idx: uint) -> uint
+{
+    *(@dynArrayFetch(a, idx) as &uint)
+}
 fn dynArrayAppendPoint(a: &DynArray, mut p: Point) -> uint
 {
     @dynArrayAppend(a, &p as &u8)
+}
+fn dynArrayFetchPoint(a: &DynArray, idx: uint) -> Point
+{
+    *(@dynArrayFetch(a, idx) as &Point)
 }

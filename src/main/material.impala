@@ -17,7 +17,7 @@ struct Material
     // ambient / emissive
     emissive : uint,
     // mirror
-    sampling : Sampling,
+    sampling : Sampling, // FIXME can't this be determined based on the other parameters?
     eta :float,
     etaSqrKappaSqr : float,
 }
@@ -89,13 +89,13 @@ fn phongFactor(normal:Vec, outDir:Vec, inDir:Vec, exponent:float) -> float
     powf(cosReflIn, exponent)*(exponent+2.0f)/(2.0f*pi) // TODO don't compute normalisation factor all the time
 }
 
-fn evalMaterialReflectance(texPoint:TexCoord, local:Point, normal:Vec, outDir:Vec, inDir:Vec, mat : &Material, mut scene : &Scene) -> Color
+fn evalMaterialReflectance(texPoint:TexCoord, local:Point, normal:Vec, outDir:Vec, inDir:Vec, mat : &Material, mut shadingData : &RTShadingData) -> Color
 {
-    let diffuse = evalTexture(texPoint, local, &scene.shadingData.textures(mat.diffuse));
+    let diffuse = evalTexture(texPoint, local, &shadingData.textures(mat.diffuse));
 
     let lambertian = @cdiv(diffuse, pi);
     let phong = if mat.specExp > 0.0f {
-            @cmul(evalTexture(texPoint, local, &scene.shadingData.textures(mat.specular))
+            @cmul(evalTexture(texPoint, local, &shadingData.textures(mat.specular))
                 , @phongFactor(normal, outDir, inDir, mat.specExp)
             )
         } else { @color0() };
@@ -104,10 +104,10 @@ fn evalMaterialReflectance(texPoint:TexCoord, local:Point, normal:Vec, outDir:Ve
     @cmul(@ccadd(lambertian, phong), renderCos)
 }
 
-fn evalMaterialEmission(texPoint:TexCoord, local:Point, normal:Vec, outDir:Vec, mat : &Material, mut scene : &Scene) -> Color
+fn evalMaterialEmission(texPoint:TexCoord, local:Point, normal:Vec, outDir:Vec, mat : &Material, mut shadingData : &RTShadingData) -> Color
 {
     // texture material
-    evalTexture(texPoint, local, &scene.shadingData.textures(mat.emissive))
+    evalTexture(texPoint, local, &shadingData.textures(mat.emissive))
 
     // TODO: other materials (glass etc)
 }

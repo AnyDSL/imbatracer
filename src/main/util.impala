@@ -155,7 +155,7 @@ static FLT_MAX:float = 3.402823e+38f;
 
 fn isDebug() -> bool
 {
-    false //|| true
+    false || true
 }
 
 
