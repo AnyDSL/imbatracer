@@ -1,8 +1,8 @@
 set(cpp_SRC
-    scene.h
-    scene.cpp
-    objloader.h
-    objloader.cpp
+#    scene.h
+#    scene.cpp
+#    objloader.h
+#    objloader.cpp
     interface.h
     extern_c.cpp
 )
@@ -42,9 +42,9 @@ set(impala_acc_SRC
     interface_acc.impala
 )
 
-#THORIN_RUNTIME_WRAP(impala_acc_OBJ impala_acc_LIB
-#    RTTYPE ${RTTYPE}
-#    FILES ${impala_shared_SRC} ${impala_acc_SRC})
+THORIN_RUNTIME_WRAP(impala_acc_OBJ impala_acc_LIB
+    RTTYPE ${RTTYPE}
+    FILES ${impala_shared_SRC} ${impala_acc_SRC})
 THORIN_RUNTIME_WRAP(impala_loc_OBJ impala_loc_LIB
     RTTYPE none
     FILES ${impala_shared_SRC} ${impala_loc_SRC})

@@ -4,7 +4,7 @@
 #include <string>
 #include <map>
 #include <core/macros.h>
-#include "scene.h"
+#include "interface.h"
 
 //#include <core/interpolate.h>
 //#include <rt/groups/kdtree.h>
@@ -13,9 +13,7 @@
 namespace rt {
 
 
-typedef std::map<std::string, impala::Material > MatLib;
-
-
+/*
 class FileObject : public Object
 {
 public:
@@ -30,6 +28,7 @@ public:
 
     FileObject(const std::string &path, const std::string &filename, Scene *scene, unsigned flags = None, impala::Material *mats = nullptr, size_t nmats = 0);
 };
+*/
 
 }
 

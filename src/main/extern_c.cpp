@@ -3,7 +3,6 @@
 #include <limits.h>
 #include <core/util.h>
 #include <core/assert.h>
-#include "scene.h"
 #include "objloader.h"
 
 extern "C"
@@ -36,43 +35,8 @@ extern "C"
         rt::debugAbort();
     }
 
-    // Scene interface
-    void scene_clear(impala::State *state)
-    {
-        state->sceneMgr->clear();
-    }
-
-    void scene_add_cube(impala::State *state, float size, impala::Material *mat)
-    {
-        unsigned matidx = 0;
-        if(mat)
-            matidx = state->sceneMgr->addMaterial(*mat);
-        state->sceneMgr->add(rt::Cube(size, matidx));
-    }
-
-    void scene_add_file_mat(impala::State *state, int id, int flags, impala::Material *overrideMats, unsigned nMats)
-    {
-        state->sceneMgr->add(rt::FileObject("models/", std::to_string(id) + ".obj", state->sceneMgr, flags, overrideMats, nMats));
-    }
-
-    unsigned scene_add_texture(impala::State *state, impala::Texture *tex)
-    {
-        size_t id = state->sceneMgr->addTexture(*tex);
-        std::cout << "Added texture; ID = " << id << std::endl;
-        return (unsigned)id;
-    }
-
-    void scene_add_file(impala::State *state, int id, int flags)
-    {
-        scene_add_file_mat(state, id, flags, nullptr, 0);
-    }
 
     //void load_file(const char *path, const char *filename, unsigned flags, impala::DynList *overrideMaterials,
     //               impala::DynList *vertices, impala::DynList *normals, impala::DynList *texCoords, impala::DynList *materials, impala::DynList *textures,
     //               impala::DynList *triVerts, impala::DynList *triData);
-
-    void scene_build(impala::State *state)
-    {
-        state->sceneMgr->build();
-    }
 }

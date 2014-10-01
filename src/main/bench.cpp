@@ -2,27 +2,22 @@
 #include <core/util.h>
 
 #include "interface.h"
-#include "scene.h"
 
-typedef void (&InitBenchFun)(impala::State*);
+typedef impala::state (&InitBenchFun)();
 
 void run_bench(InitBenchFun initBenchFun, const char *name, unsigned n, int w, int h)
 {
     std::cout << "Running " << name << std::endl;
 
-    impala::State *state = thorin_new<impala::State>(1);
-    {
-        rt::Scene scene(&state->scene);
-        state->sceneMgr = &scene;
-        initBenchFun(state);
+    impala::state state = initBenchFun();
 
-        unsigned *buf = thorin_new<unsigned>(w*h);
-        for (unsigned i = 0; i < n; ++i) {
-            impala_render(buf, w, h, true, state);
-        }
-        thorin_free(buf);
+    unsigned *buf = thorin_new<unsigned>(w*h);
+    for (unsigned i = 0; i < n; ++i) {
+        impala::impala_render(buf, w, h, true, state);
     }
-    thorin_free(state);
+    thorin_free(buf);
+
+    impala::impala_finish(state);
 
     std::cout << std::endl;
 }

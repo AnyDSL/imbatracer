@@ -12,14 +12,7 @@ extern "C"
     fn print_sfff(&[u8], float, float, float) -> ();
     fn assert_failed(&[u8]) -> ();
 
-    // scene creation functions
-    /*fn scene_clear(&State) -> ();
-    fn scene_add_cube(&State, float, &Material) -> ();
-    fn scene_add_file(&State, int, int) -> bool;
-    fn scene_add_file_mat(&State, int, int, &[Material], uint) -> bool;
-    fn scene_add_texture(&State, &Texture) -> uint; // index of added texture
-    fn scene_build(&State) -> ();*/
-
+    // runtime, but not yet provided by thorin
     fn thorin_free(&u8) -> ();
     fn memset(&u8, int, size_t) -> ();
     fn memcpy(&u8, &u8, size_t) -> ();

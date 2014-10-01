@@ -154,19 +154,19 @@ namespace impala {
         }
     };
 
+    typedef void *state; // some opaque pointer
 
     extern "C" {
-        typedef void *impala_state; // some opaque pointer
 
-        void impala_object_init(Object *obj, unsigned rootIdx);
+        state impala_init();
+        void impala_update(state, float dt);
 
-        impala_state impala_init();
-        void impala_update(impala_state state, float dt);
+        state impala_init_bench1();
+        state impala_init_bench2();
 
-        impala_state impala_init_bench1();
-        impala_state impala_init_bench2();
+        void impala_render(unsigned *buf, int w, int h, bool measureTime, state);
 
-        void impala_render(unsigned *buf, int w, int h, bool measureTime, impala_state state);
+        void impala_finish(state);
     }
 
     // test that these are all POD

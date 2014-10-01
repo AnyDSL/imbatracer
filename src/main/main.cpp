@@ -5,7 +5,6 @@
 #include <core/util.h>
 
 #include "interface.h"
-#include "scene.h"
 
 using namespace rt;
 
@@ -19,37 +18,34 @@ class ImpalaGui : public SDLBufferGui
 {
 public:
     ImpalaGui(unsigned w, unsigned h, SceneKind sceneKind)
-        : SDLBufferGui(w, h, "ImbaTracer"), sceneKind(sceneKind), scene(&state.scene)
+        : SDLBufferGui(w, h, "ImbaTracer"), sceneKind(sceneKind)
     {
-        memset(&state, 0, sizeof(state));
-        state.sceneMgr = &scene;
         // impala_init may call functions that add objects to the scene
         switch (sceneKind) {
         case SceneKind::Main:
-            impala_init(&state); break;
+            state = impala::impala_init(); break;
         case SceneKind::Bench1:
-            impala_init_bench1(&state); break;
+            state = impala::impala_init_bench1(); break;
         case SceneKind::Bench2:
-            impala_init_bench2(&state); break;
+            state = impala::impala_init_bench2(); break;
         }
 
     }
-    virtual ~ImpalaGui() {}
-
-    impala::State *getState() { return &state; }
+    virtual ~ImpalaGui() {
+        impala::impala_finish(state);
+    }
 
 protected:
 
     virtual void _Render(CountedPtr<Image> img, float dt)
     {
         if (sceneKind == SceneKind::Main)
-            impala_update(&state, dt);
-        impala_render(img->getPtr(), img->width(), img->height(), false, &state);
+            impala::impala_update(&state, dt);
+        impala::impala_render(img->getPtr(), img->width(), img->height(), false, &state);
     }
 
     SceneKind sceneKind;
-    impala::State state;
-    rt::Scene scene;
+    impala::state state;
 };
 
 int main(int argc, char *argv[])
