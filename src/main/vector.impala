@@ -58,6 +58,22 @@ fn vecAt(v : Vec, i : int) -> float
     else if i == 1 { v.y }
     else           { v.z }
 }
+fn vecLongestAxis(v: Vec) -> uint
+{
+    if v.x > v.y {
+        if v.x > v.z { 0u } else { 2u }
+    }
+    else {
+        if v.y > v.z { 1u } else { 2u }
+    }
+}
+fn vecAxis(v: Vec, a: uint) -> float
+{
+    @assert(||a < 3u, "vecAxis: invalid axis");
+    if a == 0u      { v.x }
+    else if a == 1u { v.y }
+    else            { v.z }
+}
 
 fn vapply1(a : Vec, f: fn(float) -> float) -> Vec
 {
@@ -217,6 +233,13 @@ fn plerpbarp(a : Point, b : Point, c : Point, w : Point) -> Point
     let bp = @pfapply2(b, w.y, mul);
     let cp = @pfapply2(c, w.z, mul);
 	@ppapply2(ap, @ppapply2(bp, cp, add), add)
+}
+fn pointAxis(p: Point, a: uint) -> float
+{
+    @assert(||a < 3u, "vecAxis: invalid axis");
+    if a == 0u      { p.x }
+    else if a == 1u { p.y }
+    else            { p.z }
 }
 
 

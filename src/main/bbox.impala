@@ -34,3 +34,8 @@ fn bboxCentroid(bb: BBox) -> Point
 {
     @ppapply2(bb.cmin, bb.cmax, |a, b|(a+b)/2.0f)
 }
+
+fn bboxLongestAxis(bb: BBox) -> uint
+{
+    @vecLongestAxis(@to(bb.cmin, bb.cmax))
+}

@@ -186,3 +186,18 @@ fn round_up(a : uint, b : uint) -> uint
 {
     div_round_up(a, b)*b
 }
+
+// sort ascending (TODO implement quicksort)
+type isLessFn = fn(uint, uint) -> bool;
+fn sort(mut a: &[uint], len: uint, isLess:isLessFn) -> ()
+{
+    for i in urange(0u, len) {
+        for j in urange(0u, len-1u) {
+            if !isLess(a(j), a(j+1u)) {
+                let tmp = a(j);
+                a(j) = a(j+1u);
+                a(j+1u) = tmp;
+            }
+        }
+    }
+}
