@@ -13,12 +13,12 @@ extern "C"
     fn assert_failed(&[u8]) -> ();
 
     // scene creation functions
-    fn scene_clear(&State) -> ();
+    /*fn scene_clear(&State) -> ();
     fn scene_add_cube(&State, float, &Material) -> ();
     fn scene_add_file(&State, int, int) -> bool;
     fn scene_add_file_mat(&State, int, int, &[Material], uint) -> bool;
     fn scene_add_texture(&State, &Texture) -> uint; // index of added texture
-    fn scene_build(&State) -> ();
+    fn scene_build(&State) -> ();*/
 
     fn thorin_free(&u8) -> ();
     fn memset(&u8, int, size_t) -> ();

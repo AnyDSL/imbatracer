@@ -5,6 +5,7 @@ struct DynArray {
     size: uint,
     capacity: uint,
 }
+static DynArray_SIZEOF = pointer_SIZEOF + 3u*uint_SIZEOF;
 
 fn dynArray(elemSize: uint) -> DynArray
 {

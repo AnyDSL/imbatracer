@@ -4,6 +4,7 @@ struct Color
     g : float,
     b : float
 }
+static Color_SIZEOF = 3u*float_SIZEOF;
 
 struct XYZ
 {

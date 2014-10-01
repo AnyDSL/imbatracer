@@ -152,6 +152,12 @@ static pi:float = 3.141592653589793f;
 static epsilon:float = 1e-5f;
 static FLT_MAX:float = 3.402823e+38f;
 
+static u16_SIZEOF = 2u;
+static int_SIZEOF = 4u;
+static uint_SIZEOF = 4u;
+static float_SIZEOF = 4u;
+static pointer_SIZEOF = 8u;
+
 
 fn isDebug() -> bool
 {

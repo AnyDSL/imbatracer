@@ -3,6 +3,7 @@ struct BBox
     cmin : Point,
     cmax : Point
 }
+static BBox_SIZEOF = 2u*Point_SIZEOF;
 
 fn bboxUnsafe(a : Point, b : Point) -> BBox
 {

@@ -9,6 +9,7 @@ struct Light
     falloff : float,
     cutAngle : float,
 }
+static Light_SIZEOF = 4u*int_SIZEOF + Color_SIZEOF + Point_SIZEOF + Vec_SIZEOF;
 
 struct LightHit
 {

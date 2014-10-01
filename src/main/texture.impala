@@ -7,6 +7,7 @@ struct Texture
     color2 : Color,
     noise : Noise,
 }
+static Texture_SIZEOF = 4u + 2u*Color_SIZEOF + Noise_SIZEOF;
 
 // ----------------------------------------------
 

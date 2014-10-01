@@ -8,7 +8,7 @@
 // initialize the scene, return an opaque pointer
 extern fn impala_init() -> &State
 {
-    let mut state = ~State;
+    let mut state = ~[1:State] as &State;
     state.time = 0.0f;
     state.integrator.itype = 2; //4:debug, 2:recraytrace, 1:raytrace, 0:cosine
     state.integrator.mode = 1;
@@ -61,10 +61,10 @@ extern fn impala_init() -> &State
     let mut scene = sceneInit();
     let mut cube = trisCreateCube(5.0f, 0u);
     let cubeidx = sceneAddMesh(&scene, &cube);
-    sceneAddObject(&scene, cubeidx);
+    //sceneAddObject(&scene, cubeidx);
 
     sceneCompile(&scene, &state.scene);
-    return(state);
+    return(state)
 }
 
 // update the scene, based on the opaque pointer returned by impala_init
@@ -93,9 +93,10 @@ extern fn impala_update(mut state : &State, dt : float) -> ()
 
 extern fn impala_init_bench1() -> &State
 {
+    let mut state = ~[1:State] as &State;
     state.integrator.itype = 0;
 
-    scene_add_file(state, 3, /*IgnoreTexCoord | IgnoreNormals | IgnoreMatLibs*/7);
+    /*scene_add_file(state, 3, /*IgnoreTexCoord | IgnoreNormals | IgnoreMatLibs* /7);
     scene_build(state);
 
     let scale = 40.0f;
@@ -104,15 +105,18 @@ extern fn impala_init_bench1() -> &State
     let up = @vec(0.0f, 1.0f, 0.0f);
     let horzOpenAngle = pi / 4.0f;
     let vertOpenAngle = pi / 3.0f;
-    state.cam = @camPerspectiveLookAt(pos, at, up, horzOpenAngle, vertOpenAngle);
+    state.cam = @camPerspectiveLookAt(pos, at, up, horzOpenAngle, vertOpenAngle);*/
+
+    return(state)
 }
 
 extern fn impala_init_bench2() -> &State
 {
+    let mut state = ~[1:State] as &State;
     state.integrator.itype = 1;
 
-    scene_add_file(state, 2, 0);
-    scene_build(state);
+    //scene_add_file(state, 2, 0);
+    //scene_build(state);
 
     // add point lights
     /*let mut lights = ~[3:Light];
@@ -136,4 +140,6 @@ extern fn impala_init_bench2() -> &State
     state.scene.lights(0).pos = @point(-3.5f*scale*sinf(time-0.5f), +1.2f*scale*sinf(0.2f*time-0.5f), +3.7f*scale*cosf(time-0.5f));
     state.scene.lights(1).pos = @point(-3.5f*scale*sinf(time+0.5f), +1.9f*scale*sinf(0.2f*time+0.5f), +3.7f*scale*cosf(time+0.5f));
     state.scene.lights(2).pos = @point(-3.5f*scale*sinf(time+0.5f+pi), +2.2f*scale*sinf(0.2f*time+0.5f+pi), +3.7f*scale*cosf(time+0.5f+pi));*/
+
+    return(state)
 }

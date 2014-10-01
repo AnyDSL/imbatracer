@@ -4,6 +4,7 @@ struct Vec
     y : float,
     z : float
 }
+static Vec_SIZEOF = 3u*float_SIZEOF;
 
 struct Point
 {
@@ -11,6 +12,7 @@ struct Point
     y : float,
     z : float
 }
+static Point_SIZEOF = 3u*float_SIZEOF;
 
 struct Float4
 {
@@ -19,12 +21,14 @@ struct Float4
     z : float,
     w : float
 }
+static Float4_SIZEOF = 4u*float_SIZEOF;
 
 struct TexCoord
 {
     u : float,
     v : float,
 }
+static TexCoord_SIZEOF = 2u*float_SIZEOF;
 
 // Vector
 fn vec(x : float, y : float, z : float) -> Vec

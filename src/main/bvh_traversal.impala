@@ -6,6 +6,7 @@ struct BVHNode
     nPrims : u16, // number of primitives in child. 0 for inner node.
     axis: u16,
 }
+static BVHNode_SIZEOF = BBox_SIZEOF + uint_SIZEOF + 2u*u16_SIZEOF;
 
 struct RTBVHTree
 {

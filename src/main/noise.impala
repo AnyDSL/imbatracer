@@ -7,6 +7,7 @@ struct Noise
     freq : float,
     persistence : float,
 }
+static Noise_SIZEOF = 5u*4u;
 
 fn noise0() -> Noise
 {

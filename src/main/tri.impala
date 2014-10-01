@@ -9,11 +9,11 @@ struct Tris
     texCoords: DynArray, // of TexCoord
     triData : DynArray, // of uint, 7 successive indices belong to one triangle: 3 normals, 3 texcoors, 1 material
 }
+static Tris_SIZEOF = 5u*DynArray_SIZEOF;
 fn trisInit() -> Tris
 {
-    // HACK these are sizes FIXME NEED SIZEOF
-    Tris{ verts: @dynArray(3u*4u), triVerts: @dynArray(4u),
-            normals: @dynArray(3u*4u), texCoords: @dynArray(2u*4u), triData: @dynArray(4u) }
+    Tris{ verts: @dynArray(Point_SIZEOF), triVerts: @dynArray(uint_SIZEOF),
+            normals: @dynArray(Vec_SIZEOF), texCoords: @dynArray(TexCoord_SIZEOF), triData: @dynArray(uint_SIZEOF) }
 }
 
 

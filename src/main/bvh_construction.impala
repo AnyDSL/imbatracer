@@ -12,8 +12,7 @@ struct BVHTrees
 }
 fn bvhTrees() -> BVHTrees
 {
-    // FIXME HACK NEED SIZEOF
-    BVHTrees{ roots: @dynArray(4u), bvhNodes:@dynArray(2u*3u*4u + 4u + 2u*2u) }
+    BVHTrees{ roots: @dynArray(uint_SIZEOF), bvhNodes:@dynArray(BVHNode_SIZEOF) }
 }
 
 

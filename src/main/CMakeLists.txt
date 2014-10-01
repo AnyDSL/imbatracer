@@ -17,7 +17,7 @@ set(impala_shared_SRC
     noise.impala
     ray.impala
     bbox.impala
-    object.impala
+    instance.impala
     scene.impala
     state.impala
     texture.impala
@@ -42,9 +42,9 @@ set(impala_acc_SRC
     interface_acc.impala
 )
 
-THORIN_RUNTIME_WRAP(impala_acc_OBJ impala_acc_LIB
-    RTTYPE ${RTTYPE}
-    FILES ${impala_shared_SRC} ${impala_acc_SRC})
+#THORIN_RUNTIME_WRAP(impala_acc_OBJ impala_acc_LIB
+#    RTTYPE ${RTTYPE}
+#    FILES ${impala_shared_SRC} ${impala_acc_SRC})
 THORIN_RUNTIME_WRAP(impala_loc_OBJ impala_loc_LIB
     RTTYPE none
     FILES ${impala_shared_SRC} ${impala_loc_SRC})

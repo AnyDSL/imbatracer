@@ -21,6 +21,7 @@ struct Material
     eta :float,
     etaSqrKappaSqr : float,
 }
+static Material_SIZEOF = 7u*uint_SIZEOF;
 
 struct SampleReflectance
 {

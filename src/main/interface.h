@@ -100,14 +100,6 @@ namespace impala {
         }
     };
 
-    struct TexCoord
-    {
-        float u, v;
-
-        TexCoord() = default;
-        TexCoord(float u, float v) : u(u), v(v) {}
-    };
-
     struct Noise
     {
         int ty;
@@ -164,15 +156,17 @@ namespace impala {
 
 
     extern "C" {
+        typedef void *impala_state; // some opaque pointer
+
         void impala_object_init(Object *obj, unsigned rootIdx);
 
-        void *impala_init();
-        void impala_update(void *state, float dt);
+        impala_state impala_init();
+        void impala_update(impala_state state, float dt);
 
-        void *impala_init_bench1();
-        void *impala_init_bench2();
+        impala_state impala_init_bench1();
+        impala_state impala_init_bench2();
 
-        void impala_render(unsigned *buf, int w, int h, bool measureTime, void *state);
+        void impala_render(unsigned *buf, int w, int h, bool measureTime, impala_state state);
     }
 
     // test that these are all POD
@@ -183,7 +177,6 @@ namespace impala {
         static_assert(std::is_pod<impala::Float4>::value, "impala::Float4 must be a POD");
         static_assert(std::is_pod<impala::Matrix>::value, "impala::Matrix must be a POD");
         static_assert(std::is_pod<impala::Color>::value, "impala::Color must be a POD");
-        static_assert(std::is_pod<impala::TexCoord>::value, "impala::TexCoord must be a POD");
         static_assert(std::is_pod<impala::Texture>::value, "impala::Texture must be a POD");
         static_assert(std::is_pod<impala::Noise>::value, "impala::Noise must be a POD");
         static_assert(std::is_pod<impala::Material>::value, "impala::Material must be a POD");
