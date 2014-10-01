@@ -56,7 +56,7 @@ fn evalCheckerboardTexture3D(uv:TexCoord, p:Point, a : Color, b : Color) -> Colo
 
 fn evalNoiseTexture3D(p : Point, a : Color, b : Color, noise : &Noise) -> Color
 {
-    @color0() // FIXME clerp(a, b, evalNoise(p, noise))
+    clerp(a, b, evalNoise(p, noise))
 }
 
 

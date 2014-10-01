@@ -89,7 +89,7 @@ fn triHasNormals(tri : uint, tris : &RTTris) -> bool
 
 fn triVertNormal(tri : uint, n : uint, tris : &RTTris) -> Vec
 {
-    @assert(||n < 3u, "Accessing invalid triangle normal");
+    @assert(||n < 3u, "triVertNormal: Accessing invalid triangle normal");
     let idx = tris.triData(7u*tri + n);
     tris.normals(idx)
 }
@@ -101,7 +101,7 @@ fn triHasTexcoord(tri : uint, tris : &RTTris) -> bool
 
 fn triTexCoord(tri : uint, n : uint, tris : &RTTris) -> TexCoord
 {
-    @assert(||n < 3u, "Accessing invalid triangle texture coordinate");
+    @assert(||n < 3u, "triTexCoord: Accessing invalid triangle texture coordinate");
     let idx = tris.triData(7u*tri + 3u + n);
     tris.texCoords(idx)
 }
