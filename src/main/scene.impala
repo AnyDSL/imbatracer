@@ -34,6 +34,14 @@ fn sceneAddMesh(mut scene: &Scene, tris: &Tris) -> ()
 {
     dynArrayAppend(&scene.meshes, tris as &u8);
 }
+fn sceneAddTexture(mut scene: &Scene, tex: &Texture) -> uint
+{
+    dynArrayAppend(&scene.shadingData.textures, tex as &u8)
+}
+fn sceneAddMaterial(mut scene: &Scene, mat: &Material) -> uint
+{
+    dynArrayAppend(&scene.shadingData.materials, mat as &u8)
+}
 
 fn sceneCompile(mut scene: &Scene, mut rtScene: &RTScene) -> ()
 {
@@ -58,6 +66,14 @@ fn sceneCompile(mut scene: &Scene, mut rtScene: &RTScene) -> ()
         |objidx|instanceBounds(dynArrayFetch(&scene.objects, objidx) as &Instance, |meshidx|bvhBounds(bvhMeshes, meshidx)),
         bvhMeshFinalize);
     bvhCompile(&bvhObjects, &rtScene.bvhOuter);*/
+
+    // copy shading data
+    shadingDataCompile(&scene.shadingData, &rtScene.shadingData);
+}
+fn sceneFree(mut scene: &RTScene) -> ()
+{
+    // FIXME free more stuff
+    shadingDataFree(&scene.shadingData);
 }
 
 
@@ -66,8 +82,6 @@ fn sceneCompile(mut scene: &Scene, mut rtScene: &RTScene) -> ()
  *   or the old one if nothing was found
  * - IntersectAny takes ascene, a ray, and the max. distance and returns whether there's a hit in that range
  */
-
-// TODO: Figure out the best way to pass around stuff. Scene as pointer or as copy? Intersection as pointer, or as function from Ray to isect?
 fn sceneIntersectFirst(mut scene: &RTScene, ray : &Ray, maxdist : float, sisec : &ShadingIntersection) -> float
 {
     @bvhsIntersectFirst(0u, &scene.bvhInners, ray, maxdist, sisec, |idx, ray, maxdist, sisec|trisIntersectFirst(idx, &scene.tris, ray, maxdist, sisec))

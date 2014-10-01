@@ -32,6 +32,20 @@ struct RTShadingData
     nLights : uint,
 }
 
+fn shadingDataCompile(mut shadingData: &ShadingData, mut rtShadingData: &RTShadingData) -> ()
+{
+    rtShadingData.materials = dynArrayData(&shadingData.materials) as &[Material];
+    rtShadingData.textures = dynArrayData(&shadingData.textures) as &[Texture];
+    rtShadingData.lights = dynArrayData(&shadingData.lights) as &[Light];
+    rtShadingData.nLights = dynArraySize(&shadingData.lights);
+}
+fn shadingDataFree(shadingData: &RTShadingData) -> ()
+{
+    thorin_free(shadingData.materials as &u8);
+    thorin_free(shadingData.textures as &u8);
+    thorin_free(shadingData.lights as &u8);
+}
+
 
 // return a gray color whose value is the cosine between the ray direction and the hit surface normal
 fn cosineRadiance(ray: Ray, dist:float, sisec: &ShadingIntersection) -> Color

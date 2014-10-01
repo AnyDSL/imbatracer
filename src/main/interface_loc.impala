@@ -12,13 +12,16 @@ extern fn impala_init() -> &State
     state.time = 0.0f;
 
     // initialise integrator
-    state.integrator.itype = 0; //4:debug, 2:recraytrace, 1:raytrace, 0:cosine
+    state.integrator.itype = 1; //4:debug, 2:recraytrace, 1:raytrace, 0:cosine
     state.integrator.mode = 1;
     state.integrator.minDist = 0.0f;
     state.integrator.maxDist = 1.0f;
     state.integrator.maxRecDepth = 6u;
 
-    /*let mut cxtex = checkerboardTexture2D(color0(), color1(1.0f));
+    // initialise scene
+    let mut scene = sceneInit();
+
+    let mut cxtex = checkerboardTexture2D(color0(), color1(1.0f));
 
     let turbnoise = Noise{ ty:2, octaves:3u, amplitude:0.8f, freq:0.6f, persistence:0.8f };
     let slownoise = Noise{ ty:1, octaves:2u, amplitude:0.6f, freq:0.14f, persistence:0.5f };
@@ -26,20 +29,22 @@ extern fn impala_init() -> &State
     let mut slowtex = noiseTexture(color(0.2f, 0.0f, 0.0f), color(0.7f, 0.3f, 0.0f), slownoise);
     let mut phongtex = constantTexture(color(1.0f, 0.1f, 0.2f));
 
-    let turbtexID = scene_add_texture(state, &turbtex);
-    let slowtexID = scene_add_texture(state, &slowtex);
-    let cxtexID = scene_add_texture(state, &cxtex);
-    let phtexID = scene_add_texture(state, &phongtex);
+    let turbtexID = sceneAddTexture(&scene, &turbtex);
+    let slowtexID = sceneAddTexture(&scene, &slowtex);
+    let cxtexID = sceneAddTexture(&scene, &cxtex);
+    let phtexID = sceneAddTexture(&scene, &phongtex);
 
     let cxmat = Material{ diffuse:cxtexID, specular:0u, emissive:0u, specExp:-1.0f, sampling:SAMPLING_NOT_NEEDED, eta:0.0f, etaSqrKappaSqr:0.0f };
-    let turbmat = Material{ diffuse:turbtexID, specular:phtexID, emissive:0u, specExp:1.6f,  sampling:SAMPLING_NOT_NEEDED, eta:0.0f, etaSqrKappaSqr:0.0f };
+    let mut turbmat = Material{ diffuse:turbtexID, specular:phtexID, emissive:0u, specExp:1.6f,  sampling:SAMPLING_NOT_NEEDED, eta:0.0f, etaSqrKappaSqr:0.0f };
     let mut mirrormat = silverMirrorMaterial();
     mirrormat.sampling = SAMPLING_SECONDARY;
     mirrormat.specular = phtexID;
     mirrormat.diffuse = slowtexID;
 
+    let turbmatID = sceneAddMaterial(&scene, &turbmat);
 
-    let mut mats = [
+
+    /*let mut mats = [
         turbmat,
         cxmat,
     ];
@@ -60,11 +65,11 @@ extern fn impala_init() -> &State
 
     state.user1 = (0 as &u8);*/
 
-    let mut scene = sceneInit();
     let mut cube = trisCreateCube(5.0f, 0u);
     let cubeidx = sceneAddMesh(&scene, &cube);
     //sceneAddObject(&scene, cubeidx);
 
+    // finalize scene
     sceneCompile(&scene, &state.scene);
     print_s("Your state is ready!");
     return(state)
@@ -150,7 +155,7 @@ extern fn impala_init_bench2() -> &State
     return(state)
 }
 
-extern fn impala_finish(&State) -> ()
+extern fn impala_finish(mut state: &State) -> ()
 {
-    // FIXME free all the stuff
+    @sceneFree(&state.scene);
 }
