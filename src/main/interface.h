@@ -283,6 +283,7 @@ namespace impala {
         Scene scene;
         rt::Scene *sceneMgr;
         void *user1;
+        void *user2;
     };
 
 
@@ -290,6 +291,7 @@ namespace impala {
         void impala_object_init(Object *obj, unsigned rootIdx);
 
         void impala_init(State *state);
+        void impala_event(State *state, bool grabbed, unsigned evt, bool down, int key, float x, float y);
         void impala_update(State *state, float dt);
 
         void impala_init_bench1(State *state);

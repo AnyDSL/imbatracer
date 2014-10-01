@@ -2,7 +2,7 @@
 fn renderIteration(width : int, height : int, measureTime : bool, state : &State, setcolor: SetColorFn, getcolor: GetColorIFn) -> ()
 {
     let start = thorin_get_micro_time();
-    @renderSubsampled(8u, width as uint, height as uint, state, setcolor, getcolor);
+    @renderSubsampled(4u, width as uint, height as uint, state, setcolor, getcolor);
     let stop = thorin_get_micro_time();
     if measureTime { thorin_print_micro_time(stop-start); };
 }
@@ -36,7 +36,7 @@ fn free_PixelBuffer(p : &PixelBuffer) -> ()
 
 fn preparePixelBuffer(level : uint, mut state : &State, w : uint, h : uint) -> &PixelBuffer
 {
-    let mut pb = state.user1 as &PixelBuffer;
+    let mut pb = state.pixbuf as &PixelBuffer;
 
     let allocW = round_up(w, level)/2u+1u;
     let allocH = round_up(h, level)/2u+1u;
@@ -47,7 +47,7 @@ fn preparePixelBuffer(level : uint, mut state : &State, w : uint, h : uint) -> &
     {
         print_sii("Image size", w as int, h as int);
         let p = ~PixelBuffer{ w:(w >> 1u), pix:~[sz:PixelInfo], used:~[sz:u8], allocSize:sz };
-        state.user1 = p as &u8;
+        state.pixbuf = p as &u8;
         p
     }
 

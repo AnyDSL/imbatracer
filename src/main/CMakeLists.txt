@@ -33,6 +33,7 @@ set(impala_loc_SRC
     assert_cpu.impala
     dynarray.impala
     bvh_construction.impala
+    camcontrol.impala
     interface_loc.impala
 )
 set(impala_acc_SRC

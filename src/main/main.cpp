@@ -26,11 +26,11 @@ public:
         // impala_init may call functions that add objects to the scene
         switch (sceneKind) {
         case SceneKind::Main:
-            impala_init(&state); break;
+            impala::impala_init(&state); break;
         case SceneKind::Bench1:
-            impala_init_bench1(&state); break;
+            impala::impala_init_bench1(&state); break;
         case SceneKind::Bench2:
-            impala_init_bench2(&state); break;
+            impala::impala_init_bench2(&state); break;
         }
 
     }
@@ -43,14 +43,24 @@ protected:
     virtual void _Render(CountedPtr<Image> img, float dt)
     {
         if (sceneKind == SceneKind::Main)
-            impala_update(&state, dt);
-        impala_render(img->getPtr(), img->width(), img->height(), false, &state);
+            impala::impala_update(&state, dt);
+        impala::impala_render(img->getPtr(), img->width(), img->height(), false, &state);
+    }
+
+    virtual void _DispatchEvents(const EventHolder *ep, size_t num)
+    {
+        for(size_t i = 0; i < num; ++i)
+        {
+            const EventHolder& e = ep[i];
+            impala::impala_event(&state, mouseGrabbed, e.ev, e.down, e.key, e.x, e.y);
+        }
     }
 
     SceneKind sceneKind;
     impala::State state;
     rt::Scene scene;
 };
+
 
 int main(int argc, char *argv[])
 {

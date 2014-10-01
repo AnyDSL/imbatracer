@@ -10,7 +10,8 @@ struct State
     scene : Scene,
 
     sceneMgr : &SceneMgr,
-    user1 : &u8,
+    pixbuf : &u8,
+    camctrl : &u8,
 }
 
 struct RTState

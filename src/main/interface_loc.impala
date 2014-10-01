@@ -1,8 +1,39 @@
+
 extern fn impala_object_init(mut obj : &Object, root : uint) -> ()
 {
     obj.bvhRoot = root;
     obj.w2o = @matrix0();
     obj.swapsHandedness = false;
+}
+
+static EVT_KEY = 0u;
+static EVT_MOUSEMOVE = 1u;
+static EVT_MOUSEBUTTON = 2u;
+static EVT_MOUSEWHEEL = 3u;
+
+extern fn impala_event(state : &State, grabbed : bool, evt : uint, down : bool, key : int, x : float, y : float) -> ()
+{
+    if !grabbed
+    {
+        return()
+    }
+
+    let cc = state.camctrl as &CamController;
+
+    if evt == EVT_KEY
+    {
+        camControllerKeyInput(cc, key, down);
+    }
+    else if evt == EVT_MOUSEMOVE
+    {
+        camControllerMouseMove(cc, x, y);
+    }
+    else if evt == EVT_MOUSEBUTTON
+    {
+        camControllerMouseButton(cc, key, down);
+    }
+    // TODO: wheel?
+
 }
 
 extern fn impala_init(mut state : &State) -> ()
@@ -27,7 +58,7 @@ extern fn impala_init(mut state : &State) -> ()
     let cxtexID = scene_add_texture(state, &cxtex);
     let phtexID = scene_add_texture(state, &phongtex);
 
-    let cxmat = Material{ diffuse:cxtexID, specular:0u, emissive:0u, specExp:-1.0f, sampling:SAMPLING_NOT_NEEDED, eta:0.0f, etaSqrKappaSqr:0.0f };
+    let mut cxmat = Material{ diffuse:cxtexID, specular:0u, emissive:0u, specExp:-1.0f, sampling:SAMPLING_NOT_NEEDED, eta:0.0f, etaSqrKappaSqr:0.0f };
     let turbmat = Material{ diffuse:turbtexID, specular:phtexID, emissive:0u, specExp:1.6f,  sampling:SAMPLING_NOT_NEEDED, eta:0.0f, etaSqrKappaSqr:0.0f };
     let mut mirrormat = silverMirrorMaterial();
     mirrormat.sampling = SAMPLING_SECONDARY;
@@ -54,7 +85,18 @@ extern fn impala_init(mut state : &State) -> ()
     state.scene.nLights = 3u;
     state.scene.lights = lights;
 
-    state.user1 = (0 as &u8);
+    let cc = camControllerAlloc();
+    state.camctrl = cc as &u8;
+
+    // initial camera placement
+    let scale = 10.0f;
+    let time = 0.0f;
+    let pos = @point(-3.5f*scale*sinf(time), 1.2f*scale*sinf(0.2f*time), 3.7f*scale*cosf(time));
+    let at = @point0();
+    let up = @vec(0.0f, 1.0f, 0.0f);
+    let horzOpenAngle = pi / 4.0f;
+    let vertOpenAngle = pi / 3.0f;
+    state.cam = @camPerspectiveLookAt(pos, at, up, horzOpenAngle, vertOpenAngle);
 }
 
 extern fn impala_update(mut state : &State, dt : float) -> ()
@@ -62,12 +104,6 @@ extern fn impala_update(mut state : &State, dt : float) -> ()
     let time = state.time;
     state.time = time + dt;
     let scale = 10.0f;
-    let pos = @point(-3.5f*scale*sinf(time), 1.2f*scale*sinf(0.2f*time), 3.7f*scale*cosf(time));
-    let at = @point0();
-    let up = @vec(0.0f, 1.0f, 0.0f);
-    let horzOpenAngle = pi / 4.0f;
-    let vertOpenAngle = pi / 3.0f;
-    state.cam = @camPerspectiveLookAt(pos, at, up, horzOpenAngle, vertOpenAngle);
 
     // put light right where the cam was shortly ago, and on the other side
     state.scene.lights(0).pos = @point(-3.5f*scale*sinf(time-0.5f), +1.2f*scale*sinf(0.2f*time-0.5f), +3.7f*scale*cosf(time-0.5f));
@@ -76,8 +112,11 @@ extern fn impala_update(mut state : &State, dt : float) -> ()
 
     // scale our teapot
     let potScale = (fabsf(sinf(0.8f*time))/2.0f+0.5f);
-    state.scene.objs(0).w2o = @matrix_scalingv(@vec(potScale, 1.0f, 1.2f*potScale));
-    state.scene.objs(0).swapsHandedness = false;
+    state.scene.objs(1).w2o = @matrix_scalingv(@vec(potScale, 1.0f, 1.2f*potScale));
+    state.scene.objs(1).swapsHandedness = false;
+
+    let cc = state.camctrl as &CamController;
+    camControllerUpdate(cc, &state.cam, dt);
 }
 
 extern fn impala_init_bench1(mut state : &State) -> ()

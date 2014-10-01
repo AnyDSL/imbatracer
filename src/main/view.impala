@@ -62,6 +62,14 @@ fn viewSetUp(mut v : &View, up : Vec) -> ()
     @viewNormalize(v)
 }
 
+fn viewSetForwardUp(mut v : &View, f : Vec, u : Vec) -> ()
+{
+    v.forward = f;
+    v.originalUp = u;
+    @viewNormalize(v)
+}
+
+
 fn viewSetScale(mut v : &View, upFactor : float, rightFactor : float) -> ()
 {
     v.rightFactor = rightFactor;
@@ -78,6 +86,14 @@ fn viewSetOpeningAngleWithAspectRatio(v : &View, vertical : float, aspect : floa
 {
     let a = tanf(vertical / 2.0f);
     @viewSetScale(v, a, a*aspect);
+}
+
+fn viewSetYawPitchRoll(v : &View, yaw : float, pitch : float, roll : float) -> ()
+{
+    // Y is upwards
+    let m = mmul(mmul(matrixRotationY(yaw), matrixRotationZ(pitch)), matrixRotationX(roll));
+
+    viewSetForwardUp(v, mvmul(m, vec(1.0f, 0.0f, 0.0f)), mvmul(m, vec(0.0f, 1.0f, 0.0f)))
 }
 
 
