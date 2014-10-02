@@ -1,6 +1,7 @@
 struct Matrix  {
     rows : [Float4*4],
 }
+static Matrix_SIZEOF = 4u*Float4_SIZEOF;
 
 fn matrix4(r1 : Float4, r2 : Float4, r3 : Float4, r4 : Float4) -> Matrix
 {

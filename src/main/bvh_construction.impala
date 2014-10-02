@@ -1,7 +1,9 @@
 
 // abstract BVH construction functions
-type primBoundsFn = fn(uint) -> BBox;
-type primFinalizeFn = fn(uint) -> uint; // called exactly once per object, return the index the object finally has
+type primInitFn = fn() -> uint; // this is called at the beginning and returns how many objects there are
+type primBoundsFn = fn(uint) -> BBox; // given an object index, return its bounds
+type primCopyFn = fn(uint) -> uint; // called exactly once per object, copies the objects and return the index it finally has
+type primFinishFn = fn() -> (); // called at the end, to finalzie and potentially free memory
 
 static maxPrimsPerLeaf = 4u;
 
@@ -41,9 +43,19 @@ struct NodeSplitInformation
     bestCost: float,
 }
 
-// construct a BVH tree, adding the nodes to the vbHnodes array. Returns the index of the root.
-fn constructBvh(bvhNodes: &DynArray, nPrims: uint, primBounds: primBoundsFn, primFinalize: primFinalizeFn) -> uint
+// BVH copying functions
+fn bvhsCompile(mut bvhs: &BVHTrees, mut rtBvhs: &RTBVHTrees) -> ()
 {
+    rtBvhs.bvhNodes = @dynArrayData(&bvhs.bvhNodes) as &[BVHNode];
+    rtBvhs.roots = @dynArrayData(&bvhs.roots) as &[uint];
+}
+
+// construct a BVH tree, adding the nodes to the vbHnodes array. Returns the index of the root.
+fn bvhsAddTree(mut trees: &BVHTrees, primBVHInterface: (primInitFn, primBoundsFn, primCopyFn, primFinishFn)) -> ()
+{
+    // prepare object copy
+    let nPrims = @primBVHInterface(0)();
+
     // prepare working arena and object data
     let mut totalBounds = bboxEmpty();
     let mut primData = ~[nPrims:PrimData];
@@ -54,20 +66,21 @@ fn constructBvh(bvhNodes: &DynArray, nPrims: uint, primBounds: primBoundsFn, pri
     let mut primFinalizeOrder = @dynArrayInit(uint_SIZEOF, nPrims, "BVH Construction: primFinalizeOrder");
 
     for primIdx in urange(0u, nPrims) {
-        let bounds = @primBounds(primIdx);
+        let bounds = @primBVHInterface(1)(primIdx);
         primData(primIdx) = PrimData{ bounds:bounds, centroid:@bboxCentroid(bounds) };
         totalBounds = bbextendb(totalBounds, bounds);
         allPrims(primIdx) = primIdx; // TODO get rid of this array, it's just used to pass the initial to-split-list...
     }
 
-    let oldSize = @dynArraySize(bvhNodes);
+    let oldSize = @dynArraySize(&trees.bvhNodes);
     let root = $buildBvhNode(allPrims, nPrims, totalBounds, 0u, primData, leftPrims, rightPrims,
-                             bvhNodes, &primFinalizeOrder);
+                             &trees.bvhNodes, &primFinalizeOrder);
+    @assert(||oldSize == root, "bvhsAddTree: Someone put the root at the wrong place, and it wasn't me...");
 
     // do the primitive finalisation
     @assert(||@dynArraySize(&primFinalizeOrder) == nPrims, "constructBvh: Somehow we got the number of primitives wrong");
     for i in urange(0u, nPrims) {
-        let idx = primFinalize(dynArrayFetchUint(&primFinalizeOrder, i));
+        let idx = @primBVHInterface(2)(dynArrayFetchUint(&primFinalizeOrder, i));
         @assert(||idx == i, "constructBvh: primFinalize is misbehaving");
     }
 
@@ -78,9 +91,10 @@ fn constructBvh(bvhNodes: &DynArray, nPrims: uint, primBounds: primBoundsFn, pri
     thorin_free(rightPrims as &u8);
     thorin_free(allPrims as &u8);
 
-    print_sii("Constructed a BVH tree with <num> primitives having <num> nodes:", nPrims as int, (@dynArraySize(bvhNodes)-oldSize) as int);
-    return(root)
-
+    // finish object copy
+    @primBVHInterface(3)();
+    @dynArrayAppendUint(&trees.roots, root);
+    print_sii("Constructed a BVH tree with <num> primitives having <num> nodes:", nPrims as int, (@dynArraySize(&trees.bvhNodes)-oldSize) as int);
 }
 
 /* Build a BVH node from the primitives (in splitPrims). These are indices into the tris vector above!
@@ -164,13 +178,4 @@ fn bvhDecideSplit(prims: &[uint], nPrims: uint, totalBounds: BBox, depth: uint, 
 
     // done!
     return;
-}
-
-/* Some more convenient wrapper functions */
-fn bvhsAddTree(mut trees: &BVHTrees, nPrim: uint, primBounds: primBoundsFn, primFinalize: primFinalizeFn) -> ()
-{
-    let oldSize = @dynArraySize(&trees.bvhNodes);
-    let root = constructBvh(&trees.bvhNodes, nPrim, primBounds, primFinalize);
-    @assert(||oldSize == root, "bvhsAddTree: root got the wrong index");
-    dynArrayAppendUint(&trees.roots, root);
 }

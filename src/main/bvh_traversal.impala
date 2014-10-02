@@ -8,14 +8,16 @@ struct BVHNode
 }
 static BVHNode_SIZEOF = BBox_SIZEOF + uint_SIZEOF + 2u*u16_SIZEOF;
 
-struct RTBVHTree
-{
-    bvhNodes: &[BVHNode],
-}
 struct RTBVHTrees
 {
     roots: &[u32],
     bvhNodes: &[BVHNode],
+}
+
+fn bvhsFree(bvhs: &RTBVHTrees) -> ()
+{
+    thorin_free(bvhs.roots as &u8);
+    thorin_free(bvhs.bvhNodes as &u8);
 }
 
 static depthLimit = 16u; // keep in sync with the stack size below in bvhIntersectGeneric
@@ -131,6 +133,12 @@ fn bvhIntersectGeneric(root: uint, bvhNodes : &[BVHNode], ray : &Ray, mut maxdis
     maxdist
 }
 
+fn bvhsBound(idx: uint, bvhTrees: &RTBVHTrees) -> BBox
+{
+    let root = bvhTrees.roots(idx);
+    bvhTrees.bvhNodes(root).bbox
+}
+
 fn bvhsIntersectFirst(idx: uint, bvhTrees: &RTBVHTrees, ray: &Ray, maxdist: float, sisec : &ShadingIntersection, subIntersectFirst: IntersectFirstFn) -> float
 {
     @bvhIntersectGeneric(bvhTrees.roots(idx), bvhTrees.bvhNodes, ray, maxdist,
@@ -161,32 +169,3 @@ fn bvhsIntersectAny(idx: uint, bvhTrees : &RTBVHTrees, ray : &Ray, maxdist : flo
     false
 }
 
-fn bvhIntersectFirst(bvhTree: &RTBVHTree, ray: &Ray, maxdist: float, sisec : &ShadingIntersection, subIntersectFirst: IntersectFirstFn) -> float
-{
-    @bvhIntersectGeneric(0u, bvhTree.bvhNodes, ray, maxdist,
-        |subIdx, maxdist|
-        {
-            @subIntersectFirst(subIdx, ray, maxdist, sisec) // returns new maxdist
-        }
-    )
-}
-
-
-fn bvhIntersectAny(bvhTree : &RTBVHTree, ray : &Ray, maxdist : float, subIntersectAny: IntersectAnyFn) -> bool
-{
-    let success = return; // jump out once we hit anything
-
-    @bvhIntersectGeneric(0u, bvhTree.bvhNodes, ray, maxdist,
-        |subIdx, maxdist|
-        {
-            if @subIntersectAny(subIdx, ray, maxdist) {
-                success(true)
-            }
-            else {
-                maxdist
-            }
-        }
-    );
-
-    false
-}

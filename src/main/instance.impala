@@ -1,11 +1,86 @@
-/*
-struct Object
+struct Instance
 {
-    bvhRoot : uint,
-    //o2w : Matrix, // object to world
-	w2o : Matrix, // world to object
-	swapsHandedness : bool, // is the determinant of the above matrices negative?
+    idx: uint, // mesh index
+    w2o: Matrix, // world to object transformation matrix
 }
+static Instance_SIZEOF = uint_SIZEOF + Matrix_SIZEOF;
+
+struct Instances
+{
+    insts: DynArray, // of Instance
+}
+fn instancesInit() -> Instances
+{
+    Instances{ insts:@dynArray(Instance_SIZEOF, "Instances.insts") }
+}
+
+fn instancesAppend(mut insts: &Instances, idx: uint, w2o: Matrix) -> ()
+{
+    let mut instance = Instance{ idx:idx, w2o: w2o };
+    dynArrayAppend(&insts.insts, &instance as &u8);
+}
+
+struct RTInstance
+{
+    idx: uint, // mesh index
+    w2o: Matrix, // world to object transformation matrix
+    swapsHandedness : bool, // is the determinant of the above matrix negative?
+}
+struct RTInstances
+{
+    insts: &[RTInstance],
+}
+fn instsBVHInterface(mut insts: &Instances, mut rtInsts: &RTInstances, boundsFn: primBoundsFn) -> (primInitFn, primBoundsFn, primCopyFn, primFinishFn)
+{
+    let mut curIdx = 0u;
+
+    (   // init
+        ||{
+            let nInsts = @dynArraySize(&insts.insts);
+            rtInsts.insts  = ~[nInsts:RTInstance];
+            nInsts
+        },
+        // bounds: relay request, we don't know our meshes
+        boundsFn,
+        // copy
+        |copyIdx|{
+            //print_sii("Copying triangle with <id1> (that's number <id2>)", copyIdx as int, curIdx as int);
+            // append instance copyIdx in insts, to the list of instances in rtInsts
+            let inst = @dynArrayFetch(&insts.insts, copyIdx) as &Instance;
+            rtInsts.insts(curIdx).idx = inst.idx;
+            rtInsts.insts(curIdx).w2o = inst.w2o;
+            rtInsts.insts(curIdx).swapsHandedness = false; // FIXME compute determinant
+            // increment and return
+            let idx = curIdx;
+            curIdx = idx+1u;
+            idx
+        },
+        // finish
+        ||{
+            @dynArrayClear(&insts.insts);
+        }
+    )
+}
+fn instsFree(mut insts: &RTInstances) -> ()
+{
+    thorin_free(&insts.insts as &u8);
+}
+
+fn instanceIntersectFirst(idx: uint, mut insts: &RTInstances, ray: &Ray, maxdist: float, sisec : &ShadingIntersection, subIntersectFirst: IntersectFirstFn) -> float
+{
+    let inst = &insts.insts(idx);
+    @subIntersectFirst(inst.idx, ray, maxdist, sisec)
+}
+
+
+fn instanceIntersectAny(idx: uint, mut insts: &RTInstances, ray : &Ray, maxdist : float, subIntersectAny: IntersectAnyFn) -> bool
+{
+    let inst = &insts.insts(idx);
+    @subIntersectAny(inst.idx, ray, maxdist)
+}
+
+/*
+
 
 fn objIntersectFirst(objidx : uint, scene : &Scene, theRay: Ray, maxdist: float, mut sisec : &ShadingIntersection) -> float
 {

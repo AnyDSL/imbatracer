@@ -101,11 +101,11 @@ extern fn impala_init() -> &State
 
     */
 
-    let mut cube = trisCreateCube(10.0f, turbmatID);
+    //let mut cube = trisCreateCube(10.0f, turbmatID);
     //let cubeIdx = sceneAddMesh(&scene, &cube);
     print_s("Adding a mesh now");
     let revisionIdx = sceneAddMeshFromFile(&scene, "models/", "teapot.obj", /*Flags*/0u, /*Materials*/&matOverrides);
-    //sceneAddObject(&scene, cubeidx);
+    sceneAddObjectSimple(&scene, revisionIdx);
 
     // add some light
     let intens = 4.1f;

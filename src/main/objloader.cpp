@@ -362,7 +362,7 @@ parse_err_found:
 
 void load_object_from_file(const char *path, const char *filename, unsigned flags, impala::Material *materials, unsigned nMaterials, impala::Scene *scene, impala::Tris *tris)
 {
-    MatLib* matlib = new MatLib;
+    MatLib matlib;
 
     std::map<std::string, unsigned> materialName2Idx;
     std::set<Instruction> unsupportedEncounters;
@@ -461,14 +461,14 @@ void load_object_from_file(const char *path, const char *filename, unsigned flag
             case Obj_MaterialLibrary: {
                 if (!(flags & IgnoreMatLibs)) {
                     std::string libname = fileline.fetchString();
-                    loadOBJMat(scene, matlib, path, libname, materials, nMaterials, &nmatsOverridden);
+                    loadOBJMat(scene, &matlib, path, libname, materials, nMaterials, &nmatsOverridden);
                 }
                 break;
             }
             case Obj_Material: {
                 std::string matname = fileline.fetchString();
-                auto i = matlib->find(matname);
-                if (i != matlib->end()) {
+                auto i = matlib.find(matname);
+                if (i != matlib.end()) {
                     // check if we already registered this material
                     auto j = materialName2Idx.find(matname);
                     if (j != materialName2Idx.end()) {
@@ -504,10 +504,8 @@ void load_object_from_file(const char *path, const char *filename, unsigned flag
         << impala::impala_trisNumVertices(tris)-vertOffset << " verts, "
         << impala::impala_trisNumNormals(tris)-normOffset << " normals, "
         << impala::impala_trisNumTexCoords(tris)-texCoordOffset << " texcoords "
-        << matlib->size() << " materials. "
+        << matlib.size() << " materials. "
         << std::endl;
-
-    delete matlib;
 }
 
 

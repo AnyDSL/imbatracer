@@ -1,0 +1,35 @@
+{
+   X11
+   Memcheck:Leak
+   match-leak-kinds: definite
+   fun:malloc
+   fun:strdup
+   obj:/usr/lib/x86_64-linux-gnu/libX11.so.6.3.0
+}
+{
+   SDL
+   Memcheck:Leak
+   match-leak-kinds: definite
+   fun:malloc
+   fun:XGetWindowProperty
+   obj:/usr/lib/x86_64-linux-gnu/libSDL2-2.0.so.0.2.0
+}
+{
+   SDL
+   Memcheck:Leak
+   match-leak-kinds: definite
+   fun:malloc
+   fun:realloc
+   obj:/usr/lib/x86_64-linux-gnu/libSDL2-2.0.so.0.2.0
+}
+{
+   Mesa
+   Memcheck:Leak
+   match-leak-kinds: definite
+   fun:calloc
+   fun:ralloc_size
+   fun:ralloc_vasprintf
+   fun:ralloc_asprintf
+   fun:_image_prototype
+   fun:_image
+}
