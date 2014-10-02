@@ -107,6 +107,8 @@ extern fn impala_init() -> &State
     let revisionIdx = sceneAddMeshFromFile(&scene, "models/", "teapot.obj", /*Flags*/0u, /*Materials*/&matOverrides);
     sceneAddObjectSimple(&scene, revisionIdx);
 
+    @dynArrayClear(&matOverrides);
+
     // add some light
     let intens = 4.1f;
     sceneAddLightV(&scene, @pointLight(point0(), color(intens*500.0f, intens*500.0f, intens*500.0f)));
@@ -202,4 +204,5 @@ extern fn impala_init_bench2() -> &State
 extern fn impala_finish(mut state: &State) -> ()
 {
     @sceneFree(&state.scene);
+    thorin_free(state as &u8);
 }

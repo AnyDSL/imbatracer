@@ -61,9 +61,9 @@ fn instsBVHInterface(mut insts: &Instances, mut rtInsts: &RTInstances, boundsFn:
         }
     )
 }
-fn instsFree(mut insts: &RTInstances) -> ()
+fn instsFree(insts: &RTInstances) -> ()
 {
-    thorin_free(&insts.insts as &u8);
+    thorin_free(insts.insts as &u8);
 }
 
 fn instanceIntersectFirst(idx: uint, mut insts: &RTInstances, ray: &Ray, maxdist: float, sisec : &ShadingIntersection, subIntersectFirst: IntersectFirstFn) -> float

@@ -98,6 +98,9 @@ fn sceneCompile(mut scene: &Scene, mut rtScene: &RTScene) -> ()
 
     // copy shading data
     shadingDataCompile(&scene.shadingData, &rtScene.shadingData);
+
+    // remove cruft
+    @dynArrayClear(&scene.meshes);
 }
 
 fn sceneFree(mut scene: &RTScene) -> ()

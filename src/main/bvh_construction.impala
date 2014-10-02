@@ -90,6 +90,7 @@ fn bvhsAddTree(mut trees: &BVHTrees, primBVHInterface: (primInitFn, primBoundsFn
     thorin_free(leftPrims as &u8);
     thorin_free(rightPrims as &u8);
     thorin_free(allPrims as &u8);
+    @dynArrayClear(&primFinalizeOrder);
 
     // finish object copy
     @primBVHInterface(3)();
