@@ -225,14 +225,15 @@ Int3 FileLine::fetchVertex() {
 
 namespace {
 
-    typedef std::map<std::string, impala::Material > MatLib;
 
     struct MaterialInfo {
         std::string name;
         impala::Material mat;
+        unsigned matidx; // if this is NOT noidx, ignore the material component and use this index instead
 
-        MaterialInfo() { impala_dummyMaterial(&mat); }
+        MaterialInfo() { impala_dummyMaterial(&mat); matidx = impala::impala_noIdx(); }
     };
+    typedef std::map<std::string, MaterialInfo > MatLib;
 
     void skipWS(const char * &aStr)
     {
@@ -251,31 +252,31 @@ namespace {
         return std::string(firstChar, lastChar + 1);
     }
 
-    void matCreate(MatLib* dest, MaterialInfo& matinfo, impala::Material *mats, size_t nmats, size_t *nmatsOverridden) {
+    void matCreate(MatLib* dest, MaterialInfo& matinfo, unsigned **matOverride) {
 
 		if (matinfo.name.length() && dest->find(matinfo.name) == dest->end()) // do not overwrite stuff
         {
-            if(mats && *nmatsOverridden < nmats)
+            if(*matOverride && **matOverride != impala::impala_noIdx())
             {
-                matinfo.mat = mats[*nmatsOverridden];
-                std::cerr << "override mat idx " << *nmatsOverridden << " of " << nmats << " override mats total."
+                matinfo.matidx = **matOverride;
+                /*std::cerr << "override mat idx " << *nmatsOverridden << " of " << nmats << " override mats total."
                           << " diffuse=" << matinfo.mat.diffuse
                           << " specular=" << matinfo.mat.specular
                           << " emissive=" << matinfo.mat.emissive
                           << " specExp=" << matinfo.mat.specExp
-                          << std::endl;
-                *nmatsOverridden += 1;
+                          << std::endl;*/
+                *matOverride += 1; // advanced to next to-be-overridden material
 
             }
             std::cerr << "creating material " << matinfo.name << "\n";
-            dest->insert(make_pair(matinfo.name, matinfo.mat));
+            dest->insert(make_pair(matinfo.name, matinfo));
         }
         matinfo = MaterialInfo();
     }
 }
 
 
-void loadOBJMat(impala::Scene *scene, MatLib* dest, const std::string& path, const std::string& filename, impala::Material *mats, size_t nmats, size_t *nmatsOverridden) {
+void loadOBJMat(impala::Scene *scene, MatLib* dest, const std::string& path, const std::string& filename, unsigned **matOverride) {
     std::string fullname = path + filename;
     std::ifstream matInput(fullname.c_str(), std::ios_base::in);
     std::string buf;
@@ -298,7 +299,7 @@ void loadOBJMat(impala::Scene *scene, MatLib* dest, const std::string& path, con
 
         if(std::strncmp(cmd, "newmtl", 6) == 0)
         {
-            matCreate(dest, material, mats, nmats, nmatsOverridden); //create the previous material (if it exists) and clear the material info
+            matCreate(dest, material, matOverride); //create the previous material (if it exists) and clear the material info
             cmd += 6;
 
             skipWS(cmd);
@@ -357,10 +358,10 @@ void loadOBJMat(impala::Scene *scene, MatLib* dest, const std::string& path, con
 parse_err_found:
         std::cerr << "Error at line " << curLine << "in " << fullname <<std::endl;
     }
-    matCreate(dest, material, mats, nmats, nmatsOverridden);
+    matCreate(dest, material, matOverride);
 }
 
-void load_object_from_file(const char *path, const char *filename, unsigned flags, impala::Material *materials, unsigned nMaterials, impala::Scene *scene, impala::Tris *tris)
+void load_object_from_file(const char *path, const char *filename, unsigned flags, unsigned *matOverride, impala::Scene *scene, impala::Tris *tris)
 {
     MatLib matlib;
 
@@ -368,9 +369,7 @@ void load_object_from_file(const char *path, const char *filename, unsigned flag
     std::set<Instruction> unsupportedEncounters;
     std::set<std::string> unknownMaterialEncounters;
 
-    unsigned curMatIdx = 0; // the default material added in scene ctor
-
-    size_t nmatsOverridden = 0;
+    unsigned curMatIdx = 0; // the default material
 
     FileLine fileline;
     if(!fileline.open(std::string(path)+filename)) {
@@ -461,7 +460,7 @@ void load_object_from_file(const char *path, const char *filename, unsigned flag
             case Obj_MaterialLibrary: {
                 if (!(flags & IgnoreMatLibs)) {
                     std::string libname = fileline.fetchString();
-                    loadOBJMat(scene, &matlib, path, libname, materials, nMaterials, &nmatsOverridden);
+                    loadOBJMat(scene, &matlib, path, libname, &matOverride);
                 }
                 break;
             }
@@ -476,7 +475,7 @@ void load_object_from_file(const char *path, const char *filename, unsigned flag
                     }
                     else {
                         // register material
-                        curMatIdx = impala::impala_sceneAddMaterial(scene, &i->second);
+                        curMatIdx = i->second.matidx != noIdx ? i->second.matidx : impala::impala_sceneAddMaterial(scene, &i->second.mat);
                         materialName2Idx.insert(std::make_pair(matname, curMatIdx));
                     }
                 }

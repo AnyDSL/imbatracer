@@ -15,7 +15,7 @@ extern "C"
     fn assert_failed(&[u8]) -> ();
 
     // object loader
-    fn load_object_from_file(path: &[u8], filename: &[u8], flags: uint, materials: &[Material], nMaterials: uint, scene: &Scene, tris: &Tris) -> ();
+    fn load_object_from_file(path: &[u8], filename: &[u8], flags: uint, matOverride: &[uint], scene: &Scene, tris: &Tris) -> ();
 
     // runtime, but not yet provided by thorin
     fn thorin_free(&u8) -> ();

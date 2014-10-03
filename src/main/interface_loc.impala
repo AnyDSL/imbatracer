@@ -85,7 +85,7 @@ extern fn impala_init() -> &State
     let mut state = stateInit();
 
     // initialise integrator
-    state.integrator.itype = 1; //4:debug, 2:recraytrace, 1:raytrace, 0:cosine
+    state.integrator.itype = 2; //4:debug, 2:recraytrace, 1:raytrace, 0:cosine
     state.integrator.mode = 1;
     state.integrator.minDist = 0.0f;
     state.integrator.maxDist = 1.0f;
@@ -119,27 +119,27 @@ extern fn impala_init() -> &State
     let cxtexID = sceneAddTexture(&scene, &cxtex);
     let phtexID = sceneAddTexture(&scene, &phongtex);
 
-    let mut cxmat = Material{ diffuse:cxtexID, specular:0u, emissive:0u, specExp:-1.0f, sampling:SAMPLING_NOT_NEEDED, eta:0.0f, etaSqrKappaSqr:0.0f };
+    let cxmat = Material{ diffuse:cxtexID, specular:0u, emissive:0u, specExp:-1.0f, sampling:SAMPLING_NOT_NEEDED, eta:0.0f, etaSqrKappaSqr:0.0f };
     let mut turbmat = Material{ diffuse:turbtexID, specular:phtexID, emissive:0u, specExp:1.6f,  sampling:SAMPLING_NOT_NEEDED, eta:0.0f, etaSqrKappaSqr:0.0f };
     let mut mirrormat = silverMirrorMaterial();
     mirrormat.sampling = SAMPLING_SECONDARY;
     mirrormat.specular = phtexID;
     mirrormat.diffuse = slowtexID;
+    let mut steelmirrormat = steelMirrorMaterial();
 
+    let mirrormatID = sceneAddMaterial(&scene, &mirrormat);
+    let steelmirrormatID = sceneAddMaterial(&scene, &steelmirrormat);
     let turbmatID = sceneAddMaterial(&scene, &turbmat);
-    let mut matOverrides = @dynArray(Material_SIZEOF, "matOverrides");
-    dynArrayAppend(&matOverrides, &turbmat as &u8);
-    dynArrayAppend(&matOverrides, &cxmat as &u8);
 
-
-    let mut cube = trisCreateCube(15.0f, turbmatID);
+    // a cube
+    let mut cube = trisCreateCube(120.0f, mirrormatID);
     let cubeIdx = sceneAddMesh(&scene, &cube);
-    let teapotIdx = sceneAddMeshFromFile(&scene, "models/", "teapot.obj", /*Flags*/0u, /*Materials*/&matOverrides);
-
     sceneAddObjectSimple(&scene, cubeIdx);
-    sceneAddObjectSimple(&scene, teapotIdx);
 
-    @dynArrayClear(&matOverrides);
+    // and a teapot
+    let mut matOverrides = [turbmatID, steelmirrormatID, noIdx];
+    let teapotIdx = sceneAddMeshFromFile(&scene, "models/", "teapot.obj", /*Flags*/0u, /*Materials*/&matOverrides);
+    sceneAddObjectSimple(&scene, teapotIdx);
 
     // add some light
     let intens = 4.1f;
@@ -151,8 +151,6 @@ extern fn impala_init() -> &State
     sceneCompile(&scene, &state.scene);
     print_s("Your state is ready!");
     return(state)
-
-
 }
 
 extern fn impala_update(mut state : &State, dt : float) -> ()

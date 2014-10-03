@@ -243,17 +243,15 @@ fn trisCreateCube(size: float, mat: uint) -> Tris
 }
 
 
-// object loader
-fn trisAddFromFile(tris: &Tris, path: &[u8], filename: &[u8], flags: uint, materials: &DynArray, scene: &Scene) -> ()
+// object loader. <materials> is a list of material indices, terminated by a noIdx-entry - or NULL
+fn trisAddFromFile(tris: &Tris, path: &[u8], filename: &[u8], flags: uint, matOverride: &[uint], scene: &Scene) -> ()
 {
-    let mats = if materials == 0u as &DynArray { 0u as &[Material] } else { dynArrayData(materials) as &[Material] };
-    let nmats = if materials == 0u as &DynArray { 0u } else { dynArraySize(materials) };
-    load_object_from_file(path, filename, flags, mats, nmats, scene, tris);
+    load_object_from_file(path, filename, flags, matOverride, scene, tris);
 }
-fn trisCreateFromFile(path: &[u8], filename: &[u8], flags: uint, materials: &DynArray, scene: &Scene) -> Tris
+fn trisCreateFromFile(path: &[u8], filename: &[u8], flags: uint, matOverride: &[uint], scene: &Scene) -> Tris
 {
     let mut tris = trisInit();
-    @trisAddFromFile(&tris, path, filename, flags, materials, scene);
+    @trisAddFromFile(&tris, path, filename, flags, matOverride, scene);
     tris
 }
 

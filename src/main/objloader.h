@@ -17,7 +17,8 @@ namespace rt {
     };
 
     extern "C" {
-        void load_object_from_file(const char *path, const char *filename, unsigned flags, impala::Material *materials, unsigned nMaterials,
+        // <materials> is a pointer to an array of material indices, terminated by impala_noidx.
+        void load_object_from_file(const char *path, const char *filename, unsigned flags, unsigned *matOverride,
                                    impala::Scene *scene, impala::Tris *tris);
     }
 }

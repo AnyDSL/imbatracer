@@ -161,7 +161,7 @@ static pointer_SIZEOF = 8u;
 
 fn isDebug() -> bool
 {
-    false || true
+    false // || true
 }
 
 
