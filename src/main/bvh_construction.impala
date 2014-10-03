@@ -10,11 +10,11 @@ static maxPrimsPerLeaf = 4u;
 struct BVHTrees
 {
     roots: DynArray, // of uint
-    bvhNodes: DynArray, // of BVHNode
+    nodes: DynArray, // of BVHNode
 }
 fn bvhTrees() -> BVHTrees
 {
-    BVHTrees{ roots: @dynArray(uint_SIZEOF, "BVHTrees.roots"), bvhNodes:@dynArray(BVHNode_SIZEOF, "BVHTrees.bvhNodes") }
+    BVHTrees{ roots: @dynArray(uint_SIZEOF, "BVHTrees.roots"), nodes:@dynArray(BVHNode_SIZEOF, "BVHTrees.nodes") }
 }
 
 
@@ -46,7 +46,7 @@ struct NodeSplitInformation
 // BVH copying functions
 fn bvhsCompile(mut bvhs: &BVHTrees, mut rtBvhs: &RTBVHTrees) -> ()
 {
-    rtBvhs.bvhNodes = @dynArrayData(&bvhs.bvhNodes) as &[BVHNode];
+    rtBvhs.nodes = @dynArrayData(&bvhs.nodes) as &[BVHNode];
     rtBvhs.roots = @dynArrayData(&bvhs.roots) as &[uint];
 }
 
@@ -74,9 +74,9 @@ fn bvhsAddTree(mut trees: &BVHTrees, primBVHInterface: (primInitFn, primBoundsFn
         allPrims(primIdx) = primIdx; // TODO get rid of this array, it's just used to pass the initial to-split-list...
     }
 
-    let oldSize = @dynArraySize(&trees.bvhNodes);
+    let oldSize = @dynArraySize(&trees.nodes);
     let root = $buildBvhNode(allPrims, nPrims, totalBounds, 0u, primData, leftPrims, rightPrims,
-                             &trees.bvhNodes, targetBase, &primFinalizeOrder);
+                             &trees.nodes, targetBase, &primFinalizeOrder);
     @assert(||oldSize == root, "bvhsAddTree: Someone put the root at the wrong place, and it wasn't me...");
 
     // do the primitive finalisation
@@ -97,7 +97,7 @@ fn bvhsAddTree(mut trees: &BVHTrees, primBVHInterface: (primInitFn, primBoundsFn
     // finish object copy
     @primBVHInterface(3)();
     @dynArrayAppendUint(&trees.roots, root);
-    print_sii("Constructed a BVH tree with <num> primitives having <num> nodes:", nPrims as int, (@dynArraySize(&trees.bvhNodes)-oldSize) as int);
+    print_sii("Constructed a BVH tree with <num> primitives having <num> nodes:", nPrims as int, (@dynArraySize(&trees.nodes)-oldSize) as int);
 }
 
 /* Build a BVH node from the primitives (in splitPrims). These are indices into the tris vector above!

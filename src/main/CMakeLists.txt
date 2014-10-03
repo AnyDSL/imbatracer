@@ -52,8 +52,8 @@ set(rt_SRC ${cpp_SRC} ${impala_shared_SRC} ${impala_loc_SRC} ${impala_acc_SRC} $
 # we could put rt_SRC into a library and link that into main and bench, but then we'd loose "undefined symbol" warnings...
 
 add_executable(main main.cpp ${rt_SRC})
-target_link_libraries(main rt io)
+target_link_libraries(main rt io ${impala_loc_LIB} ${impala_acc_LIB})
 
 add_executable(bench bench.cpp ${rt_SRC})
-target_link_libraries(bench rt)
+target_link_libraries(bench rt ${impala_loc_LIB} ${impala_acc_LIB})
 

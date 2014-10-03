@@ -177,7 +177,7 @@ fn getRadianceForHit(ty : int, integr : &Integrator, ray: Ray, dist:float, sisec
 {
     if      ty == 0 { cosineRadiance(ray, dist, sisec) }
     else if ty == 1 { raytraceRadiance(ray, dist, sisec, scene) }
-    else if ty == 2 { recraytraceRadiance(ray, dist, sisec, scene, integr, recRemain) }
+    else if ty == 2 { recraytraceRadiance(ray, dist, sisec, scene, integr, recRemain) } // TODO the GPU crashes if we enable this
     else            { debuggerRadiance(integr.mode, integr.minDist, integr.maxDist, dist, sisec) }
 }
 
