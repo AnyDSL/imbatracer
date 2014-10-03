@@ -9,6 +9,7 @@ struct State
 
     // Pointers for specific parts of the tracer
     pixelBuffer : &u8,
+    camctrl : &u8,
 }
 
 fn stateInit() -> &State
@@ -16,6 +17,7 @@ fn stateInit() -> &State
     let mut state = ~[1:State] as &State;
     state.time = 0.0f;
     state.pixelBuffer = 0 as &u8;
+    state.camctrl = 0 as &u8;
     state
 }
 

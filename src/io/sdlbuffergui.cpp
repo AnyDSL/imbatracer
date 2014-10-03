@@ -63,6 +63,10 @@ namespace rt {
     CountedPtr<Image> SDLBufferGui::_Update(float dt)
     {
         curDispTime += dt;
+
+        // Pump events
+        _HandleEvents();
+
         // check the next image to display
         CountedPtr<Image> img = nullptr;
         {

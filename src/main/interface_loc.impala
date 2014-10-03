@@ -49,6 +49,36 @@ extern fn impala_trisAppendTriangle(tris: &Tris, p1: uint, p2: uint, p3: uint, n
     trisAddTri(tris, p1, p2, p3, n1, n2, n3, t1, t2, t3, mat)
 }
 
+static EVT_KEY = 0u;
+static EVT_MOUSEMOVE = 1u;
+static EVT_MOUSEBUTTON = 2u;
+static EVT_MOUSEWHEEL = 3u;
+
+extern fn impala_event(state : &State, grabbed : bool, evt : uint, down : bool, key : int, x : float, y : float) -> ()
+{
+    if !grabbed
+    {
+        return()
+    }
+
+    let cc = state.camctrl as &CamController;
+
+    if evt == EVT_KEY
+    {
+        camControllerKeyInput(cc, key, down);
+    }
+    else if evt == EVT_MOUSEMOVE
+    {
+        camControllerMouseMove(cc, x, y);
+    }
+    else if evt == EVT_MOUSEBUTTON
+    {
+        camControllerMouseButton(cc, key, down);
+    }
+    // TODO: wheel?
+
+}
+
 // initialize the scene, return an opaque pointer
 extern fn impala_init() -> &State
 {
@@ -60,6 +90,18 @@ extern fn impala_init() -> &State
     state.integrator.minDist = 0.0f;
     state.integrator.maxDist = 1.0f;
     state.integrator.maxRecDepth = 6u;
+
+    // initial camera placement
+    let cc = camControllerAlloc();
+    state.camctrl = cc as &u8;
+    let scale = 10.0f;
+    let time = 0.0f;
+    let pos = @point(-3.5f*scale*sinf(time), 1.2f*scale*sinf(0.2f*time), 3.7f*scale*cosf(time));
+    let at = @point0();
+    let up = @vec(0.0f, 1.0f, 0.0f);
+    let horzOpenAngle = pi / 4.0f;
+    let vertOpenAngle = pi / 3.0f;
+    state.cam = @camPerspectiveLookAt(pos, at, up, horzOpenAngle, vertOpenAngle);
 
     // initialise scene
     let mut scene = @sceneInit();
@@ -89,23 +131,10 @@ extern fn impala_init() -> &State
     dynArrayAppend(&matOverrides, &turbmat as &u8);
     dynArrayAppend(&matOverrides, &cxmat as &u8);
 
-    /*let mut mats = [
-        turbmat,
-        cxmat,
-    ];
-
-    scene_add_cube(state, 120.0f, &mirrormat);
-
-    scene_add_file_mat(state, 2, 0, &mats, 2u);
-    scene_build(state);
-
-    */
 
     let mut cube = trisCreateCube(15.0f, turbmatID);
     let cubeIdx = sceneAddMesh(&scene, &cube);
-    print_s("Adding a mesh now");
     let teapotIdx = sceneAddMeshFromFile(&scene, "models/", "teapot.obj", /*Flags*/0u, /*Materials*/&matOverrides);
-
 
     sceneAddObjectSimple(&scene, cubeIdx);
     sceneAddObjectSimple(&scene, teapotIdx);
@@ -122,22 +151,15 @@ extern fn impala_init() -> &State
     sceneCompile(&scene, &state.scene);
     print_s("Your state is ready!");
     return(state)
+
+
 }
 
-// update the scene, based on the opaque pointer returned by impala_init
 extern fn impala_update(mut state : &State, dt : float) -> ()
 {
     let time = state.time;
     state.time = time + dt;
-
-    // initialise camera
     let scale = 10.0f;
-    let pos = @point(-3.5f*scale*sinf(time), 1.2f*scale*sinf(0.2f*time), 3.7f*scale*cosf(time));
-    let at = @point0();
-    let up = @vec(0.0f, 1.0f, 0.0f);
-    let horzOpenAngle = pi / 4.0f;
-    let vertOpenAngle = pi / 3.0f;
-    state.cam = @camPerspectiveLookAt(pos, at, up, horzOpenAngle, vertOpenAngle);
 
 
     // put light right where the cam was shortly ago, and on the other side
@@ -149,6 +171,9 @@ extern fn impala_update(mut state : &State, dt : float) -> ()
     /*let potScale = (fabsf(sinf(0.8f*time))/2.0f+0.5f);
     state.scene.objs(0).w2o = @matrix_scalingv(@vec(potScale, 1.0f, 1.2f*potScale));
     state.scene.objs(0).swapsHandedness = false;*/
+
+    let cc = state.camctrl as &CamController;
+    camControllerUpdate(cc, &state.cam, dt);
 }
 
 extern fn impala_init_bench1() -> &State

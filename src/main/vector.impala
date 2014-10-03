@@ -283,8 +283,13 @@ fn f4fapply2(a : Float4, b : float, f: fn(float, float) -> float) -> Float4
     float4(f(a.x, b), f(a.y, b), f(a.z, b), f(a.w, b))
 }
 
+fn f4mul(a : Float4, b : Float4) -> Float4 { @f4apply2(a, b, mul) }
+fn f4add(a : Float4, b : Float4) -> Float4 { @f4apply2(a, b, add) }
+fn f4scale(a : Float4, b : float) -> Float4 { @f4fapply2(a, b, mul) }
+
 
 fn f4dot(a : Float4, b : Float4) -> float { a.x*b.x + a.y*b.y + a.z*b.z + a.w*b.w }
+
 
 
 // TexCoord

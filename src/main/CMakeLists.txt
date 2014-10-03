@@ -31,6 +31,7 @@ set(impala_shared_SRC
 )
 set(impala_loc_SRC
     assert_cpu.impala
+    camcontrol.impala
     interface_loc.impala
 )
 set(impala_acc_SRC

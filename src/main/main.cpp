@@ -44,9 +44,19 @@ protected:
         impala::impala_render(img->getPtr(), img->width(), img->height(), false, state);
     }
 
+    virtual void _DispatchEvents(const EventHolder *ep, size_t num)
+    {
+        for(size_t i = 0; i < num; ++i)
+        {
+            const EventHolder& e = ep[i];
+            impala::impala_event(state, mouseGrabbed, e.ev, e.down, e.key, e.x, e.y);
+        }
+    }
+
     SceneKind sceneKind;
     impala::State *state;
 };
+
 
 int main(int argc, char *argv[])
 {

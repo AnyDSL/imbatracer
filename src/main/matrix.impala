@@ -24,6 +24,72 @@ fn matrix_scalingv(v : Vec) -> Matrix
              @float4(0.0f, 0.0f, 0.0f, 1.0f))
 }
 
+
+fn matrixRotationX(a : float) -> Matrix
+{
+	let c = cosf(a);
+	let s = sinf(a);
+	@matrix4(
+		float4(1.0f, 0.0f, 0.0f, 0.0f),
+		float4(0.0f, c,    -s,   0.0f),
+		float4(0.0f, s,     c,   0.0f),
+		float4(0.0f, 0.0f, 0.0f, 1.0f)
+	)
+}
+fn matrixRotationY(a : float) -> Matrix
+{
+	let c = cosf(a);
+	let s = sinf(a);
+    @matrix4(
+		float4(c,    0.0f, s,    0.0f),
+		float4(0.0f, 1.0f, 0.0f, 0.0f),
+		float4(-s,   0.0f, c,    0.0f),
+		float4(0.0f, 0.0f, 0.0f, 1.0f)
+	)
+}
+
+fn matrixRotationZ(a : float) -> Matrix
+{
+	let c = cosf(a);
+	let s = sinf(a);
+	@matrix4(
+		float4(c,   -s,    0.0f, 0.0f),
+		float4(s,    c,    0.0f, 0.0f),
+		float4(0.0f, 0.0f, 1.0f, 0.0f),
+		float4(0.0f, 0.0f, 0.0f, 1.0f)
+	)
+}
+fn matrixRotation(uo : Vec, a : float) -> Matrix
+{
+	// https://en.wikipedia.org/wiki/Rotation_matrix#Axis_and_angle
+	let u = float4_v(normalize(uo));
+	let c = cosf(a);
+	let s = sinf(a);
+	let C = 1.0f - c;
+	let uC = f4scale(u, C);
+	let q = f4mul(u, uC);          // xxC, yyC, zzC
+	let S = f4scale(u, s);
+
+	let v = f4mul(uC , float4(u.z, u.x, u.y, u.w)); // xzC, yxC, zyC
+
+	@matrix4(
+		float4(q.x+c  , v.y-S.z, v.x+S.y, 0.0f),
+		float4(v.x+S.z, q.y+c  , v.z-S.x, 0.0f),
+		float4(v.x-S.y, v.z+S.x, q.z+c  , 0.0f),
+		float4(0.0f   ,  0.0f  ,  0.0f  , 1.0f)
+	)
+}
+
+fn matrixTranslation(t : Vec) -> Matrix
+{
+	@matrix4(
+		float4(1.0f, 0.0f, 0.0f, t.x),
+		float4(0.0f, 1.0f, 0.0f, t.y),
+		float4(0.0f, 0.0f, 1.0f, t.z),
+		float4(0.0f, 0.0f, 0.0f, 1.0f)
+	)
+}
+
 fn mf4mul(m : Matrix, f : Float4) -> Float4
 {
     @float4(f4dot(m.rows(0),f), f4dot(m.rows(1),f), f4dot(m.rows(2),f), f4dot(m.rows(3),f))
@@ -47,3 +113,19 @@ fn mmul_transposed3x3(m : Matrix, n : Vec) -> Vec
          @dot(@vec(m.rows(0).y, m.rows(1).y, m.rows(2).y), n),
          @dot(@vec(m.rows(0).z, m.rows(1).z, m.rows(2).z), n))
 }
+
+fn mmul(a : Matrix, b : Matrix) -> Matrix
+{
+    let mut r:Matrix;
+    for i in @urange(0u, 4u)
+    {
+		r.rows(i) = @f4add(
+            f4add(f4scale(b.rows(0), a.rows(i).x),
+                  f4scale(b.rows(1), a.rows(i).y)),
+            f4add(f4scale(b.rows(2), a.rows(i).z),
+                  f4scale(b.rows(3), a.rows(i).w)));
+    }
+    r
+}
+
+

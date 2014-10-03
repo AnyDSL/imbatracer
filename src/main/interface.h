@@ -51,14 +51,15 @@ namespace impala {
     extern "C" {
         // functiosn working on the state
         State *impala_init();
-        void impala_update(State*, float dt);
+        void impala_event(State *, bool grabbed, unsigned evt, bool down, int key, float x, float y);
+        void impala_update(State *, float dt);
 
         State *impala_init_bench1();
         State *impala_init_bench2();
 
         void impala_render(unsigned *buf, int w, int h, bool measureTime, State*);
 
-        void impala_finish(State*);
+        void impala_finish(State *);
 
         // functions working on materials and textures
         unsigned impala_noIdx();
