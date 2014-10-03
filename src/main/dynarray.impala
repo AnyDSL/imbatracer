@@ -97,13 +97,28 @@ fn dynArrayData(a: &DynArray) -> &[u8]
 // append an entry to the array, return its index
 fn dynArrayAppend(mut a: &DynArray, obj: &u8) -> uint
 {
-    let newSize = a.size + 1u;
+    let oldSize = a.size;
+    let newSize = oldSize + 1u;
     $_dynArrayEnsureCapacity(a, newSize);
 
     let wpos = a.size * a.elemSize;
     memcpy(&a.data(wpos) as &u8, obj as &u8, a.elemSize as size_t);
     a.size = newSize;
-    newSize-1u
+    return(oldSize)
+}
+
+// append an array to the array, return its base index
+fn dynArrayAppendArray(mut a: &DynArray, b: &DynArray) -> uint
+{
+    @assert(||a.elemSize == b.elemSize, "Cannot combine arrays of different element types!");
+    let oldSize = a.size;
+    let newSize = oldSize + b.size;
+    $_dynArrayEnsureCapacity(a, newSize);
+
+    let wpos = a.size * a.elemSize;
+    memcpy(&a.data(wpos) as &u8, b.data as &u8, b.size*b.elemSize as size_t);
+    a.size = newSize;
+    return(oldSize)
 }
 
 fn dynArrayFetch(mut a: &DynArray, idx: uint) -> &u8

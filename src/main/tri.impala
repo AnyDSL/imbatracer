@@ -43,21 +43,22 @@ struct RTTris
 
     normals : &[Vec],
     texCoords: &[TexCoord],
-    triData : &[uint], // 7 successive indices belong to one triangle: 3 normals, 2 texcoors, 1 material; same order of triangles as in triVerts
+    triData : &[uint], // 7 successive indices belong to one triangle: 3 normals, 3 texcoors, 1 material; same order of triangles as in triVerts
 }
-fn trisBVHInterface(mut tris: &Tris, mut rtTris: &RTTris) -> (primInitFn, primBoundsFn, primCopyFn, primFinishFn)
+// copy stuff for the BVH.
+fn trisBVHInterface(mut tris: &Tris, mut targetTris: &Tris) -> (primInitFn, primBoundsFn, primCopyFn, primFinishFn)
 {
-    let mut curIdx = 0u;
+    let mut curIdx = @trisSize(targetTris);
+    let vertBase = dynArrayAppendArray(&targetTris.verts, &tris.verts);
+    let normalBase = dynArrayAppendArray(&targetTris.normals, &tris.normals);
+    let texCoordBase = dynArrayAppendArray(&targetTris.texCoords, &tris.texCoords);
 
     (   // init
         ||{
             let nTris = @trisSize(tris);
-            rtTris.verts = @dynArrayData(&tris.verts) as &[Point];
-            rtTris.normals = @dynArrayData(&tris.normals) as &[Vec];
-            rtTris.texCoords = @dynArrayData(&tris.texCoords) as &[TexCoord];
-            rtTris.triVerts = ~[3u*nTris:uint];
-            rtTris.triData  = ~[7u*nTris:uint];
-            nTris
+            dynArrayReserve(&targetTris.triVerts, (curIdx+nTris)*3u);
+            dynArrayReserve(&targetTris.triData, (curIdx+nTris)*7u);
+            (nTris, curIdx)
         },
         // bounds
         |idx|{
@@ -68,11 +69,15 @@ fn trisBVHInterface(mut tris: &Tris, mut rtTris: &RTTris) -> (primInitFn, primBo
             //print_sii("Copying triangle with <id1> (that's number <id2>)", copyIdx as int, curIdx as int);
             // append triangle copyIdx in tris, to the list of triangles in rtTris
             for i in @urange(0u, 3u) {
-                rtTris.triVerts(3u*curIdx+i) = @dynArrayFetchUint(&tris.triVerts, 3u*copyIdx+i);
+                dynArrayAppendUint(&targetTris.triVerts, @dynArrayFetchUint(&tris.triVerts, 3u*copyIdx+i)+vertBase);
             }
-            for i in @urange(0u, 7u) {
-                rtTris.triData(7u*curIdx+i) = @dynArrayFetchUint(&tris.triData, 7u*copyIdx+i);
+            for i in @urange(0u, 3u) {
+                dynArrayAppendUint(&targetTris.triData, @dynArrayFetchUint(&tris.triData, 7u*copyIdx+i)+normalBase);
             }
+            for i in @urange(0u, 3u) {
+                dynArrayAppendUint(&targetTris.triData, @dynArrayFetchUint(&tris.triData, 7u*copyIdx+3u+i)+texCoordBase);
+            }
+            dynArrayAppendUint(&targetTris.triData, @dynArrayFetchUint(&tris.triData, 7u*copyIdx+6u)); // the material
             // increment and return
             let idx = curIdx;
             curIdx = idx+1u;
@@ -80,10 +85,21 @@ fn trisBVHInterface(mut tris: &Tris, mut rtTris: &RTTris) -> (primInitFn, primBo
         },
         // finish
         ||{
+            @dynArrayClear(&tris.verts);
             @dynArrayClear(&tris.triVerts);
+            @dynArrayClear(&tris.normals);
+            @dynArrayClear(&tris.texCoords);
             @dynArrayClear(&tris.triData);
         }
     )
+}
+fn trisCompile(mut tris: &Tris, mut rtTris: &RTTris) -> ()
+{
+    rtTris.verts = @dynArrayData(&tris.verts) as &[Point];
+    rtTris.triVerts = @dynArrayData(&tris.triVerts) as &[uint];
+    rtTris.normals = @dynArrayData(&tris.normals) as &[Vec];
+    rtTris.texCoords = @dynArrayData(&tris.texCoords) as &[TexCoord];
+    rtTris.triData = @dynArrayData(&tris.triData) as &[uint];
 }
 fn trisFree(tris: &RTTris) -> ()
 {

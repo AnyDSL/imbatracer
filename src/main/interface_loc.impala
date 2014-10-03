@@ -101,11 +101,14 @@ extern fn impala_init() -> &State
 
     */
 
-    //let mut cube = trisCreateCube(10.0f, turbmatID);
-    //let cubeIdx = sceneAddMesh(&scene, &cube);
+    let mut cube = trisCreateCube(15.0f, turbmatID);
+    let cubeIdx = sceneAddMesh(&scene, &cube);
     print_s("Adding a mesh now");
-    let revisionIdx = sceneAddMeshFromFile(&scene, "models/", "teapot.obj", /*Flags*/0u, /*Materials*/&matOverrides);
-    sceneAddObjectSimple(&scene, revisionIdx);
+    let teapotIdx = sceneAddMeshFromFile(&scene, "models/", "teapot.obj", /*Flags*/0u, /*Materials*/&matOverrides);
+
+
+    sceneAddObjectSimple(&scene, cubeIdx);
+    sceneAddObjectSimple(&scene, teapotIdx);
 
     @dynArrayClear(&matOverrides);
 

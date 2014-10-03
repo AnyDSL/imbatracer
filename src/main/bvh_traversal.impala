@@ -144,7 +144,7 @@ fn bvhsIntersectFirst(idx: uint, bvhTrees: &RTBVHTrees, ray: &Ray, maxdist: floa
     @bvhIntersectGeneric(bvhTrees.roots(idx), bvhTrees.bvhNodes, ray, maxdist,
         |subIdx, maxdist|
         {
-            @subIntersectFirst(subIdx, ray, maxdist, sisec) // returns new maxdist
+            $subIntersectFirst(subIdx, ray, maxdist, sisec) // returns new maxdist
         }
     )
 }
@@ -157,7 +157,7 @@ fn bvhsIntersectAny(idx: uint, bvhTrees : &RTBVHTrees, ray : &Ray, maxdist : flo
     @bvhIntersectGeneric(bvhTrees.roots(idx), bvhTrees.bvhNodes, ray, maxdist,
         |subIdx, maxdist|
         {
-            if @subIntersectAny(subIdx, ray, maxdist) {
+            if $subIntersectAny(subIdx, ray, maxdist) {
                 success(true)
             }
             else {

@@ -30,6 +30,7 @@ struct RTInstances
 {
     insts: &[RTInstance],
 }
+// copy instances into a BVH. This expects the rtInsts to be unitialised.
 fn instsBVHInterface(mut insts: &Instances, mut rtInsts: &RTInstances, boundsFn: primBoundsFn) -> (primInitFn, primBoundsFn, primCopyFn, primFinishFn)
 {
     let mut curIdx = 0u;
@@ -38,7 +39,7 @@ fn instsBVHInterface(mut insts: &Instances, mut rtInsts: &RTInstances, boundsFn:
         ||{
             let nInsts = @dynArraySize(&insts.insts);
             rtInsts.insts  = ~[nInsts:RTInstance];
-            nInsts
+            (nInsts, curIdx)
         },
         // bounds: relay request, we don't know our meshes
         boundsFn,

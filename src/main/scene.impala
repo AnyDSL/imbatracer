@@ -83,12 +83,14 @@ fn sceneCompile(mut scene: &Scene, mut rtScene: &RTScene) -> ()
 {
     // build BVHs for meshes, and copy mesh data
     let mut bvhMeshes = bvhTrees();
+    let mut meshes = trisInit();
     for objidx in urange(0u, dynArraySize(&scene.meshes)) {
         print_si("Compiling mesh <id>", objidx as int);
         let tris = dynArrayFetch(&scene.meshes, objidx) as &Tris;
-        @bvhsAddTree(&bvhMeshes, @trisBVHInterface(tris, &rtScene.meshes)); // copy triangles to the RTScene
+        @bvhsAddTree(&bvhMeshes, @trisBVHInterface(tris, &meshes)); // copy triangles to the RTScene
     }
     bvhsCompile(&bvhMeshes, &rtScene.bvhMeshes);
+    trisCompile(&meshes, &rtScene.meshes);
 
     // build BVH of objects, and copy instance data
     let mut bvhOuter = bvhTrees();
@@ -120,22 +122,22 @@ fn sceneFree(mut scene: &RTScene) -> ()
  */
 fn sceneIntersectFirst(mut scene: &RTScene, ray : &Ray, maxdist : float, sisec : &ShadingIntersection) -> float
 {
-    /*@bvhsIntersectFirst(0u, &scene.bvhOuter, ray, maxdist, sisec,
+    @bvhsIntersectFirst(0u, &scene.bvhOuter, ray, maxdist, sisec,
         |idx, ray, maxdist, sisec|instanceIntersectFirst(idx, &scene.objects, ray, maxdist, sisec,
             |idx, ray, maxdist, sisec|bvhsIntersectFirst(idx, &scene.bvhMeshes, ray, maxdist, sisec,
                 |idx, ray, maxdist, sisec|trisIntersectFirst(idx, &scene.meshes, ray, maxdist, sisec)
             )
         )
-    )*/maxdist
+    )
 }
 
 fn sceneIntersectAny(mut scene: &RTScene, ray : &Ray, maxdist : float) -> bool
 {
-    /*@bvhsIntersectAny(0u, &scene.bvhOuter, ray, maxdist,
+    @bvhsIntersectAny(0u, &scene.bvhOuter, ray, maxdist,
         |idx, ray, maxdist|instanceIntersectAny(idx, &scene.objects, ray, maxdist,
             |idx, ray, maxdist|bvhsIntersectAny(idx, &scene.bvhMeshes, ray, maxdist,
                 |idx, ray, maxdist|trisIntersectAny(idx, &scene.meshes, ray, maxdist)
             )
         )
-    )*/false
+    )
 }

@@ -1,8 +1,8 @@
 
 // abstract BVH construction functions
-type primInitFn = fn() -> uint; // this is called at the beginning and returns how many objects there are
+type primInitFn = fn() -> (uint, uint); // this is called at the beginning and returns how many objects there are, and how many objects are already in the target list.
 type primBoundsFn = fn(uint) -> BBox; // given an object index, return its bounds
-type primCopyFn = fn(uint) -> uint; // called exactly once per object, copies the objects and return the index it finally has
+type primCopyFn = fn(uint) -> uint; // called exactly once per object, copies the objects and return the index it finally has. this must be incrementing in steps of 1, starting at the number of objects that were already in the target list!
 type primFinishFn = fn() -> (); // called at the end, to finalzie and potentially free memory
 
 static maxPrimsPerLeaf = 4u;
@@ -54,7 +54,9 @@ fn bvhsCompile(mut bvhs: &BVHTrees, mut rtBvhs: &RTBVHTrees) -> ()
 fn bvhsAddTree(mut trees: &BVHTrees, primBVHInterface: (primInitFn, primBoundsFn, primCopyFn, primFinishFn)) -> ()
 {
     // prepare object copy
-    let nPrims = @primBVHInterface(0)();
+    let initRet = @primBVHInterface(0)();
+    let nPrims = initRet(0);
+    let targetBase = initRet(1);
 
     // prepare working arena and object data
     let mut totalBounds = bboxEmpty();
@@ -74,14 +76,14 @@ fn bvhsAddTree(mut trees: &BVHTrees, primBVHInterface: (primInitFn, primBoundsFn
 
     let oldSize = @dynArraySize(&trees.bvhNodes);
     let root = $buildBvhNode(allPrims, nPrims, totalBounds, 0u, primData, leftPrims, rightPrims,
-                             &trees.bvhNodes, &primFinalizeOrder);
+                             &trees.bvhNodes, targetBase, &primFinalizeOrder);
     @assert(||oldSize == root, "bvhsAddTree: Someone put the root at the wrong place, and it wasn't me...");
 
     // do the primitive finalisation
     @assert(||@dynArraySize(&primFinalizeOrder) == nPrims, "constructBvh: Somehow we got the number of primitives wrong");
     for i in urange(0u, nPrims) {
         let idx = @primBVHInterface(2)(dynArrayFetchUint(&primFinalizeOrder, i));
-        @assert(||idx == i, "constructBvh: primFinalize is misbehaving");
+        @assert(||idx == targetBase+i, "constructBvh: primCopy is misbehaving");
     }
 
     // clean up
@@ -103,7 +105,7 @@ fn bvhsAddTree(mut trees: &BVHTrees, primBVHInterface: (primInitFn, primBoundsFn
  * Return the index of the root (in nodeBuf).
  */
 fn buildBvhNode(prims: &[uint], nPrims: uint, totalBounds: BBox, depth: uint, primData: &[PrimData], mut leftPrims: &[uint], mut rightPrims: &[uint],
-        bvhNodes: &DynArray, primFinalizeOrder: &DynArray) -> uint
+        bvhNodes: &DynArray, primFinalizeOffset: uint, primFinalizeOrder: &DynArray) -> uint
 {
     let mut node:BVHNode;
     node.bbox = totalBounds;
@@ -118,7 +120,7 @@ fn buildBvhNode(prims: &[uint], nPrims: uint, totalBounds: BBox, depth: uint, pr
         // create a leaf
         node.nPrims = nPrims as u16;
         for primIdxIdx in urange(0u, nPrims) {
-            let primFinalIdx = dynArrayAppendUint(primFinalizeOrder, prims(primIdxIdx));
+            let primFinalIdx = dynArrayAppendUint(primFinalizeOrder, prims(primIdxIdx)) + primFinalizeOffset;
             if primIdxIdx == 0u {
                 // store the final index of the first primitive
                 node.sndChildFirstPrim = primFinalIdx;
@@ -137,10 +139,10 @@ fn buildBvhNode(prims: &[uint], nPrims: uint, totalBounds: BBox, depth: uint, pr
     assert(||splitInfo.nLeft <= nPrims, "buildBvhNode: Keeping too many primitives");
     let firstChild =  $buildBvhNode(leftPrims , splitInfo.nLeft       , splitInfo.leftBBox , depth+1u, primData,
                                     &leftPrims(nPrims) as &[u32], &rightPrims(nPrims) as &[u32],
-                                    bvhNodes, primFinalizeOrder);
+                                    bvhNodes, primFinalizeOffset, primFinalizeOrder);
     let secondChild = $buildBvhNode(rightPrims, nPrims-splitInfo.nLeft, splitInfo.rightBBox, depth+1u, primData,
                                     &leftPrims(nPrims) as &[u32], &rightPrims(nPrims) as &[u32],
-                                    bvhNodes, primFinalizeOrder);
+                                    bvhNodes, primFinalizeOffset, primFinalizeOrder);
 
     // Make sure the children's order in the vector is as expected
     @assert(||firstChild == nodeIdx+1u, "Left child doesn't come right after me");
