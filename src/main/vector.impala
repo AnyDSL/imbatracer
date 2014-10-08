@@ -284,6 +284,23 @@ fn f4scale(a : Float4, b : float) -> Float4 { @f4fapply2(a, b, mul) }
 
 fn f4dot(a : Float4, b : Float4) -> float { a.x*b.x + a.y*b.y + a.z*b.z + a.w*b.w }
 
+fn f4Axis(f : Float4, a: uint) -> float
+{
+    @assert(||a < 4u, "vecAxis: invalid axis");
+    if a == 0u      { f.x }
+    else if a == 1u { f.y }
+    else if a == 2u { f.z }
+    else            { f.w }
+}
+
+fn f4SetAxis(mut f : &Float4, a: uint, v : float) -> ()
+{
+    @assert(||a < 4u, "vecAxis: invalid axis");
+    if a == 0u      { f.x = v }
+    else if a == 1u { f.y = v }
+    else if a == 2u { f.z = v }
+    else            { f.w = v }
+}
 
 
 // TexCoord

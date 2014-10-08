@@ -21,7 +21,7 @@ fn instancesAppend(mut insts: &Instances, idx: uint, o2w: Matrix) -> ()
 }
 fn instancesAppendI(insts: &Instances, idx: uint) -> ()
 {
-    @instancesAppend(insts, idx, @matrix0())
+    @instancesAppend(insts, idx, @matrixI())
 }
 
 struct RTInstance

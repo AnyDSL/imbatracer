@@ -190,17 +190,53 @@ fn round_up(a : uint, b : uint) -> uint
     div_round_up(a, b)*b
 }
 
-// sort ascending (TODO implement quicksort)
+
 type isLessFn = fn(uint, uint) -> bool;
+// sort ascending via non-recursive heapsort
 fn sort(mut a: &[uint], len: uint, isLess:isLessFn) -> ()
 {
-    for i in urange(0u, len) {
-        for j in urange(0u, len-1u) {
-            if !isLess(a(j), a(j+1u)) {
-                let tmp = a(j);
-                a(j) = a(j+1u);
-                a(j+1u) = tmp;
+    let mut t : uint;
+    let mut n = len;
+    let mut parent = len / 2u;
+
+    while true
+    {
+        if parent > 0u
+        {
+            parent = parent - 1u;
+            t = a(parent);
+        }
+        else
+        {
+            n = n - 1u;
+            if (n == 0u)
+            {
+                return()
+            }
+            t = a(n);
+            a(n) = a(0u);
+        }
+
+        let mut index = parent;
+        let mut child = index * 2u + 1u;
+        while child < n
+        {
+            if child + 1u < n  && isLess(a(child), a(child+1u))
+            {
+                child = child + 1u;
+            }
+
+            if (a(child) > t)
+            {
+                a(index) = a(child);
+                index = child;
+                child = index * 2u + 1u;
+            }
+            else
+            {
+                break()
             }
         }
+        a(index) = t;
     }
 }

@@ -48,6 +48,10 @@ extern "C"
     {
       std::cout << "Impala print: " << s << " " << x << ", " << y << ", " << z << std::endl;
     }
+    void print_sffff(const char *s, float x, float y, float z, float w)
+    {
+      std::cout << "Impala print: " << s << " " << x << ", " << y << ", " << z << ", " << w << std::endl;
+    }
 
     void assert_failed(const char *str)
     {
