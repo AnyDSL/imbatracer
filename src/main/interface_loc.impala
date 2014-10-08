@@ -80,6 +80,12 @@ extern fn impala_event(state : &State, grabbed : bool, evt : uint, down : bool, 
 }
 
 // initialize the scene, return an opaque pointer
+struct MeshIdxs
+{
+    cube: uint,
+    teapot: uint,
+}
+
 extern fn impala_init() -> &State
 {
     let mut state = stateInit();
@@ -134,12 +140,13 @@ extern fn impala_init() -> &State
     // a cube
     let mut cube = trisCreateCube(120.0f, mirrormatID);
     let cubeIdx = sceneAddMesh(&scene, &cube);
-    sceneAddObjectSimple(&scene, cubeIdx);
 
     // and a teapot
     let mut matOverrides = [turbmatID, steelmirrormatID, noIdx];
     let teapotIdx = sceneAddMeshFromFile(&scene, "models/", "teapot.obj", /*Flags*/0u, /*Materials*/&matOverrides);
-    sceneAddObjectSimple(&scene, teapotIdx);
+
+    // store mesh indices
+    state.meshIdxs = ~MeshIdxs{ cube:cubeIdx, teapot:teapotIdx } as &u8;
 
     // add some light
     let intens = 4.1f;
@@ -148,7 +155,7 @@ extern fn impala_init() -> &State
     sceneAddLightV(&scene, @pointLight(point0(), color(intens*300.0f, intens*300.0f, intens*300.0f)));
 
     // finalize scene
-    sceneCompile(&scene, &state.scene);
+    sceneCompileMeshes(&scene, &state.scene);
     print_s("Your state is ready!");
     return(state)
 }
@@ -157,19 +164,24 @@ extern fn impala_update(mut state : &State, dt : float) -> ()
 {
     let time = state.time;
     state.time = time + dt;
-    let scale = 10.0f;
-
 
     // put light right where the cam was shortly ago, and on the other side
-    state.scene.shadingData.lights(0).pos = @point(-3.5f*scale*sinf(time-0.5f), +1.2f*scale*sinf(0.2f*time-0.5f), +3.7f*scale*cosf(time-0.5f));
-    state.scene.shadingData.lights(1).pos = @point(-3.5f*scale*sinf(time+0.5f), +1.9f*scale*sinf(0.2f*time+0.5f), +3.7f*scale*cosf(time+0.5f));
-    state.scene.shadingData.lights(2).pos = @point(-3.5f*scale*sinf(time+0.5f+pi), +2.2f*scale*sinf(0.2f*time+0.5f+pi), +3.7f*scale*cosf(time+0.5f+pi));
+    let lightScale = 10.0f;
+    state.scene.shadingData.lights(0).pos = @point(-3.5f*lightScale*sinf(time-0.5f), +1.2f*lightScale*sinf(0.2f*time-0.5f), +3.7f*lightScale*cosf(time-0.5f));
+    state.scene.shadingData.lights(1).pos = @point(-3.5f*lightScale*sinf(time+0.5f), +1.9f*lightScale*sinf(0.2f*time+0.5f), +3.7f*lightScale*cosf(time+0.5f));
+    state.scene.shadingData.lights(2).pos = @point(-3.5f*lightScale*sinf(time+0.5f+pi), +2.2f*lightScale*sinf(0.2f*time+0.5f+pi), +3.7f*lightScale*cosf(time+0.5f+pi));
 
-    // scale our teapot
-    /*let potScale = (fabsf(sinf(0.8f*time))/2.0f+0.5f);
-    state.scene.objs(0).w2o = @matrix_scalingv(@vec(potScale, 1.0f, 1.2f*potScale));
-    state.scene.objs(0).swapsHandedness = false;*/
+    // compose scene with the scaling we want
+    let meshIdxs = state.meshIdxs as &MeshIdxs;
+    let mut objects = instancesInit();
+    instancesAppend(&objects, meshIdxs.cube, @matrix0());
+    let potScale = 2.f;//(fabsf(sinf(0.8f*time))/2.0f+0.5f);
+    let potSccaleM = @matrixScaling(@vec(potScale, 1.0f, 1.2f*potScale));
+    instancesAppend(&objects, meshIdxs.teapot, potSccaleM);
+    instancesAppend(&objects, meshIdxs.teapot, @matrixTranslation(@vec(10.0f, 15.0f, 20.0f)));
+    sceneCompileObjects(&state.scene, &objects);
 
+    // update camera
     let cc = state.camctrl as &CamController;
     camControllerUpdate(cc, &state.cam, dt);
 }
@@ -227,8 +239,7 @@ extern fn impala_init_bench2() -> &State
     return(state)
 }
 
-extern fn impala_finish(mut state: &State) -> ()
+extern fn impala_finish(state: &State) -> ()
 {
-    @sceneFree(&state.scene);
-    thorin_free(state as &u8);
+    @stateFree(state);
 }

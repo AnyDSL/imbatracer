@@ -41,8 +41,11 @@ fn instsBVHInterface(mut insts: &Instances, mut rtInsts: &RTInstances, boundsFn:
             rtInsts.insts  = ~[nInsts:RTInstance];
             (nInsts, curIdx)
         },
-        // bounds: relay request, we don't know our meshes
-        boundsFn,
+        // bounds
+        |idx|{
+            let inst = @dynArrayFetch(&insts.insts, idx) as &Instance;
+            boundsFn(inst.idx)
+        },
         // copy
         |copyIdx|{
             //print_sii("Copying triangle with <id1> (that's number <id2>)", copyIdx as int, curIdx as int);

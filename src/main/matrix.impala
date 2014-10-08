@@ -16,7 +16,7 @@ fn matrix0() -> Matrix
              float4(0.0f, 0.0f, 0.0f, 1.0f))
 }
 
-fn matrix_scalingv(v : Vec) -> Matrix
+fn matrixScaling(v : Vec) -> Matrix
 {
     @matrix4(@float4(v.x,  0.0f, 0.0f, 0.0f),
              @float4(0.0f, v.y,  0.0f, 0.0f),

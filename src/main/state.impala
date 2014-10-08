@@ -8,17 +8,28 @@ struct State
     scene : RTScene,
 
     // Pointers for specific parts of the tracer
-    pixelBuffer : &u8,
-    camctrl : &u8,
+    meshIdxs: &u8, // used by interface_loc
+    pixelBuffer : &u8, // used by mapping_cpu for subsampling
+    camctrl : &u8, // used by camcontrol
 }
 
 fn stateInit() -> &State
 {
     let mut state = ~[1:State] as &State;
     state.time = 0.0f;
+    state.meshIdxs = 0 as &u8;
     state.pixelBuffer = 0 as &u8;
     state.camctrl = 0 as &u8;
     state
+}
+
+fn stateFree(mut state: &State) -> ()
+{
+    sceneFree(&state.scene);
+    thorin_free(state.meshIdxs as &u8);
+    thorin_free(state.pixelBuffer as &u8);
+    thorin_free(state.camctrl as &u8);
+    thorin_free(state as &u8);
 }
 
 struct RTState

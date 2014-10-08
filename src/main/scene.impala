@@ -8,14 +8,14 @@ struct Scene
 {
     // scene geometry
     meshes: DynArray, // of Tris
-    objects: Instances,
+    // no instances here, that's done at run-time (with a fast BVH re-construction)
 
     // shading data
     shadingData: ShadingData,
 }
 fn sceneInit() -> Scene
 {
-    let mut scene = Scene{ meshes:@dynArray(Tris_SIZEOF, "Scene.meshes"), objects:@instancesInit(), shadingData:@initShadingData() };
+    let mut scene = Scene{ meshes:@dynArray(Tris_SIZEOF, "Scene.meshes"), shadingData:@initShadingData() };
 
     // add default textures and materials
     @sceneAddTextureV(&scene, @constantTexture(color1(0.0f)));
@@ -28,10 +28,12 @@ fn sceneInit() -> Scene
 struct RTScene
 {
     // scene geometry
-    bvhOuter: RTBVHTrees, // this will always be only one tree
-    objects: RTInstances,
+    // mesh data
     bvhMeshes: RTBVHTrees,
     meshes: RTTris,
+    // object data
+    bvhOuter: RTBVHTrees, // this will always be only one tree
+    objects: RTInstances,
 
     // shading data
     shadingData: RTShadingData,
@@ -47,11 +49,6 @@ fn sceneAddMeshFromFile(scene: &Scene, path: &[u8], filename: &[u8], flags: uint
     let mut tris = @trisInit();
     @trisAddFromFile(&tris, path, filename, flags, matOverride, scene);
     @sceneAddMesh(scene, &tris)
-}
-fn sceneAddObjectSimple(mut scene: &Scene, mesh: uint) -> ()
-{
-    @assert(||mesh < @dynArraySize(&scene.meshes), "sceneAddObjectSimple: No such mesh");
-    @instancesAppend(&scene.objects, mesh, @matrix0());
 }
 
 fn sceneAddTextureV(scene: &Scene, mut tex: Texture) -> uint
@@ -79,7 +76,8 @@ fn sceneAddLight(mut scene: &Scene, l: &Light) -> uint
     dynArrayAppend(&scene.shadingData.lights, l as &u8)
 }
 
-fn sceneCompile(mut scene: &Scene, mut rtScene: &RTScene) -> ()
+// compile the meshes of a scene. Must be called exactly once!
+fn sceneCompileMeshes(mut scene: &Scene, mut rtScene: &RTScene) -> ()
 {
     // build BVHs for meshes, and copy mesh data
     let mut bvhMeshes = bvhTrees();
@@ -87,22 +85,25 @@ fn sceneCompile(mut scene: &Scene, mut rtScene: &RTScene) -> ()
     for objidx in urange(0u, dynArraySize(&scene.meshes)) {
         print_si("Compiling mesh <id>", objidx as int);
         let tris = dynArrayFetch(&scene.meshes, objidx) as &Tris;
-        @bvhsAddTree(&bvhMeshes, 2u, @trisBVHInterface(tris, &meshes)); // copy triangles to the RTScene
+        @bvhsAddTree(&bvhMeshes, 0u, @trisBVHInterface(tris, &meshes)); // copy triangles to the RTScene
     }
     bvhsCompile(&bvhMeshes, &rtScene.bvhMeshes);
     trisCompile(&meshes, &rtScene.meshes);
-
-    // build BVH of objects, and copy instance data
-    let mut bvhOuter = bvhTrees();
-    @bvhsAddTree(&bvhOuter, 1u, @instsBVHInterface(&scene.objects, &rtScene.objects, |meshIdx|bvhsBound(meshIdx, &rtScene.bvhMeshes)));
-    bvhsCompile(&bvhOuter, &rtScene.bvhOuter);
-    @assert(||rtScene.bvhOuter.roots(0) == 0u, "The one and only outer tree has a weird root"); // this is a hack, but oh well... ;-)
+    @dynArrayClear(&scene.meshes);
 
     // copy shading data
     shadingDataCompile(&scene.shadingData, &rtScene.shadingData);
+}
+// compile the objects of a scene. Can be called repeatedly.
+fn sceneCompileObjects(mut rtScene: &RTScene, objects: &Instances) -> ()
+{
+    // build BVH of objects, and copy instance data
+    let mut bvhOuter = bvhTrees();
+    @bvhsAddTree(&bvhOuter, 1u, @instsBVHInterface(objects, &rtScene.objects, |meshIdx|bvhsBound(meshIdx, &rtScene.bvhMeshes)));
+    bvhsCompile(&bvhOuter, &rtScene.bvhOuter);
+    @assert(||rtScene.bvhOuter.roots(0) == 0u, "The one and only outer tree has a weird root"); // this is a hack, but oh well... ;-)
 
-    // remove cruft
-    @dynArrayClear(&scene.meshes);
+    // FIXME on the 2nd and subsequent calls, this leaks memory
 }
 
 fn sceneFree(mut scene: &RTScene) -> ()
