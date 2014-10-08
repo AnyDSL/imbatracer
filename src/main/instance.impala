@@ -1,7 +1,7 @@
 struct Instance
 {
     idx: uint, // mesh index
-    w2o: Matrix, // world to object transformation matrix
+    o2w: Matrix, // object to world transformation matrix
 }
 static Instance_SIZEOF = uint_SIZEOF + Matrix_SIZEOF;
 
@@ -14,9 +14,9 @@ fn instancesInit() -> Instances
     Instances{ insts:@dynArray(Instance_SIZEOF, "Instances.insts") }
 }
 
-fn instancesAppend(mut insts: &Instances, idx: uint, w2o: Matrix) -> ()
+fn instancesAppend(mut insts: &Instances, idx: uint, o2w: Matrix) -> ()
 {
-    let mut instance = Instance{ idx:idx, w2o: w2o };
+    let mut instance = Instance{ idx:idx, o2w: o2w };
     dynArrayAppend(&insts.insts, &instance as &u8);
 }
 
@@ -52,7 +52,7 @@ fn instsBVHInterface(mut insts: &Instances, mut rtInsts: &RTInstances, boundsFn:
             // append instance copyIdx in insts, to the list of instances in rtInsts
             let inst = @dynArrayFetch(&insts.insts, copyIdx) as &Instance;
             rtInsts.insts(curIdx).idx = inst.idx;
-            rtInsts.insts(curIdx).w2o = inst.w2o;
+            rtInsts.insts(curIdx).w2o = inst.o2w; // FIXME invert matrix
             rtInsts.insts(curIdx).swapsHandedness = false; // FIXME compute determinant
             // increment and return
             let idx = curIdx;
@@ -70,42 +70,27 @@ fn instsFree(insts: &RTInstances) -> ()
     thorin_free(insts.insts as &u8);
 }
 
-fn instanceIntersectFirst(idx: uint, mut insts: &RTInstances, ray: &Ray, maxdist: float, sisec : &ShadingIntersection, subIntersectFirst: IntersectFirstFn) -> float
+fn instanceIntersectFirst(idx: uint, mut insts: &RTInstances, theRay: &Ray, maxdist: float, mut sisec : &ShadingIntersection, subIntersectFirst: IntersectFirstFn) -> float
 {
     let inst = &insts.insts(idx);
-    @subIntersectFirst(inst.idx, ray, maxdist, sisec)
-}
-
-
-fn instanceIntersectAny(idx: uint, mut insts: &RTInstances, ray : &Ray, maxdist : float, subIntersectAny: IntersectAnyFn) -> bool
-{
-    let inst = &insts.insts(idx);
-    @subIntersectAny(inst.idx, ray, maxdist)
-}
-
-/*
-
-
-fn objIntersectFirst(objidx : uint, scene : &Scene, theRay: Ray, maxdist: float, mut sisec : &ShadingIntersection) -> float
-{
     // translate world to object
-    let io = @mpmul(scene.objs(objidx).w2o, theRay.o);
-    let idir = @mvmul(scene.objs(objidx).w2o, theRay.d);
+    let io = @mpmul(inst.w2o, theRay.o);
+    let idir = @mvmul(inst.w2o, theRay.d);
     let unitLen = @vlen(idir);
     let invUnitLen = 1.0f / unitLen;
 
-    // perform intersection with new scratch space [HACK!]
-    let iRay:Ray = @ray(io, @vfmul(idir, invUnitLen));
+    // perform intersection with new scratch space
+    let mut iRay:Ray = @ray(io, @vfmul(idir, invUnitLen));
     let iMaxDist = maxdist*unitLen;
-    let iNewDist = @bvhIntersectFirst(scene.objs(objidx).bvhRoot, scene, iRay, iMaxDist, sisec);
+    let iNewDist = subIntersectFirst(inst.idx, &iRay, iMaxDist, sisec);
     if (iNewDist >= iMaxDist) { return(maxdist) }
     let newDist = iNewDist*invUnitLen; // this is in world units
     @assert(||newDist < maxdist, "after scaling back, we're no better than the already best hit");
 
     // and translate it back
     let transformNormal = |v:Vec|->Vec{
-        let vT = @mmul_transposed3x3(scene.objs(objidx).w2o, v);
-        @normalize(if scene.objs(objidx).swapsHandedness { @vflip(v) } else { v })
+        let vT = @mmul_transposed3x3(inst.w2o, v);
+        @normalize(if inst.swapsHandedness { @vflip(v) } else { v })
     };
     sisec.surfaceNormal = @transformNormal(sisec.surfaceNormal);
     sisec.shadingNormal = @transformNormal(sisec.shadingNormal);
@@ -113,13 +98,15 @@ fn objIntersectFirst(objidx : uint, scene : &Scene, theRay: Ray, maxdist: float,
     return(newDist)
 }
 
-fn objIntersectAny(objidx : uint, scene : &Scene, theRay : Ray, maxdist : float) -> bool
+
+fn instanceIntersectAny(idx: uint, mut insts: &RTInstances, theRay : &Ray, maxdist : float, subIntersectAny: IntersectAnyFn) -> bool
 {
+    let inst = &insts.insts(idx);
     // translate world to object
-    let io = @mpmul(scene.objs(objidx).w2o, theRay.o);
-    let idir = @mvmul(scene.objs(objidx).w2o, theRay.d);
+    let io = @mpmul(inst.w2o, theRay.o);
+    let idir = @mvmul(inst.w2o, theRay.d);
     let unitLen = @vlen(idir);
-    let subRay = @ray(io, @vfdiv(idir, unitLen));
-    bvhIntersectAny(scene.objs(objidx).bvhRoot, scene, subRay, maxdist)
+    let mut iRay = @ray(io, @vfdiv(idir, unitLen));
+    let iMaxDist = maxdist*unitLen;
+    subIntersectAny(inst.idx, &iRay, iMaxDist)
 }
-*/
