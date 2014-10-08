@@ -98,16 +98,7 @@ extern fn impala_init() -> &State
     state.integrator.maxRecDepth = 6u;
 
     // initial camera placement
-    let cc = camControllerAlloc();
-    state.camctrl = cc as &u8;
-    let scale = 10.0f;
-    let time = 0.0f;
-    let pos = @point(-3.5f*scale*sinf(time), 1.2f*scale*sinf(0.2f*time), 3.7f*scale*cosf(time));
-    let at = @point0();
-    let up = @vec(0.0f, 1.0f, 0.0f);
-    let horzOpenAngle = pi / 4.0f;
-    let vertOpenAngle = pi / 3.0f;
-    state.cam = @camPerspectiveLookAt(pos, at, up, horzOpenAngle, vertOpenAngle);
+    camControllerInit(state, @point(-50.0f, 0.0f, 15.0f), @vec(0.0f, 1.0f, 0.0f), pi / 4.0f, pi / 3.0f);
 
     // initialise scene
     let mut scene = @sceneInit();

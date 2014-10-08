@@ -14,7 +14,7 @@ struct CamController
     mouseButtons : [bool*3], // left, middle, right
 }
 
-fn camControllerAlloc() -> &CamController
+fn _camControllerAlloc() -> &CamController
 {
     ~CamController
     {
@@ -30,6 +30,14 @@ fn camControllerAlloc() -> &CamController
         rollAccu:0.0f,
         mouseButtons:[false, false, false],
     }
+}
+
+fn camControllerInit(mut state: &State, origin: Point, up:Vec, horzOpenAngle: float, vertOpenAngle: float) -> ()
+{
+    let cc = _camControllerAlloc();
+    state.camctrl = cc as &u8;
+    state.cam = @camPerspectiveLookAt(origin, @point(0.0f, 0.0f, 0.0f), up, horzOpenAngle, vertOpenAngle);
+    @camControllerUpdate(cc, &state.cam, 0.0f);
 }
 
 fn camControllerKeyInput(mut cc : &CamController, key : int, down : bool) -> ()
