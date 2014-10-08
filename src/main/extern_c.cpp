@@ -28,9 +28,21 @@ extern "C"
     {
       std::cout << "Impala print: " << s << " " << x << ", " << y << std::endl;
     }
+    void print_siii(const char *s, int x, int y, int z)
+    {
+      std::cout << "Impala print: " << s << " " << x << ", " << y << ", " << z << std::endl;
+    }
+    void print_sif(const char *s, int x, float y)
+    {
+      std::cout << "Impala print: " << s << " " << x << ", " << y << std::endl;
+    }
     void print_sf(const char *s, float x)
     {
       std::cout << "Impala print: " << s << " " << x << std::endl;
+    }
+    void print_sff(const char *s, float x, float y)
+    {
+      std::cout << "Impala print: " << s << " " << x << ", " << y << std::endl;
     }
     void print_sfff(const char *s, float x, float y, float z)
     {

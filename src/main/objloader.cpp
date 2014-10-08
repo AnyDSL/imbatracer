@@ -502,7 +502,7 @@ void load_object_from_file(const char *path, const char *filename, unsigned flag
     std::cout << "ObjLoader: Loaded "
         << impala::impala_trisNumVertices(tris)-vertOffset << " verts, "
         << impala::impala_trisNumNormals(tris)-normOffset << " normals, "
-        << impala::impala_trisNumTexCoords(tris)-texCoordOffset << " texcoords "
+        << impala::impala_trisNumTexCoords(tris)-texCoordOffset << " texcoords, "
         << matlib.size() << " materials. "
         << std::endl;
 }

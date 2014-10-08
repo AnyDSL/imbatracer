@@ -1,39 +1,42 @@
 
-fn rangestep(a : int, b : int, step : int, yield : fn(int, fn()))
--> ()
+fn rangestep(a : int, b : int, step : int, yield : fn(int) -> ()) -> ()
 {
     if a < b {
-        yield(a); // TODO adding an @ here OR below makes stuff go SLOWER! ?!?
+        yield(a);
         rangestep(a+step, b, step, yield, return)
     }
 }
 
 
-fn range(a : int, b : int, yield : fn(int, fn()))
--> ()
+fn range(a : int, b : int, yield : fn(int) -> ()) -> ()
 {
     if a < b {
-        yield(a); // TODO adding an @ here OR below makes stuff go SLOWER! ?!?
+        yield(a); // TODO adding an @ here makes stuff go SLOWER! ?!?
         range(a+1, b, yield, return)
     }
 }
 
 
-fn urangestep(a : uint, b : uint, step : uint, yield : fn(uint, fn()))
--> ()
+fn urangestep(a : uint, b : uint, step : uint, yield : fn(uint) -> ()) -> ()
 {
     if a < b {
-        yield(a); // TODO adding an @ here OR below makes stuff go SLOWER! ?!?
+        yield(a);
         urangestep(a+step, b, step, yield, return)
     }
 }
 
-fn urange(a : uint, b : uint, yield : fn(uint, fn()))
--> ()
+fn urange(a : uint, b : uint, yield : fn(uint) -> ()) -> ()
 {
     if a < b {
-        yield(a); // TODO adding an @ here OR above makes stuff go SLOWER! ?!?
+        yield(a); // TODO adding an @ here makes stuff go SLOWER! ?!?
         urange(a+1u, b, yield, return)
+    }
+}
+fn urangedown(a : uint, b : uint, yield : fn(uint) -> ()) -> ()
+{
+    if a > b {
+        yield(a);
+        urangedown(a-1u, b, yield, return)
     }
 }
 
@@ -161,7 +164,7 @@ static pointer_SIZEOF = 8u;
 
 fn isDebug() -> bool
 {
-    false // || true
+    false || true
 }
 
 

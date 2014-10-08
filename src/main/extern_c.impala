@@ -10,7 +10,10 @@ extern "C"
     fn print_sptr(&[u8], &u8) -> ();
     fn print_ssi(&[u8], &[u8], int) -> ();
     fn print_sii(&[u8], int, int) -> ();
+    fn print_siii(&[u8], int, int, int) -> ();
+    fn print_sif(&[u8], int, float) -> ();
     fn print_sf(&[u8], float) -> ();
+    fn print_sff(&[u8], float, float) -> ();
     fn print_sfff(&[u8], float, float, float) -> ();
     fn assert_failed(&[u8]) -> ();
 

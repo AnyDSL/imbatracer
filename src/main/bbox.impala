@@ -39,3 +39,11 @@ fn bboxLongestAxis(bb: BBox) -> uint
 {
     @vecLongestAxis(@to(bb.cmin, bb.cmax))
 }
+
+fn bbsurface(bb: BBox) -> float
+{
+    let xlen = bb.cmax.x-bb.cmin.x;
+    let ylen = bb.cmax.y-bb.cmin.y;
+    let zlen = bb.cmax.z-bb.cmin.z;
+    2.0f*(xlen*ylen + xlen*zlen + ylen*zlen)
+}
