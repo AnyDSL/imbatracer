@@ -245,11 +245,12 @@ fn trisCreateCube(size: float, mat: uint) -> Tris
 
 
 // object loader. <materials> is a list of material indices, terminated by a noIdx-entry - or NULL
-fn trisAddFromFile(tris: &Tris, path: &[u8], filename: &[u8], flags: uint, matOverride: &[uint], scene: &Scene) -> ()
+type MatOverride = &[uint];
+fn trisAddFromFile(tris: &Tris, path: &[u8], filename: &[u8], flags: uint, matOverride: MatOverride, scene: &Scene) -> ()
 {
     load_object_from_file(path, filename, flags, matOverride, scene, tris);
 }
-fn trisCreateFromFile(path: &[u8], filename: &[u8], flags: uint, matOverride: &[uint], scene: &Scene) -> Tris
+fn trisCreateFromFile(path: &[u8], filename: &[u8], flags: uint, matOverride: MatOverride, scene: &Scene) -> Tris
 {
     let mut tris = trisInit();
     @trisAddFromFile(&tris, path, filename, flags, matOverride, scene);

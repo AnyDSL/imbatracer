@@ -134,7 +134,7 @@ extern fn impala_init() -> &State
 
     // and a teapot
     let mut matOverrides = [turbmatID, steelmirrormatID, noIdx];
-    let teapotIdx = sceneAddMeshFromFile(&scene, "models/", "teapot.obj", /*Flags*/0u, /*Materials*/&matOverrides);
+    let teapotIdx = sceneAddMeshFromFileO(&scene, "models/", "teapot.obj", /*Flags*/0u, /*Materials*/&matOverrides);
 
     // store mesh indices
     state.meshIdxs = ~MeshIdxs{ cube:cubeIdx, teapot:teapotIdx } as &u8;
@@ -165,11 +165,13 @@ extern fn impala_update(mut state : &State, dt : float) -> ()
     // compose scene with the scaling we want
     let meshIdxs = state.meshIdxs as &MeshIdxs;
     let mut objects = instancesInit();
-    instancesAppend(&objects, meshIdxs.cube, @matrix0());
-    let potScale = 2.f;//(fabsf(sinf(0.8f*time))/2.0f+0.5f);
+    instancesAppendI(&objects, meshIdxs.cube);
+    let potScale = 1.0f/(fabsf(sinf(0.8f*time))/2.0f+0.5f);
     let potSccaleM = @matrixScaling(@vec(potScale, 1.0f, 1.2f*potScale));
     instancesAppend(&objects, meshIdxs.teapot, potSccaleM);
     instancesAppend(&objects, meshIdxs.teapot, @matrixTranslation(@vec(10.0f, 15.0f, 20.0f)));
+    instancesAppend(&objects, meshIdxs.teapot, @matrixTranslation(@vec(20.0f, 15.0f, 20.0f)));
+    instancesAppend(&objects, meshIdxs.teapot, @matrixTranslation(@vec(40.0f, 15.0f, 20.0f)));
     sceneCompileObjects(&state.scene, &objects);
 
     // update camera
@@ -179,19 +181,25 @@ extern fn impala_update(mut state : &State, dt : float) -> ()
 
 extern fn impala_init_bench1() -> &State
 {
-    let mut state = ~[1:State] as &State;
+    let mut state = stateInit();
     state.integrator.itype = 0;
+    let mut scene = @sceneInit();
 
-    /*scene_add_file(state, 3, /*IgnoreTexCoord | IgnoreNormals | IgnoreMatLibs* /7);
-    scene_build(state);
+    // build scene
+    let revIdx = sceneAddMeshFromFile(&scene, "models/", "revision.obj", /*Flags: IgnoreTexCoord | IgnoreNormals | IgnoreMatLibs*/7u);
+    sceneCompileMeshes(&scene, &state.scene);
+    let mut objects = instancesInit();
+    instancesAppendI(&objects, revIdx);
+    sceneCompileObjects(&state.scene, &objects);
 
+    // init camera
     let scale = 40.0f;
     let pos = @point(-3.5f*scale, 1.2f*scale, 3.7f*scale);
     let at = @point0();
     let up = @vec(0.0f, 1.0f, 0.0f);
     let horzOpenAngle = pi / 4.0f;
     let vertOpenAngle = pi / 3.0f;
-    state.cam = @camPerspectiveLookAt(pos, at, up, horzOpenAngle, vertOpenAngle);*/
+    state.cam = @camPerspectiveLookAt(pos, at, up, horzOpenAngle, vertOpenAngle);
 
     return(state)
 }
@@ -200,19 +208,22 @@ extern fn impala_init_bench2() -> &State
 {
     let mut state = ~[1:State] as &State;
     state.integrator.itype = 1;
-
-    //scene_add_file(state, 2, 0);
-    //scene_build(state);
+    let mut scene = @sceneInit();
 
     // add point lights
-    /*let mut lights = ~[3:Light];
     let intens = 4.1f;
-    lights(0) = @pointLight(point0(), color(intens*500.0f, intens*500.0f, intens*500.0f));
-    lights(1) = @pointLight(point0(), color(intens*100.0f, intens*100.0f, intens*100.0f));
-    lights(2) = @pointLight(point0(), color(intens*300.0f, intens*300.0f, intens*300.0f));
-    state.scene.nLights = 3u;
-    state.scene.lights = lights;
+    sceneAddLightV(&scene, @pointLight(point0(), color(intens*500.0f, intens*500.0f, intens*500.0f)));
+    sceneAddLightV(&scene, @pointLight(point0(), color(intens*100.0f, intens*100.0f, intens*100.0f)));
+    sceneAddLightV(&scene, @pointLight(point0(), color(intens*300.0f, intens*300.0f, intens*300.0f)));
 
+    // build scene
+    let teapotIdx = sceneAddMeshFromFile(&scene, "models/", "teapot.obj", /*Flags*/0u);
+    sceneCompileMeshes(&scene, &state.scene);
+    let mut objects = instancesInit();
+    instancesAppendI(&objects, teapotIdx);
+    sceneCompileObjects(&state.scene, &objects);
+
+    // init camera
     let time = 44.05f;
     let scale = 8.0f;
     let pos = @point(-3.5f*scale*sinf(time), 1.2f*scale*sinf(0.2f*time), 3.7f*scale*cosf(time));
@@ -223,9 +234,9 @@ extern fn impala_init_bench2() -> &State
     state.cam = @camPerspectiveLookAt(pos, at, up, horzOpenAngle, vertOpenAngle);
 
     // put light right where the cam was shortly ago, and on the other side
-    state.scene.lights(0).pos = @point(-3.5f*scale*sinf(time-0.5f), +1.2f*scale*sinf(0.2f*time-0.5f), +3.7f*scale*cosf(time-0.5f));
-    state.scene.lights(1).pos = @point(-3.5f*scale*sinf(time+0.5f), +1.9f*scale*sinf(0.2f*time+0.5f), +3.7f*scale*cosf(time+0.5f));
-    state.scene.lights(2).pos = @point(-3.5f*scale*sinf(time+0.5f+pi), +2.2f*scale*sinf(0.2f*time+0.5f+pi), +3.7f*scale*cosf(time+0.5f+pi));*/
+    state.scene.shadingData.lights(0).pos = @point(-3.5f*scale*sinf(time-0.5f), +1.2f*scale*sinf(0.2f*time-0.5f), +3.7f*scale*cosf(time-0.5f));
+    state.scene.shadingData.lights(1).pos = @point(-3.5f*scale*sinf(time+0.5f), +1.9f*scale*sinf(0.2f*time+0.5f), +3.7f*scale*cosf(time+0.5f));
+    state.scene.shadingData.lights(2).pos = @point(-3.5f*scale*sinf(time+0.5f+pi), +2.2f*scale*sinf(0.2f*time+0.5f+pi), +3.7f*scale*cosf(time+0.5f+pi));
 
     return(state)
 }

@@ -19,6 +19,10 @@ fn instancesAppend(mut insts: &Instances, idx: uint, o2w: Matrix) -> ()
     let mut instance = Instance{ idx:idx, o2w: o2w };
     dynArrayAppend(&insts.insts, &instance as &u8);
 }
+fn instancesAppendI(insts: &Instances, idx: uint) -> ()
+{
+    @instancesAppend(insts, idx, @matrix0())
+}
 
 struct RTInstance
 {

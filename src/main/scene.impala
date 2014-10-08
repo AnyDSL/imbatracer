@@ -45,7 +45,11 @@ fn sceneAddMesh(mut scene: &Scene, tris: &Tris) -> uint
 {
     dynArrayAppend(&scene.meshes, tris as &u8)
 }
-fn sceneAddMeshFromFile(scene: &Scene, path: &[u8], filename: &[u8], flags: uint, matOverride: &[uint]) -> uint
+fn sceneAddMeshFromFile(scene: &Scene, path: &[u8], filename: &[u8], flags: uint) -> uint
+{
+    @sceneAddMeshFromFileO(scene, path, filename, flags, 0 as MatOverride)
+}
+fn sceneAddMeshFromFileO(scene: &Scene, path: &[u8], filename: &[u8], flags: uint, matOverride: MatOverride) -> uint
 {
     let mut tris = @trisInit();
     @trisAddFromFile(&tris, path, filename, flags, matOverride, scene);
