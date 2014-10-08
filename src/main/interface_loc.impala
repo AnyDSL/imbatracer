@@ -206,7 +206,7 @@ extern fn impala_init_bench1() -> &State
 
 extern fn impala_init_bench2() -> &State
 {
-    let mut state = ~[1:State] as &State;
+    let mut state = stateInit();
     state.integrator.itype = 1;
     let mut scene = @sceneInit();
 
