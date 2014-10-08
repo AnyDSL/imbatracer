@@ -12,6 +12,7 @@ extern "C"
     fn print_sii(&[u8], int, int) -> ();
     fn print_sf(&[u8], float) -> ();
     fn print_sfff(&[u8], float, float, float) -> ();
+    fn print_sffff(&[u8], float, float, float, float) -> ();
     fn assert_failed(&[u8]) -> ();
 
     // object loader
@@ -36,3 +37,17 @@ fn print_sc(s : &[u8], c : Color) -> ()
 {
     print_sfff(s, c.r, c.g, c.b);
 }
+
+fn print_f4(s : &[u8], f : Float4) -> ()
+{
+    print_sffff(s, f.x, f.y, f.z, f.w)
+}
+
+fn print_matrix(s : &[u8], m : Matrix) -> ()
+{
+    print_f4(s, m.rows(0));
+    print_f4(s, m.rows(1));
+    print_f4(s, m.rows(2));
+    print_f4(s, m.rows(3));
+}
+

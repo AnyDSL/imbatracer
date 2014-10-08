@@ -51,7 +51,7 @@ fn sceneAddMeshFromFile(scene: &Scene, path: &[u8], filename: &[u8], flags: uint
 fn sceneAddObjectSimple(mut scene: &Scene, mesh: uint) -> ()
 {
     @assert(||mesh < @dynArraySize(&scene.meshes), "sceneAddObjectSimple: No such mesh");
-    @instancesAppend(&scene.objects, mesh, @matrix0());
+    @instancesAppend(&scene.objects, mesh, @matrixI());
 }
 
 fn sceneAddTextureV(scene: &Scene, mut tex: Texture) -> uint
