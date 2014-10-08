@@ -91,11 +91,11 @@ extern fn impala_init() -> &State
     let mut state = stateInit();
 
     // initialise integrator
-    state.integrator.itype = 0; //4:debug, 2:recraytrace, 1:raytrace, 0:cosine
+    state.integrator.itype = 2; //4:debug, 2:recraytrace, 1:raytrace, 0:cosine
     state.integrator.mode = 1;
     state.integrator.minDist = 0.0f;
     state.integrator.maxDist = 1.0f;
-    state.integrator.maxRecDepth = 6u;
+    state.integrator.maxRecDepth = 3u;
 
     // initial camera placement
     camControllerInit(state, @point(-50.0f, 0.0f, 15.0f), @vec(0.0f, 1.0f, 0.0f), pi / 4.0f, pi / 3.0f);
@@ -169,9 +169,8 @@ extern fn impala_update(mut state : &State, dt : float) -> ()
     let potScale = 1.0f/(fabsf(sinf(0.8f*time))/2.0f+0.5f);
     let potSccaleM = @matrixScaling(@vec(potScale, 1.0f, 1.2f*potScale));
     instancesAppend(&objects, meshIdxs.teapot, potSccaleM);
-    instancesAppend(&objects, meshIdxs.teapot, @matrixTranslation(@vec(10.0f, 15.0f, 20.0f)));
-    instancesAppend(&objects, meshIdxs.teapot, @matrixTranslation(@vec(20.0f, 15.0f, 20.0f)));
-    instancesAppend(&objects, meshIdxs.teapot, @matrixTranslation(@vec(40.0f, 15.0f, 20.0f)));
+    instancesAppend(&objects, meshIdxs.teapot, @matrixTranslation(@vec(10.0f, 10.0f, -30.0f)));
+    instancesAppend(&objects, meshIdxs.teapot, @matrixTranslation(@vec(40.0f, 15.0f*sinf(0.2f*time), 20.0f)));
     sceneCompileObjects(&state.scene, &objects);
 
     // update camera
