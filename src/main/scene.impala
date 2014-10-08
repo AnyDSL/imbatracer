@@ -87,14 +87,14 @@ fn sceneCompile(mut scene: &Scene, mut rtScene: &RTScene) -> ()
     for objidx in urange(0u, dynArraySize(&scene.meshes)) {
         print_si("Compiling mesh <id>", objidx as int);
         let tris = dynArrayFetch(&scene.meshes, objidx) as &Tris;
-        @bvhsAddTree(&bvhMeshes, @trisBVHInterface(tris, &meshes)); // copy triangles to the RTScene
+        @bvhsAddTree(&bvhMeshes, 2u, @trisBVHInterface(tris, &meshes)); // copy triangles to the RTScene
     }
     bvhsCompile(&bvhMeshes, &rtScene.bvhMeshes);
     trisCompile(&meshes, &rtScene.meshes);
 
     // build BVH of objects, and copy instance data
     let mut bvhOuter = bvhTrees();
-    @bvhsAddTree(&bvhOuter, @instsBVHInterface(&scene.objects, &rtScene.objects, |meshIdx|bvhsBound(meshIdx, &rtScene.bvhMeshes)));
+    @bvhsAddTree(&bvhOuter, 1u, @instsBVHInterface(&scene.objects, &rtScene.objects, |meshIdx|bvhsBound(meshIdx, &rtScene.bvhMeshes)));
     bvhsCompile(&bvhOuter, &rtScene.bvhOuter);
     @assert(||rtScene.bvhOuter.roots(0) == 0u, "The one and only outer tree has a weird root"); // this is a hack, but oh well... ;-)
 

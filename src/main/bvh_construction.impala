@@ -43,6 +43,16 @@ struct NodeSplitInformation
     bestCost: float,
 }
 
+struct BVHConstructionData
+{
+    // collect run-time data for BVH construction (to reduce the amount of stuff we pass around as argument)
+    primData: &[PrimData],
+    bvhNodes: &DynArray,
+    splitHeuristic: uint,
+    primFinalizeOffset: uint,
+    primFinalizeOrder: &DynArray,
+}
+
 // BVH copying functions
 fn bvhsCompile(mut bvhs: &BVHTrees, mut rtBvhs: &RTBVHTrees) -> ()
 {
@@ -51,7 +61,8 @@ fn bvhsCompile(mut bvhs: &BVHTrees, mut rtBvhs: &RTBVHTrees) -> ()
 }
 
 // construct a BVH tree, adding the nodes to the vbHnodes array. Returns the index of the root.
-fn bvhsAddTree(mut trees: &BVHTrees, primBVHInterface: (primInitFn, primBoundsFn, primCopyFn, primFinishFn)) -> ()
+// split heuristic can be: 0 = equal split on longest axis, 1 = SAH on longest axis, 2 = SAH on all axes
+fn bvhsAddTree(mut trees: &BVHTrees, splitHeuristic: uint, primBVHInterface: (primInitFn, primBoundsFn, primCopyFn, primFinishFn)) -> ()
 {
     // prepare object copy
     let initRet = @primBVHInterface(0)();
@@ -75,8 +86,9 @@ fn bvhsAddTree(mut trees: &BVHTrees, primBVHInterface: (primInitFn, primBoundsFn
     }
 
     let oldSize = @dynArraySize(&trees.nodes);
-    let root = $buildBvhNode(allPrims, nPrims, totalBounds, 0u, primData, leftPrims, rightPrims,
-                             &trees.nodes, targetBase, &primFinalizeOrder);
+    let mut constrData = BVHConstructionData{ primData:primData, splitHeuristic:splitHeuristic, bvhNodes:&trees.nodes,
+                                              primFinalizeOffset:targetBase, primFinalizeOrder:&primFinalizeOrder };
+    let root = $buildBvhNode(allPrims, nPrims, totalBounds, 0u, leftPrims, rightPrims, &constrData);
     @assert(||oldSize == root, "bvhsAddTree: Someone put the root at the wrong place, and it wasn't me...");
 
     // do the primitive finalisation
@@ -104,8 +116,8 @@ fn bvhsAddTree(mut trees: &BVHTrees, primBVHInterface: (primInitFn, primBoundsFn
  * Put primitives into triBuf (starting at offset triBufOff), and the flattened nodes into nodeBuf.
  * Return the index of the root (in nodeBuf).
  */
-fn buildBvhNode(prims: &[uint], nPrims: uint, totalBounds: BBox, depth: uint, primData: &[PrimData], mut leftPrims: &[uint], mut rightPrims: &[uint],
-        bvhNodes: &DynArray, primFinalizeOffset: uint, primFinalizeOrder: &DynArray) -> uint
+fn buildBvhNode(prims: &[uint], nPrims: uint, totalBounds: BBox, depth: uint, mut leftPrims: &[uint], mut rightPrims: &[uint],
+                constrData: &BVHConstructionData) -> uint
 {
     let mut node:BVHNode;
     node.bbox = totalBounds;
@@ -113,46 +125,44 @@ fn buildBvhNode(prims: &[uint], nPrims: uint, totalBounds: BBox, depth: uint, pr
     // split
     let mut splitInfo = NodeSplitInformation{ left:leftPrims, right:rightPrims, leftBBox:@bboxEmpty(), rightBBox:@bboxEmpty(), bestAxis: -1,
             nLeft: 0u, bestCost: 0.0f };
-    bvhDecideSplit(prims, nPrims, totalBounds, depth, primData, &splitInfo);
+    bvhDecideSplit(prims, nPrims, totalBounds, depth, constrData, &splitInfo);
 
     // did we get a leaf?
     if (splitInfo.bestAxis < 0) {
         // create a leaf
         node.nPrims = nPrims as u16;
         for primIdxIdx in urange(0u, nPrims) {
-            let primFinalIdx = dynArrayAppendUint(primFinalizeOrder, prims(primIdxIdx)) + primFinalizeOffset;
+            let primFinalIdx = dynArrayAppendUint(constrData.primFinalizeOrder, prims(primIdxIdx)) + constrData.primFinalizeOffset;
             if primIdxIdx == 0u {
                 // store the final index of the first primitive
                 node.sndChildFirstPrim = primFinalIdx;
             }
         }
-        return(dynArrayAppend(bvhNodes, &node as &u8))
+        return(dynArrayAppend(constrData.bvhNodes, &node as &u8))
     }
 
     // Create an inner node
     // node.secondChild is not yet known, will be fixed up below
     node.axis = splitInfo.bestAxis as u16;
     node.nPrims = 0u16;
-    let nodeIdx = dynArrayAppend(bvhNodes, &node as &u8);
+    let nodeIdx = dynArrayAppend(constrData.bvhNodes, &node as &u8);
 
     // Process child nodes recursively, using space further down in our arrays (after the space in leftPrims, rightPrims that we needed)
     assert(||splitInfo.nLeft <= nPrims, "buildBvhNode: Keeping too many primitives");
-    let firstChild =  $buildBvhNode(leftPrims , splitInfo.nLeft       , splitInfo.leftBBox , depth+1u, primData,
-                                    &leftPrims(nPrims) as &[u32], &rightPrims(nPrims) as &[u32],
-                                    bvhNodes, primFinalizeOffset, primFinalizeOrder);
-    let secondChild = $buildBvhNode(rightPrims, nPrims-splitInfo.nLeft, splitInfo.rightBBox, depth+1u, primData,
-                                    &leftPrims(nPrims) as &[u32], &rightPrims(nPrims) as &[u32],
-                                    bvhNodes, primFinalizeOffset, primFinalizeOrder);
+    let firstChild =  $buildBvhNode(leftPrims , splitInfo.nLeft       , splitInfo.leftBBox , depth+1u,
+                                    &leftPrims(nPrims) as &[u32], &rightPrims(nPrims) as &[u32], constrData);
+    let secondChild = $buildBvhNode(rightPrims, nPrims-splitInfo.nLeft, splitInfo.rightBBox, depth+1u,
+                                    &leftPrims(nPrims) as &[u32], &rightPrims(nPrims) as &[u32], constrData);
 
     // Make sure the children's order in the vector is as expected
     @assert(||firstChild == nodeIdx+1u, "Left child doesn't come right after me");
 
     // Now that the second child's index in the vector is known, fix it and be done
-    let mut nodePtr = dynArrayFetch(bvhNodes, nodeIdx) as &BVHNode; nodePtr.sndChildFirstPrim = secondChild;
+    let mut nodePtr = dynArrayFetch(constrData.bvhNodes, nodeIdx) as &BVHNode; nodePtr.sndChildFirstPrim = secondChild;
     return(nodeIdx)
 }
 
-fn bvhDecideSplit(prims: &[uint], nPrims: uint, totalBounds: BBox, depth: uint, primData: &[PrimData], mut splitInfo: &NodeSplitInformation) -> ()
+fn bvhDecideSplit(prims: &[uint], nPrims: uint, totalBounds: BBox, depth: uint, constrData: &BVHConstructionData, mut splitInfo: &NodeSplitInformation) -> ()
 {
     @assert(||splitInfo.bestAxis < 0, "bvhDecideSplit: Got incorrectly initialized stuff");
     // termination criterion
@@ -163,19 +173,19 @@ fn bvhDecideSplit(prims: &[uint], nPrims: uint, totalBounds: BBox, depth: uint, 
 
     let longestAxis = @bboxLongestAxis(totalBounds);
     // sort objects by centroid, along longest axis
-    sort(prims, nPrims, |prim1, prim2|@pointAxis(primData(prim1).centroid, longestAxis) < @pointAxis(primData(prim2).centroid, longestAxis));
+    sort(prims, nPrims, |prim1, prim2|@pointAxis(constrData.primData(prim1).centroid, longestAxis) < @pointAxis(constrData.primData(prim2).centroid, longestAxis));
 
     // put first half left, second half right
     splitInfo.bestAxis = longestAxis as int;
     splitInfo.nLeft = nPrims/2u;
     for i in urange(0u, splitInfo.nLeft) {
         let primIdx = prims(i);
-        splitInfo.leftBBox = bbextendb(splitInfo.leftBBox, primData(primIdx).bounds);
+        splitInfo.leftBBox = bbextendb(splitInfo.leftBBox, constrData.primData(primIdx).bounds);
         splitInfo.left(i) = primIdx;
     }
     for i in urange(0u, nPrims-splitInfo.nLeft) {
         let primIdx = prims(splitInfo.nLeft+i);
-        splitInfo.rightBBox = bbextendb(splitInfo.rightBBox, primData(primIdx).bounds);
+        splitInfo.rightBBox = bbextendb(splitInfo.rightBBox, constrData.primData(primIdx).bounds);
         splitInfo.right(i) = primIdx;
     }
 
