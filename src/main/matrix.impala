@@ -16,7 +16,6 @@ fn matrixZero() -> Matrix
              @float4(0.0f, 0.0f, 0.0f, 0.0f))
 }
 
-
 fn matrixI() -> Matrix
 {
     @matrix4(@float4(1.0f, 0.0f, 0.0f, 0.0f),

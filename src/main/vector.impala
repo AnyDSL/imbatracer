@@ -52,12 +52,6 @@ fn vec_f4(f : Float4) -> Vec
     vec(f.x, f.y, f.z)
 }
 
-fn vecAt(v : Vec, i : int) -> float
-{
-    if      i == 0 { v.x }
-    else if i == 1 { v.y }
-    else           { v.z }
-}
 fn vecLongestAxis(v: Vec) -> uint
 {
     if v.x > v.y {
