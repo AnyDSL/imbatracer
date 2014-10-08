@@ -90,7 +90,7 @@ fn sceneCompileMeshes(mut scene: &Scene, mut rtScene: &RTScene) -> ()
     for objidx in urange(0u, dynArraySize(&scene.meshes)) {
         print_si("Compiling mesh <id>", objidx as int);
         let tris = dynArrayFetch(&scene.meshes, objidx) as &Tris;
-        @bvhsAddTree(&bvhMeshes, 0u, @trisBVHInterface(tris, &meshes)); // copy triangles to the RTScene
+        @bvhsAddTree(&bvhMeshes, 2u, @trisBVHInterface(tris, &meshes)); // copy triangles to the RTScene
     }
     bvhsCompile(&bvhMeshes, &rtScene.bvhMeshes);
     trisCompile(&meshes, &rtScene.meshes);
