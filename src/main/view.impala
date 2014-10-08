@@ -8,6 +8,7 @@ struct View
     rightFactor : float,
     upFactor : float
 }
+static View_SIZEOF = Point_SIZEOF + 4u*Vec_SIZEOF + 2u*float_SIZEOF;
 
 fn viewEx(origin : Point, forward : Vec, up : Vec, upFactor : float, rightFactor : float) -> View
 {

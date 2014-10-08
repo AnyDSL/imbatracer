@@ -19,6 +19,6 @@ fn renderImage(mut buf : &[u32], width : int, height : int, measureTime : bool, 
         let sx =  (nx - 0.5f) * 2.0f;
         let sy = -(ny - 0.5f) * 2.0f;
         // render!
-        body(sx, sy, rtstate) // TODO adding @ in front of the body makes compilation take... eh, long^^
+        @body(sx, sy, rtstate)
     }
 }

@@ -6,6 +6,7 @@ struct Cam
     param2 : float,
     camtype : int
 }
+static Cam_SIZEOF = View_SIZEOF + 2u*float_SIZEOF + int_SIZEOF;
 
 fn camPerspectiveLookAt(center : Point, at : Point, up : Vec, verticalOpeningAngle : float, horizonalOpeningAngle : float) -> Cam
 {

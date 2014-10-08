@@ -9,6 +9,7 @@ struct Integrator
     itype : int,
     maxRecDepth : uint,
 }
+static Integrator_SIZEOF = 5u*int_SIZEOF;
 
 struct ShadingData
 {
@@ -31,6 +32,7 @@ struct RTShadingData
     lights: &[Light],
     nLights : uint,
 }
+static RTShadingData_SIZEOF = 4u*pointer_SIZEOF; // this includes padding that I think will be there...
 
 fn shadingDataCompile(mut shadingData: &ShadingData, mut rtShadingData: &RTShadingData) -> ()
 {

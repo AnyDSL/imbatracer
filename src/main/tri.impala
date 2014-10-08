@@ -45,6 +45,7 @@ struct RTTris
     texCoords: &[TexCoord],
     triData : &[uint], // 7 successive indices belong to one triangle: 3 normals, 3 texcoors, 1 material; same order of triangles as in triVerts
 }
+static RTTris_SIZEOF = 5u*pointer_SIZEOF;
 // copy stuff for the BVH.
 fn trisBVHInterface(mut tris: &Tris, mut targetTris: &Tris) -> (primInitFn, primBoundsFn, primCopyFn, primFinishFn)
 {

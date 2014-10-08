@@ -13,6 +13,7 @@ struct RTBVHTrees
     roots: &[u32],
     nodes: &[BVHNode],
 }
+static RTBVHTrees_SIZEOF = 2u*pointer_SIZEOF;
 
 fn bvhsFree(bvhs: &RTBVHTrees) -> ()
 {

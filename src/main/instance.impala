@@ -30,6 +30,7 @@ struct RTInstances
 {
     insts: &[RTInstance],
 }
+static RTInstances_SIZEOF = pointer_SIZEOF;
 // copy instances into a BVH. This expects the rtInsts to be unitialised.
 fn instsBVHInterface(mut insts: &Instances, mut rtInsts: &RTInstances, boundsFn: primBoundsFn) -> (primInitFn, primBoundsFn, primCopyFn, primFinishFn)
 {

@@ -38,6 +38,7 @@ struct RTScene
     // shading data
     shadingData: RTShadingData,
 }
+static RTScene_SIZEOF = RTBVHTrees_SIZEOF + RTTris_SIZEOF + RTBVHTrees_SIZEOF + RTInstances_SIZEOF + RTShadingData_SIZEOF;
 
 /* Static Scene API: Add stuff, and compile it */
 fn sceneAddMesh(mut scene: &Scene, tris: &Tris) -> uint
@@ -97,13 +98,15 @@ fn sceneCompileMeshes(mut scene: &Scene, mut rtScene: &RTScene) -> ()
 // compile the objects of a scene. Can be called repeatedly.
 fn sceneCompileObjects(mut rtScene: &RTScene, objects: &Instances) -> ()
 {
+    // free old stuff
+    bvhsFree(&rtScene.bvhOuter);
+    instsFree(&rtScene.objects);
+
     // build BVH of objects, and copy instance data
     let mut bvhOuter = bvhTrees();
     @bvhsAddTree(&bvhOuter, 1u, @instsBVHInterface(objects, &rtScene.objects, |meshIdx|bvhsBound(meshIdx, &rtScene.bvhMeshes)));
     bvhsCompile(&bvhOuter, &rtScene.bvhOuter);
     @assert(||rtScene.bvhOuter.roots(0) == 0u, "The one and only outer tree has a weird root"); // this is a hack, but oh well... ;-)
-
-    // FIXME on the 2nd and subsequent calls, this leaks memory
 }
 
 fn sceneFree(mut scene: &RTScene) -> ()

@@ -12,15 +12,18 @@ struct State
     pixelBuffer : &u8, // used by mapping_cpu for subsampling
     camctrl : &u8, // used by camcontrol
 }
+static State_SIZEOF = float_SIZEOF + Cam_SIZEOF + Integrator_SIZEOF + RTScene_SIZEOF + 3u*pointer_SIZEOF;
 
 fn stateInit() -> &State
 {
     let mut state = ~[1:State] as &State;
-    state.time = 0.0f;
-    state.meshIdxs = 0 as &u8;
-    state.pixelBuffer = 0 as &u8;
-    state.camctrl = 0 as &u8;
-    state
+    // set it all to zero, and check that this worked
+    print_si("It seems that states have size",State_SIZEOF as int);
+    @assert(||State_SIZEOF % pointer_SIZEOF == 0u, "State_SIZEOF is not pointer-aligned");
+    state.camctrl = state as &u8;
+    memset(state as &u8, 0, State_SIZEOF as size_t);
+    @assert(||state.camctrl == (0 as &u8), "State_SIZEOF is wrong!");
+    return(state)
 }
 
 fn stateFree(mut state: &State) -> ()
