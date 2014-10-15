@@ -4,7 +4,7 @@ struct Integrator
     // for debugger
     minDist : float,
     maxDist : float,
-    mode : int,
+    mode : int, //4:debug, 2:recraytrace, 1:raytrace, 0:cosine
 
     itype : int,
     maxRecDepth : uint,
@@ -207,6 +207,6 @@ fn runIntegratorRec(ty : int, integr : &Integrator, scene : &RTScene, mut ray : 
 
 fn runIntegrator(integr : &Integrator, scene : &RTScene, ray : Ray) -> Color
 {
-    $runIntegratorRec(integr.itype, integr, scene, ray, integr.maxRecDepth) // HACK: allow 3 recursions, but don't specialize
+    $runIntegratorRec(integr.itype, integr, scene, ray, integr.maxRecDepth)
 }
 

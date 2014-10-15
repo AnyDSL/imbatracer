@@ -108,10 +108,11 @@ fn instanceIntersectFirst(idx: uint, mut insts: &RTInstances, theRay: &Ray, maxd
     @assert(||newDist < maxdist, "after scaling back, we're no better than the already best hit");
 
     // and translate it back
-    let transformNormal = |v:Vec|->Vec{
+    fn transformNormal(v: Vec)->Vec
+    {
         let vT = @mmul_transposed3x3(inst.w2o, v);
         @normalize(if inst.swapsHandedness { @vflip(v) } else { v })
-    };
+    }
     sisec.surfaceNormal = @transformNormal(sisec.surfaceNormal);
     sisec.shadingNormal = @transformNormal(sisec.shadingNormal);
     sisec.eps = sisec.eps*@max(unitLen, invUnitLen);
