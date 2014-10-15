@@ -135,16 +135,21 @@ fn recraytraceRadiance(theRay: Ray, dist:float, sisec: &ShadingIntersection, mut
 
     if sampling != SAMPLING_NOT_NEEDED && recRemain > 0u
     {
-        let sr = evalMaterialSampleReflectance(mat, local, sisec.shadingNormal, outDir);
-        if cAny(sr.reflectance, isstrictpos)
+        let sampleId = 0u;
+        for sampleId in urange(0u, mat.nSamples)
         {
-            let startPos:Point = @pvadd(hitP, vfmul(sr.direction, sisec.eps));
-            let recray = @ray(startPos, sr.direction);
-            // partial specialize for rec raytrace so we get rid of the branching in getRadianceForHit()
-            let rc = $runIntegratorRec(2, integr, scene, recray, recRemain-1u); // TODO: enable PE again
-            @assert(||{!cAny(sr.reflectance, isneg)}, "light stolen!");
-            c = @ccadd(c, @ccmul(rc, sr.reflectance));
+            let sr = evalMaterialSampleReflectance(mat, local, sisec.shadingNormal, outDir, sampleId);
+            if cAny(sr.reflectance, isstrictpos)
+            {
+                let startPos:Point = @pvadd(hitP, vfmul(sr.direction, sisec.eps));
+                let recray = @ray(startPos, sr.direction);
+                // partial specialize for rec raytrace so we get rid of the branching in getRadianceForHit()
+                let rc = $runIntegratorRec(2, integr, scene, recray, recRemain-1u); // TODO: enable PE again
+                @assert(||{!cAny(sr.reflectance, isneg)}, "light stolen!");
+                c = @ccadd(c, @ccmul(rc, sr.reflectance));
+            }
         }
+        c = cmul(c, 1.0f / (mat.nSamples as int as float));
     }
     if sampling != SAMPLING_ALL
     {

@@ -18,10 +18,13 @@ struct Material
     emissive : uint,
     // mirror
     sampling : Sampling, // FIXME can't this be determined based on the other parameters?
-    eta :float,
+    eta :float, // used by mirror, glass
     etaSqrKappaSqr : float,
+    nSamples : uint,
+    // glass
+    refract : bool,
 }
-static Material_SIZEOF = 7u*uint_SIZEOF;
+static Material_SIZEOF = 8u*uint_SIZEOF + 1u*uint_SIZEOF; // still 4 bytes of padding for the bool
 
 struct SampleReflectance
 {
@@ -40,6 +43,8 @@ fn dummyMaterial() -> Material
         eta:0.0f,
         etaSqrKappaSqr:0.0f,
         sampling:SAMPLING_NOT_NEEDED,
+        nSamples:1u,
+        refract:false,
     }
 }
 
@@ -53,6 +58,23 @@ fn mirrorMaterial(eta : float, kappa : float) -> Material
         eta:eta,
         etaSqrKappaSqr:(eta*eta + kappa*kappa),
         sampling:SAMPLING_ALL,
+        nSamples:1u,
+        refract:false,
+    }
+}
+
+fn glassMaterial(eta : float) -> Material
+{
+    Material {
+        diffuse:1u,
+        specular:0u,
+        specExp:-1.0f,
+        emissive:0u,
+        eta:eta,
+        etaSqrKappaSqr:(eta*eta),
+        sampling:SAMPLING_ALL,
+        nSamples:2u,
+        refract:true,
     }
 }
 
@@ -87,7 +109,26 @@ fn phongFactor(normal:Vec, outDir:Vec, inDir:Vec, exponent:float) -> float
     let cosReflIn = @dot(inDir, mirroredOut);
     if (cosReflIn <= 0.0f) { return(0.0f) }
     // use this to compute the final factor applied to the texture
-    powf(cosReflIn, exponent)*(exponent+2.0f)/(2.0f*pi) // TODO don't compute normalisation factor all the time
+    (1.0f / (2.0f * pi)) * (powf(cosReflIn, exponent)*(exponent+2.0f))
+}
+
+fn glassRefract(inDir : Vec, cosIn : float, normal : Vec, etaFromByEtaTo : float) -> (Vec, float, bool)
+{
+    assert(||cosIn > 0.0f && almost(dot(inDir, normal), cosIn), "glassRefract(): wrong input");
+    let inPlane = @vsub(inDir, @vfmul(normal, cosIn));
+    let sinInSqr = @vlensq(inPlane);
+    let sinOutSqr = sinInSqr * @sqr(etaFromByEtaTo);
+    let cosOutSqr = 1.0f - sinOutSqr;
+
+    if cosOutSqr >= 0.0f
+    {
+        let cosOut = sqrtf(cosOutSqr);
+        (vflip(vadd(vfmul(normal, cosOut), vfmul(inPlane, etaFromByEtaTo))), cosOut, false)
+    }
+    else
+    {
+        (@vec0(), 0.0f, true)
+    }
 }
 
 fn evalMaterialReflectance(texPoint:TexCoord, local:Point, normal:Vec, outDir:Vec, inDir:Vec, mat : &Material, mut shadingData : &RTShadingData) -> Color
@@ -113,13 +154,59 @@ fn evalMaterialEmission(texPoint:TexCoord, local:Point, normal:Vec, outDir:Vec, 
     // TODO: other materials (glass etc)
 }
 
-fn evalMaterialSampleReflectance(mat : &Material, texPoint : Point, normal : Vec, outDir : Vec) -> SampleReflectance
+fn evalMaterialSampleReflectance(mat : &Material, texPoint : Point, normal : Vec, outDir : Vec, sampleIdx : uint) -> SampleReflectance
 {
-    let cosOut = dot(normal, outDir); // this can be negative!
-    // direction: mirror at normal (this works correctly for both signs of cosOut, it'll just swap the normal properly)
-    let direction = @vsub(fvmul((2.0f * cosOut), normal), outDir);
-    // reflectance: Fresnel term
-    let reflectance = @color1(fresnelFactor(mat, fabsf(cosOut)));
+    let mut cosOut = @dot(normal, outDir); // this can be negative!
 
-    SampleReflectance { direction:direction, reflectance:reflectance}
+    fn doReflectance(fresnel : float, n : Vec) -> SampleReflectance
+    {
+        // direction: mirror at normal (this works correctly for both signs of cosOut, it'll just swap the normal properly)
+        let direction = @vsub(fvmul((2.0f * cosOut), n), outDir);
+        // reflectance: Fresnel term
+        let reflectance = @color1(fresnel);
+
+        SampleReflectance { direction:direction, reflectance:reflectance}
+    }
+
+    if !mat.refract
+    {
+        @doReflectance(fresnelFactor(mat, fabsf(cosOut)), normal)
+    }
+    else
+    {
+        let entering = cosOut < 0.0f;
+        let etaIn    = if entering { 1.0f } else { mat.eta  };
+        let etaTrans = if entering { mat.eta  } else { 1.0f };
+        let lightwardsNormal = if entering { vflip(normal) } else { normal };
+
+        cosOut = fabsf(cosOut);
+        let etaOByI = etaTrans / etaIn;
+
+        if (sampleIdx & 1u) == 0u // first ray does refraction, second handled reflection
+        {
+            // refraction
+            let refracted = @glassRefract(outDir, cosOut, lightwardsNormal, etaOByI);
+            let totalReflect = refracted(2);
+            if totalReflect
+            {
+                SampleReflectance { direction:vec0(), reflectance:color0() }
+            }
+            else
+            {
+                let cosIn = refracted(1);
+                let refractDir = refracted(0);
+                // compute fresnel term
+                let rParallel = (etaTrans*cosIn - etaIn*cosOut)/(etaTrans*cosIn + etaIn*cosOut);
+                let rOrtho    = (etaIn*cosIn - etaTrans*cosOut)/(etaIn*cosIn + etaTrans*cosOut);
+                let fr = 0.5f*(@sqr(rParallel) + @sqr(rOrtho));
+
+                SampleReflectance { direction:refractDir, reflectance:color1((1.0f-fr)*2.0f*@sqr(etaOByI)) }
+            }
+        }
+        else
+        {
+            // reflection
+            @doReflectance(2.0f, lightwardsNormal)
+        }
+    }
 }

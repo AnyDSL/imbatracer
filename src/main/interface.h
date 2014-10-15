@@ -42,6 +42,8 @@ namespace impala {
         unsigned sampling;
         float eta;
         float etaSqrKappaSqr;
+        unsigned nSamples;
+        bool refract;
     };
 
     struct State; // some opaque datatype

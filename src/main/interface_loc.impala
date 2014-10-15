@@ -116,8 +116,9 @@ extern fn impala_init() -> &State
     let cxtexID = sceneAddTexture(&scene, &cxtex);
     let phtexID = sceneAddTexture(&scene, &phongtex);
 
-    let cxmat = Material{ diffuse:cxtexID, specular:0u, emissive:0u, specExp:-1.0f, sampling:SAMPLING_NOT_NEEDED, eta:0.0f, etaSqrKappaSqr:0.0f };
-    let mut turbmat = Material{ diffuse:turbtexID, specular:phtexID, emissive:0u, specExp:1.6f,  sampling:SAMPLING_NOT_NEEDED, eta:0.0f, etaSqrKappaSqr:0.0f };
+    let cxmat = Material{ diffuse:cxtexID, specular:0u, emissive:0u, specExp:-1.0f, sampling:SAMPLING_NOT_NEEDED, eta:0.0f, etaSqrKappaSqr:0.0f, nSamples:1u, refract:false };
+    let mut turbmat = Material{ diffuse:turbtexID, specular:phtexID, emissive:0u, specExp:1.6f,  sampling:SAMPLING_NOT_NEEDED, eta:0.0f, etaSqrKappaSqr:0.0f ,  nSamples:1u, refract:false };
+    let mut glassmat = glassMaterial(1.0f);
     let mut mirrormat = silverMirrorMaterial();
     mirrormat.sampling = SAMPLING_SECONDARY;
     mirrormat.specular = phtexID;
@@ -127,13 +128,14 @@ extern fn impala_init() -> &State
     let mirrormatID = sceneAddMaterial(&scene, &mirrormat);
     let steelmirrormatID = sceneAddMaterial(&scene, &steelmirrormat);
     let turbmatID = sceneAddMaterial(&scene, &turbmat);
+    let glassmatID = sceneAddMaterial(&scene, &glassmat);
 
     // a cube
     let mut cube = trisCreateCube(120.0f, mirrormatID);
     let cubeIdx = sceneAddMesh(&scene, &cube);
 
     // and a teapot
-    let mut matOverrides = [turbmatID, steelmirrormatID, noIdx];
+    let mut matOverrides = [turbmatID, glassmatID, noIdx];
     let teapotIdx = sceneAddMeshFromFileO(&scene, "models/", "teapot.obj", /*Flags*/0u, /*Materials*/&matOverrides);
 
     // store mesh indices
