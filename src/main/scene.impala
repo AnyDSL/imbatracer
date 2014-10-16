@@ -3,8 +3,6 @@
 type IntersectFirstFn = fn(uint, &Ray, float, &ShadingIntersection) -> float;
 type IntersectAnyFn   = fn(uint, &Ray, float) -> bool;
 
-static BVH_DEPTH_LIMIT = 16u; // keep in sync with the stack size below in bvhIntersectGeneric
-
 
 struct Scene
 {
@@ -131,28 +129,22 @@ fn sceneFree(mut scene: &RTScene) -> ()
  *   or the old one if nothing was found
  * - IntersectAny takes ascene, a ray, and the max. distance and returns whether there's a hit in that range
  */
-fn sceneIntersectFirst(mut scene: &RTScene, ray : &Ray, maxdist : float, sisec : &ShadingIntersection) -> float
+fn sceneIntersectFirst(mut scene: &RTScene, ray : &Ray, maxdist : float, sisec : &ShadingIntersection, mut stack : &RTStack) -> float
 {
-    let mut todo = [0u, ..16u]; // keep in sync with BVH_DEPTH_LIMIT
-    let mut subtodo = [0u, ..16u];
-
-    @bvhsIntersectFirst(&todo, 0u, &scene.bvhOuter, ray, maxdist, sisec,
+    @bvhsIntersectFirst(&stack.outer, 0u, &scene.bvhOuter, ray, maxdist, sisec,
         |idx, ray, maxdist, sisec|instanceIntersectFirst(idx, &scene.objects, ray, maxdist, sisec,
-            |idx, ray, maxdist, sisec|@bvhsIntersectFirst(&subtodo, idx, &scene.bvhMeshes, ray, maxdist, sisec,
+            |idx, ray, maxdist, sisec|@bvhsIntersectFirst(&stack.inner, idx, &scene.bvhMeshes, ray, maxdist, sisec,
                 |idx, ray, maxdist, sisec|trisIntersectFirst(idx, &scene.meshes, ray, maxdist, sisec)
             )
         )
     )
 }
 
-fn sceneIntersectAny(mut scene: &RTScene, ray : &Ray, maxdist : float) -> bool
+fn sceneIntersectAny(mut scene: &RTScene, ray : &Ray, maxdist : float, mut stack : &RTStack) -> bool
 {
-    let mut todo = [0u, ..16u] ; // keep in sync with BVH_DEPTH_LIMIT
-    let mut subtodo = [0u, ..16u];
-
-    @bvhsIntersectAny(&todo, 0u, &scene.bvhOuter, ray, maxdist,
+    @bvhsIntersectAny(&stack.outer, 0u, &scene.bvhOuter, ray, maxdist,
         |idx, ray, maxdist|instanceIntersectAny(idx, &scene.objects, ray, maxdist,
-            |idx, ray, maxdist|@bvhsIntersectAny(&subtodo, idx, &scene.bvhMeshes, ray, maxdist,
+            |idx, ray, maxdist|@bvhsIntersectAny(&stack.inner, idx, &scene.bvhMeshes, ray, maxdist,
                 |idx, ray, maxdist|trisIntersectAny(idx, &scene.meshes, ray, maxdist)
             )
         )

@@ -49,6 +49,15 @@ fn shadingDataFree(shadingData: &RTShadingData) -> ()
 }
 
 
+static BVH_DEPTH_LIMIT = 16u; // keep in sync with the stack size below
+
+struct RTStack
+{
+    inner : [uint*16],
+    outer : [uint*16],
+}
+
+
 // return a gray color whose value is the cosine between the ray direction and the hit surface normal
 fn cosineRadiance(ray: Ray, dist:float, sisec: &ShadingIntersection) -> Color
 {
@@ -70,7 +79,7 @@ fn debugRadianceNormalSign(dist:float, sisec: &ShadingIntersection) -> Color
 }
 
 fn integrateLightSources(mut scene : &RTScene, hitP : Point, outDir : Vec, surfaceN : Vec, shadingN : Vec, uv : TexCoord, local : Point,
-                         mat : &Material, rayEps : float) -> Color
+                         mat : &Material, rayEps : float, stack : &RTStack) -> Color
 {
     let mut c = @color0();
 
@@ -93,7 +102,7 @@ fn integrateLightSources(mut scene : &RTScene, hitP : Point, outDir : Vec, surfa
             {
                 let mut shadowRay = @ray(pvadd(hitP, vfmul(surfaceN, rayEps)), lhit.dir);
                 let dist = lhit.dist - 2.0f*rayEps; // we substract rayEps at both ends
-                if @!sceneIntersectAny(scene, &shadowRay, dist)
+                if @!sceneIntersectAny(scene, &shadowRay, dist, stack)
                 {
                     c = @ccapply2(c, contrib, add); // light shines on hit point
                 }
@@ -103,7 +112,7 @@ fn integrateLightSources(mut scene : &RTScene, hitP : Point, outDir : Vec, surfa
     c
 }
 
-fn raytraceRadiance(ray: Ray, dist:float, sisec: &ShadingIntersection, mut scene : &RTScene) -> Color
+fn raytraceRadiance(ray: Ray, dist:float, sisec: &ShadingIntersection, mut scene : &RTScene, stack : &RTStack) -> Color
 {
     let outDir = @vflip(ray.d);
     let surfaceN = @normalTowardsOrigin(sisec.surfaceNormal, ray);
@@ -114,14 +123,14 @@ fn raytraceRadiance(ray: Ray, dist:float, sisec: &ShadingIntersection, mut scene
 
 	@ccadd(
         // we ignore any contribution not coming directly from a light source
-        @integrateLightSources(scene, hitP, outDir, surfaceN, sisec.shadingNormal, uv, local, mat, sisec.eps),
+        @integrateLightSources(scene, hitP, outDir, surfaceN, sisec.shadingNormal, uv, local, mat, sisec.eps, stack),
         // and add the material's own light emission that is not dependent on light
         evalMaterialEmission(uv, local, surfaceN, outDir, mat, &scene.shadingData)
     )
 }
 
 
-fn recraytraceRadiance(theRay: Ray, dist:float, sisec: &ShadingIntersection, mut scene : &RTScene, integr : &Integrator, recRemain : uint) -> Color
+fn recraytraceRadiance(theRay: Ray, dist:float, sisec: &ShadingIntersection, mut scene : &RTScene, integr : &Integrator, recRemain : uint, stack : &RTStack) -> Color
 {
     let outDir = @vflip(theRay.d);
     let surfaceN = @normalTowardsOrigin(sisec.surfaceNormal, theRay);
@@ -144,7 +153,7 @@ fn recraytraceRadiance(theRay: Ray, dist:float, sisec: &ShadingIntersection, mut
                 let startPos:Point = @pvadd(hitP, vfmul(sr.direction, sisec.eps));
                 let recray = @ray(startPos, sr.direction);
                 // partial specialize for rec raytrace so we get rid of the branching in getRadianceForHit()
-                let rc = $runIntegratorRec(2, integr, scene, recray, recRemain-1u); // TODO: enable PE again
+                let rc = $runIntegratorRec(2, integr, scene, recray, recRemain-1u, stack); // TODO: enable PE again
                 @assert(||{!cAny(sr.reflectance, isneg)}, "light stolen!");
                 c = @ccadd(c, @ccmul(rc, sr.reflectance));
             }
@@ -153,7 +162,7 @@ fn recraytraceRadiance(theRay: Ray, dist:float, sisec: &ShadingIntersection, mut
     }
     if sampling != SAMPLING_ALL
     {
-        let cl = @integrateLightSources(scene, hitP, outDir, surfaceN, sisec.shadingNormal, uv, local, mat, sisec.eps);
+        let cl = @integrateLightSources(scene, hitP, outDir, surfaceN, sisec.shadingNormal, uv, local, mat, sisec.eps, stack);
         c = @ccadd(c, cl);
     }
 
@@ -180,20 +189,20 @@ fn debuggerRadiance(mode: int, minDist: float, maxDist: float, dist:float, sisec
         )
 }
 
-fn getRadianceForHit(ty : int, integr : &Integrator, ray: Ray, dist:float, sisec: &ShadingIntersection, scene : &RTScene, recRemain : uint) -> Color
+fn getRadianceForHit(ty : int, integr : &Integrator, ray: Ray, dist:float, sisec: &ShadingIntersection, scene : &RTScene, recRemain : uint, stack : &RTStack) -> Color
 {
     if      ty == 0 { cosineRadiance(ray, dist, sisec) }
-    else if ty == 1 { raytraceRadiance(ray, dist, sisec, scene) }
-    else if ty == 2 { recraytraceRadiance(ray, dist, sisec, scene, integr, recRemain) } // TODO the GPU crashes if we enable this
+    else if ty == 1 { raytraceRadiance(ray, dist, sisec, scene, stack) }
+    else if ty == 2 { recraytraceRadiance(ray, dist, sisec, scene, integr, recRemain, stack) } // TODO the GPU crashes if we enable this
     else            { debuggerRadiance(integr.mode, integr.minDist, integr.maxDist, dist, sisec) }
 }
 
-fn runIntegratorRec(ty : int, integr : &Integrator, scene : &RTScene, mut ray : Ray, recRemain : uint) -> Color
+fn runIntegratorRec(ty : int, integr : &Integrator, scene : &RTScene, mut ray : Ray, recRemain : uint, stack : &RTStack) -> Color
 {
     //let mut isec = @intersection(ray, @defaultDist());
     let mut sisec:ShadingIntersection;
     //print_s("Tracing a ray");
-    let dist = @sceneIntersectFirst(scene, &ray, defaultDist, &sisec);
+    let dist = @sceneIntersectFirst(scene, &ray, defaultDist, &sisec, stack);
 
     if dist >= defaultDist {
         @color(1.0f, 0.0f, 0.0f)
@@ -201,12 +210,13 @@ fn runIntegratorRec(ty : int, integr : &Integrator, scene : &RTScene, mut ray : 
     else {
         //@sceneShadeIntersection(scene, &isec, &sisec);
         //print_s("Doing shading");
-        getRadianceForHit(ty, integr, ray, dist, &sisec, scene, recRemain)
+        getRadianceForHit(ty, integr, ray, dist, &sisec, scene, recRemain, stack)
     }
 }
 
 fn runIntegrator(integr : &Integrator, scene : &RTScene, ray : Ray) -> Color
 {
-    $runIntegratorRec(integr.itype, integr, scene, ray, integr.maxRecDepth)
+    let mut stack : RTStack;
+    $runIntegratorRec(integr.itype, integr, scene, ray, integr.maxRecDepth, &stack)
 }
 
