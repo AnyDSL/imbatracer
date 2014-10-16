@@ -43,7 +43,7 @@ namespace impala {
         float eta;
         float etaSqrKappaSqr;
         unsigned nSamples;
-        bool refract;
+        unsigned refract;
     };
 
     struct State; // some opaque datatype

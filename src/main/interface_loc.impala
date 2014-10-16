@@ -116,8 +116,8 @@ extern fn impala_init() -> &State
     let cxtexID = sceneAddTexture(&scene, &cxtex);
     let phtexID = sceneAddTexture(&scene, &phongtex);
 
-    let cxmat = Material{ diffuse:cxtexID, specular:0u, emissive:0u, specExp:-1.0f, sampling:SAMPLING_NOT_NEEDED, eta:0.0f, etaSqrKappaSqr:0.0f, nSamples:1u, refract:false };
-    let mut turbmat = Material{ diffuse:turbtexID, specular:phtexID, emissive:0u, specExp:1.6f,  sampling:SAMPLING_NOT_NEEDED, eta:0.0f, etaSqrKappaSqr:0.0f ,  nSamples:1u, refract:false };
+    let cxmat = Material{ diffuse:cxtexID, specular:0u, emissive:0u, specExp:-1.0f, sampling:SAMPLING_NOT_NEEDED, eta:0.0f, etaSqrKappaSqr:0.0f, nSamples:1u, refract:0u };
+    let mut turbmat = Material{ diffuse:turbtexID, specular:phtexID, emissive:0u, specExp:1.6f,  sampling:SAMPLING_NOT_NEEDED, eta:0.0f, etaSqrKappaSqr:0.0f ,  nSamples:1u, refract:0u };
     let mut glassmat = glassMaterial(1.0f);
     let mut mirrormat = silverMirrorMaterial();
     mirrormat.sampling = SAMPLING_SECONDARY;
