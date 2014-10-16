@@ -23,7 +23,7 @@ SDLGuiThread::~SDLGuiThread()
 void SDLGuiThread::launch()
 {
     assert(!_th.joinable(), "Thread is already running?");
-    
+
     _th = std::thread(&SDLGuiThread::run, this);
     {
         // Waiting for GUI thread to start
@@ -106,7 +106,7 @@ bool SDLGuiThread::init()
 
     std::cout << "GUI thread init..." << std::endl;
 
-    if (SDL_InitSubSystem(SDL_INIT_VIDEO) < 0)
+    if (SDL_InitSubSystem(SDL_INIT_VIDEO | SDL_INIT_EVENTS) < 0)
     {
         std::cerr << "SDL_InitSubSystem Error: " << SDL_GetError() << std::endl;
         return false;
