@@ -64,7 +64,7 @@ fn bvhsCompile(mut bvhs: &BVHTrees, mut rtBvhs: &RTBVHTrees) -> ()
 
 // construct a BVH tree, adding the nodes to the vbHnodes array. Returns the index of the root.
 // split heuristic can be: 0 = equal split on longest axis, 1 = SAH on longest axis, 2 = SAH on all axes
-fn bvhsAddTree(mut trees: &BVHTrees, splitHeuristic: uint, primBVHInterface: (primInitFn, primBoundsFn, primCopyFn, primFinishFn)) -> ()
+fn bvhsAddTree(mut trees: &BVHTrees, splitHeuristic: uint, depthLimit : uint, primBVHInterface: (primInitFn, primBoundsFn, primCopyFn, primFinishFn)) -> ()
 {
     // prepare object copy
     let initRet = @primBVHInterface(0)();
@@ -90,7 +90,7 @@ fn bvhsAddTree(mut trees: &BVHTrees, splitHeuristic: uint, primBVHInterface: (pr
     let oldSize = @dynArraySize(&trees.nodes);
     let mut constrData = BVHConstructionData{ primData:primData, splitHeuristic:splitHeuristic, splitPlaneCands:splitPlaneCandidates, bvhNodes:&trees.nodes,
                                               primFinalizeOffset:targetBase, primFinalizeOrder:&primFinalizeOrder };
-    let root = $buildBvhNode(allPrims, nPrims, totalBounds, 0u, leftPrims, rightPrims, &constrData);
+    let root = $buildBvhNode(allPrims, nPrims, totalBounds, depthLimit, leftPrims, rightPrims, &constrData);
     @assert(||oldSize == root, "bvhsAddTree: Someone put the root at the wrong place, and it wasn't me...");
 
     // do the primitive finalisation
@@ -118,7 +118,7 @@ fn bvhsAddTree(mut trees: &BVHTrees, splitHeuristic: uint, primBVHInterface: (pr
  * Put primitives into triBuf (starting at offset triBufOff), and the flattened nodes into nodeBuf.
  * Return the index of the root (in nodeBuf).
  */
-fn buildBvhNode(prims: &[uint], nPrims: uint, totalBounds: BBox, depth: uint, mut leftPrims: &[uint], mut rightPrims: &[uint],
+fn buildBvhNode(prims: &[uint], nPrims: uint, totalBounds: BBox, depthRemain: uint, mut leftPrims: &[uint], mut rightPrims: &[uint],
                 constrData: &BVHConstructionData) -> uint
 {
     let mut node:BVHNode;
@@ -127,7 +127,7 @@ fn buildBvhNode(prims: &[uint], nPrims: uint, totalBounds: BBox, depth: uint, mu
     // split
     let mut splitInfo = NodeSplitInformation{ left:leftPrims, right:rightPrims, leftBBox:@bboxEmpty(), rightBBox:@bboxEmpty(), bestAxis: -1,
             nLeft: 0u, bestCost: 0.0f };
-    bvhDecideSplit(prims, nPrims, totalBounds, depth, constrData, &splitInfo);
+    bvhDecideSplit(prims, nPrims, totalBounds, depthRemain, constrData, &splitInfo);
 
     // did we get a leaf?
     if (splitInfo.bestAxis < 0) {
@@ -151,9 +151,9 @@ fn buildBvhNode(prims: &[uint], nPrims: uint, totalBounds: BBox, depth: uint, mu
 
     // Process child nodes recursively, using space further down in our arrays (after the space in leftPrims, rightPrims that we needed)
     assert(||splitInfo.nLeft <= nPrims, "buildBvhNode: Keeping too many primitives");
-    let firstChild =  $buildBvhNode(leftPrims , splitInfo.nLeft       , splitInfo.leftBBox , depth+1u,
+    let firstChild =  $buildBvhNode(leftPrims , splitInfo.nLeft       , splitInfo.leftBBox , depthRemain-1u,
                                     &leftPrims(nPrims) as &[u32], &rightPrims(nPrims) as &[u32], constrData);
-    let secondChild = $buildBvhNode(rightPrims, nPrims-splitInfo.nLeft, splitInfo.rightBBox, depth+1u,
+    let secondChild = $buildBvhNode(rightPrims, nPrims-splitInfo.nLeft, splitInfo.rightBBox, depthRemain-1u,
                                     &leftPrims(nPrims) as &[u32], &rightPrims(nPrims) as &[u32], constrData);
 
     // Make sure the children's order in the vector is as expected
@@ -164,11 +164,11 @@ fn buildBvhNode(prims: &[uint], nPrims: uint, totalBounds: BBox, depth: uint, mu
     return(nodeIdx)
 }
 
-fn bvhDecideSplit(prims: &[uint], nPrims: uint, totalBounds: BBox, depth: uint, constrData: &BVHConstructionData, mut splitInfo: &NodeSplitInformation) -> ()
+fn bvhDecideSplit(prims: &[uint], nPrims: uint, totalBounds: BBox, depthRemain: uint, constrData: &BVHConstructionData, mut splitInfo: &NodeSplitInformation) -> ()
 {
     @assert(||splitInfo.bestAxis < 0, "bvhDecideSplit: Got incorrectly initialized stuff");
     // termination criterion
-    if(nPrims <= maxPrimsPerLeaf || depth >= depthLimit) {
+    if(nPrims <= maxPrimsPerLeaf || depthRemain <= 0u) {
         //  don't do any split
         return()
     }

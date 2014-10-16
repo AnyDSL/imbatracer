@@ -3,6 +3,8 @@
 type IntersectFirstFn = fn(uint, &Ray, float, &ShadingIntersection) -> float;
 type IntersectAnyFn   = fn(uint, &Ray, float) -> bool;
 
+static BVH_DEPTH_LIMIT = 16u; // keep in sync with the stack size below in bvhIntersectGeneric
+
 
 struct Scene
 {
@@ -90,7 +92,7 @@ fn sceneCompileMeshes(mut scene: &Scene, mut rtScene: &RTScene) -> ()
     for objidx in urange(0u, dynArraySize(&scene.meshes)) {
         print_si("Compiling mesh <id>", objidx as int);
         let tris = dynArrayFetch(&scene.meshes, objidx) as &Tris;
-        @bvhsAddTree(&bvhMeshes, 2u, @trisBVHInterface(tris, &meshes)); // copy triangles to the RTScene
+        @bvhsAddTree(&bvhMeshes, 2u, BVH_DEPTH_LIMIT, @trisBVHInterface(tris, &meshes)); // copy triangles to the RTScene
     }
     bvhsCompile(&bvhMeshes, &rtScene.bvhMeshes);
     trisCompile(&meshes, &rtScene.meshes);
@@ -108,7 +110,7 @@ fn sceneCompileObjects(mut rtScene: &RTScene, objects: &Instances) -> ()
 
     // build BVH of objects, and copy instance data
     let mut bvhOuter = bvhTrees();
-    @bvhsAddTree(&bvhOuter, 1u, @instsBVHInterface(objects, &rtScene.objects, |meshIdx|bvhsBound(meshIdx, &rtScene.bvhMeshes)));
+    @bvhsAddTree(&bvhOuter, 1u, BVH_DEPTH_LIMIT, @instsBVHInterface(objects, &rtScene.objects, |meshIdx|bvhsBound(meshIdx, &rtScene.bvhMeshes)));
     bvhsCompile(&bvhOuter, &rtScene.bvhOuter);
     @assert(||rtScene.bvhOuter.roots(0) == 0u, "The one and only outer tree has a weird root"); // this is a hack, but oh well... ;-)
 }
@@ -123,6 +125,7 @@ fn sceneFree(mut scene: &RTScene) -> ()
 }
 
 
+
 /* Run-time Object API: Provide two functions
  * - IntersectFirst takes a scene, a ray, the max. distance, a pointer to the shading intersection and returns the new max. distance (if an intersection was found),
  *   or the old one if nothing was found
@@ -130,9 +133,12 @@ fn sceneFree(mut scene: &RTScene) -> ()
  */
 fn sceneIntersectFirst(mut scene: &RTScene, ray : &Ray, maxdist : float, sisec : &ShadingIntersection) -> float
 {
-    @bvhsIntersectFirst(0u, &scene.bvhOuter, ray, maxdist, sisec,
+    let mut todo = [0u, ..16u]; // keep in sync with BVH_DEPTH_LIMIT
+    let mut subtodo = [0u, ..16u];
+
+    @bvhsIntersectFirst(&todo, 0u, &scene.bvhOuter, ray, maxdist, sisec,
         |idx, ray, maxdist, sisec|instanceIntersectFirst(idx, &scene.objects, ray, maxdist, sisec,
-            |idx, ray, maxdist, sisec|bvhsIntersectFirst(idx, &scene.bvhMeshes, ray, maxdist, sisec,
+            |idx, ray, maxdist, sisec|@bvhsIntersectFirst(&subtodo, idx, &scene.bvhMeshes, ray, maxdist, sisec,
                 |idx, ray, maxdist, sisec|trisIntersectFirst(idx, &scene.meshes, ray, maxdist, sisec)
             )
         )
@@ -141,9 +147,12 @@ fn sceneIntersectFirst(mut scene: &RTScene, ray : &Ray, maxdist : float, sisec :
 
 fn sceneIntersectAny(mut scene: &RTScene, ray : &Ray, maxdist : float) -> bool
 {
-    @bvhsIntersectAny(0u, &scene.bvhOuter, ray, maxdist,
+    let mut todo = [0u, ..16u] ; // keep in sync with BVH_DEPTH_LIMIT
+    let mut subtodo = [0u, ..16u];
+
+    @bvhsIntersectAny(&todo, 0u, &scene.bvhOuter, ray, maxdist,
         |idx, ray, maxdist|instanceIntersectAny(idx, &scene.objects, ray, maxdist,
-            |idx, ray, maxdist|bvhsIntersectAny(idx, &scene.bvhMeshes, ray, maxdist,
+            |idx, ray, maxdist|@bvhsIntersectAny(&subtodo, idx, &scene.bvhMeshes, ray, maxdist,
                 |idx, ray, maxdist|trisIntersectAny(idx, &scene.meshes, ray, maxdist)
             )
         )

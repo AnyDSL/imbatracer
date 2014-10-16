@@ -21,8 +21,6 @@ fn bvhsFree(bvhs: &RTBVHTrees) -> ()
     thorin_free(bvhs.nodes as &u8);
 }
 
-static depthLimit = 16u; // keep in sync with the stack size below in bvhIntersectGeneric
-
 fn bvhBBoxComp(bounds : BBox, comp : bool) -> Point
 {
     if comp { bounds.cmax } else { bounds.cmin }
@@ -64,14 +62,13 @@ fn bvhIntersectNode(bounds : BBox, o : Point, maxDist : float, invDir : Vec, neg
     }
 }
 
-fn bvhIntersectGeneric(root: uint, bvhNodes : &[BVHNode], ray : &Ray, mut maxdist : float, checkIntersect : fn(uint, float) -> float, return: fn(float))
+fn bvhIntersectGeneric(mut todo : &[uint], root: uint, bvhNodes : &[BVHNode], ray : &Ray, mut maxdist : float, checkIntersect : fn(uint, float) -> float, return: fn(float))
 {
     let invDir = @vapply1(ray.d, |f|1.0f/f);
     let neg = @bvhMakeNeg(invDir);
 
     // we roll our own stack
     let done = return;
-    let mut todo = [0u, ..16]; // keep in sync with the constant at the top of this file (TODO?)
     let mut todoIdx = 0; // the first *free* index
 
     // CPS fun while passing the current node around as argument :-)
@@ -137,9 +134,9 @@ fn bvhsBound(idx: uint, bvhTrees: &RTBVHTrees) -> BBox
     bvhTrees.nodes(root).bbox
 }
 
-fn bvhsIntersectFirst(idx: uint, bvhTrees: &RTBVHTrees, ray: &Ray, maxdist: float, sisec : &ShadingIntersection, subIntersectFirst: IntersectFirstFn) -> float
+fn bvhsIntersectFirst(todo : &[uint], idx: uint, bvhTrees: &RTBVHTrees, ray: &Ray, maxdist: float, sisec : &ShadingIntersection, subIntersectFirst: IntersectFirstFn) -> float
 {
-    @bvhIntersectGeneric(bvhTrees.roots(idx), bvhTrees.nodes, ray, maxdist,
+    @bvhIntersectGeneric(todo, bvhTrees.roots(idx), bvhTrees.nodes, ray, maxdist,
         |subIdx, maxdist|
         {
             $subIntersectFirst(subIdx, ray, maxdist, sisec) // returns new maxdist
@@ -148,11 +145,11 @@ fn bvhsIntersectFirst(idx: uint, bvhTrees: &RTBVHTrees, ray: &Ray, maxdist: floa
 }
 
 
-fn bvhsIntersectAny(idx: uint, bvhTrees : &RTBVHTrees, ray : &Ray, maxdist : float, subIntersectAny: IntersectAnyFn) -> bool
+fn bvhsIntersectAny(todo : &[uint], idx: uint, bvhTrees : &RTBVHTrees, ray : &Ray, maxdist : float, subIntersectAny: IntersectAnyFn) -> bool
 {
     let success = return; // jump out once we hit anything
 
-    @bvhIntersectGeneric(bvhTrees.roots(idx), bvhTrees.nodes, ray, maxdist,
+    @bvhIntersectGeneric(todo, bvhTrees.roots(idx), bvhTrees.nodes, ray, maxdist,
         |subIdx, maxdist|
         {
             if $subIntersectAny(subIdx, ray, maxdist) {
