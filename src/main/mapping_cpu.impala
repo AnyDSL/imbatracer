@@ -75,7 +75,7 @@ fn renderSubsampled(level : uint, width : uint, height : uint, state : &State, s
 
     if level <= 1u {
         for y in $urange(0u, height) {
-            for x in $urange(0u, width) { // TODO: this used to be $inner_loop(), but wfv2 is too slow to be practical, for now
+            for x in $inner_loop(0, width as i32) {
                 @setcolor(x as int, y as int, $getcolor(x as int, y as int, &rtstate));
             }
         }
