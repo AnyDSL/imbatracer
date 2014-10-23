@@ -1,0 +1,78 @@
+struct BenchRay4TriangleResult {
+    intr_count: int,
+    tmin: float
+}
+
+extern "C" {
+    fn wfv_get_tid() -> int;
+}
+
+fn vrange(a: int, b: int, yield: fn(int, fn())) -> () {
+    for vectorize(8, a, b) {
+        let x = wfv_get_tid();
+        @yield(x);
+    }
+}
+
+struct Tri {
+    v0 : [float * 3],
+    v1 : [float * 3],
+    v2 : [float * 3]
+}
+
+
+extern fn bench_ray_triangle(nrays: int,
+                             v0: &[float * 3],
+                             v1: &[float * 3],
+                             v2: &[float * 3]) -> ~BenchRay4TriangleResult {
+    ~BenchRay4TriangleResult {
+        intr_count: 0,
+        tmin: 100000.0f
+    }
+}
+
+extern fn bench_ray4_triangle(nray4s: int,
+                              v0: &[float * 3],
+                              v1: &[float * 3],
+                              v2: &[float * 3]) -> ~BenchRay4TriangleResult {
+    let tri = Tri {
+        v0 : [v0(0), v0(1), v0(2)],
+        v1 : [v1(0), v1(1), v1(2)],
+        v2 : [v2(0), v2(1), v2(2)]
+    };
+
+    fn generateRayDir(f: float) -> [float * 3] {
+        [1.0f, 0.0f, 0.0f]
+    }
+
+    fn generateRayOrg(f: float) -> [float * 3] {
+        [-1.0f, 0.001f + f * 0.001f, 0.001f + f * 0.001f]
+    }
+
+    fn range(mut a: int, b: int, body: fn (int) -> ()) -> () {
+        while a < b {
+            body(a);
+            a = a + 1
+        }
+    }
+
+    let mut result = ~BenchRay4TriangleResult {
+        intr_count: 0,
+        tmin: 100000.0f
+    };
+
+    for i in vrange(0, nray4s * 4) {
+        let f = i % 1000 as float;
+        let org = @generateRayOrg(f);
+        let dir = @generateRayDir(f);
+        @intersect_ray_tri(org, dir, tri.v0, tri.v1, tri.v2,
+            |t, u, v| {
+                result.intr_count += 1;
+                if (result.tmin > t) { result.tmin = t; }
+            },
+            || {});
+    }
+
+    result
+}
+

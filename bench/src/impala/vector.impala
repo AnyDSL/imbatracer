@@ -1,0 +1,104 @@
+struct Vec2 {
+    values: [float * 2]
+}
+
+struct Vec3 {
+    values: [float * 3]
+}
+
+struct Vec4 {
+    values: [float * 4]
+}
+
+fn v2map(v : Vec2, f : fn (float) -> float) -> Vec2 {
+    Vec2 {
+        values: [f(v.values(0)), f(v.values(1))]
+    }
+}
+
+fn v2zip(v1 : Vec2, v2 : Vec2, f : fn (float, float) -> float) -> Vec2 {
+    Vec2 {
+        values: [f(v1.values(0), v2.values(0)),
+                 f(v1.values(1), v2.values(1))]
+    }
+}
+
+fn v2fold(v : Vec2, f: fn (float, float) -> float) -> float {
+    f(v.values(1), v.values(0))
+}
+
+fn v2add(v1 : Vec2, v2 : Vec2) -> Vec2 { @v2zip(v1, v2, |x, y| x + y) }
+fn v2sub(v1 : Vec2, v2 : Vec2) -> Vec2 { @v2zip(v1, v2, |x, y| x - y) }
+fn v2mul(v1 : Vec2, v2 : Vec2) -> Vec2 { @v2zip(v1, v2, |x, y| x * y) }
+fn v2div(v1 : Vec2, v2 : Vec2) -> Vec2 { @v2zip(v1, v2, |x, y| x / y) }
+fn v2mulf(v : Vec2, f : float) -> Vec2 { @v2map(v, |x| x * f) }
+fn v2divf(v : Vec2, f : float) -> Vec2 { @v2map(v, |x| x / f) }
+fn v2dot(v1 : Vec2, v2 : Vec2) -> float { @v2fold(v2zip(v1, v2, |x, y| x * y), |x, y| x+ y) }
+fn v2lensq(v : Vec2) -> float { @v2dot(v, v) }
+
+fn v3map(v : Vec3, f : fn (float) -> float) -> Vec3 {
+    Vec3 {
+        values: [f(v.values(0)), f(v.values(1)), f(v.values(2))]
+    }
+}
+
+fn v3zip(v1 : Vec3, v2 : Vec3, f : fn (float, float) -> float) -> Vec3 {
+    Vec3 {
+        values: [f(v1.values(0), v2.values(0)),
+                 f(v1.values(1), v2.values(1)),
+                 f(v1.values(2), v2.values(2))]
+    }
+}
+
+fn v3fold(v : Vec3, f: fn (float, float) -> float) -> float {
+    f(v.values(2), f(v.values(1), v.values(0)))
+}
+
+fn v3cross(v1 : Vec3, v2 : Vec3) -> Vec3 {
+    Vec3 {
+        values: [v1.values(1) * v2.values(2) - v1.values(2) * v2.values(1),
+                 v1.values(2) * v2.values(0) - v1.values(0) * v2.values(2),
+                 v1.values(0) * v2.values(1) - v1.values(1) * v2.values(0)]
+    }
+}
+
+fn v3add(v1 : Vec3, v2 : Vec3) -> Vec3 { @v3zip(v1, v2, |x, y| x + y) }
+fn v3sub(v1 : Vec3, v2 : Vec3) -> Vec3 { @v3zip(v1, v2, |x, y| x - y) }
+fn v3mul(v1 : Vec3, v2 : Vec3) -> Vec3 { @v3zip(v1, v2, |x, y| x * y) }
+fn v3div(v1 : Vec3, v2 : Vec3) -> Vec3 { @v3zip(v1, v2, |x, y| x / y) }
+fn v3mulf(v : Vec3, f : float) -> Vec3 { @v3map(v, |x| x * f) }
+fn v3divf(v : Vec3, f : float) -> Vec3 { @v3map(v, |x| x / f) }
+fn v3dot(v1 : Vec3, v2 : Vec3) -> float { @v3fold(v3zip(v1, v2, |x, y| x * y), |x, y| x+ y) }
+fn v3lensq(v : Vec3) -> float { @v3dot(v, v) }
+
+fn v4map(v : Vec4, f : fn (float) -> float) -> Vec4 {
+    Vec4 {
+        values: [f(v.values(0)), f(v.values(1)), f(v.values(2)), f(v.values(3))]
+    }
+}
+
+fn v4zip(v1 : Vec4, v2 : Vec4, f : fn (float, float) -> float) -> Vec4 {
+    Vec4 {
+        values: [f(v1.values(0), v2.values(0)),
+                 f(v1.values(1), v2.values(1)),
+                 f(v1.values(2), v2.values(2)),
+                 f(v1.values(3), v2.values(3))]
+    }
+}
+
+fn v4fold(v : Vec4, f: fn (float, float) -> float) -> float {
+    f(v.values(3), f(v.values(2), f(v.values(1), v.values(0))))
+}
+
+fn v4add(v1 : Vec4, v2 : Vec4) -> Vec4 { @v4zip(v1, v2, |x, y| x + y) }
+fn v4sub(v1 : Vec4, v2 : Vec4) -> Vec4 { @v4zip(v1, v2, |x, y| x - y) }
+fn v4mul(v1 : Vec4, v2 : Vec4) -> Vec4 { @v4zip(v1, v2, |x, y| x * y) }
+fn v4div(v1 : Vec4, v2 : Vec4) -> Vec4 { @v4zip(v1, v2, |x, y| x / y) }
+fn v4mulf(v : Vec4, f : float) -> Vec4 { @v4map(v, |x| x * f) }
+fn v4divf(v : Vec4, f : float) -> Vec4 { @v4map(v, |x| x / f) }
+fn v4dot(v1 : Vec4, v2 : Vec4) -> float { @v4fold(v4zip(v1, v2, |x, y| x * y), |x, y| x+ y) }
+fn v4lensq(v : Vec4) -> float { @v4dot(v, v) }
+
+fn vec2(x : float, y : float) -> Vec2 { Vec2 { values : [x, y] } }
+fn vec3(x : float, y : float, z : float) -> Vec3 { Vec3 { values : [x, y, z] } }
+fn vec4(x : float, y : float, z : float, w : float) -> Vec4 { Vec4 { values : [x, y, z, w] } }
