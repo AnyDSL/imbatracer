@@ -1,0 +1,20 @@
+struct Tri {
+    v0: Vec3,
+    v1: Vec3,
+    v2: Vec3
+}
+
+fn tri(a: Vec3, b: Vec3, c: Vec3) -> Tri {
+    Tri {
+        v0: a,
+        v1: b,
+        v2: c
+    }
+}
+
+fn tri_normal(tri: Tri) -> Vec3 {
+    let e0 = @vec3_sub(tri.v1, tri.v0);
+    let e1 = @vec3_sub(tri.v2, tri.v0);
+    @vec3_cross(e0, e1)
+}
+

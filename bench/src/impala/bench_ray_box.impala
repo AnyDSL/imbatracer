@@ -1,0 +1,60 @@
+struct BenchRayBoxResult {
+    intr_count: int,
+    tmin: float,
+    tmax: float
+}
+
+extern fn bench_ray4_box(nrays: int,
+                         v0: &[float * 3],
+                         v1: &[float * 3],
+                         v2: &[float * 3]) -> ~BenchRayBoxResult {
+    ~BenchRayBoxResult {
+        intr_count: 0,
+        tmin: 100000.0f,
+        tmax: -100000.0f
+    }
+}
+
+extern fn bench_ray_box(nrays: int,
+                        box_min: &[float * 3],
+                        box_max: &[float * 3]) -> ~BenchRayBoxResult {
+    let box = Box {
+        min : @vec3(box_min(0), box_min(1), box_min(2)),
+        max : @vec3(box_max(0), box_max(1), box_max(2))
+    };
+
+    fn generateRay(i: int) -> RayInv {
+        let f = i % 1000 as float;
+
+       @ray_inv_from_ray(@ray(@vec3(1.0f, 0.0f, 0.0f), @vec3(-1.0f, 0.001f + f * 0.001f, 0.001f + f * 0.001f)))
+    }
+
+    fn range(mut a: int, b: int, body: fn (int) -> ()) -> () {
+        while a < b {
+            body(a);
+            a = a + 1
+        }
+    }
+
+    let mut result = ~BenchRayBoxResult {
+        intr_count: 0,
+        tmin: -100000.0f,
+        tmax: 100000.0f
+    };
+
+    for i in range(0, nrays) {
+        let ray = @generateRay(i);
+        let next = continue;
+        @intersect_ray_box(ray, box,
+            |t0, t1| {
+                result.intr_count = result.intr_count + 1;
+                if result.tmax > t1 { result.tmax = t1; };
+                if result.tmin < t0 { result.tmin = t0; };
+                next()
+            },
+            next)
+    }
+
+    result
+}
+

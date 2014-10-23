@@ -1,0 +1,16 @@
+struct Box {
+    min: Vec3,
+    max: Vec3
+}
+
+fn box(a: Vec3, b: Vec3) -> Box {
+    Box {
+        min: a,
+        max: b
+    }
+}
+
+fn box_extents(box: Box) -> Vec3 {
+    @vec3_sub(box.max, box.min)
+}
+

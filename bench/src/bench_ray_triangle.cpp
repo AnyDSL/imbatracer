@@ -1,23 +1,18 @@
+#define _X86INTRIN_H_INCLUDED
 #include <geometry/triangle1_intersector1_moeller.h>
 #include <geometry/triangle1_intersector4_moeller.h>
 #include "bench_ray_triangle.hpp"
 
 #define COUNT 4000000
 
-struct bench_ray_result
+struct bench_ray_tri_result
 {
     int intr_count;
     float tmin;
 };
 
-struct bench_ray4_result
-{
-    int intr_count;
-    float tmin;
-};
-
-extern "C" bench_ray_result* bench_ray_triangle(int, const float*, const float*, const float*);
-extern "C" bench_ray4_result* bench_ray4_triangle(int, const float*, const float*, const float*);
+extern "C" bench_ray_tri_result* bench_ray_triangle(int, const float*, const float*, const float*);
+extern "C" bench_ray_tri_result* bench_ray4_triangle(int, const float*, const float*, const float*);
 
 namespace bench {
 
@@ -27,7 +22,7 @@ void BenchRayTriangleImpala::iteration()
     const float v1[3] = {0.2f, 1.0f, 0.0f};
     const float v2[3] = {0.2f, 0.0f, 1.0f};
 
-    bench_ray_result* result = bench_ray_triangle(nrays_, v0, v1, v2);
+    bench_ray_tri_result* result = bench_ray_triangle(nrays_, v0, v1, v2);
 
     icount_ = result->intr_count;
     tmin_ = result->tmin;
@@ -43,7 +38,7 @@ void BenchRay4TriangleImpala::iteration()
     const float v1[3] = {0.2f, 1.0f, 0.0f};
     const float v2[3] = {0.2f, 0.0f, 1.0f};
 
-    bench_ray4_result* result = bench_ray4_triangle(nrays_, v0, v1, v2);
+    bench_ray_tri_result* result = bench_ray4_triangle(nrays_, v0, v1, v2);
 
     icount_ = result->intr_count;
     tmin_ = result->tmin;
