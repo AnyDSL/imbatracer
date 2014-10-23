@@ -2,16 +2,14 @@ type SetColorFn = fn(int, int, Color) -> ();
 type GetColorIFn = fn(int, int, &RTState) -> Color;
 type GetColorFFn = fn(float, float, &RTState) -> Color;
 
-fn renderImage(mut buf : &[u32], width : int, height : int, measureTime : bool, state : &State, body : GetColorFFn) -> ()
-{
+fn renderImage(mut buf: &[u32], width: int, height: int, measureTime: bool, state: &State, body: GetColorFFn) -> () {
     let wf = width as float;
     let hf = height as float;
-    let setcolor:SetColorFn = |x, y, col| {
+    let setcolor: SetColorFn = |x, y, col| {
             assert(||{x < width && y < height}, "Image out of bounds access");
             buf(y*width+x) = col_rgb2int(col)
     };
-    for x, y, rtstate in renderIteration(width, height, measureTime, state, setcolor)
-    {
+    for x, y, rtstate in @renderIteration(width, height, measureTime, state, setcolor) {
         // render in the center of the pixel
         let nx = (x as float + 0.5f) / wf;
         let ny = (y as float + 0.5f) / hf;
@@ -19,6 +17,6 @@ fn renderImage(mut buf : &[u32], width : int, height : int, measureTime : bool, 
         let sx =  (nx - 0.5f) * 2.0f;
         let sy = -(ny - 0.5f) * 2.0f;
         // render!
-        @body(sx, sy, rtstate)
+        body(sx, sy, rtstate)
     }
 }
