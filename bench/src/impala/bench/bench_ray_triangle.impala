@@ -3,14 +3,66 @@ struct BenchRayTriangleResult {
     tmin: float
 }
 
-extern fn bench_ray4_triangle(nrays: int,
+extern "C" {
+    fn wfv_get_tid() -> int;
+}
+
+extern fn bench_ray4_triangle(nray4s: int,
                               v0: &[float * 3],
                               v1: &[float * 3],
                               v2: &[float * 3]) -> ~BenchRayTriangleResult {
-    ~BenchRayTriangleResult {
+    let tri = Tri {
+        v0 : @vec3(v0(0), v0(1), v0(2)),
+        v1 : @vec3(v1(0), v1(1), v1(2)),
+        v2 : @vec3(v2(0), v2(1), v2(2))
+    };
+
+    fn generateRay(i: int) -> Ray {
+        let f = i % 1000 as float;
+
+        @ray(@vec3(1.0f, 0.0f, 0.0f), vec3(-1.0f, 0.001f + f * 0.001f, 0.001f + f * 0.001f))
+    }
+
+    fn vrange(a: int, b: int, yield: fn(int, fn())) -> () {
+        for vectorize(4, a, b) {
+           let x = wfv_get_tid();
+           @yield(x);
+        }
+    }
+
+    let mut result = ~BenchRayTriangleResult {
         intr_count: 0,
         tmin: 100000.0f
+    };
+
+    for i in range(0, nray4s) {
+        let mut tmin : [float * 4];
+        let mut intr : [int * 4];
+
+        for i in range(0, 4) {
+            tmin(i) = result.tmin;
+            intr(i) = 0;
+        }
+
+        for j in vrange(0, 4) {
+            let ray = @generateRay(i + j);
+            let next = continue;
+            @intersect_ray_tri(ray, tri,
+                |t, u, v| {
+                    intr(j) = 1;
+                    tmin(j) = t;
+                    next()
+                },
+                next)
+        }
+
+        for i in range(0, 4) {
+            if result.tmin > tmin(i) { result.tmin = tmin(i); }
+            result.intr_count += intr(i);
+        }
     }
+
+    result
 }
 
 extern fn bench_ray_triangle(nrays: int,
@@ -29,13 +81,6 @@ extern fn bench_ray_triangle(nrays: int,
         @ray(@vec3(1.0f, 0.0f, 0.0f), vec3(-1.0f, 0.001f + f * 0.001f, 0.001f + f * 0.001f))
     }
 
-    fn range(mut a: int, b: int, body: fn (int) -> ()) -> () {
-        while a < b {
-            body(a);
-            a = a + 1
-        }
-    }
-
     let mut result = ~BenchRayTriangleResult {
         intr_count: 0,
         tmin: 100000.0f
@@ -46,7 +91,7 @@ extern fn bench_ray_triangle(nrays: int,
         let next = continue;
         @intersect_ray_tri(ray, tri,
             |t, u, v| {
-                result.intr_count = result.intr_count + 1;
+                result.intr_count += 1;
                 if result.tmin > t { result.tmin = t; };
                 next()
             },

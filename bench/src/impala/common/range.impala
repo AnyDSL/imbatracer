@@ -11,3 +11,4 @@ fn urange(mut a: uint, b: uint, yield: fn(uint) -> ()) -> () {
         a += 1u
     }
 }
+

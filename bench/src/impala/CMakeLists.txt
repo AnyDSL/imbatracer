@@ -1,6 +1,5 @@
 # Generate object file from impala sources
 set(IMPALA_SOURCES
-    #bench_ray4_triangle.impala
     bench/bench_ray_triangle.impala
     bench/bench_ray_box.impala
     intersection/ray_triangle.impala

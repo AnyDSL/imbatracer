@@ -7,78 +7,6 @@ extern "C" {
     fn wfv_get_tid() -> int;
 }
 
-fn vrange(a: int, b: int, yield: fn(int, fn())) -> () {
-    for vectorize(8, a, b) {
-        let x = wfv_get_tid();
-        @yield(x);
-    }
-}
-
-struct Tri {
-    v0 : [float * 3],
-    v1 : [float * 3],
-    v2 : [float * 3]
-}
-
-fn v3sub(v1 : [float * 3], v2 : [float * 3]) -> [float * 3] {
-    [v1(0) - v2(0),
-     v1(1) - v2(1),
-     v1(2) - v2(2)]
-}
-
-fn v3cross(v1 : [float * 3], v2 : [float * 3]) -> [float * 3] {
-    [v1(1) * v2(2) - v1(2) * v2(1),
-     v1(2) * v2(0) - v1(0) * v2(2),
-     v1(0) * v2(1) - v1(1) * v2(0)]
-}
-
-fn v3dot(v1 : [float * 3], v2 : [float * 3]) -> float {
-    v1(0)*v2(0) + v1(1) * v2(1) + v1(2) * v2(2)
-}
-
-fn intersect_ray_tri(org: [float * 3],
-                     dir: [float * 3],
-                     v0: [float * 3],
-                     v1: [float * 3],
-                     v2: [float * 3],
-                     intr: fn (float, float, float) -> (),
-                     nointr: fn () -> ()) -> () {
-    let e0 = @v3sub(v1, v0);
-    let e1 = @v3sub(v2, v0);
-
-    let pvec = @v3cross(dir, e1);
-    let det = @v3dot(e0, pvec);
-
-    let epsilon = 0.0001f;
-
-    if det > -epsilon && det < epsilon {
-        @nointr();
-        return()
-    }
-
-    let inv_det = 1.0f / det;
-
-    let tvec = @v3sub(org, v0);
-    let u = @v3dot(tvec, pvec) * inv_det;
-
-    if u < 0.0f || u > 1.0f {
-        @nointr();
-        return()
-    }
-
-    let qvec = @v3cross(tvec, e0);
-    let v = @v3dot(dir, qvec) * inv_det;
-
-    if v < 0.0f || u + v > 1.0f {
-        @nointr();
-        return()
-    }
-
-    let t = @v3dot(e1, qvec) * inv_det;
-
-    @intr(t, u, v)
-}
-
 extern fn bench_ray_triangle(nrays: int,
                              v0: &[float * 3],
                              v1: &[float * 3],
@@ -94,23 +22,21 @@ extern fn bench_ray4_triangle(nray4s: int,
                               v1: &[float * 3],
                               v2: &[float * 3]) -> ~BenchRay4TriangleResult {
     let tri = Tri {
-        v0 : [v0(0), v0(1), v0(2)],
-        v1 : [v1(0), v1(1), v1(2)],
-        v2 : [v2(0), v2(1), v2(2)]
+        v0 : @vec3(v0(0), v0(1), v0(2)),
+        v1 : @vec3(v1(0), v1(1), v1(2)),
+        v2 : @vec3(v2(0), v2(1), v2(2))
     };
 
-    fn generateRayDir(f: float) -> [float * 3] {
-        [1.0f, 0.0f, 0.0f]
+    fn generateRay(i: int) -> Ray {
+        let f = i % 1000 as float;
+
+        @ray(@vec3(1.0f, 0.0f, 0.0f), vec3(-1.0f, 0.001f + f * 0.001f, 0.001f + f * 0.001f))
     }
 
-    fn generateRayOrg(f: float) -> [float * 3] {
-        [-1.0f, 0.001f + f * 0.001f, 0.001f + f * 0.001f]
-    }
-
-    fn range(mut a: int, b: int, body: fn (int) -> ()) -> () {
-        while a < b {
-            body(a);
-            a = a + 1
+    fn vrange(a: int, b: int, yield: fn(int, fn())) -> () {
+        for vectorize(8, a, b) {
+           let x = wfv_get_tid();
+           @yield(x);
         }
     }
 
@@ -120,15 +46,15 @@ extern fn bench_ray4_triangle(nray4s: int,
     };
 
     for i in vrange(0, nray4s * 4) {
-        let f = i % 1000 as float;
-        let org = @generateRayOrg(f);
-        let dir = @generateRayDir(f);
-        @intersect_ray_tri(org, dir, tri.v0, tri.v1, tri.v2,
+        let ray = @generateRay(i);
+        let next = continue;
+        @intersect_ray_tri(ray, tri,
             |t, u, v| {
-                result.intr_count += 1;
-                if (result.tmin > t) { result.tmin = t; }
+                result.intr_count = result.intr_count + 1;
+                if result.tmin > t { result.tmin = t; };
+                next()
             },
-            || {});
+            next)
     }
 
     result
