@@ -4,7 +4,7 @@ fn intersect_ray_box(ray_inv: RayInv,
                      nointr: fn ()) {
 
     fn intersection_time(v: Vec3, r: RayInv, i: int) -> float {
-        (v.values(i) - r.ray.org.values(i)) * r.inv_dir.values(i)
+        (v.values(i) - r.org.values(i)) * r.inv_dir.values(i)
     }
 
     fn min(a: float, b: float)-> float {

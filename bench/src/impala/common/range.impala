@@ -1,0 +1,13 @@
+fn range(mut a: int, b: int, yield: fn(int) -> ()) -> () {
+    while (a < b) {
+        yield(a);
+        a += 1
+    }
+}
+
+fn urange(mut a: uint, b: uint, yield: fn(uint) -> ()) -> () {
+    while (a < b) {
+        yield(a);
+        a += 1u
+    }
+}

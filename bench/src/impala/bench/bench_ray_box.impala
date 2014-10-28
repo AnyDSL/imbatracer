@@ -26,7 +26,8 @@ extern fn bench_ray_box(nrays: int,
     fn generateRay(i: int) -> RayInv {
         let f = i % 1000 as float;
 
-       @ray_inv_from_ray(@ray(@vec3(1.0f, 0.0f, 0.0f), @vec3(-1.0f, 0.001f + f * 0.001f, 0.001f + f * 0.001f)))
+       @ray_inv_from_ray(@ray(@vec3(1.0f + f * 0.00001f, 0.00001f * f, 0.00001f * f),
+                              @vec3(-1.0f + 0.00001f * f, 0.001f + f * 0.001f, 0.001f + f * 0.001f)))
     }
 
     fn range(mut a: int, b: int, body: fn (int) -> ()) -> () {

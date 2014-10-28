@@ -1,0 +1,115 @@
+struct BvhNode {
+    min: Vec3,            // Minimum bounding box point coordinates
+    child_first: uint,    // Left child index or first primitive index
+    max: Vec3,            // Maximum bounding box point coordinates
+    prim_count: uint      // Primitive count in this node
+}
+
+struct BvhBin {
+    min: Vec3,
+    max: Vec3,
+    prim_count: uint
+}
+
+struct Bvh {
+    nodes: ~[BvhNode],
+    prim_ids: ~[uint]
+}
+
+fn bvh(n: ~[BvhNode], p: ~[uint]) -> Bvh {
+    Bvh {
+        nodes: n,
+        prim_ids: p
+    }
+}
+
+fn bvh_bin(box_min: Vec3, box_max: Vec3, count: uint) -> BvhBin {
+    BvhBin {
+        min: box_min,
+        max: box_max,
+        prim_count: count
+    }
+}
+
+fn empty_bvh_bin() -> BvhBin {
+    BvhBin {
+        min: @vec3(flt_max, flt_max, flt_max),
+        max: @vec3(-flt_max, -flt_max, -flt_max),
+        prim_count: 0u
+    }
+}
+
+fn build_bvh(boxes: &[Box],
+             centers: &[Vec3],
+             prim_count: uint) -> Bvh {
+    // Allocate & initialize the primitive permutation array
+    let mut prim_ids = ~[prim_count: uint];
+    for i in urange(0u, prim_count) {
+        prim_ids(i) = i;
+    }
+
+    // Preallocate the BVH nodes (upper bound)
+    let mut nodes = ~[(2u * prim_count + 1u): BvhNode];
+    nodes(0).prim_count = prim_count;
+    nodes(0).child_first = 0u;
+
+    // Start construction
+    $build_bvh_node(nodes, 0u, prim_ids, boxes, centers);
+
+    @bvh(nodes, prim_ids)
+}
+
+fn build_bvh_node(mut nodes: &[BvhNode],
+                  cur_node: uint,
+                  prim_ids: &[uint],
+                  boxes: &[Box],
+                  centers: &[Vec3]) -> () {
+    let mut node = &(nodes(cur_node));
+
+    // Compute the node bounds
+    node.min = @vec3(flt_max, flt_max, flt_max);
+    node.max = @vec3(-flt_max, -flt_max, -flt_max);
+    let mut center_min = @vec3(flt_max, flt_max, flt_max);
+    let mut center_max = @vec3(-flt_max, -flt_max, -flt_max);
+
+    for i in urange(0u, node.prim_count) {
+        let id = prim_ids(node.child_first + i);
+        node.min = @vec3_min(node.min, boxes(id).min);
+        node.max = @vec3_max(node.max, boxes(id).max);
+        center_min = @vec3_min(center_min, centers(id));
+        center_max = @vec3_max(center_max, centers(id));
+    }
+
+    // Find longuest axis
+    let extents = @vec3_sub(center_max, center_min);
+    let mut axis = 0;
+    if extents.values(0) < extents.values(1) {
+        axis = 1;    
+    }
+    if extents.values(axis) < extents.values(2) {
+        axis = 2;
+    }
+
+    // Build the bins
+    let num_bins = 16u;
+    let mut bins : [BvhBin * 16];
+
+    for i in urange(0u, num_bins) {
+        bins(i) = @empty_bvh_bin();
+    }
+
+    // Put the primitives in the bins
+    let sah_epsilon = 0.0001f;
+    let sah_factor = (num_bins as float) * (1.0f - sah_epsilon) /
+                     (center_max.values(axis) - center_min.values(axis) + sah_epsilon);
+    let sah_offset = center_min.values(axis);
+    for i in urange(0u, node.prim_count) {
+        let id = prim_ids(node.child_first + i);
+        let bin_id = sah_factor * (centers(id).values(axis) - sah_offset) as uint;
+        bins(bin_id).min = @vec3_min(bins(bin_id).min, boxes(id).min);
+        bins(bin_id).max = @vec3_max(bins(bin_id).max, boxes(id).max);
+        bins(bin_id).prim_count += 1u;
+    }
+    
+}
+

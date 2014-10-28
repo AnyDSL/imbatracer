@@ -4,8 +4,8 @@ struct Ray {
 }
 
 struct RayInv {
-    ray: Ray,
-    inv_dir: Vec3
+    inv_dir: Vec3,
+    org: Vec3
 }
 
 fn ray(d: Vec3, o: Vec3) -> Ray {
@@ -15,15 +15,15 @@ fn ray(d: Vec3, o: Vec3) -> Ray {
     }
 }
 
-fn ray_inv(r: Ray, i: Vec3) -> RayInv {
+fn ray_inv(i: Vec3, o: Vec3) -> RayInv {
     RayInv {
-        ray: r,
-        inv_dir: i
+        inv_dir: i,
+        org: o
     }
 }
 
 fn ray_inv_from_ray(r: Ray) -> RayInv {
-    @ray_inv(r, @vec3_map(r.dir, |x: float| 1.0f / x))
+    @ray_inv(@vec3_map(r.dir, |x: float| 1.0f / x), r.org)
 }
 
 fn ray_reflect(r: Ray, p: Vec3, n: Vec3) -> Ray {
