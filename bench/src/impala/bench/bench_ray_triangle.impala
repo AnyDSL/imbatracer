@@ -10,23 +10,21 @@ extern "C" {
 extern fn bench_ray4_triangle(nray4s: int,
                               v0: &[float * 3],
                               v1: &[float * 3],
-                              v2: &[float * 3]) -> ~BenchRayTriangleResult {
-    let tri = Tri {
-        v0 : @vec3(v0(0), v0(1), v0(2)),
-        v1 : @vec3(v1(0), v1(1), v1(2)),
-        v2 : @vec3(v2(0), v2(1), v2(2))
-    };
+                              v2: &[float * 3]) -> ~BenchRayTriangleResult @{
+    let tri = tri(vec3(v0(0), v0(1), v0(2)),
+                  vec3(v1(0), v1(1), v1(2)),
+                  vec3(v2(0), v2(1), v2(2)));
 
     fn generateRay(i: int) -> Ray {
         let f = i % 1000 as float;
 
-        @ray(@vec3(1.0f, 0.0f, 0.0f), vec3(-1.0f, 0.001f + f * 0.001f, 0.001f + f * 0.001f))
+        ray(vec3(1.0f, 0.0f, 0.0f), vec3(-1.0f, 0.001f + f * 0.001f, 0.001f + f * 0.001f))
     }
 
     fn vrange(a: int, b: int, yield: fn(int, fn())) -> () {
-        for vectorize(4, a, b) {
+        for vectorize(4, a, b) @{
            let x = wfv_get_tid();
-           @yield(x);
+           yield(x);
         }
     }
 
@@ -35,7 +33,7 @@ extern fn bench_ray4_triangle(nray4s: int,
         tmin: 100000.0f
     };
 
-    for i in range(0, nray4s) {
+    for i in range(0, nray4s) @{
         let mut tmin : [float * 4];
         let mut intr : [int * 4];
 
@@ -45,9 +43,9 @@ extern fn bench_ray4_triangle(nray4s: int,
         }
 
         for j in vrange(0, 4) {
-            let ray = @generateRay(i + j);
+            let ray = generateRay(i + j);
             let next = continue;
-            @intersect_ray_tri(ray, tri,
+            intersect_ray_tri(ray, tri,
                 |t, u, v| {
                     intr(j) = 1;
                     tmin(j) = t;
@@ -68,17 +66,17 @@ extern fn bench_ray4_triangle(nray4s: int,
 extern fn bench_ray_triangle(nrays: int,
                              v0: &[float * 3],
                              v1: &[float * 3],
-                             v2: &[float * 3]) -> ~BenchRayTriangleResult {
+                             v2: &[float * 3]) -> ~BenchRayTriangleResult @{
     let tri = Tri {
-        v0 : @vec3(v0(0), v0(1), v0(2)),
-        v1 : @vec3(v1(0), v1(1), v1(2)),
-        v2 : @vec3(v2(0), v2(1), v2(2))
+        v0 : vec3(v0(0), v0(1), v0(2)),
+        v1 : vec3(v1(0), v1(1), v1(2)),
+        v2 : vec3(v2(0), v2(1), v2(2))
     };
 
     fn generateRay(i: int) -> Ray {
         let f = i % 1000 as float;
 
-        @ray(@vec3(1.0f, 0.0f, 0.0f), vec3(-1.0f, 0.001f + f * 0.001f, 0.001f + f * 0.001f))
+        ray(vec3(1.0f, 0.0f, 0.0f), vec3(-1.0f, 0.001f + f * 0.001f, 0.001f + f * 0.001f))
     }
 
     let mut result = ~BenchRayTriangleResult {
@@ -86,10 +84,10 @@ extern fn bench_ray_triangle(nrays: int,
         tmin: 100000.0f
     };
 
-    for i in range(0, nrays) {
-        let ray = @generateRay(i);
+    for i in range(0, nrays) @{
+        let ray = generateRay(i);
         let next = continue;
-        @intersect_ray_tri(ray, tri,
+        intersect_ray_tri(ray, tri,
             |t, u, v| {
                 result.intr_count += 1;
                 if result.tmin > t { result.tmin = t; };

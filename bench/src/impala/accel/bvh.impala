@@ -1,87 +1,131 @@
 struct BvhNode {
-    min: Vec3,            // Minimum bounding box point coordinates
-    child_first: uint,    // Left child index or first primitive index
-    max: Vec3,            // Maximum bounding box point coordinates
-    prim_count: uint      // Primitive count in this node
+    bounds: Box,          // The bounds of this node
+    child_first: int,    // Left child index or first primitive index
+    prim_count: int      // Primitive count in this node
 }
 
 struct BvhBin {
-    min: Vec3,
-    max: Vec3,
-    prim_count: uint
+    bounds: Box,
+    prim_count: int
 }
 
 struct Bvh {
     nodes: ~[BvhNode],
-    prim_ids: ~[uint]
+    prim_ids: ~[int]
 }
 
-fn bvh(n: ~[BvhNode], p: ~[uint]) -> Bvh {
+fn bvh(nodes: ~[BvhNode], prim_ids: ~[int]) -> Bvh {
     Bvh {
-        nodes: n,
-        prim_ids: p
+        nodes: nodes,
+        prim_ids: prim_ids
     }
 }
 
-fn bvh_bin(box_min: Vec3, box_max: Vec3, count: uint) -> BvhBin {
+fn bvh_bin(bounds: Box, count: int) -> BvhBin {
     BvhBin {
-        min: box_min,
-        max: box_max,
+        bounds: bounds,
         prim_count: count
     }
 }
 
 fn empty_bvh_bin() -> BvhBin {
     BvhBin {
-        min: @vec3(flt_max, flt_max, flt_max),
-        max: @vec3(-flt_max, -flt_max, -flt_max),
-        prim_count: 0u
+        bounds: @empty_box(),
+        prim_count: 0
+    }
+}
+
+fn evaluate_partitions(bins: &[BvhBin],
+                       num_bins: int,
+                       prim_count: int,
+                       cannot_split: fn (),
+                       can_split: fn (int)) {
+    let mut left_area = [num_bins: float];
+    let mut left_count = [num_bins: int];
+    
+    // Sweep from the left while counting the primitives and computing the area
+    let mut cur_box = bins(0).bounds;
+    left_area(0) = box_area(cur_box);
+    left_count(0) = bins(0).prim_count;
+
+    for i in range(1, num_bins - 2) {
+        cur_box = box_union(cur_box, bins(i).bounds);
+        left_area(i) = left_area(i - 1) + box_area(cur_box);
+        left_count(i) = left_count(i - 1) + bins(i).prim_count;
+    }
+
+    // Sweep from the right and determine where to split
+    let mut min_idx = num_bins - 1;
+    let mut right_count = bins(num_bins - 1).prim_count;
+    let mut min_cost = (left_count(num_bins - 2) as float) * left_area(num_bins - 2) +
+                       (right_count as float) * box_area(bins(num_bins - 1).bounds);
+
+    cur_box = bins(num_bins - 1).bounds;
+
+    for i in range(2, num_bins - 1) {
+        let j = num_bins - i;
+
+        cur_box = box_union(cur_box, bins(j).bounds);
+        right_count += bins(j).prim_count;
+
+        let cost = (right_count as float) * box_area(cur_box) +
+                   (left_count(j - 1) as float) * left_area(j - 1);
+        if cost < min_cost {
+            min_cost = cost;
+            min_idx = j;
+        }
+    }
+
+    // If the number of primitives in any of the two sets is zero,
+    // we cannot split this node
+    let num_left = left_count(min_idx - 1);
+    if num_left == 0 || num_left == prim_count {
+        @cannot_split()
+    } else {
+        @can_split(min_idx)
     }
 }
 
 fn build_bvh(boxes: &[Box],
              centers: &[Vec3],
-             prim_count: uint) -> Bvh {
+             prim_count: int) -> Bvh {
     // Allocate & initialize the primitive permutation array
-    let mut prim_ids = ~[prim_count: uint];
-    for i in urange(0u, prim_count) {
+    let mut prim_ids = ~[prim_count: int];
+    for i in range(0, prim_count) {
         prim_ids(i) = i;
     }
 
     // Preallocate the BVH nodes (upper bound)
-    let mut nodes = ~[(2u * prim_count + 1u): BvhNode];
+    let mut nodes = ~[(2 * prim_count + 1): BvhNode];
     nodes(0).prim_count = prim_count;
-    nodes(0).child_first = 0u;
+    nodes(0).child_first = 0;
 
     // Start construction
-    $build_bvh_node(nodes, 0u, prim_ids, boxes, centers);
+    $build_bvh_node(nodes, 0, 1, prim_ids, boxes, centers);
 
-    @bvh(nodes, prim_ids)
+    bvh(nodes, prim_ids)
 }
 
 fn build_bvh_node(mut nodes: &[BvhNode],
-                  cur_node: uint,
-                  prim_ids: &[uint],
+                  cur_node: int,
+                  next_free: int,
+                  mut prim_ids: &[int],
                   boxes: &[Box],
-                  centers: &[Vec3]) -> () {
+                  centers: &[Vec3]) -> int {
     let mut node = &(nodes(cur_node));
 
     // Compute the node bounds
-    node.min = @vec3(flt_max, flt_max, flt_max);
-    node.max = @vec3(-flt_max, -flt_max, -flt_max);
-    let mut center_min = @vec3(flt_max, flt_max, flt_max);
-    let mut center_max = @vec3(-flt_max, -flt_max, -flt_max);
+    node.bounds = empty_box();
+    let mut center_box = empty_box();
 
-    for i in urange(0u, node.prim_count) {
+    for i in range(0, node.prim_count) {
         let id = prim_ids(node.child_first + i);
-        node.min = @vec3_min(node.min, boxes(id).min);
-        node.max = @vec3_max(node.max, boxes(id).max);
-        center_min = @vec3_min(center_min, centers(id));
-        center_max = @vec3_max(center_max, centers(id));
+        node.bounds = box_union(node.bounds, boxes(id));
+        center_box = box_expand(center_box, centers(id));
     }
 
     // Find longuest axis
-    let extents = @vec3_sub(center_max, center_min);
+    let extents = @box_extents(center_box);
     let mut axis = 0;
     if extents.values(0) < extents.values(1) {
         axis = 1;    
@@ -91,25 +135,50 @@ fn build_bvh_node(mut nodes: &[BvhNode],
     }
 
     // Build the bins
-    let num_bins = 16u;
+    let num_bins = 16;
     let mut bins : [BvhBin * 16];
 
-    for i in urange(0u, num_bins) {
+    for i in range(0, num_bins) {
         bins(i) = @empty_bvh_bin();
     }
 
     // Put the primitives in the bins
     let sah_epsilon = 0.0001f;
     let sah_factor = (num_bins as float) * (1.0f - sah_epsilon) /
-                     (center_max.values(axis) - center_min.values(axis) + sah_epsilon);
-    let sah_offset = center_min.values(axis);
-    for i in urange(0u, node.prim_count) {
+                     (center_box.max.values(axis) - center_box.min.values(axis) + sah_epsilon);
+    let sah_offset = center_box.min.values(axis);
+    for i in range(0, node.prim_count) {
         let id = prim_ids(node.child_first + i);
-        let bin_id = sah_factor * (centers(id).values(axis) - sah_offset) as uint;
-        bins(bin_id).min = @vec3_min(bins(bin_id).min, boxes(id).min);
-        bins(bin_id).max = @vec3_max(bins(bin_id).max, boxes(id).max);
-        bins(bin_id).prim_count += 1u;
+        let bin_id = sah_factor * (centers(id).values(axis) - sah_offset) as int;
+        bins(bin_id).bounds = box_union(bins(bin_id).bounds, boxes(id));
+        bins(bin_id).prim_count += 1;
     }
     
+    let end = return;
+
+    // Find the best split position and then build the children
+    @evaluate_partitions(&bins, num_bins, node.prim_count, || {end(next_free)}, |min_id| {
+        // Split the primitives in two sets
+        let mut a = node.child_first;
+        let mut b = node.child_first + node.prim_count - 1;
+
+        while a <= b {
+            let bin_id = sah_factor * (centers(prim_ids(a)).values(axis) - sah_offset) as int;
+
+            if bin_id >= min_id {
+                prim_ids(a) ^= prim_ids(b);
+                prim_ids(b) ^= prim_ids(a);
+                prim_ids(a) ^= prim_ids(b);
+                b -= 1;
+            } else {
+                a += 1;
+            }
+        }
+
+        // Build the two children recursively
+        let free_left  = $build_bvh_node(nodes, next_free, next_free + 2, prim_ids, boxes, centers);
+        let free_right = $build_bvh_node(nodes, next_free + 1, free_left, prim_ids, boxes, centers);
+        end(free_right)
+    })
 }
 

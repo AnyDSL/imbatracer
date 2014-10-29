@@ -41,81 +41,81 @@ fn mat4(a: Vec4, b: Vec4, c: Vec4, d: Vec4) -> Mat4 {
 }
 
 fn mat2_row(m: Mat2, i: int) -> Vec2 {
-    @vec2(m.c0.values(i), m.c1.values(i))
+    vec2(m.c0.values(i), m.c1.values(i))
 }
 
 fn mat3_row(m: Mat3, i: int) -> Vec3 {
-    @vec3(m.c0.values(i), m.c1.values(i), m.c2.values(i))
+    vec3(m.c0.values(i), m.c1.values(i), m.c2.values(i))
 }
 
 fn mat4_row(m: Mat4, i: int) -> Vec4 {
-    @vec4(m.c0.values(i), m.c1.values(i), m.c2.values(i), m.c3.values(i))
+    vec4(m.c0.values(i), m.c1.values(i), m.c2.values(i), m.c3.values(i))
 }
 
 fn mat2_mul(a: Mat2, b: Mat2) -> Mat2 {
-    let r0 = @mat2_row(a, 0);
-    let r1 = @mat2_row(a, 1);
+    let r0 = mat2_row(a, 0);
+    let r1 = mat2_row(a, 1);
 
-    @mat2(@vec2(@vec2_dot(r0, b.c0), @vec2_dot(r1, b.c0)),
-          @vec2(@vec2_dot(r0, b.c1), @vec2_dot(r1, b.c1)))
+    mat2(vec2(vec2_dot(r0, b.c0), vec2_dot(r1, b.c0)),
+         vec2(vec2_dot(r0, b.c1), vec2_dot(r1, b.c1)))
 }
 
 fn mat3_mul(a: Mat3, b: Mat3) -> Mat3 {
-    let r0 = @mat3_row(a, 0);
-    let r1 = @mat3_row(a, 1);
-    let r2 = @mat3_row(a, 2);
+    let r0 = mat3_row(a, 0);
+    let r1 = mat3_row(a, 1);
+    let r2 = mat3_row(a, 2);
     
-    @mat3(@vec3(@vec3_dot(r0, b.c0), @vec3_dot(r1, b.c0), @vec3_dot(r2, b.c0)),
-          @vec3(@vec3_dot(r0, b.c1), @vec3_dot(r1, b.c1), @vec3_dot(r2, b.c1)),
-          @vec3(@vec3_dot(r0, b.c2), @vec3_dot(r1, b.c2), @vec3_dot(r2, b.c2)))
+    mat3(vec3(vec3_dot(r0, b.c0), vec3_dot(r1, b.c0), vec3_dot(r2, b.c0)),
+         vec3(vec3_dot(r0, b.c1), vec3_dot(r1, b.c1), vec3_dot(r2, b.c1)),
+         vec3(vec3_dot(r0, b.c2), vec3_dot(r1, b.c2), vec3_dot(r2, b.c2)))
 }
 
 fn mat4_mul(a: Mat4, b: Mat4) -> Mat4 {
-    let r0 = @mat4_row(a, 0);
-    let r1 = @mat4_row(a, 1);
-    let r2 = @mat4_row(a, 2);
-    let r3 = @mat4_row(a, 3);
+    let r0 = mat4_row(a, 0);
+    let r1 = mat4_row(a, 1);
+    let r2 = mat4_row(a, 2);
+    let r3 = mat4_row(a, 3);
     
-    @mat4(@vec4(@vec4_dot(r0, b.c0), @vec4_dot(r1, b.c0), @vec4_dot(r2, b.c0), @vec4_dot(r3, b.c0)),
-          @vec4(@vec4_dot(r0, b.c1), @vec4_dot(r1, b.c1), @vec4_dot(r2, b.c1), @vec4_dot(r3, b.c1)),
-          @vec4(@vec4_dot(r0, b.c2), @vec4_dot(r1, b.c2), @vec4_dot(r2, b.c2), @vec4_dot(r3, b.c2)),
-          @vec4(@vec4_dot(r0, b.c3), @vec4_dot(r1, b.c3), @vec4_dot(r2, b.c3), @vec4_dot(r3, b.c3)))
+    mat4(vec4(vec4_dot(r0, b.c0), vec4_dot(r1, b.c0), vec4_dot(r2, b.c0), vec4_dot(r3, b.c0)),
+         vec4(vec4_dot(r0, b.c1), vec4_dot(r1, b.c1), vec4_dot(r2, b.c1), vec4_dot(r3, b.c1)),
+         vec4(vec4_dot(r0, b.c2), vec4_dot(r1, b.c2), vec4_dot(r2, b.c2), vec4_dot(r3, b.c2)),
+         vec4(vec4_dot(r0, b.c3), vec4_dot(r1, b.c3), vec4_dot(r2, b.c3), vec4_dot(r3, b.c3)))
 }
 
 fn mat2_mul_vec2(m: Mat2, v: Vec2) -> Vec2 {
-    let r0 = @mat2_row(m, 0);
-    let r1 = @mat2_row(m, 1);
+    let r0 = mat2_row(m, 0);
+    let r1 = mat2_row(m, 1);
 
-    @vec2(@vec2_dot(r0, v), @vec2_dot(r1, v))
+    vec2(vec2_dot(r0, v), vec2_dot(r1, v))
 }
 
 fn mat3_mul_vec3(m: Mat3, v: Vec3) -> Vec3 {
-    let r0 = @mat3_row(m, 0);
-    let r1 = @mat3_row(m, 1);
-    let r2 = @mat3_row(m, 2);
+    let r0 = mat3_row(m, 0);
+    let r1 = mat3_row(m, 1);
+    let r2 = mat3_row(m, 2);
 
-    @vec3(@vec3_dot(r0, v), @vec3_dot(r1, v), @vec3_dot(r2, v))
+    vec3(vec3_dot(r0, v), vec3_dot(r1, v), vec3_dot(r2, v))
 }
 
 fn mat4_mul_vec4(m: Mat4, v: Vec4) -> Vec4 {
-    let r0 = @mat4_row(m, 0);
-    let r1 = @mat4_row(m, 1);
-    let r2 = @mat4_row(m, 2);
-    let r3 = @mat4_row(m, 3);
+    let r0 = mat4_row(m, 0);
+    let r1 = mat4_row(m, 1);
+    let r2 = mat4_row(m, 2);
+    let r3 = mat4_row(m, 3);
 
-    @vec4(@vec4_dot(r0, v), @vec4_dot(r1, v), @vec4_dot(r2, v), @vec4_dot(r3, v))
+    vec4(vec4_dot(r0, v), vec4_dot(r1, v), vec4_dot(r2, v), vec4_dot(r3, v))
 }
 
 fn vec2_mul_mat2(v: Vec2, m: Mat2) -> Vec2 {
-    @vec2(@vec2_dot(v, m.c0), @vec2_dot(v, m.c1))
+    vec2(vec2_dot(v, m.c0), vec2_dot(v, m.c1))
 }
 
 fn vec3_mul_mat3(v: Vec3, m: Mat3) -> Vec3 {
-    @vec3(@vec3_dot(v, m.c0), @vec3_dot(v, m.c1), @vec3_dot(v, m.c2))
+    vec3(vec3_dot(v, m.c0), vec3_dot(v, m.c1), vec3_dot(v, m.c2))
 }
 
 fn vec4_mul_mat4(v: Vec4, m: Mat4) -> Vec4 {
-    @vec4(@vec4_dot(v, m.c0), @vec4_dot(v, m.c1), @vec4_dot(v, m.c2), @vec4_dot(v, m.c3))
+    vec4(vec4_dot(v, m.c0), vec4_dot(v, m.c1), vec4_dot(v, m.c2), vec4_dot(v, m.c3))
 }
 
 fn mat3_rotation(axis: Vec3, angle: float) -> Mat3 {
@@ -127,7 +127,7 @@ fn mat3_rotation(axis: Vec3, angle: float) -> Mat3 {
     let y2 = y * y;
     let z2 = z * z;
 
-    @assert(|| { fabsf(x2 + y2 + z2 - 1.0f) <= 0.0001f }, "mat3_rotation : axis must be unit length");
+    assert(|| { fabsf(x2 + y2 + z2 - 1.0f) <= 0.0001f }, "mat3_rotation : axis must be unit length");
 
     let xy = x * y;
     let yz = y * z;
@@ -140,15 +140,15 @@ fn mat3_rotation(axis: Vec3, angle: float) -> Mat3 {
     let ys = y * s;
     let zs = z * s;
 
-    @mat3(@vec3(x2 + (1.0f - x2) * c, xy * (1.0f - c) + zs, zx * (1.0f - c) - ys),
-          @vec3(xy * (1.0f - c) - zs, y2 + (1.0f - y2) * c, yz * (1.0f - c) + xs),
-          @vec3(zx * (1.0f - c) + ys, yz * (1.0f - c) - xs, z2 + (1.0f - z2) * c))
+    mat3(vec3(x2 + (1.0f - x2) * c, xy * (1.0f - c) + zs, zx * (1.0f - c) - ys),
+         vec3(xy * (1.0f - c) - zs, y2 + (1.0f - y2) * c, yz * (1.0f - c) + xs),
+         vec3(zx * (1.0f - c) + ys, yz * (1.0f - c) - xs, z2 + (1.0f - z2) * c))
 }
 
 fn mat4_from_mat3(m: Mat3) -> Mat4 {
-    @mat4(@vec4_from_vec3(m.c0, 0.0f),
-          @vec4_from_vec3(m.c1, 0.0f),
-          @vec4_from_vec3(m.c2, 0.0f),
-          @vec4(0.0f, 0.0f, 0.0f, 1.0f))
+    mat4(vec4_from_vec3(m.c0, 0.0f),
+         vec4_from_vec3(m.c1, 0.0f),
+         vec4_from_vec3(m.c2, 0.0f),
+         vec4(0.0f, 0.0f, 0.0f, 1.0f))
 }
 

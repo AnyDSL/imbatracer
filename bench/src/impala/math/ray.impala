@@ -8,17 +8,17 @@ struct RayInv {
     org: Vec3
 }
 
-fn ray(d: Vec3, o: Vec3) -> Ray {
+fn ray(dir: Vec3, org: Vec3) -> Ray {
     Ray {
-        dir: d,
-        org: o
+        dir: dir,
+        org: org
     }
 }
 
-fn ray_inv(i: Vec3, o: Vec3) -> RayInv {
+fn ray_inv(inv_dir: Vec3, org: Vec3) -> RayInv {
     RayInv {
-        inv_dir: i,
-        org: o
+        inv_dir: inv_dir,
+        org: org
     }
 }
 
