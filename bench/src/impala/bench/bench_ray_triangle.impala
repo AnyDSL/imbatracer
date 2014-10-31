@@ -8,21 +8,21 @@ extern "C" {
 }
 
 extern fn bench_ray4_triangle(nray4s: int,
-                              v0: &[float * 3],
-                              v1: &[float * 3],
-                              v2: &[float * 3]) -> ~BenchRayTriangleResult @{
+                                v0: &[float * 3],
+                                v1: &[float * 3],
+                                v2: &[float * 3]) -> ~BenchRayTriangleResult @{
     let tri = tri(vec3(v0(0), v0(1), v0(2)),
                   vec3(v1(0), v1(1), v1(2)),
                   vec3(v2(0), v2(1), v2(2)));
 
-    fn generateRay(i: int) -> Ray {
+    fn generate_ray(i: int) -> Ray {
         let f = i % 1000 as float;
 
         ray(vec3(1.0f, 0.0f, 0.0f), vec3(-1.0f, 0.001f + f * 0.001f, 0.001f + f * 0.001f))
     }
 
     fn vrange(a: int, b: int, yield: fn(int, fn())) -> () {
-        for vectorize(4, a, b) @{
+        for vectorize(4, a, b) {
            let x = wfv_get_tid();
            yield(x);
         }
@@ -30,20 +30,20 @@ extern fn bench_ray4_triangle(nray4s: int,
 
     let mut result = ~BenchRayTriangleResult {
         intr_count: 0,
-        tmin: 100000.0f
+        tmin: flt_max
     };
 
     for i in range(0, nray4s) @{
         let mut tmin : [float * 4];
         let mut intr : [int * 4];
 
-        for i in range(0, 4) {
+        for i in vrange(0, 4) @{
             tmin(i) = result.tmin;
             intr(i) = 0;
         }
 
-        for j in vrange(0, 4) {
-            let ray = generateRay(i + j);
+        for j in vrange(0, 4) @{
+            let ray = generate_ray(i + j);
             let next = continue;
             intersect_ray_tri(ray, tri,
                 |t, u, v| {
@@ -54,7 +54,7 @@ extern fn bench_ray4_triangle(nray4s: int,
                 next)
         }
 
-        for i in range(0, 4) {
+        for i in range(0, 4) @{
             if result.tmin > tmin(i) { result.tmin = tmin(i); }
             result.intr_count += intr(i);
         }
@@ -81,7 +81,7 @@ extern fn bench_ray_triangle(nrays: int,
 
     let mut result = ~BenchRayTriangleResult {
         intr_count: 0,
-        tmin: 100000.0f
+        tmin: flt_max
     };
 
     for i in range(0, nrays) @{

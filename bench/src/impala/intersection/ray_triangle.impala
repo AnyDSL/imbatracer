@@ -3,11 +3,11 @@ fn intersect_ray_tri(ray: Ray,
                      tri: Tri,
                      intr: fn (float, float, float),
                      nointr: fn ()) {
-    let e0 = vec3_sub(tri.v1, tri.v0);
-    let e1 = vec3_sub(tri.v2, tri.v0);
+    let e0 = @vec3_sub(tri.v1, tri.v0);
+    let e1 = @vec3_sub(tri.v2, tri.v0);
 
-    let pvec = vec3_cross(ray.dir, e1);
-    let det = vec3_dot(e0, pvec);
+    let pvec = @vec3_cross(ray.dir, e1);
+    let det = @vec3_dot(e0, pvec);
 
     let epsilon = 0.0001f;
 
@@ -17,21 +17,21 @@ fn intersect_ray_tri(ray: Ray,
 
     let inv_det = 1.0f / det;
 
-    let tvec = vec3_sub(ray.org, tri.v0);
-    let u = vec3_dot(tvec, pvec) * inv_det;
+    let tvec = @vec3_sub(ray.org, tri.v0);
+    let u = @vec3_dot(tvec, pvec) * inv_det;
 
     if u < 0.0f || u > 1.0f {
         @nointr()
     }
 
-    let qvec = vec3_cross(tvec, e0);
-    let v = vec3_dot(ray.dir, qvec) * inv_det;
+    let qvec = @vec3_cross(tvec, e0);
+    let v = @vec3_dot(ray.dir, qvec) * inv_det;
 
     if v < 0.0f || u + v > 1.0f {
         @nointr()
     }
 
-    let t = vec3_dot(e1, qvec) * inv_det;
+    let t = @vec3_dot(e1, qvec) * inv_det;
 
     intr(t, u, v)
 }

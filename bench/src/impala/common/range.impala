@@ -1,14 +1,18 @@
-fn range(mut a: int, b: int, yield: fn(int) -> ()) -> () {
-    while (a < b) {
+fn range(a: int, b: int, yield: fn(int) -> ()) -> () {
+    if a < b {
         yield(a);
-        a += 1
+        range(a + 1, b, yield, return)
     }
 }
 
-fn urange(mut a: uint, b: uint, yield: fn(uint) -> ()) -> () {
-    while (a < b) {
+fn urange(a: uint, b: uint, yield: fn(uint) -> ()) -> () {
+    if a < b {
         yield(a);
-        a += 1u
+        urange(a + 1u, b, yield, return)
     }
 }
 
+fn ever(yield: fn () -> ()) -> () {
+    yield();
+    ever(yield, return)
+}

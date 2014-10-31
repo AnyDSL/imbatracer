@@ -2,8 +2,10 @@
 set(IMPALA_SOURCES
     bench/bench_ray_triangle.impala
     bench/bench_ray_box.impala
+    bench/bench_ray_bvh.impala
     intersection/ray_triangle.impala
     intersection/ray_box.impala
+    intersection/ray_bvh.impala
     math/ray.impala
     math/box.impala
     math/matrix.impala

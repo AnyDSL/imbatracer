@@ -12,7 +12,7 @@ extern fn bench_ray4_box(nray4s: int,
         max : vec3(box_max(0), box_max(1), box_max(2))
     };
 
-    fn generateRay(i: int) -> RayInv {
+    fn generate_ray(i: int) -> RayInv {
         let f = i % 1000 as float;
 
        ray_inv_from_ray(ray(vec3(1.0f + f * 0.00001f, 0.00001f * f, 0.00001f * f),
@@ -28,11 +28,11 @@ extern fn bench_ray4_box(nray4s: int,
 
     let mut result = ~BenchRayBoxResult {
         intr_count: 0,
-        tmin: -100000.0f,
-        tmax: 100000.0f
+        tmin: -flt_max,
+        tmax: flt_max
     };
 
-    for i in range(0, nray4s) @{
+    for i in range(0, nray4s) {
         let mut tmin : [float * 4];
         let mut tmax : [float * 4];
         let mut intr : [int * 4];
@@ -44,7 +44,7 @@ extern fn bench_ray4_box(nray4s: int,
         }
 
         for j in vrange(0, 4) @{
-            let ray = generateRay(i);
+            let ray = generate_ray(i);
             let next = continue;
             intersect_ray_box(ray, box,
                 |t0, t1| {
@@ -72,8 +72,8 @@ extern fn bench_ray_box(nrays: int,
     let box = box(vec3(box_max(0), box_max(1), box_max(2)),
                   vec3(box_min(0), box_min(1), box_min(2)));
 
-    fn generateRay(i: int) -> RayInv {
-        let f = i % 1000 as float;
+    fn generate_ray(i: int) -> RayInv {
+        let f = (i % 1000) as float;
 
        ray_inv_from_ray(ray(vec3(1.0f + f * 0.00001f, 0.00001f * f, 0.00001f * f),
                             vec3(-1.0f + 0.00001f * f, 0.001f + f * 0.001f, 0.001f + f * 0.001f)))
@@ -81,12 +81,12 @@ extern fn bench_ray_box(nrays: int,
 
     let mut result = ~BenchRayBoxResult {
         intr_count: 0,
-        tmin: -100000.0f,
-        tmax: 100000.0f
+        tmin: -flt_max,
+        tmax: flt_max
     };
 
     for i in range(0, nrays) @{
-        let ray = generateRay(i);
+        let ray = generate_ray(i);
         let next = continue;
         intersect_ray_box(ray, box,
             |t0, t1| {

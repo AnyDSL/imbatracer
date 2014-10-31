@@ -23,10 +23,10 @@ fn ray_inv(inv_dir: Vec3, org: Vec3) -> RayInv {
 }
 
 fn ray_inv_from_ray(r: Ray) -> RayInv {
-    @ray_inv(@vec3_map(r.dir, |x: float| 1.0f / x), r.org)
+    ray_inv(vec3_map(r.dir, |x: float| 1.0f / x), r.org)
 }
 
 fn ray_reflect(r: Ray, p: Vec3, n: Vec3) -> Ray {
-    @ray(@vec3_sub(r.dir, @vec3_mulf(n, 2.0f * @vec3_dot(n, r.dir))), p)
+    ray(vec3_sub(r.dir, vec3_mulf(n, 2.0f * vec3_dot(n, r.dir))), p)
 }
 
