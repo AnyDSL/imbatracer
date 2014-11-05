@@ -82,11 +82,13 @@ bool SDLGui::_OnKey(int /*scancode*/, int key, int /*mod*/, bool state)
     return false;
 }
 
-void SDLGui::_OnWindowResize(int w, int h)
+void SDLGui::_OnWindowResize(int w, int h, int realw, int realh)
 {
-    std::cout << "New window size: " << w << "x" << h << std::endl;
+    std::cout << "New window size: " << w << "x" << h << ", real " << realw << "x" << realh << std::endl;
     windowW = w;
     windowH = h;
+    realWindowW = realw;
+    realWindowH = realh;
 }
 
 void SDLGui::_OnMouseButton(int button, int state, int /*x*/, int /*y*/)
@@ -98,7 +100,7 @@ void SDLGui::_OnMouseButton(int button, int state, int /*x*/, int /*y*/)
 void SDLGui::_OnMouseMotion(int xrel, int yrel)
 {
     std::lock_guard<std::mutex> g(eventLock);
-    eventQ.emplace_back(EventHolder::MouseMove((float)xrel / int(windowW), (float)yrel / int(windowH)));
+    eventQ.emplace_back(EventHolder::MouseMove((float)xrel / int(realWindowW), (float)yrel / int(realWindowH)));
 }
 
 void SDLGui::_OnMouseWheel(int x, int y)
@@ -116,6 +118,16 @@ void SDLGui::_HandleEvents()
         _DispatchEvents(&eventQ[0], sz);
         eventQ.clear();
     }
+}
+
+float SDLGui::getPixelScale()
+{
+    return th->getPixelScale();
+}
+
+void SDLGui::setPixelScale(float s)
+{
+    th->setPixelScale(s);
 }
 
 

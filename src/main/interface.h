@@ -53,7 +53,7 @@ namespace impala {
     extern "C" {
         // functiosn working on the state
         State *impala_init();
-        void impala_event(State *, bool grabbed, unsigned evt, bool down, int key, float x, float y);
+        void impala_event(void *, State *, bool grabbed, unsigned evt, bool down, int key, float x, float y);
         void impala_update(State *, float dt);
 
         State *impala_init_bench1();

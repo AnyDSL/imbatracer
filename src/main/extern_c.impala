@@ -18,6 +18,10 @@ extern "C"
     fn print_sffff(&[u8], float, float, float, float) -> ();
     fn assert_failed(&[u8]) -> ();
 
+    // gui integration
+    fn set_pixelscale(&u8, float) -> ();
+    fn get_pixelscale(&u8) -> float;
+
     // object loader
     fn load_object_from_file(path: &[u8], filename: &[u8], flags: uint, matOverride: &[uint], scene: &Scene, tris: &Tris) -> ();
 

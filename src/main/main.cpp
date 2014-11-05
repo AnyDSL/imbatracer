@@ -49,7 +49,7 @@ protected:
         for(size_t i = 0; i < num; ++i)
         {
             const EventHolder& e = ep[i];
-            impala::impala_event(state, mouseGrabbed, e.ev, e.down, e.key, e.x, e.y);
+            impala::impala_event(this, state, mouseGrabbed, e.ev, e.down, e.key, e.x, e.y);
         }
     }
 

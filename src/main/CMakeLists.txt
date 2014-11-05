@@ -56,5 +56,5 @@ add_executable(main main.cpp ${rt_SRC})
 target_link_libraries(main io ${impala_loc_LIB} ${impala_acc_LIB})
 
 add_executable(bench bench.cpp ${rt_SRC})
-target_link_libraries(bench core ${impala_loc_LIB} ${impala_acc_LIB})
+target_link_libraries(bench io ${impala_loc_LIB} ${impala_acc_LIB})
 

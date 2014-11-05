@@ -30,6 +30,9 @@ public:
 
     bool isMouseGrabbed() const { return mouseGrabbed; }
 
+    float getPixelScale();
+    void setPixelScale(float s);
+
     enum EventType
     {
         EVT_KEY,
@@ -61,14 +64,15 @@ protected:
     virtual void _OnMouseButton(int button, int state, int x, int y);
     virtual void _OnMouseMotion(int xrel, int yrel);
     virtual void _OnMouseWheel(int x, int y);
-    virtual void _OnWindowResize(int w, int h);
+    virtual void _OnWindowResize(int w, int h, int realw, int realh);
     virtual void _OnShutdown() {}
 
     void _HandleEvents();
     virtual void _DispatchEvents(const EventHolder * /*ep*/, size_t /*num*/) {}
 
     // write only by GUI thread!
-    std::atomic_uint windowW, windowH;
+    std::atomic_uint windowW, windowH, realWindowW, realWindowH;
+    float pixelScale;
     bool mouseGrabbed;
 
 private:

@@ -17,7 +17,7 @@ class SDLGuiThread
 public:
     SDLGuiThread(SDLGui *gui);
     virtual ~SDLGuiThread();
-    
+
     // start the thread
     void launch();
 
@@ -26,18 +26,22 @@ public:
 
     // terminates the thread when the main thread sees fit
     void quitThreadASAP();
-    
+
     // tell if the thread wants to quit
     bool waitingForQuit()
     {
         return getState() > READY;
     }
-    
+
     // wait till the thread was quit
     void waitForQuit();
-    
+
     // get underlying SDL window - call only from GUI thread!
     SDL_Window *getWindow() { return _window; }
+
+    float getPixelScale();
+    void setPixelScale(float s);
+
 
 protected:
     void run();
@@ -73,6 +77,8 @@ private:
     SDL_Window *_window;
     SDL_GLContext _glctx;
     SDLRenderer *_disp;
+    float pixelScale;
+    unsigned _lastW, _lastH;
 
     bool init();
     void threadMain();
@@ -81,6 +87,7 @@ private:
     void resize(unsigned w, unsigned h);
     void handleEvents();
     bool createWindow(unsigned w, unsigned h, const char *title);
+    void _sizeChanged(unsigned w, unsigned h);
 };
 
 } // end namespace rt

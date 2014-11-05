@@ -54,10 +54,37 @@ static EVT_MOUSEMOVE = 1u;
 static EVT_MOUSEBUTTON = 2u;
 static EVT_MOUSEWHEEL = 3u;
 
-extern fn impala_event(state : &State, grabbed : bool, evt : uint, down : bool, key : int, x : float, y : float) -> ()
+fn handleKey(gui : &u8, key : int, down : bool) -> ()
+{
+    if down
+    {
+        if key == 1073741902 // PgUp
+        {
+            let s =  get_pixelscale(gui) * 0.5f;
+            print_sf("New pixel scale:", s);
+            set_pixelscale(gui, s);
+            //assert_failed("a");
+        }
+        else if key == 1073741899 // PgDown
+        {
+            let s =  get_pixelscale(gui) * 2.0f;
+            print_sf("New pixel scale:", s);
+            set_pixelscale(gui, s);
+            //assert_failed("b");
+        }
+
+        print_sii("Unhandled key: ", key, down as int);
+    }
+}
+
+extern fn impala_event(gui : &u8, state : &State, grabbed : bool, evt : uint, down : bool, key : int, x : float, y : float) -> ()
 {
     if !grabbed
     {
+        if evt == EVT_KEY
+        {
+            handleKey(gui, key, down);
+        }
         return()
     }
 
@@ -65,7 +92,10 @@ extern fn impala_event(state : &State, grabbed : bool, evt : uint, down : bool, 
 
     if evt == EVT_KEY
     {
-        camControllerKeyInput(cc, key, down);
+        if !camControllerKeyInput(cc, key, down)
+        {
+            handleKey(gui, key, down);
+        }
     }
     else if evt == EVT_MOUSEMOVE
     {

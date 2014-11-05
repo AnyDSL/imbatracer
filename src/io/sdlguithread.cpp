@@ -10,7 +10,7 @@ namespace rt {
 const unsigned forceCloseTime = 500;
 
 SDLGuiThread::SDLGuiThread(SDLGui *gui)
-    : threadState(UNDEFINED), _gui(gui), _window(nullptr), _glctx(nullptr), _disp(nullptr)
+    : threadState(UNDEFINED), _gui(gui), _window(nullptr), _glctx(nullptr), _disp(nullptr), pixelScale(1.0f), _lastW(640), _lastH(480)
 {
 }
 
@@ -143,7 +143,7 @@ bool SDLGuiThread::createWindow(unsigned w, unsigned h, const char *title)
     // Notify initial size
     int aw, ah;
     SDL_GetWindowSize(_window, &aw, &ah);
-    _gui->_OnWindowResize(aw, ah);
+    _gui->_OnWindowResize(aw, ah, aw, ah);
 
     return true;
 }
@@ -194,6 +194,11 @@ void SDLGuiThread::resize(unsigned w, unsigned h)
 #endif
     SDL_SetWindowSize(_window, w, h);
     SDL_SetWindowPosition(_window, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED);
+
+
+    std::lock_guard<std::mutex> lock(stateMutex);
+    _lastW = w;
+    _lastH = h;
 }
 
 bool SDLGuiThread::checkQuittingTooLong(unsigned nowTime)
@@ -262,19 +267,57 @@ void SDLGuiThread::handleEvents()
             {
                 switch(ev.window.event)
                 {
-                case SDL_WINDOWEVENT_SIZE_CHANGED:
-                    _disp->OnWindowResize(ev.window.data1, ev.window.data2);
-                    _gui->_OnWindowResize(ev.window.data1, ev.window.data2);
-                    break; // the innermost switch
+                    case SDL_WINDOWEVENT_SIZE_CHANGED:
+                        _sizeChanged(ev.window.data1, ev.window.data2);
+                        break; // the innermost switch
 
-                default:
-                    ;
+                    default:
+                        ;
                 }
             }
             continue; // in the loop
         }
     }
 }
+
+void SDLGuiThread::_sizeChanged(unsigned w, unsigned h)
+{
+    {
+        std::lock_guard<std::mutex> lock(stateMutex);
+        _lastW = w;
+        _lastH = h;
+        w *= pixelScale;
+        h *= pixelScale;
+    }
+    _disp->OnWindowResize(w, h);
+    _gui->_OnWindowResize(w, h, _lastW, _lastH);
+}
+
+void SDLGuiThread::setPixelScale(float s)
+{
+    std::lock_guard<std::mutex> lock(stateMutex);
+    if(pixelScale == s)
+        return;
+
+    assert(_lastW && _lastH, "Last window size is ", _lastW, ", ", _lastH);
+
+    pixelScale = s;
+    SDL_Event ev;
+    memset(&ev, 0, sizeof(ev));
+    ev.type = SDL_WINDOWEVENT;
+    ev.window.event = SDL_WINDOWEVENT_SIZE_CHANGED;
+    ev.window.data1 = _lastW;
+    ev.window.data2 = _lastH;
+    SDL_PushEvent(&ev);
+}
+
+float SDLGuiThread::getPixelScale()
+{
+    std::lock_guard<std::mutex> lock(stateMutex);
+    return pixelScale;
+}
+
+
 
 
 
