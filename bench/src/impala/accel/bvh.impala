@@ -1,0 +1,196 @@
+struct BvhNode {
+    bounds: Box,         // The bounds of this node
+    child_first: int,    // Left child index or first primitive index
+    prim_count: i16,     // Primitive count in this node
+    axis: i16            // Splitting axis
+}
+
+struct BvhBin {
+    bounds: Box,
+    prim_count: int
+}
+
+struct Bvh {
+    nodes: ~[BvhNode],
+    prim_ids: ~[int]
+}
+
+fn bvh(nodes: ~[BvhNode], prim_ids: ~[int]) -> Bvh {
+    Bvh {
+        nodes: nodes,
+        prim_ids: prim_ids
+    }
+}
+
+fn bvh_bin(bounds: Box, count: int) -> BvhBin {
+    BvhBin {
+        bounds: bounds,
+        prim_count: count
+    }
+}
+
+fn empty_bvh_bin() -> BvhBin {
+    BvhBin {
+        bounds: @empty_box(),
+        prim_count: 0
+    }
+}
+
+fn evaluate_partitions(bins: &[BvhBin],
+                       num_bins: int,
+                       prim_count: int,
+                       cannot_split: fn (),
+                       can_split: fn (int)) {
+    let mut left_area = [num_bins: float];
+    let mut left_count = [num_bins: int];
+    
+    // Sweep from the left while counting the primitives and computing the area
+    let mut cur_box = bins(0).bounds;
+    left_area(0) = box_area(cur_box);
+    left_count(0) = bins(0).prim_count;
+
+    for i in range(1, num_bins - 2) {
+        cur_box = box_union(cur_box, bins(i).bounds);
+        left_area(i) = left_area(i - 1) + box_area(cur_box);
+        left_count(i) = left_count(i - 1) + bins(i).prim_count;
+    }
+
+    // Sweep from the right and determine where to split
+    let mut min_idx = num_bins - 1;
+    let mut right_count = bins(num_bins - 1).prim_count;
+    let mut min_cost = (left_count(num_bins - 2) as float) * left_area(num_bins - 2) +
+                       (right_count as float) * box_area(bins(num_bins - 1).bounds);
+
+    cur_box = bins(num_bins - 1).bounds;
+
+    for i in range(2, num_bins - 1) {
+        let j = num_bins - i;
+
+        cur_box = box_union(cur_box, bins(j).bounds);
+        right_count += bins(j).prim_count;
+
+        let cost = (right_count as float) * box_area(cur_box) +
+                   (left_count(j - 1) as float) * left_area(j - 1);
+        if cost < min_cost {
+            min_cost = cost;
+            min_idx = j;
+        }
+    }
+
+    // If the number of primitives in any of the two sets is zero,
+    // we cannot split this node
+    let num_left = left_count(min_idx - 1);
+    if num_left == 0 || num_left == prim_count {
+        @cannot_split()
+    } else {
+        @can_split(min_idx)
+    }
+}
+
+fn build_bvh(boxes: &[Box],
+             centers: &[Vec3],
+             prim_count: int) -> Bvh {
+    // Allocate & initialize the primitive permutation array
+    let mut prim_ids = ~[prim_count: int];
+    for i in range(0, prim_count) {
+        prim_ids(i) = i;
+    }
+
+    // Preallocate the BVH nodes (upper bound)
+    let nodes = ~[(2 * prim_count + 1): BvhNode];
+
+    // Start construction
+    $build_bvh_node(nodes, 0, 1, 0, prim_count, prim_ids, boxes, centers);
+
+    bvh(nodes, prim_ids)
+}
+
+fn build_bvh_node(mut nodes: &[BvhNode],
+                  cur_node: int,
+                  next_free: int,
+                  first_prim: int,
+                  last_prim: int,
+                  mut prim_ids: &[int],
+                  boxes: &[Box],
+                  centers: &[Vec3]) -> int {
+    let prim_count = last_prim - first_prim + 1;
+
+    // Compute the node bounds
+    nodes(cur_node).bounds = empty_box();
+    let mut center_box = empty_box();
+
+    for i in range(first_prim, last_prim) @{
+        let id = prim_ids(i);
+        nodes(cur_node).bounds = box_union(nodes(cur_node).bounds, boxes(id));
+        center_box = box_expand(center_box, centers(id));
+    }
+
+    // Find longuest axis
+    let extents = @box_extents(center_box);
+    let mut axis = 0;
+    if extents.values(0) < extents.values(1) {
+        axis = 1;    
+    }
+    if extents.values(axis) < extents.values(2) {
+        axis = 2;
+    }
+
+    // Build the bins
+    let num_bins = 16;
+    let mut bins : [BvhBin * 16];
+
+    for i in range(0, num_bins) @{
+        bins(i) = empty_bvh_bin();
+    }
+
+    // Put the primitives in the bins
+    let sah_epsilon = 0.0001f;
+    let sah_factor = (num_bins as float) * (1.0f - sah_epsilon) /
+                     (center_box.max.values(axis) - center_box.min.values(axis) + sah_epsilon);
+    let sah_offset = center_box.min.values(axis);
+    for i in range(first_prim, last_prim) @{
+        let id = prim_ids(i);
+        let bin_id = sah_factor * (centers(id).values(axis) - sah_offset) as int;
+        bins(bin_id).bounds = box_union(bins(bin_id).bounds, boxes(id));
+        bins(bin_id).prim_count += 1;
+    }
+    
+    // Find the best split position and then build the children
+    @evaluate_partitions(&bins, num_bins, prim_count,
+        || @{
+            assert(|| { prim_count < (1 << 16) },
+                   "build_bvh_node: cannot have more than 16384 primitives per leaf");
+            nodes(cur_node).child_first = first_prim;
+            nodes(cur_node).prim_count = prim_count as i16;
+            return(next_free)
+        },
+        |min_id| @{
+            // Split the primitives in two sets
+            let mut a = first_prim;
+            let mut b = last_prim - 1;
+
+            while a <= b @{
+                let bin_id = sah_factor * (centers(prim_ids(a)).values(axis) - sah_offset) as int;
+
+                if bin_id >= min_id @{
+                    prim_ids(a) ^= prim_ids(b);
+                    prim_ids(b) ^= prim_ids(a);
+                    prim_ids(a) ^= prim_ids(b);
+                    b -= 1;
+                } else @{
+                    a += 1;
+                }
+            }
+
+            nodes(cur_node).prim_count = 0i16;
+            nodes(cur_node).child_first = next_free;
+
+            // Build the two children recursively
+            let free_left  = $build_bvh_node(nodes, next_free, next_free + 2,
+                                             first_prim, a, prim_ids, boxes, centers);
+            let free_right = $build_bvh_node(nodes, next_free + 1, free_left,
+                                             a, last_prim, prim_ids, boxes, centers);
+            return(free_right)
+        })
+}
+

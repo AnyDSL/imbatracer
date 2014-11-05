@@ -1,0 +1,110 @@
+struct BenchRayBvhResult {
+    intr_count: int,
+    tmin: float,
+    tmax: float
+}
+
+extern fn bench_ray4_bvh(nray4s: int, bvh: &Bvh, tris: &[Tri]) -> ~BenchRayBvhResult @{
+    fn generate_ray(i: int) -> Ray {
+        let theta = ((i % 1000) as float) * flt_pi / 1000.0f;
+        let phi = (i as float) * 2.0f * flt_pi / 1000.0f;
+
+        let sin_theta = sinf(theta);
+
+        ray(vec3(sin_theta * cosf(phi), sin_theta * sinf(phi), cosf(theta)),
+            vec3(0.0f, 0.0f, 0.0f))
+    }
+
+    fn vrange(a: int, b: int, yield: fn(int, fn())) -> () {
+        for vectorize(4, a, b) {
+           let x = wfv_get_tid();
+           yield(x);
+        }
+    }
+
+    let mut result = ~BenchRayBvhResult {
+        intr_count: 0,
+        tmin: -flt_max,
+        tmax: flt_max
+    };
+
+    for i in range(0, nray4s) @{
+        let mut tray = [flt_max, flt_max, flt_max, flt_max];
+        let mut intr = [0, 0, 0, 0];
+        let mut rays : [Ray * 4];
+
+        for j in vrange(0, 4) @{
+            rays(j) = generate_ray(i + j);
+        }
+
+        for j in vrange(0, 4) @{
+            fn intersect_closest(prim_id: int, tmin: float) -> float {
+                intersect_ray_tri(rays(j), tris(prim_id), |t, u, v| {
+                    if t > 0.0f && t < tmin {
+                        intr(j) = 1;
+                        tray(j) = t;
+                        return(t)
+                    } else {
+                        return(tmin)
+                    }
+                }, || { return(tmin) })
+            }
+
+            intersect_ray_bvh(rays(j), flt_max, bvh, intersect_closest);
+        }
+
+        for j in range(0, 4) {
+            result.intr_count += intr(j);
+            if result.tmax > tray(j) { result.tmax = tray(j); }
+            if result.tmin < tray(j) { result.tmin = tray(j); }
+        }
+    }
+
+    result
+}
+
+extern fn bench_ray_bvh(nrays: int, bvh: &Bvh, tris: &[Tri]) -> ~BenchRayBvhResult @{
+    fn generate_ray(i: int) -> Ray {
+        let theta = ((i % 1000) as float) * flt_pi / 1000.0f;
+        let phi = (i as float) * 2.0f * flt_pi / 1000.0f;
+
+        let sin_theta = sinf(theta);
+
+        ray(vec3(sin_theta * cosf(phi), sin_theta * sinf(phi), cosf(theta)),
+            vec3(0.0f, 0.0f, 0.0f))
+    }
+
+    let mut result = ~BenchRayBvhResult {
+        intr_count: 0,
+        tmin: -flt_max,
+        tmax: flt_max
+    };
+
+    for i in range(0, nrays) @{
+        let mut tray = flt_max;
+        let mut intr = 0;
+
+        let r = generate_ray(i);
+
+        fn intersect_closest(prim_id: int, tmin: float) -> float {
+            intersect_ray_tri(r, tris(prim_id), |t, u, v| {
+                if t > 0.0f && t < tmin {
+                    intr = 1;
+                    tray = t;
+                    return(t)
+                } else {
+                    return(tmin)
+                }
+            }, || { return(tmin) })
+        }
+
+        intersect_ray_bvh(r, flt_max, bvh, intersect_closest);
+
+        result.intr_count += intr;
+        if result.tmax > tray { result.tmax = tray; }
+        if result.tmin < tray { result.tmin = tray; }
+    }
+
+    result
+}
+

@@ -1,0 +1,32 @@
+struct Ray {
+    dir: Vec3,
+    org: Vec3
+}
+
+struct RayInv {
+    inv_dir: Vec3,
+    org: Vec3
+}
+
+fn ray(dir: Vec3, org: Vec3) -> Ray {
+    Ray {
+        dir: dir,
+        org: org
+    }
+}
+
+fn ray_inv(inv_dir: Vec3, org: Vec3) -> RayInv {
+    RayInv {
+        inv_dir: inv_dir,
+        org: org
+    }
+}
+
+fn ray_inv_from_ray(r: Ray) -> RayInv {
+    ray_inv(vec3_map(r.dir, |x: float| 1.0f / x), r.org)
+}
+
+fn ray_reflect(r: Ray, p: Vec3, n: Vec3) -> Ray {
+    ray(vec3_sub(r.dir, vec3_mulf(n, 2.0f * vec3_dot(n, r.dir))), p)
+}
+

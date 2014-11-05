@@ -1,0 +1,44 @@
+fn intersect_ray_box(ray_inv: RayInv,
+                     box: Box,
+                     intr: fn (float, float),
+                     nointr: fn ()) {
+    fn intersection_time(v: Vec3, r: RayInv, i: int) -> float {
+        (v.values(i) - r.org.values(i)) * r.inv_dir.values(i)
+    }
+
+    fn min(a: float, b: float)-> float {
+        if a < b { a } else { b }
+    }
+
+    fn max(a: float, b: float)-> float {
+        if a > b { a } else { b }
+    }
+
+    let tmin_x = intersection_time(box.min, ray_inv, 0);
+    let tmax_x = intersection_time(box.max, ray_inv, 0);
+
+    let t0_x = min(tmin_x, tmax_x);
+    let t1_x = max(tmin_x, tmax_x);
+
+    let tmin_y = intersection_time(box.min, ray_inv, 1);
+    let tmax_y = intersection_time(box.max, ray_inv, 1);
+
+    let t0_y = min(tmin_y, tmax_y);
+    let t1_y = max(tmin_y, tmax_y);
+
+    let tmin_z = intersection_time(box.min, ray_inv, 2);
+    let tmax_z = intersection_time(box.max, ray_inv, 2);
+
+    let t0_z = min(tmin_z, tmax_z);
+    let t1_z = max(tmin_z, tmax_z);
+
+    let t0 = max(t0_x, max(t0_y, t0_z));
+    let t1 = min(t1_x, min(t1_y, t1_z));
+
+    if t0 <= t1 {
+        @intr(t0, t1)
+    }
+
+    nointr()
+}
+

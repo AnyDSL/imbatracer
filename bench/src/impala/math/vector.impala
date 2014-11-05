@@ -1,0 +1,101 @@
+struct Vec2 {
+    values: [float * 2]
+}
+
+struct Vec3 {
+    values: [float * 3]
+}
+
+struct Vec4 {
+    values: [float * 4]
+}
+
+fn vec2(x: float, y: float) -> Vec2 { Vec2 { values : [x, y] } }
+fn vec3(x: float, y: float, z: float) -> Vec3 { Vec3 { values : [x, y, z] } }
+fn vec4(x: float, y: float, z: float, w: float) -> Vec4 { Vec4 { values : [x, y, z, w] } }
+
+fn vec2_map(v: Vec2, f: fn (float) -> float) -> Vec2 {
+    vec2(f(v.values(0)), f(v.values(1)))
+}
+
+fn vec2_zip(v1: Vec2, v2: Vec2, f: fn (float, float) -> float) -> Vec2 {
+    vec2(f(v1.values(0), v2.values(0)),         
+         f(v1.values(1), v2.values(1)))
+}
+
+fn vec2_fold(v: Vec2, f: fn (float, float) -> float) -> float {
+    f(v.values(1), v.values(0))
+}
+
+fn vec2_add(v1: Vec2, v2: Vec2) -> Vec2 { vec2_zip(v1, v2, |x, y| x + y) }
+fn vec2_sub(v1: Vec2, v2: Vec2) -> Vec2 { vec2_zip(v1, v2, |x, y| x - y) }
+fn vec2_mul(v1: Vec2, v2: Vec2) -> Vec2 { vec2_zip(v1, v2, |x, y| x * y) }
+fn vec2_div(v1: Vec2, v2: Vec2) -> Vec2 { vec2_zip(v1, v2, |x, y| x / y) }
+fn vec2_min(v1: Vec2, v2: Vec2) -> Vec2 { vec2_zip(v1, v2, |x, y| if x < y {x} else {y}) }
+fn vec2_max(v1: Vec2, v2: Vec2) -> Vec2 { vec2_zip(v1, v2, |x, y| if x > y {x} else {y}) }
+fn vec2_mulf(v: Vec2, f: float) -> Vec2 { vec2_map(v, |x| x * f) }
+fn vec2_divf(v: Vec2, f: float) -> Vec2 { vec2_map(v, |x| x / f) }
+fn vec2_dot(v1: Vec2, v2: Vec2) -> float { vec2_fold(vec2_zip(v1, v2, |x, y| x * y), |x, y| x + y) }
+fn vec2_lensq(v: Vec2) -> float { vec2_dot(v, v) }
+
+fn vec3_map(v: Vec3, f: fn (float) -> float) -> Vec3 {
+    vec3(f(v.values(0)), f(v.values(1)), f(v.values(2)))
+}
+
+fn vec3_zip(v1: Vec3, v2: Vec3, f : fn (float, float) -> float) -> Vec3 {
+    vec3(f(v1.values(0), v2.values(0)),
+         f(v1.values(1), v2.values(1)),
+         f(v1.values(2), v2.values(2)))
+}
+
+fn vec3_fold(v: Vec3, f: fn (float, float) -> float) -> float {
+    f(v.values(2), f(v.values(1), v.values(0)))
+}
+
+fn vec3_cross(v1: Vec3, v2: Vec3) -> Vec3 {
+    vec3(v1.values(1) * v2.values(2) - v1.values(2) * v2.values(1),
+         v1.values(2) * v2.values(0) - v1.values(0) * v2.values(2),
+         v1.values(0) * v2.values(1) - v1.values(1) * v2.values(0))
+}
+
+fn vec3_add(v1: Vec3, v2: Vec3) -> Vec3 { vec3_zip(v1, v2, |x, y| x + y) }
+fn vec3_sub(v1: Vec3, v2: Vec3) -> Vec3 { vec3_zip(v1, v2, |x, y| x - y) }
+fn vec3_mul(v1: Vec3, v2: Vec3) -> Vec3 { vec3_zip(v1, v2, |x, y| x * y) }
+fn vec3_div(v1: Vec3, v2: Vec3) -> Vec3 { vec3_zip(v1, v2, |x, y| x / y) }
+fn vec3_min(v1: Vec3, v2: Vec3) -> Vec3 { vec3_zip(v1, v2, |x, y| if x < y {x} else {y}) }
+fn vec3_max(v1: Vec3, v2: Vec3) -> Vec3 { vec3_zip(v1, v2, |x, y| if x > y {x} else {y}) }
+fn vec3_mulf(v: Vec3, f: float) -> Vec3 { vec3_map(v, |x| x * f) }
+fn vec3_divf(v: Vec3, f: float) -> Vec3 { vec3_map(v, |x| x / f) }
+fn vec3_dot(v1: Vec3, v2: Vec3) -> float { vec3_fold(vec3_zip(v1, v2, |x, y| x * y), |x, y| x + y) }
+fn vec3_lensq(v: Vec3) -> float { vec3_dot(v, v) }
+
+fn vec4_map(v: Vec4, f: fn (float) -> float) -> Vec4 {
+    vec4(f(v.values(0)), f(v.values(1)), f(v.values(2)), f(v.values(3)))
+}
+
+fn vec4_zip(v1: Vec4, v2: Vec4, f: fn (float, float) -> float) -> Vec4 {
+    vec4(f(v1.values(0), v2.values(0)),
+         f(v1.values(1), v2.values(1)),
+         f(v1.values(2), v2.values(2)),
+         f(v1.values(3), v2.values(3)))
+}
+
+fn vec4_fold(v: Vec4, f: fn (float, float) -> float) -> float {
+    f(v.values(3), f(v.values(2), f(v.values(1), v.values(0))))
+}
+
+fn vec4_from_vec3(v: Vec3, w: float) -> Vec4 {
+    vec4(v.values(0), v.values(1), v.values(2), w)
+}
+
+fn vec4_add(v1: Vec4, v2: Vec4) -> Vec4 { vec4_zip(v1, v2, |x, y| x + y) }
+fn vec4_sub(v1: Vec4, v2: Vec4) -> Vec4 { vec4_zip(v1, v2, |x, y| x - y) }
+fn vec4_mul(v1: Vec4, v2: Vec4) -> Vec4 { vec4_zip(v1, v2, |x, y| x * y) }
+fn vec4_div(v1: Vec4, v2: Vec4) -> Vec4 { vec4_zip(v1, v2, |x, y| x / y) }
+fn vec4_min(v1: Vec4, v2: Vec4) -> Vec4 { vec4_zip(v1, v2, |x, y| if x < y {x} else {y}) }
+fn vec4_max(v1: Vec4, v2: Vec4) -> Vec4 { vec4_zip(v1, v2, |x, y| if x > y {x} else {y}) }
+fn vec4_mulf(v: Vec4, f: float) -> Vec4 { vec4_map(v, |x| x * f) }
+fn vec4_divf(v: Vec4, f: float) -> Vec4 { vec4_map(v, |x| x / f) }
+fn vec4_dot(v1: Vec4, v2: Vec4) -> float { vec4_fold(vec4_zip(v1, v2, |x, y| x * y), |x, y| x + y) }
+fn vec4_lensq(v: Vec4) -> float { vec4_dot(v, v) }
+

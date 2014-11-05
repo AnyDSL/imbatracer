@@ -1,0 +1,18 @@
+fn range(a: int, b: int, yield: fn(int) -> ()) -> () {
+    if a < b {
+        yield(a);
+        range(a + 1, b, yield, return)
+    }
+}
+
+fn urange(a: uint, b: uint, yield: fn(uint) -> ()) -> () {
+    if a < b {
+        yield(a);
+        urange(a + 1u, b, yield, return)
+    }
+}
+
+fn ever(yield: fn () -> ()) -> () {
+    yield();
+    ever(yield, return)
+}

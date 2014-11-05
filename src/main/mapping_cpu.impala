@@ -1,33 +1,25 @@
-
-fn renderIteration(width : int, height : int, measureTime : bool, state : &State, setcolor: SetColorFn, getcolor: GetColorIFn) -> ()
-{
+fn renderIteration(width: int, height: int, measureTime: bool, state: &State, setcolor: SetColorFn, getcolor: GetColorIFn) -> () {
     let start = thorin_get_micro_time();
-    @renderSubsampled(4u, width as uint, height as uint, state, setcolor, getcolor);
+    renderSubsampled(4u, width as uint, height as uint, state, setcolor, getcolor);
     let stop = thorin_get_micro_time();
     if measureTime { thorin_print_micro_time(stop-start); };
 }
 
-fn subsampleDebugView() -> bool
-{
-    @isDebug()
-}
+fn subsampleDebugView() -> bool { isDebug() }
 
-struct PixelInfo
-{
+struct PixelInfo {
     rgb : Color,
     xyz : XYZ,
 }
 
-struct PixelBuffer
-{
+struct PixelBuffer {
     w : uint,
     pix : &[PixelInfo],
     used : &[u8],
     allocSize : uint,
 }
 
-fn free_PixelBuffer(p : &PixelBuffer) -> ()
-{
+fn free_PixelBuffer(p: &PixelBuffer) -> () {
     thorin_free(p.pix as &u8);
     thorin_free(p.used as &u8);
     thorin_free(p as &u8);
@@ -35,8 +27,7 @@ fn free_PixelBuffer(p : &PixelBuffer) -> ()
 
 static maxColorDist = 0.1f;
 
-fn preparePixelBuffer(level : uint, mut state : &State, w : uint, h : uint) -> &PixelBuffer
-{
+fn preparePixelBuffer(level: uint, mut state: &State, w: uint, h: uint) -> &PixelBuffer {
     let mut pb = state.pixelBuffer as &PixelBuffer;
 
     let allocW = round_up(w, level)/2u+1u;
@@ -44,20 +35,16 @@ fn preparePixelBuffer(level : uint, mut state : &State, w : uint, h : uint) -> &
 
     let sz = allocW * allocH;
 
-    fn alloc() -> &PixelBuffer
-    {
+    fn alloc() -> &PixelBuffer {
         print_sii("Image size", w as int, h as int);
-        let p = ~PixelBuffer{ w:(w >> 1u), pix:~[sz:PixelInfo], used:~[sz:u8], allocSize:sz };
+        let p = ~PixelBuffer { w : (w >> 1u), pix : ~[sz:PixelInfo], used : ~[sz:u8], allocSize : sz };
         state.pixelBuffer = p as &u8;
         p
     }
 
-    if (pb == (0 as &PixelBuffer))
-    {
+    if pb == (0 as &PixelBuffer) {
         pb = alloc()
-    }
-    else if(pb.allocSize != sz)
-    {
+    } else if pb.allocSize != sz {
         free_PixelBuffer(pb);
         pb = alloc()
     }
@@ -69,14 +56,13 @@ fn preparePixelBuffer(level : uint, mut state : &State, w : uint, h : uint) -> &
 
 type RenderFunc = fn(uint, uint, bool) -> Color;
 
-fn renderSubsampled(level : uint, width : uint, height : uint, state : &State, setcolor: SetColorFn, getcolor: GetColorIFn) -> ()
-{
-    let mut rtstate = RTState{ cam: state.cam, integrator: state.integrator, scene: state.scene };
+fn renderSubsampled(level: uint, width: uint, height: uint, state: &State, setcolor: SetColorFn, getcolor: GetColorIFn) -> () {
+    let mut rtstate = RTState { cam : state.cam, integrator : state.integrator, scene : state.scene };
 
     if level <= 1u {
         for y in $urange(0u, height) {
-            for x in $urange(0u, width) { // TODO: this used to be $inner_loop(), but wfv2 is too slow to be practical, for now
-                @setcolor(x as int, y as int, $getcolor(x as int, y as int, &rtstate));
+            for x in $inner_loop(0, width as i32) @{
+                setcolor(x as int, y as int, $getcolor(x as int, y as int, &rtstate));
             }
         }
         return()
@@ -84,83 +70,73 @@ fn renderSubsampled(level : uint, width : uint, height : uint, state : &State, s
 
     let pixcache = preparePixelBuffer(level, state, width, height);
 
-
-    fn renderPixel(x:uint, y:uint, write:bool) -> Color
-    {
+    fn renderPixel(x: uint, y: uint, write: bool) -> Color {
         let c = $getcolor(x as int, y as int, &rtstate);
-        if write {
-            @setcolor(x as int, y as int, if @subsampleDebugView() { color(0.0f, 1.0f, 0.0f) } else { c });
+        if write @{
+            setcolor(x as int, y as int, if subsampleDebugView() @{ color(0.0f, 1.0f, 0.0f) } else @{ c });
         }
         c
     }
 
     for y in $urangestep(0u, height, level) {
-        for x in $urangestep(0u, width, level) {
+        for x in $urangestep(0u, width, level) @{
             renderBlock(renderPixel, setcolor, pixcache, x, y, width, height, level)
         }
     }
 }
 
-fn getCachePixel(body : RenderFunc, mut pixcache : &PixelBuffer, x : uint, y : uint, write : bool) -> &PixelInfo
-{
+fn getCachePixel(body: RenderFunc, mut pixcache: &PixelBuffer, x: uint, y: uint, write: bool) -> &PixelInfo {
     //print_ii(x, y);
     assert(||{(x&1u)==0u && (y&1u)==0u}, "Subsampling cached x and y must be even");
     let idx = (y >> 1u) * pixcache.w + (x >> 1u);
     assert(||{idx < pixcache.allocSize}, "Subsampling pixel cache out of bounds access");
-    if pixcache.used(idx) == 0u8
-    {
-        let c = @cclamp01(@body(x, y, write));  // TODO: do the clamping elsewhere?
-        pixcache.pix(idx) = @PixelInfo{rgb:c, xyz:@col_toXYZ(c)};
+    if pixcache.used(idx) == 0u8 @{
+        let c = cclamp01(body(x, y, write));  // TODO: do the clamping elsewhere?
+        pixcache.pix(idx) = PixelInfo { rgb : c, xyz : col_toXYZ(c) };
         pixcache.used(idx) = 1u8;
     }
     &pixcache.pix(idx)
 }
 
-fn renderBlock(body : RenderFunc, setcolor: SetColorFn, pixcache : &PixelBuffer, x : uint, y : uint, w : uint, h : uint, level : uint) -> ()
-{
-    renderBlock2(body, setcolor, pixcache, x, y, w, h, level, @getCachePixel(body, pixcache, x, y, true))
+fn renderBlock(body: RenderFunc, setcolor: SetColorFn, pixcache: &PixelBuffer, x: uint, y: uint, w: uint, h: uint, level: uint) -> () {
+    renderBlock2(body, setcolor, pixcache, x, y, w, h, level, getCachePixel(body, pixcache, x, y, true))
 }
 
-fn renderBlock2(body : RenderFunc, setcolor: SetColorFn, pixcache : &PixelBuffer, x : uint, y : uint, w : uint, h : uint, level : uint, topleft : &PixelInfo) -> ()
-{
+fn renderBlock2(body: RenderFunc, setcolor: SetColorFn, pixcache: &PixelBuffer, x: uint, y: uint, w: uint, h: uint, level: uint, topleft: &PixelInfo) -> () {
     assert(||{(level%2u)==0u && level>1u}, "Subsampling Level must be even and > 1");
 
-    let topright = @getCachePixel(body, pixcache, x + level, y, x+level < w);
-    let bottomleft = @getCachePixel(body, pixcache, x, y + level, y+level < h);
-    let bottomright = @getCachePixel(body, pixcache, x + level, y + level, x+level < w && y+level < h);
+    let topright = getCachePixel(body, pixcache, x + level, y, x+level < w);
+    let bottomleft = getCachePixel(body, pixcache, x, y + level, y+level < h);
+    let bottomright = getCachePixel(body, pixcache, x + level, y + level, x+level < w && y+level < h);
 
-    if @colorDistXYZ(topleft.xyz, topright.xyz) <= maxColorDist
-    && @colorDistXYZ(topleft.xyz, bottomleft.xyz) <= maxColorDist
-    && @colorDistXYZ(topright.xyz, bottomright.xyz) <= maxColorDist
-    && @colorDistXYZ(bottomleft.xyz, bottomright.xyz) <= maxColorDist
-    {
+    if colorDistXYZ(topleft.xyz, topright.xyz) <= maxColorDist
+    && colorDistXYZ(topleft.xyz, bottomleft.xyz) <= maxColorDist
+    && colorDistXYZ(topright.xyz, bottomright.xyz) <= maxColorDist
+    && colorDistXYZ(bottomleft.xyz, bottomright.xyz) <= maxColorDist
+    @{
         // colors are similar, interpolate
         let step = 1.0f / (level as float);
-        let xmax = @umin(x + level, w);
-        let ymax = @umin(y + level, h);
+        let xmax = umin(x + level, w);
+        let ymax = umin(y + level, h);
 
-        fn fillrow(xbegin : uint, yy : uint, mut xf : float, a : Color, b : Color) -> ()
-        {
-            for xx in @urange(xbegin, xmax)
-            {
-                let mix = if @subsampleDebugView() { @color0() } else { @clerp(a, b, xf) };
-                @setcolor(xx as int, yy as int, mix);
+        fn fillrow(xbegin: uint, yy: uint, mut xf: float, a: Color, b: Color) -> () {
+            for xx in urange(xbegin, xmax) {
+                let mix = if subsampleDebugView() @{ color0() } else @{ clerp(a, b, xf) };
+                setcolor(xx as int, yy as int, mix);
                 xf = xf + step;
             }
         }
 
-
         // top left pixel is already written to image, fill rest of row
-        @fillrow(x+1u, y, step, topleft.rgb, topright.rgb);
+        fillrow(x+1u, y, step, topleft.rgb, topright.rgb);
 
         let mut ty = step;
-        for yy in urange(y+1u, ymax)
-        {
-            let ileft  = if @subsampleDebugView() { @color0() } else { @clerp(topleft.rgb, bottomleft.rgb, ty) };
-            let iright = if @subsampleDebugView() { @color0() } else { @clerp(topright.rgb, bottomright.rgb, ty) };
+        for yy in urange(y+1u, ymax) {
+            let ileft  = if subsampleDebugView() @{ color0() } else @{ clerp(topleft.rgb, bottomleft.rgb, ty) };
+            let iright = if subsampleDebugView() @{ color0() } else @{ clerp(topright.rgb, bottomright.rgb, ty) };
 
-            @setcolor(x as int, yy as int, ileft);
-            @fillrow(x+1u, yy, step, ileft, iright);
+            setcolor(x as int, yy as int, ileft);
+            fillrow(x+1u, yy, step, ileft, iright);
             ty = ty + step;
         }
 
@@ -169,35 +145,28 @@ fn renderBlock2(body : RenderFunc, setcolor: SetColorFn, pixcache : &PixelBuffer
 
     let nextlevel = level >> 1u;
 
-
-    fn boundsChecked(offs : uint, f : fn(uint, uint) -> ()) -> ()
-    {
+    fn boundsChecked(offs: uint, f: fn(uint, uint) -> ()) -> () {
         let haveRightNeighbor = (x+offs < w);
         let haveBottomNeighbor = (y+offs < h);
-        if haveRightNeighbor
-        {
+        if haveRightNeighbor {
             f(x+offs, y);
         }
-        if haveBottomNeighbor
-        {
+        if haveBottomNeighbor {
             f(x, y+offs);
         }
-        if haveRightNeighbor && haveBottomNeighbor
-        {
+        if haveRightNeighbor && haveBottomNeighbor {
             f(x+offs, y+offs);
         }
     }
 
-    if nextlevel == 1u
-    {
-        let renderpixel = if @subsampleDebugView()
-        {
-            |xx:uint, yy:uint| -> () { @setcolor(xx as int, yy as int, @color1(1.0f)); }
-        } else {
-            |xx:uint, yy:uint| -> () { @body(xx, yy, true); }
+    if nextlevel == 1u {
+        let renderpixel = if subsampleDebugView() @{
+            |xx: uint, yy: uint| -> () { setcolor(xx as int, yy as int, color1(1.0f)); }
+        } else @{
+            |xx: uint, yy: uint| -> () { body(xx, yy, true); }
         };
         // top-left pixel is already written to image
-        @boundsChecked(1u, renderpixel);
+        boundsChecked(1u, renderpixel);
         return()
     }
 
@@ -205,7 +174,6 @@ fn renderBlock2(body : RenderFunc, setcolor: SetColorFn, pixcache : &PixelBuffer
     // subdivide
     renderBlock2(body, setcolor, pixcache, x, y, w, h, nextlevel, topleft); // in this case the color is known, saves a cache lookup
 
-    boundsChecked(nextlevel, |xx:uint, yy:uint| $renderBlock(body, setcolor, pixcache, xx, yy, w, h, nextlevel) );
-
+    boundsChecked(nextlevel, |xx: uint, yy: uint| $renderBlock(body, setcolor, pixcache, xx, yy, w, h, nextlevel));
 }
 

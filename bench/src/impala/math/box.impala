@@ -1,0 +1,34 @@
+struct Box {
+    min: Vec3,
+    max: Vec3
+}
+
+fn box(min: Vec3, max: Vec3) -> Box {
+    Box {
+        min: min,
+        max: max
+    }
+}
+
+fn empty_box() -> Box {
+    box(vec3(flt_max, flt_max, flt_max),
+        vec3(-flt_max, -flt_max, -flt_max))
+}
+
+fn box_union(a: Box, b: Box) -> Box {
+    box(vec3_min(a.min, b.min), vec3_max(a.max, b.max))
+}
+
+fn box_expand(b: Box, p: Vec3) -> Box {
+    box(vec3_min(b.min, p), vec3_max(b.max, p))
+}
+
+fn box_extents(box: Box) -> Vec3 {
+    vec3_sub(box.max, box.min)
+}
+
+fn box_area(box: Box) -> float {
+    let e = box_extents(box);
+    e.values(0) * (e.values(1) + e.values(2)) + e.values(1) * e.values(2) 
+}
+
