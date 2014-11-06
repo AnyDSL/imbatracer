@@ -21,12 +21,24 @@ namespace impala {
         float persistence;
     };
 
+    struct Image
+    {
+        Color *buf;
+        unsigned w;
+        unsigned h;
+    };
+
     struct Texture
     {
         int ty;
         Color color1;
         Color color2;
         Noise noise;
+        Image img;
+        float imgW;
+        float imgH;
+        int imgFilter;
+        int imgBorder;
     };
 
     struct Material

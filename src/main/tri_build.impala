@@ -1,0 +1,122 @@
+
+// = construction functions =
+fn trisAddTriBasic(mut tris: &Tris, v1: uint, v2: uint, v3: uint, mat: uint, tcbase : uint) -> ()
+{
+    // add triangle vertices
+    dynArrayAppendUint(&tris.triVerts, v1);
+    dynArrayAppendUint(&tris.triVerts, v2);
+    dynArrayAppendUint(&tris.triVerts, v3);
+
+    // no normals
+    for i in @range(0, 3) {
+        dynArrayAppendUint(&tris.triData, noIdx);
+    }
+
+    // optional texcoords
+    if tcbase == noIdx
+    {
+        for i in @range(0, 3) {
+            dynArrayAppendUint(&tris.triData, noIdx);
+        }
+    }
+    else
+    {
+        dynArrayAppendUint(&tris.triData, tcbase+0u);
+        dynArrayAppendUint(&tris.triData, tcbase+1u);
+        dynArrayAppendUint(&tris.triData, tcbase+2u);
+    }
+
+    dynArrayAppendUint(&tris.triData, mat);
+}
+
+fn trisAddTri(mut tris: &Tris, v1: uint, v2: uint, v3: uint, n1: uint, n2: uint, n3: uint, t1: uint, t2: uint, t3: uint, mat: uint) -> ()
+{
+    // add triangle vertices
+    dynArrayAppendUint(&tris.triVerts, v1);
+    dynArrayAppendUint(&tris.triVerts, v2);
+    dynArrayAppendUint(&tris.triVerts, v3);
+    // add triangle data
+    dynArrayAppendUint(&tris.triData, n1);
+    dynArrayAppendUint(&tris.triData, n2);
+    dynArrayAppendUint(&tris.triData, n3);
+    dynArrayAppendUint(&tris.triData, t1);
+    dynArrayAppendUint(&tris.triData, t2);
+    dynArrayAppendUint(&tris.triData, t3);
+    dynArrayAppendUint(&tris.triData, mat);
+}
+fn trisAddVertex(mut tris: &Tris, mut p: Point) -> uint
+{
+    @dynArrayAppend(&tris.verts, &p as &u8)
+}
+fn trisNumVertices(mut tris: &Tris) -> uint
+{
+    @dynArraySize(&tris.verts)
+}
+fn trisAddNormal(mut tris: &Tris, mut v: Vec) -> uint
+{
+    @dynArrayAppend(&tris.normals, &v as &u8)
+}
+fn trisNumNormals(mut tris: &Tris) -> uint
+{
+    @dynArraySize(&tris.normals)
+}
+fn trisAddTexCoord(mut tris: &Tris, mut t: TexCoord) -> uint
+{
+    @dynArrayAppend(&tris.texCoords, &t as &u8)
+}
+fn trisNumTexCoords(mut tris: &Tris) -> uint
+{
+    @dynArraySize(&tris.texCoords)
+}
+
+fn trisAddCube(mut tris: &Tris, size: float, mat: uint) -> ()
+{
+    let vertOffset = dynArraySize(&tris.verts);
+
+    let tcOffset = dynArraySize(&tris.texCoords);
+    trisAddTexCoord(tris, texCoord(0.0f, 0.0f));
+    trisAddTexCoord(tris, texCoord(0.0f, 1.0f));
+    trisAddTexCoord(tris, texCoord(1.0f, 0.0f));
+
+    trisAddTexCoord(tris, texCoord(1.0f, 1.0f));
+    trisAddTexCoord(tris, texCoord(0.0f, 1.0f));
+    trisAddTexCoord(tris, texCoord(1.0f, 0.0f));
+    let tc1 = tcOffset;
+    let tc2 = tcOffset + 3u;
+
+
+    let halfSize = size/2.0f;
+    trisAddVertex(tris, @point(-halfSize, -halfSize, -halfSize));
+    trisAddVertex(tris, @point( halfSize, -halfSize, -halfSize));
+    trisAddVertex(tris, @point(-halfSize,  halfSize, -halfSize));
+    trisAddVertex(tris, @point(-halfSize, -halfSize,  halfSize));
+    trisAddVertex(tris, @point(-halfSize,  halfSize,  halfSize));
+    trisAddVertex(tris, @point( halfSize, -halfSize,  halfSize));
+    trisAddVertex(tris, @point( halfSize,  halfSize, -halfSize));
+    trisAddVertex(tris, @point( halfSize,  halfSize,  halfSize));
+
+    trisAddTriBasic(tris, vertOffset+0u, vertOffset+1u, vertOffset+2u, mat, tc1);
+    trisAddTriBasic(tris, vertOffset+6u, vertOffset+1u, vertOffset+2u, mat, tc2);
+
+    trisAddTriBasic(tris, vertOffset+0u, vertOffset+1u, vertOffset+3u, mat, tc1);
+    trisAddTriBasic(tris, vertOffset+5u, vertOffset+1u, vertOffset+3u, mat, tc2);
+
+    trisAddTriBasic(tris, vertOffset+0u, vertOffset+2u, vertOffset+3u, mat, tc1);
+    trisAddTriBasic(tris, vertOffset+4u, vertOffset+2u, vertOffset+3u, mat, tc2);
+
+    trisAddTriBasic(tris, vertOffset+7u, vertOffset+6u, vertOffset+5u, mat, tc1);
+    trisAddTriBasic(tris, vertOffset+1u, vertOffset+6u, vertOffset+5u, mat, tc2);
+
+    trisAddTriBasic(tris, vertOffset+7u, vertOffset+6u, vertOffset+4u, mat, tc1);
+    trisAddTriBasic(tris, vertOffset+2u, vertOffset+6u, vertOffset+4u, mat, tc2);
+
+    trisAddTriBasic(tris, vertOffset+7u, vertOffset+5u, vertOffset+4u, mat, tc1);
+    trisAddTriBasic(tris, vertOffset+3u, vertOffset+5u, vertOffset+4u, mat, tc2);
+}
+fn trisCreateCube(size: float, mat: uint) -> Tris
+{
+    let mut tris = trisInit();
+    trisAddCube(&tris, size, mat);
+    tris
+}
+

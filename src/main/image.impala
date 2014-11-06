@@ -1,0 +1,42 @@
+
+struct Image
+{
+    buf : &[Color],
+    w : uint,
+    h : uint,
+}
+static Image_SIZEOF = pointer_SIZEOF + 2u * 4u;
+
+static IMAGE_DUMMY = Image{buf:0 as &[Color], w:0u, h:0u};
+
+
+fn imageGetRaw(img : Image, x : int, y : int) -> Color
+{
+    img.buf((y as uint) * img.w + (x as uint))
+}
+
+fn imageGetClamped(img : Image, x : int, y : int) -> Color
+{
+    let px = iclamp(0, x, img.w as int - 1);
+    let py = iclamp(0, y, img.h as int - 1);
+    imageGetRaw(img, px, py)
+}
+
+fn imageGetRepeat(img : Image, x : int, y : int) -> Color
+{
+    let xrem = x % (img.w as int);
+    let yrem = y % (img.h as int);
+    assert(||xrem >= 0 && yrem >= 0, "remainder is negative");
+    imageGetRaw(img, xrem, yrem)
+}
+
+fn imageGetMirrored(img : Image, x : int, y : int) -> Color
+{
+    let w = img.w as int;
+    let h = img.h as int;
+    let xp = int_div(x, w);
+    let yp = int_div(y, h);
+    let xi = if xp(0) % 2 == 0 { xp(1) } else { w-1-xp(1) };
+    let yi = if yp(0) % 2 == 0 { yp(1) } else { h-1-yp(1) };
+    imageGetRaw(img, xi, yi)
+}

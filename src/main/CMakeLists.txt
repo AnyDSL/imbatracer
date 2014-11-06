@@ -13,6 +13,7 @@ set(impala_shared_SRC
     vector.impala
     matrix.impala
     noise.impala
+    image.impala
     ray.impala
     bbox.impala
     instance.impala
@@ -31,7 +32,9 @@ set(impala_shared_SRC
 )
 set(impala_loc_SRC
     assert_cpu.impala
+    tri_build.impala
     camcontrol.impala
+    imageload.impala
     interface_loc.impala
 )
 set(impala_acc_SRC

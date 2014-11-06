@@ -22,6 +22,9 @@ extern "C"
     fn set_pixelscale(&u8, float) -> ();
     fn get_pixelscale(&u8) -> float;
 
+    // load stuff
+    fn image_loadraw(file : &[u8], w : &uint, h : &uint) -> &[u32];
+
     // object loader
     fn load_object_from_file(path: &[u8], filename: &[u8], flags: uint, matOverride: &[uint], scene: &Scene, tris: &Tris) -> ();
 
@@ -57,4 +60,5 @@ fn print_matrix(s : &[u8], m : Matrix) -> ()
     print_f4(s, m.rows(2));
     print_f4(s, m.rows(3));
 }
+
 

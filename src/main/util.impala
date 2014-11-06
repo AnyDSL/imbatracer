@@ -81,6 +81,17 @@ fn clamp(lower : float, val : float, upper : float) -> float
     min(upper, max(lower, val))
 }
 
+fn uclamp(lower : uint, val : uint, upper : uint) -> uint
+{
+    umin(upper, umax(lower, val))
+}
+
+fn iclamp(lower : int, val : int, upper : int) -> int
+{
+    imin(upper, imax(lower, val))
+}
+
+
 fn clamp01f(val : float) -> float
 {
     @clamp(0.0f, val, 1.0f)
@@ -139,6 +150,20 @@ fn absfractional(v : float) -> float
     @fabsf(fractional(v))
 }
 
+fn int_div(x : int, y : int) -> (int, int)
+{
+	assert(||y > 0, "Not sure if this works with negative y...");
+	let mut xdiv = x / y;
+	let mut xrem = x % y;
+	/* For negative x, the remainder may be negative as well: x/y may be rounded towards 0, so with xdiv*y + xrem = x,
+	 * we have xrem = x - xdiv*y. As xdiv is "too large", xrem is "too small". */
+	if (xrem < 0) {
+		xrem += y;
+		xdiv -= 1;
+	}
+	(xdiv, xrem)
+}
+
 /*
 fn pos_infinity() -> float
 {
@@ -190,6 +215,16 @@ fn round_up(a : uint, b : uint) -> uint
     div_round_up(a, b)*b
 }
 
+fn ifloorf(f : float) -> int
+{
+    floorf(f) as int
+}
+
+fn iroundf(f : float) -> int
+{
+    floorf(f + 0.5f) as int
+    //roundf(f) as int
+}
 
 type isLessFn = fn(uint, uint) -> bool;
 // sort ascending via non-recursive heapsort
