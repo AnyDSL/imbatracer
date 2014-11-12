@@ -10,7 +10,7 @@ namespace rt {
 class Image : public Refcounted
 {
 public:
-    Image() {}
+    Image();
     Image(unsigned width, unsigned height);
     ~Image();
 
@@ -27,9 +27,18 @@ public:
         ((unsigned*)surface->pixels)[y * surface->w + x] = (a << 24) | (b << 16) | (g << 8) | r;
     }
 
+    bool loadPNG(const char *fn);
+    void clear();
+
+    static unsigned *loadPNGBuf(const char *fn, size_t& w, size_t& h);
+
 private:
+    void mem2surface(unsigned w, unsigned h);
+    void clearSurface();
+    void alloc(unsigned w, unsigned h);
     SDL_Surface *surface;
     void *rawmem;
+    size_t memsize;
 };
 
 } // end namespace rt

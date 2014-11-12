@@ -4,6 +4,8 @@
 #include <core/util.h>
 #include <core/assert.h>
 #include "objloader.h"
+#include <io/sdlgui.h>
+#include <io/image.h>
 
 extern "C"
 {
@@ -57,5 +59,24 @@ extern "C"
     {
         std::cerr << "Impala assertion failed: " << str << std::endl;
         rt::debugAbort();
+    }
+
+    void set_pixelscale(rt::SDLGui *gui, float s)
+    {
+        gui->setPixelScale(s);
+    }
+
+    float get_pixelscale(rt::SDLGui *gui)
+    {
+        return gui->getPixelScale();
+    }
+
+    unsigned *image_loadraw(const char *fn, unsigned *w, unsigned *h)
+    {
+        size_t ws = 0, hs = 0;
+        unsigned *buf = rt::Image::loadPNGBuf(fn, ws, hs);
+        *w = (unsigned)ws;
+        *h = (unsigned)hs;
+        return buf;
     }
 }

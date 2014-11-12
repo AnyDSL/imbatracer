@@ -56,6 +56,13 @@ fn clerp(c1 : Color, c2 : Color, t : float) -> Color
           lerp(c1.b, c2.b, t))
 }
 
+fn clerp2d(px0y0 : Color, px1y0 : Color, px0y1 : Color, px1y1 : Color, xWeight : float, yWeight : float) -> Color
+{
+	let a = @clerp(px0y0, px1y0, xWeight);
+	let b = @clerp(px0y1, px1y1, xWeight);
+	@clerp(a, b, yWeight)
+}
+
 fn cAny(c : Color, f : fn(float) -> bool) -> bool
 {
     f(c.r) || f(c.g) || f(c.b) // FIXME: the sequential-or semantics might be a problem here. Maybe faster if just evaluating all.
@@ -72,6 +79,16 @@ fn col_rgb2int(c : Color) -> u32
      | ((((clamp01f(c.b)*255.0f) as int) as u32)<< 16u32)
      | ((((clamp01f(c.g)*255.0f) as int) as u32)<< 8u32 )
      | ((((clamp01f(c.r)*255.0f) as int) as u32)        )
+}
+
+fn col_int2rgb(c : u32) -> Color
+{
+    Color{
+        r : (c & 0xffu) as int as float / 255.0f,
+        g : ((c>>8u) & 0xffu) as int as float / 255.0f,
+        b : ((c>>16u) & 0xffu) as int as float / 255.0f,
+    }
+
 }
 
 fn col_toXYZ(c : Color) -> XYZ

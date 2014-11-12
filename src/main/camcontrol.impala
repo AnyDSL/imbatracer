@@ -40,7 +40,7 @@ fn camControllerInit(mut state: &State, origin: Point, up:Vec, horzOpenAngle: fl
     @camControllerUpdate(cc, &state.cam, 0.0f);
 }
 
-fn camControllerKeyInput(mut cc : &CamController, key : int, down : bool) -> ()
+fn camControllerKeyInput(mut cc : &CamController, key : int, down : bool) -> bool
 {
     // G to grab mouse is handled in C++, SDLGui.cpp
 
@@ -49,8 +49,10 @@ fn camControllerKeyInput(mut cc : &CamController, key : int, down : bool) -> ()
     else if key == 115 { cc.moveBack    = bool2int(down); } // S
     else if key == 100 { cc.moveRight   = bool2int(down); } // D
     else if key == 113 { cc.moveUp      = bool2int(down); } // Q
-    else if key == 101 { cc.moveDown   = bool2int(down); } // E
-    else { print_si("Unhandled key: ", key); }
+    else if key == 101 { cc.moveDown    = bool2int(down); } // E
+    else { return(false) }
+
+    true
 }
 
 

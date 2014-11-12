@@ -67,6 +67,8 @@ fn matrixRotationZ(a : float) -> Matrix
 		@float4(0.0f, 0.0f, 0.0f, 1.0f)
 	)
 }
+
+// FIXME: something in this function is wrong, it adds skew
 fn matrixRotation(uo : Vec, a : float) -> Matrix
 {
 	// https://en.wikipedia.org/wiki/Rotation_matrix#Axis_and_angle

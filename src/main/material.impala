@@ -22,9 +22,9 @@ struct Material
     etaSqrKappaSqr : float,
     nSamples : uint,
     // glass
-    refract : bool,
+    refract : uint, // used as bool
 }
-static Material_SIZEOF = 8u*uint_SIZEOF + 1u*uint_SIZEOF; // still 4 bytes of padding for the bool
+static Material_SIZEOF = 9u*uint_SIZEOF;
 
 struct SampleReflectance
 {
@@ -44,7 +44,7 @@ fn dummyMaterial() -> Material
         etaSqrKappaSqr:0.0f,
         sampling:SAMPLING_NOT_NEEDED,
         nSamples:1u,
-        refract:false,
+        refract:0u,
     }
 }
 
@@ -59,7 +59,7 @@ fn mirrorMaterial(eta : float, kappa : float) -> Material
         etaSqrKappaSqr:(eta*eta + kappa*kappa),
         sampling:SAMPLING_ALL,
         nSamples:1u,
-        refract:false,
+        refract:0u,
     }
 }
 
@@ -74,7 +74,7 @@ fn glassMaterial(eta : float) -> Material
         etaSqrKappaSqr:(eta*eta),
         sampling:SAMPLING_ALL,
         nSamples:2u,
-        refract:true,
+        refract:1u,
     }
 }
 
@@ -168,7 +168,7 @@ fn evalMaterialSampleReflectance(mat : &Material, texPoint : Point, normal : Vec
         SampleReflectance { direction:direction, reflectance:reflectance}
     }
 
-    if !mat.refract
+    if mat.refract == 0u
     {
         @doReflectance(fresnelFactor(mat, fabsf(cosOut)), normal)
     }

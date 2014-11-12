@@ -13,6 +13,7 @@ set(impala_shared_SRC
     vector.impala
     matrix.impala
     noise.impala
+    image.impala
     ray.impala
     bbox.impala
     instance.impala
@@ -31,7 +32,9 @@ set(impala_shared_SRC
 )
 set(impala_loc_SRC
     assert_cpu.impala
+    tri_build.impala
     camcontrol.impala
+    imageload.impala
     interface_loc.impala
 )
 set(impala_acc_SRC
@@ -56,5 +59,5 @@ add_executable(main main.cpp ${rt_SRC})
 target_link_libraries(main io ${impala_loc_LIB} ${impala_acc_LIB})
 
 add_executable(bench bench.cpp ${rt_SRC})
-target_link_libraries(bench core ${impala_loc_LIB} ${impala_acc_LIB})
+target_link_libraries(bench io ${impala_loc_LIB} ${impala_acc_LIB})
 

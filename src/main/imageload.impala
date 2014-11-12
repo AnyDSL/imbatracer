@@ -1,0 +1,28 @@
+
+
+// FIXME: this will NOT work for the GPU.
+fn loadImage(file : &[u8]) -> Image
+{
+    let mut w = 0u;
+    let mut h = 0u;
+    let buf = image_loadraw(file, &w, &h);
+    if buf == 0 as &[u32]
+    {
+        print_ssi("*** FAILED TO LOAD IMAGE:", file, -1);
+        return(IMAGE_DUMMY)
+    }
+
+    let mut col = ~[w*h : Color];
+
+    print_sii("Converting image of size", w as int, h as int);
+
+    for i in urange(0u, w*h)
+    {
+        col(i) = col_int2rgb(buf(i));
+    }
+
+    thorin_free(buf as &u8);
+
+
+    Image{buf:col, w:w, h:h}
+}

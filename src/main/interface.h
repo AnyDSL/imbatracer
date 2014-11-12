@@ -21,12 +21,24 @@ namespace impala {
         float persistence;
     };
 
+    struct Image
+    {
+        Color *buf;
+        unsigned w;
+        unsigned h;
+    };
+
     struct Texture
     {
         int ty;
         Color color1;
         Color color2;
         Noise noise;
+        Image img;
+        float imgW;
+        float imgH;
+        int imgFilter;
+        int imgBorder;
     };
 
     struct Material
@@ -43,7 +55,7 @@ namespace impala {
         float eta;
         float etaSqrKappaSqr;
         unsigned nSamples;
-        bool refract;
+        unsigned refract;
     };
 
     struct State; // some opaque datatype
@@ -53,7 +65,7 @@ namespace impala {
     extern "C" {
         // functiosn working on the state
         State *impala_init();
-        void impala_event(State *, bool grabbed, unsigned evt, bool down, int key, float x, float y);
+        void impala_event(void *, State *, bool grabbed, unsigned evt, bool down, int key, float x, float y);
         void impala_update(State *, float dt);
 
         State *impala_init_bench1();

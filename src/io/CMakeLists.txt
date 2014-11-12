@@ -14,5 +14,5 @@ sdlbuffergui.cpp
 
 
 add_library(io ${io_SRC})
-target_link_libraries(io core ${SDL2_LIBRARIES})
+target_link_libraries(io core ${PNG_LIBRARIES} ${SDL2_LIBRARIES})
 

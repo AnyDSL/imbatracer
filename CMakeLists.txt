@@ -23,9 +23,9 @@ pkg_check_modules(SDL2 sdl2 REQUIRED)
 include_directories(${SDL2_INCLUDE_DIRS})
 link_directories(${SDL2_LIBRARY_DIRS})
 # PNG
-#find_package(PNG REQUIRED)
-#include_directories(${PNG_INCLUDE_DIRS})
-#link_directories(${PNG_LIBRARY_DIRS})
+find_package(PNG REQUIRED)
+include_directories(${PNG_INCLUDE_DIRS})
+link_directories(${PNG_LIBRARY_DIRS})
 
 # compiler options
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -Wall -Wextra")
