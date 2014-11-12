@@ -1,0 +1,7 @@
+struct BenchBvhBuildResult {
+    empty: int
+}
+
+extern fn bench_bvh_build(result: &BenchBvhBuildResult) -> () {
+
+}
