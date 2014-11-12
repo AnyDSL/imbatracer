@@ -16,8 +16,8 @@ public:
 
     virtual ~Bench() {}
 
-    unsigned long get_milliseconds() const { return milliseconds_; }
-    const std::string& get_name() const { return name_; }
+    unsigned long milliseconds() const { return milliseconds_; }
+    const std::string& name() const { return name_; }
 
     void run() {
         for (int i = 0; i < warmup_; i++) {
@@ -62,5 +62,5 @@ private:
 
 }
 
-#endif
+#endif // BENCH_HPP
 

@@ -1,8 +1,27 @@
 struct BenchBvhBuildResult {
-    empty: int
+    bvh: Bvh,
+    boxes: ~[Box],
+    centers: ~[Vec3]
 }
 
-extern fn bench_bvh_build(result: &BenchBvhBuildResult) -> () {
-    
+extern fn bench_bvh_build(vertices: &[Vec3], indices: &[int], num_tris: int, mut result: &BenchBvhBuildResult) -> () {
+    // Build the bounding boxes and centers
+    let mut centers = ~[num_tris: Vec3];
+    let mut boxes = ~[num_tris: Box];
+
+    for i in range(0, num_tris) {
+        let v0 = vertices(indices(i * 3 + 0));
+        let v1 = vertices(indices(i * 3 + 1));
+        let v2 = vertices(indices(i * 3 + 2));
+
+        centers(i) = vec3_add(v0, vec3_add(v1, v2));
+        boxes(i).min = vec3_min(v0, vec3_min(v1, v2));
+        boxes(i).max = vec3_max(v0, vec3_min(v1, v2));
+    }
+
+    // Build the BVH
+    result.bvh = build_bvh(boxes, centers, num_tris);
+    result.boxes = boxes;
+    result.centers = centers;
 }
 

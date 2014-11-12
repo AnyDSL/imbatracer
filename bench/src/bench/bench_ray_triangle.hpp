@@ -15,8 +15,8 @@ public:
         , nrays_(nrays)
     {}
 
-    float get_tmin() const { return tmin_; }
-    int get_intr_count() const { return icount_; }
+    float tmin() const { return tmin_; }
+    int intr_count() const { return icount_; }
 
 protected:
     virtual void iteration();
@@ -36,8 +36,8 @@ public:
         , nrays_(nrays)
     {}
 
-    float get_tmin() const { return tmin_; }
-    int get_intr_count() const { return icount_; }
+    float tmin() const { return tmin_; }
+    int intr_count() const { return icount_; }
 
 protected:
     virtual void iteration();
@@ -56,8 +56,8 @@ public:
         , nrays_(nrays)
     {}
 
-    float get_tmin() const { return tmin_; }
-    int get_intr_count() const { return icount_; }
+    float tmin() const { return tmin_; }
+    int intr_count() const { return icount_; }
 
 protected:
     virtual void iteration();
@@ -75,8 +75,8 @@ public:
         , nray4s_(nray4s)
     {}
 
-    float get_tmin() const { return tmin_; }
-    int get_intr_count() const { return icount_; }
+    float tmin() const { return tmin_; }
+    int intr_count() const { return icount_; }
 
 protected:
     virtual void iteration();
@@ -89,5 +89,5 @@ private:
 
 } // namespace bench
 
-#endif
+#endif // BENCH_RAY_TRIANGLE_HPP
 

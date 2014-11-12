@@ -65,7 +65,7 @@ bool ObjLoader::load_scene(const std::string& working_dir,
         mesh->set_vertex_count(cur_idx);
         for (auto& p : mapping) {
             const Vertex& v = obj_file.vertices[p.first.v];
-            mesh->get_vertices()[p.second] = Vec3(v.x, v.y, v.z);
+            mesh->vertices()[p.second] = Vec3(v.x, v.y, v.z);
         }
 
         if (has_normals) {
@@ -73,7 +73,7 @@ bool ObjLoader::load_scene(const std::string& working_dir,
             mesh->set_normal_count(cur_idx);
             for (auto& p : mapping) {
                 const Normal& n = obj_file.normals[p.first.n];
-                mesh->get_normals()[p.second] = Vec3(n.x, n.y, n.z);
+                mesh->normals()[p.second] = Vec3(n.x, n.y, n.z);
             }
         }
 
@@ -82,13 +82,13 @@ bool ObjLoader::load_scene(const std::string& working_dir,
             mesh->set_texcoord_count(cur_idx);
             for (auto& p : mapping) {
                 const Texcoord& t = obj_file.texcoords[p.first.t];
-                mesh->get_texcoords()[p.second] = Vec2(t.u, t.v);
+                mesh->texcoords()[p.second] = Vec2(t.u, t.v);
             }
         }
 
         if (logger) {
-            logger->log("mesh with ", mesh->get_vertex_count(), " vertices, ",
-                                      mesh->get_triangle_count(), " triangles");
+            logger->log("mesh with ", mesh->vertex_count(), " vertices, ",
+                                      mesh->triangle_count(), " triangles");
         }
 
         scene.add_triangle_mesh(mesh.release());

@@ -39,6 +39,12 @@ public:
         return TextureId(textures_.size() - 1);
     }
 
+    int triangle_mesh_count() const { return meshes_.size(); }
+    int texture_count() const { return textures_.size(); }
+
+    TriangleMesh* const* triangle_meshes() const { return meshes_.data(); }
+    ImageBuffer* const* textures() const { return textures_.data(); }
+
 private:
     std::vector<TriangleMesh*> meshes_;
     std::vector<ImageBuffer*>  textures_;

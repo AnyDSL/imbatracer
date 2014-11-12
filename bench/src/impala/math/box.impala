@@ -27,8 +27,9 @@ fn box_extents(box: Box) -> Vec3 {
     vec3_sub(box.max, box.min)
 }
 
-fn box_area(box: Box) -> float {
+fn box_half_area(box: Box) -> float {
     let e = box_extents(box);
-    e.values(0) * (e.values(1) + e.values(2)) + e.values(1) * e.values(2) 
+    let a = e.values(0) * (e.values(1) + e.values(2)) + e.values(1) * e.values(2);
+    if a > 0.0f {a} else {0.0f}
 }
 

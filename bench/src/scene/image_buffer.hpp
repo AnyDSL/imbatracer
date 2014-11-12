@@ -15,17 +15,17 @@ public:
           stride_(row_stride)
     {}
 
-    int get_width() const { return width_; }
-    int get_height() const { return height_; }
-    int get_stride() const { return stride_; }
+    int width() const { return width_; }
+    int height() const { return height_; }
+    int stride() const { return stride_; }
 
     typedef Vec4 Pixel;
 
-    const Pixel* get_pixels() const { return pixels_.data(); }
-    Pixel* get_pixels() { return pixels_.data(); }
+    const Pixel* pixels() const { return pixels_.data(); }
+    Pixel* pixels() { return pixels_.data(); }
 
-    const Pixel* get_row(int i) const { return pixels_.data() + i * stride_; }
-    Pixel* get_row(int i) { return pixels_.data() + i * stride_; } 
+    const Pixel* row(int i) const { return pixels_.data() + i * stride_; }
+    Pixel* row(int i) { return pixels_.data() + i * stride_; } 
 
 private:
     std::vector<Pixel, ThorinAllocator<Pixel> > pixels_;

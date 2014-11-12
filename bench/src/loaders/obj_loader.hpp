@@ -59,5 +59,5 @@ private:
 
 }
 
-#endif
+#endif // IMBA_OBJ_LOADER_HPP
 

@@ -1,5 +1,5 @@
-#ifndef SCENE_LOADER_HPP
-#define SCENE_LOADER_HPP
+#ifndef IMBA_SCENE_LOADER_HPP
+#define IMBA_SCENE_LOADER_HPP
 
 #include <memory>
 #include <string>
@@ -23,5 +23,5 @@ public:
 
 } // namespace imba
 
-#endif
+#endif // IMBA_SCENE_LOADER_HPP
 

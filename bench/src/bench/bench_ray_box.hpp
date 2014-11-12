@@ -15,9 +15,9 @@ public:
         , nrays_(nrays)
     {}
 
-    float get_tmin() const { return tmin_; }
-    float get_tmax() const { return tmax_; }
-    int get_intr_count() const { return icount_; }
+    float tmin() const { return tmin_; }
+    float tmax() const { return tmax_; }
+    int intr_count() const { return icount_; }
 
 protected:
     virtual void iteration();
@@ -37,9 +37,9 @@ public:
         , nrays_(nrays)
     {}
 
-    float get_tmin() const { return tmin_; }
-    float get_tmax() const { return tmax_; }
-    int get_intr_count() const { return icount_; }
+    float tmin() const { return tmin_; }
+    float tmax() const { return tmax_; }
+    int intr_count() const { return icount_; }
 
 protected:
     virtual void iteration();
@@ -53,5 +53,5 @@ private:
 
 } // namespace bench
 
-#endif
+#endif // BENCH_RAY_BOX_HPP
 

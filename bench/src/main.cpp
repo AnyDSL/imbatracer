@@ -13,8 +13,37 @@ extern "C" void* debug_abort(const char* msg)
     exit(1);
 }
 
+extern "C" void put_float(float f) {
+    printf("float : %f\n", (double)f);
+}
+
+extern "C" void put_int(int i) {
+    printf("int : %d\n", i);
+}
+
+template <typename F>
+struct AutoCleanup {
+    AutoCleanup(F f) : f_(f) {}
+    ~AutoCleanup() { f_(); }
+    F f_;
+};
+
+template <typename F>
+AutoCleanup<F> auto_cleanup(F f) {
+    return AutoCleanup<F>(f);
+}
+
 int main(int argc, char** argv) {
+    std::unique_ptr<imba::Logger> logger(new imba::Logger("log.txt"));
     std::vector<bench::Bench*> benches;
+
+    // Automatically cleanup the benches on exit
+    auto cleanup = auto_cleanup([&] () {
+        std::cout << "cleaning up..." << std::endl;
+        for (auto b : benches) {
+            delete b;
+        }
+    });
 
     benches.push_back(new bench::BenchRayTriangleImpala(4000000));
     benches.push_back(new bench::BenchRay4TriangleImpala(1000000));
@@ -24,24 +53,31 @@ int main(int argc, char** argv) {
     benches.push_back(new bench::BenchRayBoxImpala(4000000));
     benches.push_back(new bench::BenchRay4BoxImpala(1000000));
 
-    benches.push_back(new bench::BenchBvhBuildImpala());
-
+    // Benches that need a simple scene
+    const std::string& scene_file = "teapot.obj";
     imba::ObjLoader loader;
     imba::Scene scene;
-    std::unique_ptr<imba::Logger> logger(new imba::Logger("log.txt"));
-    if (!loader.load_scene(".", "teapot.obj", scene, logger.get())) {
-        logger->log("cannot load file 'teapot.obj'");
+    
+    if (!loader.load_scene(".", scene_file, scene, logger.get())) {
+        logger->log("cannot load file ", scene_file);
+        return EXIT_FAILURE;
+    }
+
+    if (!scene.triangle_mesh_count()) {
+        logger->log("file '", scene_file, "' contains no mesh");
+    }
+
+    for (int i = 0; i < scene.triangle_mesh_count(); i++) {
+        benches.push_back(new bench::BenchBvhBuildImpala(scene.triangle_meshes()[i]));
     }
 
     for (auto b : benches) {
         b->run_verbose();
-        std::cout << b->get_name() << " : "
-                  << b->get_milliseconds() << " ms"
+        std::cout << b->name() << " : "
+                  << b->milliseconds() << " ms"
                   << std::endl;
     }
 
-    for (auto b : benches) {
-        delete b;
-    }
+    return EXIT_SUCCESS;
 }
 

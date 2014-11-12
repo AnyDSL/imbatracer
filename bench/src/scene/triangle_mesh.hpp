@@ -86,23 +86,23 @@ public:
     void set_materials(int* mats, int count) { materials_.assign(mats, mats + count); }
     void set_triangles(Triangle* tris, int count) { triangles_.assign(tris, tris + count); }
 
-    const Vertex* get_vertices() const { return vertices_.data(); }
-    const Normal* get_normals() const { return normals_.data(); }
-    const Texcoord* get_texcoords() const { return texcoords_.data(); }
-    const int* get_materials() const { return materials_.data(); }
-    const Triangle* get_triangles() const { return triangles_.data(); }
+    const Vertex* vertices() const { return vertices_.data(); }
+    const Normal* normals() const { return normals_.data(); }
+    const Texcoord* texcoords() const { return texcoords_.data(); }
+    const int* materials() const { return materials_.data(); }
+    const Triangle* triangles() const { return triangles_.data(); }
 
-    Vertex* get_vertices() { return vertices_.data(); }
-    Normal* get_normals() { return normals_.data(); }
-    Texcoord* get_texcoords() { return texcoords_.data(); }
-    int* get_materials() { return materials_.data(); }
-    Triangle* get_triangles() { return triangles_.data(); }
+    Vertex* vertices() { return vertices_.data(); }
+    Normal* normals() { return normals_.data(); }
+    Texcoord* texcoords() { return texcoords_.data(); }
+    int* materials() { return materials_.data(); }
+    Triangle* triangles() { return triangles_.data(); }
 
-    int get_vertex_count() const { return vertices_.size(); }
-    int get_normal_count() const { return normals_.size(); }
-    int get_texcoord_count() const { return texcoords_.size(); }
-    int get_material_count() const { return materials_.size(); }
-    int get_triangle_count() const { return triangles_.size(); }
+    int vertex_count() const { return vertices_.size(); }
+    int normal_count() const { return normals_.size(); }
+    int texcoord_count() const { return texcoords_.size(); }
+    int material_count() const { return materials_.size(); }
+    int triangle_count() const { return triangles_.size(); }
 
     void set_vertex_count(int count) { vertices_.resize(count); }
     void set_normal_count(int count) { normals_.resize(count); }
