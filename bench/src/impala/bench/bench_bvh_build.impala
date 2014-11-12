@@ -3,5 +3,6 @@ struct BenchBvhBuildResult {
 }
 
 extern fn bench_bvh_build(result: &BenchBvhBuildResult) -> () {
-
+    
 }
+

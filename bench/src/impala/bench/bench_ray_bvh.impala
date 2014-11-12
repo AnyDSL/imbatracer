@@ -4,7 +4,7 @@ struct BenchRayBvhResult {
     tmax: float
 }
 
-extern fn bench_ray4_bvh(nray4s: int, bvh: &Bvh, tris: &[Tri]) -> ~BenchRayBvhResult @{
+extern fn bench_ray4_bvh(nray4s: int, bvh: &Bvh, tris: &[Tri], mut result: &BenchRayBvhResult) -> () @{
     fn generate_ray(i: int) -> Ray {
         let theta = ((i % 1000) as float) * flt_pi / 1000.0f;
         let phi = (i as float) * 2.0f * flt_pi / 1000.0f;
@@ -22,11 +22,9 @@ extern fn bench_ray4_bvh(nray4s: int, bvh: &Bvh, tris: &[Tri]) -> ~BenchRayBvhRe
         }
     }
 
-    let mut result = ~BenchRayBvhResult {
-        intr_count: 0,
-        tmin: -flt_max,
-        tmax: flt_max
-    };
+    result.tmax = flt_max;
+    result.tmin = -flt_max;
+    result.intr_count = 0;
 
     for i in range(0, nray4s) @{
         let mut tray = [flt_max, flt_max, flt_max, flt_max];
@@ -59,11 +57,9 @@ extern fn bench_ray4_bvh(nray4s: int, bvh: &Bvh, tris: &[Tri]) -> ~BenchRayBvhRe
             if result.tmin < tray(j) { result.tmin = tray(j); }
         }
     }
-
-    result
 }
 
-extern fn bench_ray_bvh(nrays: int, bvh: &Bvh, tris: &[Tri]) -> ~BenchRayBvhResult @{
+extern fn bench_ray_bvh(nrays: int, bvh: &Bvh, tris: &[Tri], mut result: &BenchRayBvhResult) -> () @{
     fn generate_ray(i: int) -> Ray {
         let theta = ((i % 1000) as float) * flt_pi / 1000.0f;
         let phi = (i as float) * 2.0f * flt_pi / 1000.0f;
@@ -74,11 +70,9 @@ extern fn bench_ray_bvh(nrays: int, bvh: &Bvh, tris: &[Tri]) -> ~BenchRayBvhResu
             vec3(0.0f, 0.0f, 0.0f))
     }
 
-    let mut result = ~BenchRayBvhResult {
-        intr_count: 0,
-        tmin: -flt_max,
-        tmax: flt_max
-    };
+    result.tmax = flt_max;
+    result.tmin = -flt_max;
+    result.intr_count = 0;
 
     for i in range(0, nrays) @{
         let mut tray = flt_max;
@@ -104,7 +98,5 @@ extern fn bench_ray_bvh(nrays: int, bvh: &Bvh, tris: &[Tri]) -> ~BenchRayBvhResu
         if result.tmax > tray { result.tmax = tray; }
         if result.tmin < tray { result.tmin = tray; }
     }
-
-    result
 }
 

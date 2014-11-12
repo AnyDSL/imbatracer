@@ -1,14 +1,10 @@
 #include <iostream>
 #include <vector>
-#include "bench.hpp"
-#include "bench_ray_triangle.hpp"
-#include "bench_ray_box.hpp"
-
-// Allocation function for Thorin
-extern "C" void* thorin_malloc(size_t size)
-{
-    return malloc(size);
-}
+#include "bench/bench.hpp"
+#include "bench/bench_ray_triangle.hpp"
+#include "bench/bench_ray_box.hpp"
+#include "bench/bench_bvh_builder.hpp"
+#include "loaders/obj_loader.hpp"
 
 // Abort function for the impala assert function
 extern "C" void* debug_abort(const char* msg)
@@ -28,8 +24,17 @@ int main(int argc, char** argv) {
     benches.push_back(new bench::BenchRayBoxImpala(4000000));
     benches.push_back(new bench::BenchRay4BoxImpala(1000000));
 
+    benches.push_back(new bench::BenchBvhBuildImpala());
+
+    imba::ObjLoader loader;
+    imba::Scene scene;
+    std::unique_ptr<imba::Logger> logger(new imba::Logger("log.txt"));
+    if (!loader.load_scene(".", "teapot.obj", scene, logger.get())) {
+        logger->log("cannot load file 'teapot.obj'");
+    }
+
     for (auto b : benches) {
-        b->run();
+        b->run_verbose();
         std::cout << b->get_name() << " : "
                   << b->get_milliseconds() << " ms"
                   << std::endl;
