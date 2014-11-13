@@ -90,6 +90,53 @@ fn evaluate_partitions(bins: &[BvhBin],
     }
 }
 
+fn build_bvh_node(mut nodes: &[BvhNode],
+                  next_free: int,
+                  push_node: fn((int, int, int, int)) -> (),
+                  pop_node: fn() -> (int, int, int, int),
+                  must_stop: fn(int, int) -> bool,
+                  compute_bounds: fn(int, int) -> Box,
+                  decide_split: fn(int, int, &Box, fn (), fn (int))) -> int @{
+    // Pop a node from the stack
+    let stack_top = pop_node();
+    let cur_node = stack_top(0);
+    let first_prim = stack_top(1);
+    let last_prim = stack_top(2);
+    let depth = stack_top(3);
+
+    let prim_count = last_prim - first_prim;
+
+    nodes(cur_node).bounds = compute_bounds(first_prim, last_prim);
+
+    // Stop when the number of primitives is too small
+    if must_stop(prim_count, depth) {
+        return(next_free)
+    }
+
+    // Compute the node bounds
+    decide_split(first_prim, last_prim, &nodes(cur_node).bounds,
+        || @{
+            assert(|| { prim_count < 16384 },
+                   "build_bvh_node: cannot have more than 16384 primitives per leaf");
+            nodes(cur_node).child_first = first_prim;
+            nodes(cur_node).prim_count = prim_count as i16;
+            return(next_free)
+        },
+        |split_pos| @{
+            assert(|| { split_pos - first_prim > 0 && last_prim - split_pos > 0 },
+                   "build_bvh_node: node split with no primitive inside one children");
+
+            nodes(cur_node).prim_count = 0i16;
+            nodes(cur_node).child_first = next_free;
+
+            // Build the two children recursively
+            push_node((next_free, first_prim, split_pos, depth + 1));
+            push_node((next_free + 1, split_pos, last_prim, depth + 1));
+            
+            return(next_free + 2)
+        })
+}
+
 fn build_bvh(boxes: &[Box],
              centers: &[Vec3],
              prim_count: int) -> Bvh {
@@ -102,108 +149,129 @@ fn build_bvh(boxes: &[Box],
     // Preallocate the BVH nodes (upper bound)
     let nodes = ~[(2 * prim_count + 1): BvhNode];
 
-    // Start construction
-    let node_count = $build_bvh_node(nodes, 0, 1, 0, prim_count, prim_ids, boxes, centers);
+    fn ilog2(i: int) -> int {
+        let mut p = 1;
+        let mut q = 0;
+        while p < i {
+            p *= 2;
+            q += 1
+        }
+        q
+    }
+
+    let max_depth = ilog2(prim_count);
+
+    // Functions that define the build process
+    fn must_stop(prim_count: int, depth: int) -> bool @{
+        prim_count < 4 || depth >= max_depth
+    }
+
+    fn compute_bounds(first: int, last: int) -> Box @{
+        let mut bounds = empty_box();
+
+        for i in range(first, last) @{
+            let id = prim_ids(i);
+            bounds = box_union(bounds, boxes(id));
+        }
+
+        bounds
+    }
+
+    fn decide_split(first: int, last: int, node_bounds: &Box,
+                    make_leaf: fn(), make_node: fn (int)) @{
+        // Compute the bounding box of the triangle centers
+        let mut center_box = empty_box();
+        for i in range(first, last) @{
+            let id = prim_ids(i);
+            center_box = box_expand(center_box, centers(id));
+        }
+
+        // Find longuest axis on that box
+        let extents = box_extents(center_box);
+        let mut axis = 0;
+        if extents.values(0) < extents.values(1) {
+            axis = 1;    
+        }
+        if extents.values(axis) < extents.values(2) {
+            axis = 2;
+        }
+
+        // Build the bins
+        let num_bins = 16;
+        let mut bins : [BvhBin * 16];
+
+        for i in range(0, num_bins) @{
+            bins(i) = empty_bvh_bin();
+        }
+
+        // Put the primitives in the bins
+        let sah_epsilon = 0.0001f;
+        let sah_factor = (num_bins as float) * (1.0f - sah_epsilon) /
+                         (center_box.max.values(axis) - center_box.min.values(axis) + sah_epsilon);
+        let sah_offset = center_box.min.values(axis);
+
+        fn compute_bin_id(center: Vec3) -> int @{
+            sah_factor * (center.values(axis) - sah_offset) as int
+        }
+
+        for i in range(first, last) @{
+            let id = prim_ids(i);
+            let bin_id = compute_bin_id(centers(id));
+
+            bins(bin_id).bounds = box_union(bins(bin_id).bounds, boxes(id));
+            bins(bin_id).prim_count += 1;
+        }
+
+        // Find the best split position and then build the children
+        let max_cost = (prim_count as float) * box_half_area(*node_bounds);
+
+        @evaluate_partitions(&bins, num_bins, prim_count, max_cost,
+            make_leaf,
+            |min_id| @{
+                // Split the primitives in two sets
+                let mut a = first;
+                let mut b = last - 1;
+
+                while a <= b @{
+                    let bin_id = compute_bin_id(centers(prim_ids(a)));
+
+                    if bin_id >= min_id @{
+                        let tmp = prim_ids(a);
+                        prim_ids(a) = prim_ids(b);
+                        prim_ids(b) = tmp;
+                        b -= 1;
+                    } else @{
+                        a += 1;
+                    }
+                }
+
+                make_node(a)
+            })
+    }  
+
+    // Build the tree
+    let mut stack : [(int, int, int, int) * 32];
+    let mut node_count = 0;
+    let mut stack_idx = 0;
+
+    fn push_node(node: (int, int, int, int)) -> () {
+        stack(stack_idx) = node;
+        stack_idx += 1;
+    }
+
+    fn pop_node() -> (int, int, int, int) {
+        stack_idx -= 1;
+        stack(stack_idx)
+    }
+
+    push_node((0, 0, prim_count, 0));
+
+    while stack_idx > 0 @{
+        node_count = build_bvh_node(nodes, node_count, push_node, pop_node,
+                                    must_stop, compute_bounds, decide_split);
+    }
 
     bvh(nodes, node_count, prim_ids)
 }
 
-fn build_bvh_node(mut nodes: &[BvhNode],
-                  cur_node: int,
-                  next_free: int,
-                  first_prim: int,
-                  last_prim: int,
-                  mut prim_ids: &[int],
-                  boxes: &[Box],
-                  centers: &[Vec3]) -> int @{
-    let prim_count = last_prim - first_prim;
-
-    // Compute the node bounds
-    nodes(cur_node).bounds = empty_box();
-    let mut center_box = empty_box();
-
-    for i in range(first_prim, last_prim) @{
-        let id = prim_ids(i);
-        nodes(cur_node).bounds = box_union(nodes(cur_node).bounds, boxes(id));
-        center_box = box_expand(center_box, centers(id));
-    }
-
-    // Find longuest axis
-    let extents = box_extents(center_box);
-    let mut axis = 0;
-    if extents.values(0) < extents.values(1) {
-        axis = 1;    
-    }
-    if extents.values(axis) < extents.values(2) {
-        axis = 2;
-    }
-
-    // Build the bins
-    let num_bins = 16;
-    let mut bins : [BvhBin * 16];
-
-    for i in range(0, num_bins) @{
-        bins(i) = empty_bvh_bin();
-    }
-
-    // Put the primitives in the bins
-    let sah_epsilon = 0.0001f;
-    let sah_factor = (num_bins as float) * (1.0f - sah_epsilon) /
-                     (center_box.max.values(axis) - center_box.min.values(axis) + sah_epsilon);
-    let sah_offset = center_box.min.values(axis);
-
-    fn compute_bin_id(center: Vec3) -> int {
-        sah_factor * (center.values(axis) - sah_offset) as int
-    }
-
-    for i in range(first_prim, last_prim) @{
-        let id = prim_ids(i);
-        let bin_id = compute_bin_id(centers(id));
-
-        bins(bin_id).bounds = box_union(bins(bin_id).bounds, boxes(id));
-        bins(bin_id).prim_count += 1;
-    }
-   
-    // Find the best split position and then build the children
-    let max_cost = (prim_count as float) * box_half_area(nodes(cur_node).bounds);
-    @evaluate_partitions(&bins, num_bins, prim_count, max_cost,
-        || @{
-            assert(|| { prim_count < (1 << 16) },
-                   "build_bvh_node: cannot have more than 16384 primitives per leaf");
-            nodes(cur_node).child_first = first_prim;
-            nodes(cur_node).prim_count = prim_count as i16;
-            return(next_free)
-        },
-        |min_id| @{
-            // Split the primitives in two sets
-            let mut a = first_prim;
-            let mut b = last_prim - 1;
-
-            while a <= b @{
-                let bin_id = compute_bin_id(centers(prim_ids(a)));
-
-                if bin_id >= min_id @{
-                    let tmp = prim_ids(a);
-                    prim_ids(a) = prim_ids(b);
-                    prim_ids(b) = tmp;
-                    b -= 1;
-                } else @{
-                    a += 1;
-                }
-            }
-
-            assert(|| { a - first_prim > 0 && last_prim - a > 0 },
-                   "build_bvh_node: node split with no primitive inside one children");
-
-            nodes(cur_node).prim_count = 0i16;
-            nodes(cur_node).child_first = next_free;
-
-            // Build the two children recursively
-            let free_left  = $build_bvh_node(nodes, next_free, next_free + 2,
-                                             first_prim, a, prim_ids, boxes, centers);
-            let free_right = $build_bvh_node(nodes, next_free + 1, free_left,
-                                             a, last_prim, prim_ids, boxes, centers);
-            return(free_right)
-        })
-}
 
