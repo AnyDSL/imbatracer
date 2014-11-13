@@ -287,3 +287,10 @@ fn sort(mut a: &[uint], len: uint, isLess:isLessFn) -> ()
         a(index) = t;
     }
 }*/
+
+
+fn isPowerOf2 (x : uint) -> bool
+{
+    (x != 0u) && ((x & (x - 1u)) == 0u)
+}
+

@@ -11,8 +11,10 @@ struct State
     meshIdxs: &u8, // used by interface_loc
     pixelBuffer : &u8, // used by mapping_cpu for subsampling
     camctrl : &u8, // used by camcontrol
+
+    paused : int,
 }
-static State_SIZEOF = float_SIZEOF + Cam_SIZEOF + Integrator_SIZEOF + RTScene_SIZEOF + 3u*pointer_SIZEOF;
+static State_SIZEOF = float_SIZEOF + Cam_SIZEOF + Integrator_SIZEOF + RTScene_SIZEOF + 3u*pointer_SIZEOF + 4u;
 
 fn stateInit() -> &State
 {
@@ -23,6 +25,7 @@ fn stateInit() -> &State
     state.camctrl = state as &u8;
     memset(state as &u8, 0, State_SIZEOF as size_t);
     @assert(||state.camctrl == (0 as &u8), "State_SIZEOF is wrong!");
+    state.paused = 0;
     return(state)
 }
 

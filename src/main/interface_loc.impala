@@ -54,7 +54,7 @@ static EVT_MOUSEMOVE = 1u;
 static EVT_MOUSEBUTTON = 2u;
 static EVT_MOUSEWHEEL = 3u;
 
-fn handleKey(gui : &u8, key : int, down : bool) -> ()
+fn handleKey(gui : &u8, mut state : &State, key : int, down : bool) -> ()
 {
     if down
     {
@@ -72,8 +72,14 @@ fn handleKey(gui : &u8, key : int, down : bool) -> ()
             set_pixelscale(gui, s);
             //assert_failed("b");
         }
-
-        print_sii("Unhandled key: ", key, down as int);
+        else if key == 32 // Space
+        {
+            state.paused = if state.paused == 0 {1} else {0};
+        }
+        else
+        {
+            print_sii("Unhandled key: ", key, down as int);
+        }
     }
 }
 
@@ -83,7 +89,7 @@ extern fn impala_event(gui : &u8, state : &State, grabbed : bool, evt : uint, do
     {
         if evt == EVT_KEY
         {
-            handleKey(gui, key, down);
+            handleKey(gui, state, key, down);
         }
         return()
     }
@@ -94,7 +100,7 @@ extern fn impala_event(gui : &u8, state : &State, grabbed : bool, evt : uint, do
     {
         if !camControllerKeyInput(cc, key, down)
         {
-            handleKey(gui, key, down);
+            handleKey(gui, state, key, down);
         }
     }
     else if evt == EVT_MOUSEMOVE
@@ -134,7 +140,7 @@ extern fn impala_init() -> &State
     // initialise scene
     let mut scene = @sceneInit();
 
-    let img_test = loadImage("models/chromespheres.png");
+    let img_test = loadImage("models/test.png");
 
     let mut cxtex = checkerboardTexture2D(color0(), color1(1.0f));
 
@@ -197,7 +203,10 @@ extern fn impala_init() -> &State
 extern fn impala_update(mut state : &State, dt : float) -> ()
 {
     let time = state.time;
-    state.time = time + dt;
+    if state.paused == 0
+    {
+        state.time = time + dt;
+    }
 
     // put light right where the cam was shortly ago, and on the other side
     let lightScale = 10.0f;
