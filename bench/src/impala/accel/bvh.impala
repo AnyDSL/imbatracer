@@ -92,10 +92,6 @@ fn evaluate_partitions(bins: &[BvhBin],
     }
 }
 
-extern "C" {
-    fn put_int(int) -> ();
-}
-
 fn build_bvh_node(mut nodes: &[BvhNode],
                   next_free: int,
                   push_node: fn((int, int, int, int)) -> (),
@@ -169,8 +165,7 @@ fn build_bvh(boxes: &[Box],
 
     // Functions that define the build process
     fn must_stop(prim_count: int, depth: int) -> bool @{
-        depth >= 79
-        //prim_count < 4 || depth >= max_depth
+        prim_count < 4 || depth >= max_depth
     }
 
     fn compute_bounds(first: int, last: int) -> Box @{
@@ -257,7 +252,7 @@ fn build_bvh(boxes: &[Box],
     }  
 
     // Build the tree
-    let mut stack : [(int, int, int, int) * 80];
+    let mut stack : [(int, int, int, int) * 32];
     let mut node_count = 0;
     let mut stack_idx = 0;
 
