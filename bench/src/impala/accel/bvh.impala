@@ -72,6 +72,8 @@ fn evaluate_partitions(bins: &[BvhBin],
         cur_box = box_union(cur_box, bins(j).bounds);
         right_count += bins(j).prim_count;
 
+        assert(|| { right_count + left_count(j - 1) == prim_count }, "evaluate_partitions : number of primitives is incorrect");
+
         let cost = (right_count as float) * box_half_area(cur_box) +
                    (left_count(j - 1) as float) * left_area(j - 1);
         if cost < min_cost {
@@ -90,13 +92,17 @@ fn evaluate_partitions(bins: &[BvhBin],
     }
 }
 
+extern "C" {
+    fn put_int(int) -> ();
+}
+
 fn build_bvh_node(mut nodes: &[BvhNode],
                   next_free: int,
                   push_node: fn((int, int, int, int)) -> (),
                   pop_node: fn() -> (int, int, int, int),
                   must_stop: fn(int, int) -> bool,
                   compute_bounds: fn(int, int) -> Box,
-                  decide_split: fn(int, int, &Box, fn (), fn (int))) -> int @{
+                  decide_split: fn(int, int, Box, fn (), fn (int))) -> int @{
     // Pop a node from the stack
     let stack_top = pop_node();
     let cur_node = stack_top(0);
@@ -114,7 +120,7 @@ fn build_bvh_node(mut nodes: &[BvhNode],
     }
 
     // Compute the node bounds
-    decide_split(first_prim, last_prim, &nodes(cur_node).bounds,
+    decide_split(first_prim, last_prim, nodes(cur_node).bounds,
         || @{
             assert(|| { prim_count < 16384 },
                    "build_bvh_node: cannot have more than 16384 primitives per leaf");
@@ -163,7 +169,8 @@ fn build_bvh(boxes: &[Box],
 
     // Functions that define the build process
     fn must_stop(prim_count: int, depth: int) -> bool @{
-        prim_count < 4 || depth >= max_depth
+        depth >= 79
+        //prim_count < 4 || depth >= max_depth
     }
 
     fn compute_bounds(first: int, last: int) -> Box @{
@@ -177,7 +184,7 @@ fn build_bvh(boxes: &[Box],
         bounds
     }
 
-    fn decide_split(first: int, last: int, node_bounds: &Box,
+    fn decide_split(first: int, last: int, node_bounds: Box,
                     make_leaf: fn(), make_node: fn (int)) @{
         // Compute the bounding box of the triangle centers
         let mut center_box = empty_box();
@@ -223,9 +230,9 @@ fn build_bvh(boxes: &[Box],
         }
 
         // Find the best split position and then build the children
-        let max_cost = (prim_count as float) * box_half_area(*node_bounds);
+        let max_cost = (prim_count as float) * box_half_area(node_bounds);
 
-        @evaluate_partitions(&bins, num_bins, prim_count, max_cost,
+        @evaluate_partitions(&bins, num_bins, last - first, max_cost,
             make_leaf,
             |min_id| @{
                 // Split the primitives in two sets
@@ -250,7 +257,7 @@ fn build_bvh(boxes: &[Box],
     }  
 
     // Build the tree
-    let mut stack : [(int, int, int, int) * 32];
+    let mut stack : [(int, int, int, int) * 80];
     let mut node_count = 0;
     let mut stack_idx = 0;
 
