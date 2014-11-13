@@ -2,6 +2,8 @@
 #include <thorin_runtime.h>
 #include <png.h>
 
+#include <vector>
+
 namespace rt {
 
 Image::Image()

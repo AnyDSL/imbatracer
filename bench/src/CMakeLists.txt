@@ -1,41 +1,42 @@
+# Get the Impala source files names
 add_subdirectory(impala)
+get_directory_property(IMPALA_SRCS DIRECTORY impala DEFINITION IMPALA_SRCS)
 
-set_source_files_properties(impala/impala_interface.o
-                            PROPERTIES
-                            EXTERNAL_OBJECT TRUE
-                            GENERATED TRUE)
+set(IMPALA_SRCS_PREFIX "")
+foreach(FILE IN ITEMS ${IMPALA_SRCS})
+    set(NEW_FILE "impala/${FILE}")
+    list(APPEND IMPALA_SRCS_PREFIX ${NEW_FILE})
+endforeach(FILE IN ${IMPALA_SRCS})
 
-# Embree include files and libraries
-set(EMBREE_DIR "" CACHE PATH "Embree source directory")
-set(EMBREE_COMMON_DIR "${EMBREE_DIR}/common")
-set(EMBREE_INCLUDE_DIR "${EMBREE_DIR}/include")
-set(EMBREE_KERNELS_DIR "${EMBREE_DIR}/kernels")
-set(EMBREE_KERNELS_XEON_DIR "${EMBREE_DIR}/kernels/xeon")
+thorin_runtime_wrap(IMPALA_OBJS IMPALA_LIBS
+                    RTTYPE ${RTTYPE}
+                    FILES ${IMPALA_SRCS_PREFIX})
 
-include_directories(${EMBREE_KERNELS_DIR} ${EMBREE_KERNELS_XEON_DIR})
-include_directories(${EMBREE_INCLUDE_DIR})
-include_directories(${EMBREE_COMMON_DIR})
-
-find_library(EMBREE_SIMD_LIB libsimd.a PATHS ${EMBREE_DIR} ${EMBREE_DIR}/build)
+# Generate the C interface
+add_custom_target(impala-interface DEPENDS ${IMPALA_SRCS_PREFIX}
+                  COMMAND imp2c ${IMPALA_SRCS_PREFIX} ${THORIN_RUNTIME_DIR}/platforms/intrinsics_cpu.impala ${THORIN_RUNTIME_DIR}/platforms/intrinsics_thorin.impala -o impala/impala_interface.h
+                  WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
+set_source_files_properties(impala/impala_interface.h PROPERTIES GENERATED TRUE)
 
 # Add the executable
-add_executable(bench 
-               impala/impala_interface.o
+add_executable(bench
+               ${IMPALA_OBJS}
                main.cpp
-               bench_ray_triangle.cpp
-               bench_ray_box.cpp)
+               loaders/obj_loader.cpp
+               bench/bench_bvh_builder.cpp
+               bench/bench_ray_triangle.cpp
+               bench/bench_ray_box.cpp)
 
-add_dependencies(bench impala_interface)
+include_directories(${THORIN_RUNTIME_INCLUDE_DIR})
 target_link_libraries(bench ${EMBREE_SIMD_LIB})
+target_link_libraries(bench ${IMPALA_LIBS})
+add_dependencies(bench impala-interface)
 
 # Set compiler options
-get_target_property(CXXFLAGS bench_ray_triangle COMPILE_FLAGS)
-if(CXXFLAGS STREQUAL "COMPILER_OPTIONS-NOTFOUND")
-  set(CXXFLAGS "")
-else()
-  set(CXXFLAGS "${TEMP} ")
+get_target_property(CXX_FLAGS bench COMPILE_FLAGS)
+if(CXX_FLAGS STREQUAL "CXX_FLAGS-NOTFOUND")
+  set(CXX_FLAGS "")
 endif()
-set(CXXFLAGS "${CXXFLAGS} -std=c++11")
-
-set_target_properties(bench PROPERTIES COMPILE_FLAGS ${CXXFLAGS})
+set(CXX_FLAGS "${CXX_FLAGS} -std=c++11")
+set_target_properties(bench PROPERTIES COMPILE_FLAGS ${CXX_FLAGS})
 

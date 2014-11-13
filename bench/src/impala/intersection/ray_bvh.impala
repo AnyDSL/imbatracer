@@ -1,7 +1,7 @@
-fn intersect_ray_bvh(r: Ray, mut tmin: float, mut bvh: &Bvh, intr: fn (int, float) -> float) -> () {
+fn intersect_ray_bvh(r: Ray, mut tmin: float, bvh: &Bvh, intr: fn (int, float) -> float) -> () {
     let ri = ray_inv_from_ray(r);
 
-    let mut cur_node = &(bvh.nodes(0));
+    let mut cur_node = 0;
     let mut stack : [int * 16];
     let mut stack_id = -1;
 
@@ -23,7 +23,7 @@ fn intersect_ray_bvh(r: Ray, mut tmin: float, mut bvh: &Bvh, intr: fn (int, floa
         fn fetch_next_node() {
             // Fetch the next node from the stack or end traversal if the stack is empty
             if stack_id > 0 {
-                cur_node = &bvh.nodes(@pop_node());
+                cur_node = @pop_node();
                 next_iteration()
             } else {
                 end_traversal()
@@ -31,20 +31,20 @@ fn intersect_ray_bvh(r: Ray, mut tmin: float, mut bvh: &Bvh, intr: fn (int, floa
         }
 
         // Intersect the ray with the current node
-        intersect_ray_box(ri, cur_node.bounds, |t0, t1| @{
+        intersect_ray_box(ri, bvh.nodes(cur_node).bounds, |t0, t1| @{
             // If an intersection was found, check that it is within the ray t bounds
             if t0 <= tmin @{
-                if cur_node.prim_count > 0i16 @{
-                    let order = (r.dir.values(cur_node.axis) > 0.0f) as int;
+                if bvh.nodes(cur_node).prim_count > 0i16 @{
+                    let order = (r.dir.values(bvh.nodes(cur_node).axis) > 0.0f) as int;
 
                     // If dir > 0 then traverse first left and then right
                     // Otherwise traverse right first and then left
-                    push_node(cur_node.child_first + order ^ 1);
-                    cur_node = &bvh.nodes(cur_node.child_first + order);
+                    push_node(bvh.nodes(cur_node).child_first + order ^ 1);
+                    cur_node = bvh.nodes(cur_node).child_first + order;
                     next_iteration()
                 } else @{
-                    let first = cur_node.child_first;
-                    let last = first + (cur_node.prim_count as i32);
+                    let first = bvh.nodes(cur_node).child_first;
+                    let last = first + (bvh.nodes(cur_node).prim_count as i32);
                     for i in range(first, last) @{
                         tmin = intr(i, tmin)
                     }

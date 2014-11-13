@@ -6,7 +6,8 @@ struct BenchRayBoxResult {
 
 extern fn bench_ray4_box(nray4s: int,
                          box_min: &[float * 3],
-                         box_max: &[float * 3]) -> ~BenchRayBoxResult @{
+                         box_max: &[float * 3],
+                         mut result: &BenchRayBoxResult) -> () @{
     let box = Box {
         min : vec3(box_min(0), box_min(1), box_min(2)),
         max : vec3(box_max(0), box_max(1), box_max(2))
@@ -26,11 +27,9 @@ extern fn bench_ray4_box(nray4s: int,
         }
     }
 
-    let mut result = ~BenchRayBoxResult {
-        intr_count: 0,
-        tmin: -flt_max,
-        tmax: flt_max
-    };
+    result.tmax = flt_max;
+    result.tmin = -flt_max;
+    result.intr_count = 0;
 
     for i in range(0, nray4s) {
         let mut tmin : [float * 4];
@@ -62,13 +61,12 @@ extern fn bench_ray4_box(nray4s: int,
             if result.tmin < tmin(i) { result.tmin = tmin(i); };
         }
     }
-
-    result
 }
 
 extern fn bench_ray_box(nrays: int,
                         box_min: &[float * 3],
-                        box_max: &[float * 3]) -> ~BenchRayBoxResult @{
+                        box_max: &[float * 3],
+                        mut result: &BenchRayBoxResult) -> () @{
     let box = box(vec3(box_max(0), box_max(1), box_max(2)),
                   vec3(box_min(0), box_min(1), box_min(2)));
 
@@ -79,11 +77,9 @@ extern fn bench_ray_box(nrays: int,
                             vec3(-1.0f + 0.00001f * f, 0.001f + f * 0.001f, 0.001f + f * 0.001f)))
     }
 
-    let mut result = ~BenchRayBoxResult {
-        intr_count: 0,
-        tmin: -flt_max,
-        tmax: flt_max
-    };
+    result.tmax = flt_max;
+    result.tmin = -flt_max;
+    result.intr_count = 0;
 
     for i in range(0, nrays) @{
         let ray = generate_ray(i);
@@ -97,7 +93,5 @@ extern fn bench_ray_box(nrays: int,
             },
             next)
     }
-
-    result
 }
 

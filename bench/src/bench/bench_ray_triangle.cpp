@@ -1,55 +1,44 @@
 #define _X86INTRIN_H_INCLUDED
 #include <geometry/triangle1_intersector1_moeller.h>
 #include <geometry/triangle1_intersector4_moeller.h>
+#include <iostream>
 #include "bench_ray_triangle.hpp"
 
 #define COUNT 4000000
 
-struct bench_ray_tri_result
-{
-    int intr_count;
-    float tmin;
-};
-
-extern "C" bench_ray_tri_result* bench_ray_triangle(int, const float*, const float*, const float*);
-extern "C" bench_ray_tri_result* bench_ray4_triangle(int, const float*, const float*, const float*);
-
 namespace bench {
 
-void BenchRayTriangleImpala::iteration()
-{
-    const float v0[3] = {0.2f, 0.0f, 0.0f};
-    const float v1[3] = {0.2f, 1.0f, 0.0f};
-    const float v2[3] = {0.2f, 0.0f, 1.0f};
+void BenchRayTriangleImpala::iteration() {
+    float v0[3] = {0.2f, 0.0f, 0.0f};
+    float v1[3] = {0.2f, 1.0f, 0.0f};
+    float v2[3] = {0.2f, 0.0f, 1.0f};
 
-    bench_ray_tri_result* result = bench_ray_triangle(nrays_, v0, v1, v2);
+    bench_ray_triangle(nrays_, v0, v1, v2, result_.get());
 
-    icount_ = result->intr_count;
-    tmin_ = result->tmin;
-    
-    printf("%d %f\n", icount_, tmin_);
-
-    free(result);
+    icount_ = result_->intr_count;
+    tmin_ = result_->tmin;
 }
 
-void BenchRay4TriangleImpala::iteration()
-{
-    const float v0[3] = {0.2f, 0.0f, 0.0f};
-    const float v1[3] = {0.2f, 1.0f, 0.0f};
-    const float v2[3] = {0.2f, 0.0f, 1.0f};
-
-    bench_ray_tri_result* result = bench_ray4_triangle(nrays_, v0, v1, v2);
-
-    icount_ = result->intr_count;
-    tmin_ = result->tmin;
-
-    printf("%d %f\n", icount_, tmin_);
-
-    free(result);
+void BenchRayTriangleImpala::display() {
+    std::cout << icount_ << " " << tmin_ << std::endl;
 }
 
-void BenchRayTriangleEmbree::iteration()
-{
+void BenchRay4TriangleImpala::iteration() {
+    float v0[3] = {0.2f, 0.0f, 0.0f};
+    float v1[3] = {0.2f, 1.0f, 0.0f};
+    float v2[3] = {0.2f, 0.0f, 1.0f};
+
+    bench_ray4_triangle(nrays_, v0, v1, v2, result_.get());
+
+    icount_ = result_->intr_count;
+    tmin_ = result_->tmin;
+}
+
+void BenchRay4TriangleImpala::display() {
+    std::cout << icount_ << " " << tmin_ << std::endl;
+}
+
+void BenchRayTriangleEmbree::iteration() {
     embree::Triangle1 tri(embree::Vec3fa(0.2f, 0.0f, 0.0f),
                           embree::Vec3fa(0.2f, 0.0f, 1.0f),
                           embree::Vec3fa(0.2f, 1.0f, 0.0f),
@@ -69,13 +58,13 @@ void BenchRayTriangleEmbree::iteration()
         tmin_ = (tmin_ < ray.tfar) ? tmin_ : ray.tfar;
         icount_ += ray.primID + 1;
     }
-
-    printf("%d %f\n", icount_, tmin_);
 }
 
+void BenchRayTriangleEmbree::display() {
+    std::cout << icount_ << " " << tmin_ << std::endl;
+}
 
-void BenchRay4TriangleEmbree::iteration()
-{
+void BenchRay4TriangleEmbree::iteration() {
     embree::Triangle1 tri(embree::Vec3fa(0.2f, 0.0f, 0.0f),
                           embree::Vec3fa(0.2f, 0.0f, 1.0f),
                           embree::Vec3fa(0.2f, 1.0f, 0.0f),
@@ -110,8 +99,10 @@ void BenchRay4TriangleEmbree::iteration()
         icount_ += ray.primID.i[2] + 1;
         icount_ += ray.primID.i[3] + 1;
     }
+}
 
-    printf("%d %f\n", icount_, tmin_);
+void BenchRay4TriangleEmbree::display() {
+    std::cout << icount_ << " " << tmin_ << std::endl;
 }
 
 } // namespace bench
