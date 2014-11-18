@@ -1,3 +1,52 @@
+// image manipulation functions; only required on CPU
+
+fn imageSetRaw(mut img : Image, x : int, y : int, c : Color) -> ()
+{
+    img.buf((y as uint) * img.stride + (x as uint)) = c
+}
+
+/* Mipmap generation:
++---------+-----+
+|         |     |
+|         |  1  |
+|         |     |
+|    0    +--+--+
+|         | 2|
+|         ++-+
+|         ++ <-- 3
++----+----+
+
+It's more efficient to put the mipmaps to the right of the original, but indexing is a bit more tricky in that case
+*/
+
+
+fn _genMipmaps(img : Image, xoffs : int, yoffsPrev : int, w : int, h : int, srclevel : uint) -> ()
+{
+    if w > 1 && h > 1
+    {
+        let yoffsNew = if srclevel == 0u {0} else {yoffsPrev + h};
+        //print_siii("Calculating mipmap of size <> at y offset <>: ", w/2, h/2, yoffsNew);
+        for y in rangestep(0, h, 2)
+        {
+            for x in rangestep(0, w, 2)
+            {
+                // simple 2x2 box filter for now
+                let c = cmul(ccadd(ccadd(ccadd(
+                    imageGetRaw(img, xoffs+x  , yoffsPrev+y  ),
+                    imageGetRaw(img, xoffs+x+1, yoffsPrev+y  )),
+                    imageGetRaw(img, xoffs+x  , yoffsPrev+y+1)),
+                    imageGetRaw(img, xoffs+x+1, yoffsPrev+y+1)),
+                    0.25f);
+
+                imageSetRaw(img, (img.w as int) + x/2, yoffsNew+(y/2), c);
+            }
+        }
+
+        // all subsequent calls place the mipmaps to the right of the original image
+        _genMipmaps(img, img.w as int, yoffsNew, w / 2, h / 2, srclevel+1u);
+    }
+}
+
 
 
 // FIXME: this will NOT work for the GPU.
@@ -12,17 +61,27 @@ fn loadImage(file : &[u8]) -> Image
         return(IMAGE_DUMMY)
     }
 
-    let mut col = ~[w*h : Color];
+    assert(||isPowerOf2(w) && isPowerOf2(h), "Image size not power of 2!");
+
+    let stride = w + w/2u;
+
+    // allocate extra space for mipmap
+    let mut col = ~[stride*h : Color];
 
     print_sii("Converting image of size", w as int, h as int);
 
-    for i in urange(0u, w*h)
+    for y in urange(0u, h)
     {
-        col(i) = col_int2rgb(buf(i));
+        for x in urange(0u, w)
+        {
+            col(y*stride + x) = col_int2rgb(buf(y*w + x));
+        }
     }
 
     thorin_free(buf as &u8);
 
+    let img = Image{buf:col, w:w, h:h, stride:stride, _unused_padding:0u};
+    _genMipmaps(img, 0, 0, w as int, h as int, 0u);
 
-    Image{buf:col, w:w, h:h}
+    img
 }

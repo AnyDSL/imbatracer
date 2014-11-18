@@ -4,33 +4,60 @@ struct Image
     buf : &[Color],
     w : uint,
     h : uint,
+    stride : uint,
+    _unused_padding : uint,
 }
-static Image_SIZEOF = pointer_SIZEOF + 2u * 4u;
+static Image_SIZEOF = pointer_SIZEOF + 4u * 4u;
 
-static IMAGE_DUMMY = Image{buf:0 as &[Color], w:0u, h:0u};
+static IMAGE_DUMMY = Image{buf:0 as &[Color], w:0u, h:0u, stride:0u, _unused_padding:0u};
+
+type PixelCoords = (int, int);
 
 
 fn imageGetRaw(img : Image, x : int, y : int) -> Color
 {
-    img.buf((y as uint) * img.w + (x as uint))
+    img.buf((y as uint) * img.stride + (x as uint))
 }
 
-fn imageGetClamped(img : Image, x : int, y : int) -> Color
+fn getLODOffsetY(img : Image, mut lod : uint) -> uint
+{
+    // TODO: use closed formula
+    let mut y = 0u;
+    let mut sh = img.h;
+    while lod > 1u // LOD 0 and 1 start at the top...
+    {
+        lod--;
+        sh >>= 1u;
+        y += sh;
+    }
+    y
+}
+
+fn imageGetLOD(img : Image, lod : uint, p : PixelCoords) -> Color
+{
+    let yoffs = getLODOffsetY(img, lod);
+    let xoffs = if lod == 0u {0u} else {img.w}; //(bool2int(lod != 0u) as uint) * img.w; // !!lod * w would be simpler: either 0, or w
+    let x = ((p(0) as uint) >> lod) + xoffs;
+    let y = ((p(1) as uint) >> lod) + yoffs;
+    imageGetRaw(img, x as int, y as int)
+}
+
+fn imageGetClampedPixelCoords(img : Image, x : int, y : int) -> PixelCoords
 {
     let px = iclamp(0, x, img.w as int - 1);
     let py = iclamp(0, y, img.h as int - 1);
-    imageGetRaw(img, px, py)
+    (px, py)
 }
 
-fn imageGetRepeat(img : Image, x : int, y : int) -> Color
+fn imageGetRepeatedPixelCoords(img : Image, x : int, y : int) -> PixelCoords
 {
     let xrem = x % (img.w as int);
     let yrem = y % (img.h as int);
     assert(||xrem >= 0 && yrem >= 0, "remainder is negative");
-    imageGetRaw(img, xrem, yrem)
+    (xrem, yrem)
 }
 
-fn imageGetMirrored(img : Image, x : int, y : int) -> Color
+fn imageGetMirroredPixelCoords(img : Image, x : int, y : int) -> PixelCoords
 {
     let w = img.w as int;
     let h = img.h as int;
@@ -38,5 +65,22 @@ fn imageGetMirrored(img : Image, x : int, y : int) -> Color
     let yp = int_div(y, h);
     let xi = if xp(0) % 2 == 0 { xp(1) } else { w-1-xp(1) };
     let yi = if yp(0) % 2 == 0 { yp(1) } else { h-1-yp(1) };
-    imageGetRaw(img, xi, yi)
+    (xi, yi)
 }
+
+
+fn imageGetClamped(img : Image, x : int, y : int) -> Color
+{
+    @imageGetLOD(img, 0u, imageGetClampedPixelCoords(img, x, y))
+}
+
+fn imageGetRepeat(img : Image, x : int, y : int) -> Color
+{
+    @imageGetLOD(img, 0u, imageGetRepeatedPixelCoords(img, x, y))
+}
+
+fn imageGetMirrored(img : Image, x : int, y : int) -> Color
+{
+    imageGetLOD(img, 0u, imageGetRepeatedPixelCoords(img, x, y))
+}
+

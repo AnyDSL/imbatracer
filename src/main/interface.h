@@ -26,6 +26,8 @@ namespace impala {
         Color *buf;
         unsigned w;
         unsigned h;
+        unsigned stride;
+        unsigned _unused_padding; // for alignment
     };
 
     struct Texture
