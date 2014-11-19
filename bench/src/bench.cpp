@@ -1,9 +1,13 @@
 #include <iostream>
 #include <vector>
+
+#include <embree2/rtcore.h>
+
 #include "bench/bench.hpp"
 #include "bench/bench_ray_triangle.hpp"
 #include "bench/bench_ray_box.hpp"
-#include "bench/bench_bvh_builder.hpp"
+#include "bench/bench_ray_bvh.hpp"
+#include "bench/bench_bvh_build.hpp"
 #include "loaders/obj_loader.hpp"
 
 // Abort function for the impala assert function
@@ -21,6 +25,11 @@ extern "C" void put_int(int i) {
     printf("int : %d\n", i);
 }
 
+struct EmbreeInit {
+    EmbreeInit() { rtcInit(); }
+    ~EmbreeInit() { rtcExit(); }
+};
+
 template <typename F>
 struct AutoCleanup {
     AutoCleanup(F f) : f_(f) {}
@@ -36,6 +45,7 @@ AutoCleanup<F> auto_cleanup(F f) {
 int main(int argc, char** argv) {
     std::unique_ptr<imba::Logger> logger(new imba::Logger("log.txt"));
     std::vector<bench::Bench*> benches;
+    EmbreeInit embree_init;
 
     // Automatically cleanup the benches on exit
     auto cleanup = auto_cleanup([&] () {
@@ -67,8 +77,17 @@ int main(int argc, char** argv) {
         logger->log("file '", scene_file, "' contains no mesh");
     }
 
+    std::cout << "starting benchmarks..." << std::endl;
     for (int i = 0; i < scene.triangle_mesh_count(); i++) {
-        benches.push_back(new bench::BenchBvhBuildImpala(scene.triangle_meshes()[i]));
+        const imba::TriangleMesh* mesh = scene.triangle_meshes()[i];
+        benches.push_back(new bench::BenchBvhBuildImpala(mesh));
+        benches.push_back(new bench::BenchBvh4BuildEmbree(mesh));
+
+        benches.push_back(new bench::BenchRayBvhImpala(mesh, 4000000));
+        benches.push_back(new bench::BenchRay4BvhImpala(mesh, 1000000));
+
+        benches.push_back(new bench::BenchRayBvh4Embree(mesh, 4000000));
+        benches.push_back(new bench::BenchRay4Bvh4Embree(mesh, 1000000));
     }
 
     for (auto b : benches) {

@@ -27,6 +27,15 @@ include_directories(${EMBREE_INCLUDE_DIR})
 include_directories(${EMBREE_COMMON_DIR})
 
 find_library(EMBREE_SIMD_LIB NAMES simd PATHS ${EMBREE_DIR} ${EMBREE_DIR}/build)
+find_library(EMBREE_SYS_LIB NAMES sys PATHS ${EMBREE_DIR} ${EMBREE_DIR}/build)
+find_library(EMBREE_AVX_LIB NAMES embree_avx PATHS ${EMBREE_DIR} ${EMBREE_DIR}/build)
+find_library(EMBREE_AVX2_LIB NAMES embree_avx2 PATHS ${EMBREE_DIR} ${EMBREE_DIR}/build)
+find_library(EMBREE_SSE41_LIB NAMES embree_sse41 PATHS ${EMBREE_DIR} ${EMBREE_DIR}/build)
+find_library(EMBREE_SSE42_LIB NAMES embree_sse42 PATHS ${EMBREE_DIR} ${EMBREE_DIR}/build)
+find_library(EMBREE_LIB NAMES embree PATHS ${EMBREE_DIR} ${EMBREE_DIR}/build)
+
+# pthreads
+find_package(Threads REQUIRED)
 
 # Add the project files
 add_subdirectory(src)

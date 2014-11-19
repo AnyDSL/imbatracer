@@ -20,8 +20,8 @@ public:
     int intr_count() const { return icount_; }
 
 protected:
-    virtual void iteration();
-    virtual void display();
+    virtual void iteration() override;
+    virtual void display() override;
 
 private:
     imba::ThorinUniquePtr<BenchRayBoxResult> result_;
@@ -42,8 +42,8 @@ public:
     int intr_count() const { return icount_; }
 
 protected:
-    virtual void iteration();
-    virtual void display();
+    virtual void iteration() override;
+    virtual void display() override;
 
 private:
     imba::ThorinUniquePtr<BenchRayBoxResult> result_;

@@ -10,7 +10,7 @@ class ObjLoader : public SceneLoader {
 public:
     virtual bool load_scene(const std::string& working_dir,
                             const std::string& name, Scene& scene,
-                            Logger* logger = nullptr);
+                            Logger* logger = nullptr) override;
 
 private:
     struct Index {

@@ -18,17 +18,20 @@ add_custom_target(impala-interface DEPENDS ${IMPALA_SRCS_PREFIX}
                   WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
 set_source_files_properties(impala/impala_interface.h PROPERTIES GENERATED TRUE)
 
-# Add the executable
+# Add executables
 add_executable(bench
                ${IMPALA_OBJS}
-               main.cpp
+               ${EMBREE_SRCS}
+               bench.cpp
                loaders/obj_loader.cpp
-               bench/bench_bvh_builder.cpp
+               bench/bench_bvh_build.cpp
                bench/bench_ray_triangle.cpp
-               bench/bench_ray_box.cpp)
+               bench/bench_ray_box.cpp
+               bench/bench_ray_bvh.cpp)
 
 include_directories(${THORIN_RUNTIME_INCLUDE_DIR})
-target_link_libraries(bench ${EMBREE_SIMD_LIB})
+target_link_libraries(bench ${EMBREE_LIB} ${EMBREE_AVX_LIB} ${EMBREE_AVX2_LIB} ${EMBREE_SSE41_LIB} ${EMBREE_SSE42_LIB} ${EMBREE_SIMD_LIB} ${EMBREE_SYS_LIB})
+target_link_libraries(bench ${CMAKE_THREAD_LIBS_INIT})
 target_link_libraries(bench ${IMPALA_LIBS})
 add_dependencies(bench impala-interface)
 
