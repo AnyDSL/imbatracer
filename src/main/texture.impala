@@ -9,8 +9,10 @@ struct Texture
     img : Image,
     imgW : float,
     imgH : float,
-    imgFilter : int,
-    imgBorder : int,
+    imgFilter : u8,
+    imgBorder : u8,
+    imgMipmap : u8,
+    _unused_padding : u8,
 }
 static Texture_SIZEOF = 4u + 2u*Color_SIZEOF + Noise_SIZEOF + Image_SIZEOF + 4u*4u;
 
@@ -20,64 +22,91 @@ static TEX_CHECK3D = 1;
 static TEX_NOISE = 2;
 static TEX_IMAGE = 3;
 
-static FILTER_NEAREST = 0;
-static FILTER_BILINEAR = 1;
+static FILTER_NEAREST = 0u8;
+static FILTER_BILINEAR = 1u8;
 
-static BORDER_REPEAT = 0;
-static BORDER_CLAMP = 1;
-static BORDER_MIRROR = 2;
+static BORDER_REPEAT = 0u8;
+static BORDER_CLAMP = 1u8;
+static BORDER_MIRROR = 2u8;
 
-static MIPMAP_NONE = 0;
-static MIPMAP_BILINEAR = 1;
-static MIPMAP_TRILINEAR = 2;
+static MIPMAP_NONE = 0u8;
+static MIPMAP_FIXED = 1u8;
+static MIPMAP_SMOOTH = 2u8;
 
 // ----------------------------------------------
 
 fn constantTexture(c : Color) -> Texture
 {
     Texture{ ty: TEX_CONSTANT, color1:c,
-        color2: color0(), noise:noise0(), img:IMAGE_DUMMY, imgW:0.0f, imgH:0.0f, imgFilter:0, imgBorder:0
+        color2: color0(), noise:noise0(), img:IMAGE_DUMMY, imgW:0.0f, imgH:0.0f,
+        imgFilter:FILTER_NEAREST, imgBorder:BORDER_REPEAT, imgMipmap:MIPMAP_NONE, _unused_padding:0u8
     }
 }
 
 fn checkerboardTexture2D(a : Color, b : Color) -> Texture
 {
     Texture{ ty: TEX_CHECK2D, color1:a, color2: b,
-        noise:noise0(), img:IMAGE_DUMMY, imgW:0.0f, imgH:0.0f, imgFilter:0, imgBorder:0
+        noise:noise0(), img:IMAGE_DUMMY, imgW:0.0f, imgH:0.0f,
+        imgFilter:FILTER_NEAREST, imgBorder:BORDER_REPEAT, imgMipmap:MIPMAP_NONE, _unused_padding:0u8
     }
 }
 
 fn checkerboardTexture3D(a : Color, b : Color) -> Texture
 {
     Texture{ ty: TEX_CHECK3D, color1:a, color2: b,
-        noise:noise0(), img:IMAGE_DUMMY, imgW:0.0f, imgH:0.0f, imgFilter:0, imgBorder:0
+        noise:noise0(), img:IMAGE_DUMMY, imgW:0.0f, imgH:0.0f,
+        imgFilter:FILTER_NEAREST, imgBorder:BORDER_REPEAT, imgMipmap:MIPMAP_NONE, _unused_padding:0u8
     }
 }
 
 fn noiseTexture(a : Color, b : Color, noise : Noise) -> Texture
 {
     Texture{ ty: TEX_NOISE, color1:a, color2:b, noise:noise,
-         img:IMAGE_DUMMY, imgW:0.0f, imgH:0.0f, imgFilter:0, imgBorder:0
+         img:IMAGE_DUMMY, imgW:0.0f, imgH:0.0f,
+         imgFilter:FILTER_NEAREST, imgBorder:BORDER_REPEAT, imgMipmap:MIPMAP_NONE, _unused_padding:0u8
     }
 }
 
-fn imageTexture(img : Image, filter : int, border : int) -> Texture
+fn imageTexture(img : Image, filter : u8, border : u8, mipmap : u8) -> Texture
 {
-    Texture{ ty: TEX_IMAGE, img:img, imgFilter:filter, imgBorder:border, imgW:img.w as float, imgH:img.h as float,
-        color1:color0(), color2:color0(), noise:noise0()
+    Texture{ ty: TEX_IMAGE, img:img, imgW:img.w as float, imgH:img.h as float, imgFilter:filter, imgBorder:border, imgMipmap:mipmap,
+        color1:color0(), color2:color0(), noise:noise0(), _unused_padding:0u8,
     }
 }
 
 // -----------------------------------------------
 
-
-
 // Helper for image texture access
-fn texel(img : Image, x : float, y : float, filter : int, border : int) -> Color
+fn texel(img : Image, x : float, y : float, filter : u8, border : u8, mipmap : u8, lod : float) -> Color
 {
-    let latticeTexel = if border == BORDER_CLAMP { imageGetClamped }
-                  else if border == BORDER_MIRROR { imageGetMirrored }
-                  else { imageGetRepeat };
+    let getcoords =      if border == BORDER_CLAMP   { imageGetClampedPixelCoords  }
+                    else if border == BORDER_MIRROR  { imageGetMirroredPixelCoords }
+                    else /* border == BORDER_REPEAT*/{ imageGetRepeatedPixelCoords };
+
+    let getpixel =
+        if mipmap == MIPMAP_FIXED
+        {
+            |img:Image, p:(int,int)| -> Color imageGetLOD(img, lod as uint, p)
+        }
+        else if mipmap == MIPMAP_SMOOTH
+        {
+            |img:Image, p:(int,int)| -> Color
+            {
+                let ilod = lod as int;
+                let c1 = imageGetLOD(img, ilod as uint, p);
+                let c2 = imageGetLOD(img, (ilod as uint)+1u, p);
+                clerp(c1, c2, fractional(lod))
+            }
+        }
+        else // MIPMAP_NONE
+        {
+            imageGetRawP
+        };
+
+    fn latticeTexel(ix : int, iy : int) -> Color
+    {
+        getpixel(img, getcoords(img, ix, iy))
+    }
 
     if filter == FILTER_BILINEAR
     {
@@ -85,11 +114,11 @@ fn texel(img : Image, x : float, y : float, filter : int, border : int) -> Color
         let fy = floorf(y);
         let ix = fx as int;
         let iy = fy as int;
-        clerp2d(latticeTexel(img, ix, iy), latticeTexel(img, ix+1, iy), latticeTexel(img, ix, iy+1), latticeTexel(img, ix+1, iy+1), x-fx, y-fy)
+        clerp2d(latticeTexel(ix, iy), latticeTexel(ix+1, iy), latticeTexel(ix, iy+1), latticeTexel(ix+1, iy+1), x-fx, y-fy)
     }
     else
     {
-        latticeTexel(img, iroundf(x), iroundf(y))
+        latticeTexel(iroundf(x), iroundf(y))
     }
 }
 
@@ -114,17 +143,17 @@ fn evalNoiseTexture3D(p : Point, a : Color, b : Color, noise : &Noise) -> Color
     clerp(a, b, evalNoise(p, noise))
 }
 
-fn evalImageTexture(uv : TexCoord, img : Image, wf : float, hf : float, filter : int, border : int) -> Color
+fn evalImageTexture(uv : TexCoord, img : Image, wf : float, hf : float, filter : u8, border : u8, mipmap : u8, dist : float) -> Color
 {
-    @texel(img, uv.u*wf, uv.v*hf, filter, border)
+    @texel(img, uv.u*wf, uv.v*hf, filter, border, mipmap, distanceToLOD(dist))
 }
 
 
-fn evalTexture(uv:TexCoord, p:Point, mut tex : &Texture) -> Color
+fn evalTexture(uv:TexCoord, dist:float, p:Point, mut tex : &Texture) -> Color
 {
          if(tex.ty == TEX_CHECK2D) { evalCheckerboardTexture2D(uv, p, tex.color1, tex.color2) }
     else if(tex.ty == TEX_CHECK3D) { evalCheckerboardTexture3D(uv, p, tex.color1, tex.color2) }
     else if(tex.ty == TEX_NOISE)   { evalNoiseTexture3D(p, tex.color1, tex.color2, &tex.noise) }
-    else if(tex.ty == TEX_IMAGE)   { evalImageTexture(uv, tex.img, tex.imgW, tex.imgH, tex.imgFilter, tex.imgBorder) }
+    else if(tex.ty == TEX_IMAGE)   { evalImageTexture(uv, tex.img, tex.imgW, tex.imgH, tex.imgFilter, tex.imgBorder, tex.imgMipmap, dist) }
     else                           { tex.color1 }
 }

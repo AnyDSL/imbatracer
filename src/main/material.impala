@@ -131,13 +131,13 @@ fn glassRefract(inDir : Vec, cosIn : float, normal : Vec, etaFromByEtaTo : float
     }
 }
 
-fn evalMaterialReflectance(texPoint:TexCoord, local:Point, normal:Vec, outDir:Vec, inDir:Vec, mat : &Material, mut shadingData : &RTShadingData) -> Color
+fn evalMaterialReflectance(texPoint:TexCoord, dist:float, local:Point, normal:Vec, outDir:Vec, inDir:Vec, mat : &Material, mut shadingData : &RTShadingData) -> Color
 {
-    let diffuse = evalTexture(texPoint, local, &shadingData.textures(mat.diffuse));
+    let diffuse = evalTexture(texPoint, dist, local, &shadingData.textures(mat.diffuse));
 
     let lambertian = @cdiv(diffuse, pi);
     let phong = if mat.specExp > 0.0f {
-            @cmul(evalTexture(texPoint, local, &shadingData.textures(mat.specular))
+            @cmul(evalTexture(texPoint, dist, local, &shadingData.textures(mat.specular))
                 , @phongFactor(normal, outDir, inDir, mat.specExp)
             )
         } else { @color0() };
@@ -146,10 +146,10 @@ fn evalMaterialReflectance(texPoint:TexCoord, local:Point, normal:Vec, outDir:Ve
     @cmul(@ccadd(lambertian, phong), renderCos)
 }
 
-fn evalMaterialEmission(texPoint:TexCoord, local:Point, normal:Vec, outDir:Vec, mat : &Material, mut shadingData : &RTShadingData) -> Color
+fn evalMaterialEmission(texPoint:TexCoord, dist:float, local:Point, normal:Vec, outDir:Vec, mat : &Material, mut shadingData : &RTShadingData) -> Color
 {
     // texture material
-    evalTexture(texPoint, local, &shadingData.textures(mat.emissive))
+    evalTexture(texPoint, dist, local, &shadingData.textures(mat.emissive))
 
     // TODO: other materials (glass etc)
 }

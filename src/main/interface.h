@@ -39,8 +39,10 @@ namespace impala {
         Image img;
         float imgW;
         float imgH;
-        int imgFilter;
-        int imgBorder;
+        unsigned char imgFilter;
+        unsigned char imgBorder;
+        unsigned char imgMipmap;
+        unsigned char _unused_padding;
     };
 
     struct Material

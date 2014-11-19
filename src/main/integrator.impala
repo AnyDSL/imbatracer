@@ -106,7 +106,7 @@ fn debugRadianceLODLevel(ray: Ray, dist: float, sisec: &ShadingIntersection) -> 
 }
 
 
-fn integrateLightSources(mut scene : &RTScene, hitP : Point, outDir : Vec, surfaceN : Vec, shadingN : Vec, uv : TexCoord, local : Point,
+fn integrateLightSources(mut scene : &RTScene, hitP : Point, outDir : Vec, surfaceN : Vec, shadingN : Vec, uv : TexCoord, local : Point, dist : float,
                          mat : &Material, rayEps : float, stack : &RTStack) -> Color
 {
     let mut c = @color0();
@@ -120,7 +120,7 @@ fn integrateLightSources(mut scene : &RTScene, hitP : Point, outDir : Vec, surfa
         if @dot(lhit.dir, surfaceN) >= 0.0f // light comes towards us, on same side of surface?
         {
             let irrIntensity = @evalLightIntensity(light, lhit);
-            let reflected = @evalMaterialReflectance(uv, local, shadingN, outDir, lhit.dir, mat, &scene.shadingData);
+            let reflected = @evalMaterialReflectance(uv, dist, local, shadingN, outDir, lhit.dir, mat, &scene.shadingData);
             let contrib = @ccapply2(irrIntensity, reflected, mul);
             //print_sc("Total contrib", contrib);
 
@@ -151,9 +151,9 @@ fn raytraceRadiance(ray: Ray, dist:float, sisec: &ShadingIntersection, mut scene
 
 	@ccadd(
         // we ignore any contribution not coming directly from a light source
-        @integrateLightSources(scene, hitP, outDir, surfaceN, sisec.shadingNormal, uv, local, mat, sisec.eps, stack),
+        @integrateLightSources(scene, hitP, outDir, surfaceN, sisec.shadingNormal, uv, local, dist, mat, sisec.eps, stack),
         // and add the material's own light emission that is not dependent on light
-        evalMaterialEmission(uv, local, surfaceN, outDir, mat, &scene.shadingData)
+        evalMaterialEmission(uv, dist, local, surfaceN, outDir, mat, &scene.shadingData)
     )
 }
 
@@ -190,11 +190,11 @@ fn recraytraceRadiance(theRay: Ray, dist:float, sisec: &ShadingIntersection, mut
     }
     if sampling != SAMPLING_ALL
     {
-        let cl = @integrateLightSources(scene, hitP, outDir, surfaceN, sisec.shadingNormal, uv, local, mat, sisec.eps, stack);
+        let cl = @integrateLightSources(scene, hitP, outDir, surfaceN, sisec.shadingNormal, uv, local, dist, mat, sisec.eps, stack);
         c = @ccadd(c, cl);
     }
 
-    @ccadd(c, evalMaterialEmission(uv, local, surfaceN, outDir, mat, &scene.shadingData))
+    @ccadd(c, evalMaterialEmission(uv, dist, local, surfaceN, outDir, mat, &scene.shadingData))
 }
 
 fn makeDistanceScaled(minDist: float, maxDist: float, dist:float, sisec: &ShadingIntersection, getcol: fn(float, &ShadingIntersection) -> Color) -> Color

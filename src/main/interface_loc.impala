@@ -149,7 +149,7 @@ extern fn impala_init() -> &State
     let mut turbtex = noiseTexture(color(0.0f, 0.3f, 0.6f), color(0.8f, 1.0f, 0.7f), turbnoise);
     let mut slowtex = noiseTexture(color(0.2f, 0.0f, 0.0f), color(0.7f, 0.3f, 0.0f), slownoise);
     let mut phongtex = constantTexture(color(1.0f, 0.1f, 0.2f));
-    let mut imgtesttex = imageTexture(img_test, FILTER_NEAREST, BORDER_CLAMP);
+    let mut imgtesttex = imageTexture(img_test, FILTER_BILINEAR, BORDER_MIRROR, MIPMAP_FIXED);
 
     let turbtexID = sceneAddTexture(&scene, &turbtex);
     let slowtexID = sceneAddTexture(&scene, &slowtex);
@@ -174,7 +174,7 @@ extern fn impala_init() -> &State
     let imgtestmatID = sceneAddMaterial(&scene, &imgtestmat);
 
     // a cube
-    let mut cube = trisCreateCube(120.0f, mirrormatID);
+    let mut cube = trisCreateCube(120.0f, imgtestmatID);
     let cubeIdx = sceneAddMesh(&scene, &cube);
 
     // and a teapot
