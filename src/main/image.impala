@@ -11,12 +11,17 @@ static Image_SIZEOF = pointer_SIZEOF + 4u * 4u;
 
 static IMAGE_DUMMY = Image{buf:0 as &[Color], w:0u, h:0u, stride:0u, _unused_padding:0u};
 
-type PixelCoords = (int, int);
+//type PixelCoords = (int, int);
 
 
 fn imageGetRaw(img : Image, x : int, y : int) -> Color
 {
     img.buf((y as uint) * img.stride + (x as uint))
+}
+
+fn imageGetRawP(img : Image, p : (int, int)) -> Color
+{
+    imageGetRaw(img, p(0), p(1))
 }
 
 fn getLODOffsetY(img : Image, mut lod : uint) -> uint
@@ -33,7 +38,7 @@ fn getLODOffsetY(img : Image, mut lod : uint) -> uint
     y
 }
 
-fn imageGetLOD(img : Image, lod : uint, p : PixelCoords) -> Color
+fn imageGetLOD(img : Image, lod : uint, p : (int, int)) -> Color
 {
     let yoffs = getLODOffsetY(img, lod);
     let xoffs = if lod == 0u {0u} else {img.w}; //(bool2int(lod != 0u) as uint) * img.w; // !!lod * w would be simpler: either 0, or w
@@ -42,14 +47,14 @@ fn imageGetLOD(img : Image, lod : uint, p : PixelCoords) -> Color
     imageGetRaw(img, x as int, y as int)
 }
 
-fn imageGetClampedPixelCoords(img : Image, x : int, y : int) -> PixelCoords
+fn imageGetClampedPixelCoords(img : Image, x : int, y : int) -> (int, int)
 {
     let px = iclamp(0, x, img.w as int - 1);
     let py = iclamp(0, y, img.h as int - 1);
     (px, py)
 }
 
-fn imageGetRepeatedPixelCoords(img : Image, x : int, y : int) -> PixelCoords
+fn imageGetRepeatedPixelCoords(img : Image, x : int, y : int) -> (int, int)
 {
     let xrem = x % (img.w as int);
     let yrem = y % (img.h as int);
@@ -57,7 +62,7 @@ fn imageGetRepeatedPixelCoords(img : Image, x : int, y : int) -> PixelCoords
     (xrem, yrem)
 }
 
-fn imageGetMirroredPixelCoords(img : Image, x : int, y : int) -> PixelCoords
+fn imageGetMirroredPixelCoords(img : Image, x : int, y : int) -> (int, int)
 {
     let w = img.w as int;
     let h = img.h as int;
@@ -71,16 +76,21 @@ fn imageGetMirroredPixelCoords(img : Image, x : int, y : int) -> PixelCoords
 
 fn imageGetClamped(img : Image, x : int, y : int) -> Color
 {
-    @imageGetLOD(img, 0u, imageGetClampedPixelCoords(img, x, y))
+    imageGetRawP(img, imageGetClampedPixelCoords(img, x, y))
 }
 
 fn imageGetRepeat(img : Image, x : int, y : int) -> Color
 {
-    @imageGetLOD(img, 0u, imageGetRepeatedPixelCoords(img, x, y))
+    imageGetRawP(img, imageGetRepeatedPixelCoords(img, x, y))
 }
 
 fn imageGetMirrored(img : Image, x : int, y : int) -> Color
 {
-    imageGetLOD(img, 0u, imageGetRepeatedPixelCoords(img, x, y))
+    imageGetRawP(img, imageGetRepeatedPixelCoords(img, x, y))
+}
+
+fn distanceToLODLevel(d : float) -> float
+{
+    d / 10.0f
 }
 
