@@ -84,3 +84,8 @@ fn imageGetMirrored(img : Image, x : int, y : int) -> Color
     imageGetLOD(img, 0u, imageGetRepeatedPixelCoords(img, x, y))
 }
 
+fn distanceToLODLevel(d : float) -> float
+{
+    d / 10.0f
+}
+
