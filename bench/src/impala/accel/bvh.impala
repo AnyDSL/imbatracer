@@ -98,7 +98,7 @@ fn build_bvh_node(mut nodes: &[BvhNode],
                   pop_node: fn() -> (int, int, int, int),
                   must_stop: fn(int, int) -> bool,
                   compute_bounds: fn(int, int) -> Box,
-                  decide_split: fn(int, int, Box, fn (), fn (int))) -> int @{
+                  decide_split: fn(int, int, Box, fn (), fn (i16, int))) -> int @{
     // Pop a node from the stack
     let stack_top = pop_node();
     let cur_node = stack_top(0);
@@ -112,6 +112,8 @@ fn build_bvh_node(mut nodes: &[BvhNode],
 
     // Stop when the number of primitives is too small
     if must_stop(prim_count, depth) {
+        nodes(cur_node).child_first = first_prim;
+        nodes(cur_node).prim_count = prim_count as i16;
         return(next_free)
     }
 
@@ -124,10 +126,11 @@ fn build_bvh_node(mut nodes: &[BvhNode],
             nodes(cur_node).prim_count = prim_count as i16;
             return(next_free)
         },
-        |split_pos| @{
+        |axis, split_pos| @{
             assert(|| { split_pos - first_prim > 0 && last_prim - split_pos > 0 },
                    "build_bvh_node: node split with no primitive inside one children");
 
+            nodes(cur_node).axis = axis;
             nodes(cur_node).prim_count = 0i16;
             nodes(cur_node).child_first = next_free;
 
@@ -180,7 +183,7 @@ fn build_bvh(boxes: &[Box],
     }
 
     fn decide_split(first: int, last: int, node_bounds: Box,
-                    make_leaf: fn(), make_node: fn (int)) @{
+                    make_leaf: fn(), make_node: fn (i16, int)) @{
         // Compute the bounding box of the triangle centers
         let mut center_box = empty_box();
         for i in range(first, last) @{
@@ -190,12 +193,12 @@ fn build_bvh(boxes: &[Box],
 
         // Find longuest axis on that box
         let extents = box_extents(center_box);
-        let mut axis = 0;
+        let mut axis = 0i16;
         if extents.values(0) < extents.values(1) {
-            axis = 1;    
+            axis = 1i16;    
         }
         if extents.values(axis) < extents.values(2) {
-            axis = 2;
+            axis = 2i16;
         }
 
         // Build the bins
@@ -247,13 +250,13 @@ fn build_bvh(boxes: &[Box],
                     }
                 }
 
-                make_node(a)
+                make_node(axis, a)
             })
     }  
 
-    // Build the tree
+    // A stack of 32 elements is enough since we limit the depth to log2(prim_count)
     let mut stack : [(int, int, int, int) * 32];
-    let mut node_count = 0;
+    let mut node_count = 1;
     let mut stack_idx = 0;
 
     fn push_node(node: (int, int, int, int)) -> () {
@@ -271,9 +274,60 @@ fn build_bvh(boxes: &[Box],
     while stack_idx > 0 @{
         node_count = build_bvh_node(nodes, node_count, push_node, pop_node,
                                     must_stop, compute_bounds, decide_split);
+
     }
 
     bvh(nodes, node_count, prim_ids)
 }
 
+fn traverse_bvh(bvh: &Bvh, at_leaf: fn (Box, int, i16) -> (), at_node: fn (Box, i16, fn (int), fn())) -> () @{
+    let mut stack: [int * 32];
+    let mut stack_idx = 1;
+
+    fn push_node(node: int) -> () @{
+        stack(stack_idx) = node;
+        stack_idx += 1;
+    }
+
+    fn pop_node() -> int @{
+        stack_idx -= 1;
+        stack(stack_idx)
+    }
+
+    // Traversal loop iteration
+    fn traverse(end: fn()) @{
+        // If stack is empty, then exit
+        if stack_idx <= 0 @{
+            end()
+        }
+
+        assert(|| { stack_idx < 32 }, "traverse_bvh : stack too small to traverse bvh");
+
+        let node_id = pop_node();
+        let cur_node = bvh.nodes(node_id);
+
+        if cur_node.prim_count == 0i16 {
+            // If the node is an internal node
+            @assert(|| { cur_node.child_first > node_id }, "traverse_bvh : invalid bvh (internal node pointing to parent)");
+
+            @at_node(cur_node.bounds, cur_node.axis,
+                |child_id| @{
+                    assert(|| { child_id == 0 || child_id == 1 }, "traverse_bvh : recursion returns wrong child index");
+                    push_node(cur_node.child_first + (1 - child_id));
+                    push_node(cur_node.child_first + child_id);
+                    $traverse(end)
+                },
+                || { $traverse(end) })
+        } else @{
+            // If the node is a leaf
+            @assert(|| { cur_node.prim_count > 0i16 }, "traverse_bvh : invalid bvh (leaf with no primitive)");
+
+            at_leaf(cur_node.bounds, cur_node.child_first, cur_node.prim_count);
+            $traverse(end)
+        }
+    }
+
+    stack(0) = 0;
+    $traverse(return)
+}
 

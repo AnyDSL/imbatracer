@@ -2,6 +2,7 @@
 #include <geometry/triangle1_intersector1_moeller.h>
 #include <geometry/triangle1_intersector4_moeller.h>
 #include <iostream>
+
 #include "bench_ray_triangle.hpp"
 
 #define COUNT 4000000

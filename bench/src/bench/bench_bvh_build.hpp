@@ -1,10 +1,14 @@
-#ifndef BENCH_BVH_BUILDER_HPP
-#define BENCH_BVH_BUILDER_HPP
+#ifndef BENCH_BVH_BUILD_HPP
+#define BENCH_BVH_BUILD_HPP
 
 #include "../impala/impala_interface.h"
 #include "../common/memory.hpp"
 #include "../scene/triangle_mesh.hpp"
 #include "bench.hpp"
+
+namespace embree {
+    class Scene;
+}
 
 namespace bench {
 
@@ -19,8 +23,8 @@ public:
     int node_count() { return nodes_; }
 
 protected:
-    virtual void iteration();
-    virtual void display();
+    virtual void iteration() override;
+    virtual void display() override;
 
 private:
     imba::ThorinUniquePtr<BenchBvhBuildResult> result_;
@@ -28,7 +32,19 @@ private:
     int nodes_;
 };
 
+class BenchBvh4BuildEmbree : public Bench {
+public:
+    BenchBvh4BuildEmbree(const imba::TriangleMesh* mesh);
+
+protected:
+    virtual void iteration() override;
+
+private:
+    std::unique_ptr<embree::Scene> scene_;
+    unsigned int mesh_id_;
+};
+
 } // namespace bench
 
-#endif // BENCH_BVH_BUILDER_HPP
+#endif // BENCH_BVH_BUILD_HPP
 

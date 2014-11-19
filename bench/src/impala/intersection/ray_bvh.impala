@@ -2,7 +2,7 @@ fn intersect_ray_bvh(r: Ray, mut tmin: float, bvh: &Bvh, intr: fn (int, float) -
     let ri = ray_inv_from_ray(r);
 
     let mut cur_node = 0;
-    let mut stack : [int * 16];
+    let mut stack : [int * 32];
     let mut stack_id = -1;
 
     fn pop_node() -> int {
