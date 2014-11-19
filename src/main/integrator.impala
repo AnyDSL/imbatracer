@@ -78,22 +78,31 @@ fn debugRadianceNormalSign(dist:float, sisec: &ShadingIntersection) -> Color
            @scaleLin(n.z, -1.0f, 1.0f, 0.0f, 1.0f))
 }
 
-fn debugRadianceLODLevel(ray: Ray, dist: float, sisec: &ShadingIntersection) -> Color
+fn debugGetLODColor(ilod : int) -> Color
 {
-    let ilod = distanceToLODLevel(dist) as int;
-    if ilod > 5
+    if ilod > 4
     {
-        color0()
+        color1(0.2f)
     }
     else
     {
         // TODO: move to file scope as soon as segfault is fixed
         let debug_lodcolors = [@color1(1.0f), @color(1.0f, 0.0f, 0.0f), @color(0.0f, 1.0f, 0.0f), @color(0.0f, 0.0f, 1.0f), @color(1.0f, 1.0f, 0.0f)];
 
-        let c = debug_lodcolors(ilod);
-        let brightness = absdot(sisec.shadingNormal, ray.d);
-        cmul(c, brightness)
+        debug_lodcolors(ilod)
     }
+}
+
+fn debugRadianceLODLevel(ray: Ray, dist: float, sisec: &ShadingIntersection) -> Color
+{
+    let lod = distanceToLOD(dist);
+    let c1 = debugGetLODColor(lod as int);
+    let c2 = debugGetLODColor((lod as int) + 1);
+    let frac = fractional(lod);
+    let c = clerp(c1, c2, frac);
+
+    let brightness = absdot(sisec.shadingNormal, ray.d);
+    cmul(c, brightness)
 }
 
 
@@ -213,7 +222,7 @@ fn getRadianceForHit(ty : int, integr : &Integrator, ray: Ray, dist:float, sisec
     if      ty == 0 { cosineRadiance(ray, dist, sisec) }
     else if ty == 1 { raytraceRadiance(ray, dist, sisec, scene, stack) }
     else if ty == 2 { recraytraceRadiance(ray, dist, sisec, scene, integr, recRemain, stack) } // TODO the GPU crashes if we enable this
-    //else if ty == 3 { debugRadianceLODLevel(ray, dist, sisec) }
+    else if ty == 3 { debugRadianceLODLevel(ray, dist, sisec) }
     else            { debuggerRadiance(integr.mode, integr.minDist, integr.maxDist, dist, sisec) }
 }
 

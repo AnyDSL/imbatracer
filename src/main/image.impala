@@ -89,8 +89,9 @@ fn imageGetMirrored(img : Image, x : int, y : int) -> Color
     imageGetRawP(img, imageGetRepeatedPixelCoords(img, x, y))
 }
 
-fn distanceToLODLevel(d : float) -> float
+fn distanceToLOD(d : float) -> float
 {
+    // FIXME: do something less stupid
     d / 10.0f
 }
 
