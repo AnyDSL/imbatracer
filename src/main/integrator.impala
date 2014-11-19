@@ -78,9 +78,6 @@ fn debugRadianceNormalSign(dist:float, sisec: &ShadingIntersection) -> Color
            @scaleLin(n.z, -1.0f, 1.0f, 0.0f, 1.0f))
 }
 
-
-static debug_lodcolors = [@color1(1.0f), @color(1.0f, 0.0f, 0.0f), @color(0.0f, 1.0f, 0.0f), @color(0.0f, 0.0f, 1.0f), @color(1.0f, 1.0f, 0.0f)];
-
 fn debugRadianceLODLevel(ray: Ray, dist: float, sisec: &ShadingIntersection) -> Color
 {
     let ilod = distanceToLODLevel(dist) as int;
@@ -90,6 +87,9 @@ fn debugRadianceLODLevel(ray: Ray, dist: float, sisec: &ShadingIntersection) -> 
     }
     else
     {
+        // TODO: move to file scope as soon as segfault is fixed
+        let debug_lodcolors = [@color1(1.0f), @color(1.0f, 0.0f, 0.0f), @color(0.0f, 1.0f, 0.0f), @color(0.0f, 0.0f, 1.0f), @color(1.0f, 1.0f, 0.0f)];
+
         let c = debug_lodcolors(ilod);
         let brightness = absdot(sisec.shadingNormal, ray.d);
         cmul(c, brightness)
