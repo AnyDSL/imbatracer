@@ -280,7 +280,7 @@ fn build_bvh(boxes: &[Box],
     bvh(nodes, node_count, prim_ids)
 }
 
-fn traverse_bvh(bvh: &Bvh, at_leaf: fn (Box, int, i16) -> (), at_node: fn (Box, i16, fn (int) -> ()) -> ()) -> () @{
+fn traverse_bvh(bvh: Bvh, at_leaf: fn (Box, int, i16) -> (), at_node: fn (Box, i16, fn (int) -> ()) -> ()) -> () @{
     let mut stack: [int * 32];
     let mut stack_idx = 1;
 
@@ -328,6 +328,31 @@ fn traverse_bvh(bvh: &Bvh, at_leaf: fn (Box, int, i16) -> (), at_node: fn (Box, 
     }
 
     stack(0) = 0;
-    $traverse(return)
+    //$traverse(return)
+
+    while stack_idx > 0 {
+        assert(|| { stack_idx < 32 }, "traverse_bvh : stack too small to traverse bvh");
+
+        let node_id = pop_node();
+        let cur_node = bvh.nodes(node_id);
+
+        if cur_node.prim_count == 0i16 {
+            // If the node is an internal node
+            @assert(|| { cur_node.child_first > node_id }, "traverse_bvh : invalid bvh (internal node pointing to parent)");
+
+            /*@at_node(cur_node.bounds, cur_node.axis,
+                |child_id| @{
+                    assert(|| { child_id == 0 || child_id == 1 }, "traverse_bvh : recursion returns invalid child index");
+                    push_node(cur_node.child_first + (1 - child_id));
+                    push_node(cur_node.child_first + child_id);
+                });*/
+        } else @{
+            // If the node is a leaf
+            @assert(|| { cur_node.prim_count > 0i16 }, "traverse_bvh : invalid bvh (leaf with no primitive)");
+
+            //at_leaf(cur_node.bounds, cur_node.child_first, cur_node.prim_count);
+        }
+    }
+
 }
 

@@ -88,7 +88,7 @@ extern fn bench_ray4_bvh(nray4s: int, bvh: &Bvh, vertices: &[Vec3], indices: &[i
             }
         }
 
-        traverse_bvh(bvh, at_leaf, at_node);
+        traverse_bvh(*bvh, at_leaf, at_node);
 
         for j in range(0, 4) @{
             result.intr_count += intr(j);
@@ -153,7 +153,7 @@ extern fn bench_ray_bvh(nrays: int, bvh: &Bvh, vertices: &[Vec3], indices: &[int
             })
         }
 
-        traverse_bvh(bvh, at_leaf, at_node);
+        traverse_bvh(*bvh, at_leaf, at_node);
 
         result.intr_count += intr;
         if intr != 0 {

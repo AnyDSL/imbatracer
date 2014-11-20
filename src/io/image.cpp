@@ -142,6 +142,8 @@ unsigned *Image::loadPNGBuf(const char *fn, size_t& w, size_t& h)
 
 	png_read_info(png_ptr, info_ptr);
 
+    png_set_palette_to_rgb(png_ptr);
+
 	w = png_get_image_width(png_ptr, info_ptr);
 	h = png_get_image_height(png_ptr, info_ptr);
 	/*color_type = info_ptr->color_type;
@@ -209,7 +211,7 @@ unsigned *Image::loadPNGBuf(const char *fn, size_t& w, size_t& h)
 		break;
 
 	default:
-		std::cerr << "ImagePNG: Unsupported channel count: " << channels << std::endl;
+		std::cerr << "ImagePNG: Unsupported channel count: " << (int)channels << std::endl;
 		success = false;
 		goto end;
 	}

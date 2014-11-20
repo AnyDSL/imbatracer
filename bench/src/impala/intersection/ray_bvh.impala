@@ -50,8 +50,8 @@ fn intersect_ray_bvh(r: Ray, mut tmin: float, bvh: &Bvh, intr: fn (int, float) -
                     }
                 }
             }
-            fetch_next_node()
-        }, fetch_next_node)
+        });
+        fetch_next_node()
     }
 }
 

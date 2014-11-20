@@ -128,8 +128,8 @@ extern fn impala_init() -> &State
     let mut state = stateInit();
 
     // initialise integrator
-    state.integrator.itype = 3; //4:debug, 3:LOD, 2:recraytrace, 1:raytrace, 0:cosine
-    state.integrator.mode = 1;
+    state.integrator.itype = 1; //4:debug, 3:LOD, 2:recraytrace, 1:raytrace, 0:cosine
+    state.integrator.mode = 4;
     state.integrator.minDist = 0.0f;
     state.integrator.maxDist = 1.0f;
     state.integrator.maxRecDepth = 3u;

@@ -83,7 +83,7 @@ fn texel(img : Image, x : float, y : float, filter : u8, border : u8, mipmap : u
                     else if border == BORDER_MIRROR  { imageGetMirroredPixelCoords }
                     else /* border == BORDER_REPEAT*/{ imageGetRepeatedPixelCoords };
 
-    let getpixel =
+    /*let getpixel =
         if mipmap == MIPMAP_FIXED
         {
             |img:Image, p:(int,int)| -> Color imageGetLOD(img, lod as uint, p)
@@ -119,7 +119,9 @@ fn texel(img : Image, x : float, y : float, filter : u8, border : u8, mipmap : u
     else
     {
         latticeTexel(iroundf(x), iroundf(y))
-    }
+    }*/
+
+    imageGetRawP(img, imageGetClampedPixelCoords(img, iroundf(x), iroundf(y)))
 }
 
 // -----------------------------------------------
