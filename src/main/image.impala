@@ -74,23 +74,9 @@ fn imageGetMirroredPixelCoords(img : Image, x : int, y : int) -> (int, int)
 }
 
 
-fn imageGetClamped(img : Image, x : int, y : int) -> Color
+fn distanceToLOD(d : float) -> float
 {
-    imageGetRawP(img, imageGetClampedPixelCoords(img, x, y))
-}
-
-fn imageGetRepeat(img : Image, x : int, y : int) -> Color
-{
-    imageGetRawP(img, imageGetRepeatedPixelCoords(img, x, y))
-}
-
-fn imageGetMirrored(img : Image, x : int, y : int) -> Color
-{
-    imageGetRawP(img, imageGetRepeatedPixelCoords(img, x, y))
-}
-
-fn distanceToLODLevel(d : float) -> float
-{
+    // FIXME: do something less stupid
     d / 10.0f
 }
 
