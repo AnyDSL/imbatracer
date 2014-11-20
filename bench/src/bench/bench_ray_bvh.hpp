@@ -1,6 +1,9 @@
 #ifndef BENCH_RAY_BVH_HPP
 #define BENCH_RAY_BVH_HPP
 
+#include <embree2/rtcore.h>
+#include <embree2/rtcore_ray.h>
+
 #include "../impala/impala_interface.h"
 #include "../scene/triangle_mesh.hpp"
 #include "../common/memory.hpp"
@@ -32,6 +35,7 @@ public:
     }
 
     float tmin() const { return tmin_; }
+    float tmax() const { return tmax_; }
     int intr_count() const { return icount_; }
 
 protected:
@@ -70,6 +74,7 @@ public:
     }
 
     float tmin() const { return tmin_; }
+    float tmax() const { return tmax_; }
     int intr_count() const { return icount_; }
 
 protected:
@@ -86,12 +91,11 @@ private:
 
 class BenchRayBvh4Embree : public Bench {
 public:
-    BenchRayBvh4Embree(const imba::TriangleMesh* mesh, int nrays)
-        : Bench("bench_ray_bvh_embree")
-        , nrays_(nrays)
-    {}
+    BenchRayBvh4Embree(const imba::TriangleMesh* mesh, int nrays);
+    ~BenchRayBvh4Embree();
 
     float tmin() const { return tmin_; }
+    float tmax() const { return tmax_; }
     int intr_count() const { return icount_; }
 
 protected:
@@ -99,18 +103,19 @@ protected:
     virtual void display() override;
 
 private:
+    RTCScene scene_;
+    unsigned mesh_id_;
     int nrays_, icount_;
-    float tmin_;
+    float tmin_, tmax_;
 };
 
 class BenchRay4Bvh4Embree : public Bench {
 public:
-    BenchRay4Bvh4Embree(const imba::TriangleMesh* mesh, int nray4s)
-        : Bench("bench_ray4_bvh_embree")
-        , nray4s_(nray4s)
-    {}
+    BenchRay4Bvh4Embree(const imba::TriangleMesh* mesh, int nray4s);
+    ~BenchRay4Bvh4Embree();
 
     float tmin() const { return tmin_; }
+    float tmax() const { return tmax_; }
     int intr_count() const { return icount_; }
 
 protected:
@@ -118,8 +123,10 @@ protected:
     virtual void display() override;
 
 private:
+    RTCScene scene_;
+    unsigned mesh_id_;
     int nray4s_, icount_;
-    float tmin_;
+    float tmin_, tmax_;
 };
 
 } // namespace bench

@@ -39,7 +39,7 @@ extern fn bench_ray4_bvh(nray4s: int, bvh: &Bvh, vertices: &[Vec3], indices: &[i
         let mut intr = [0, 0, 0, 0];
 
         for j in range(0, 4) @{
-            rays(j) = generate_ray(i + j);
+            rays(j) = generate_ray(i * 4 + j);
             rays_inv(j) = ray_inv_from_ray(rays(j));
         }
 
@@ -101,8 +101,10 @@ extern fn bench_ray4_bvh(nray4s: int, bvh: &Bvh, vertices: &[Vec3], indices: &[i
 
         for j in range(0, 4) @{
             result.intr_count += intr(j);
-            if result.tmax < tray(j) { result.tmax = tray(j); }
-            if result.tmin > tray(j) { result.tmin = tray(j); }
+            if intr(j) != 0 {
+                if result.tmax < tray(j) { result.tmax = tray(j); }
+                if result.tmin > tray(j) { result.tmin = tray(j); }
+            }
         }
     }
 }
@@ -171,8 +173,10 @@ extern fn bench_ray_bvh(nrays: int, bvh: &Bvh, vertices: &[Vec3], indices: &[int
         traverse_bvh(bvh, at_leaf, at_node);
 
         result.intr_count += intr;
-        if result.tmax < tray { result.tmax = tray; }
-        if result.tmin > tray { result.tmin = tray; }
+        if intr != 0 {
+            if result.tmax < tray { result.tmax = tray; }
+            if result.tmin > tray { result.tmin = tray; }
+        }
     }
 }
 

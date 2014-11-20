@@ -1,14 +1,12 @@
 #ifndef BENCH_BVH_BUILD_HPP
 #define BENCH_BVH_BUILD_HPP
 
+#include <embree2/rtcore.h>
+
 #include "../impala/impala_interface.h"
 #include "../common/memory.hpp"
 #include "../scene/triangle_mesh.hpp"
 #include "bench.hpp"
-
-namespace embree {
-    class Scene;
-}
 
 namespace bench {
 
@@ -35,13 +33,14 @@ private:
 class BenchBvh4BuildEmbree : public Bench {
 public:
     BenchBvh4BuildEmbree(const imba::TriangleMesh* mesh);
+    ~BenchBvh4BuildEmbree();
 
 protected:
     virtual void iteration() override;
 
 private:
-    std::unique_ptr<embree::Scene> scene_;
-    unsigned int mesh_id_;
+    RTCScene scene_;
+    unsigned mesh_id_;
 };
 
 } // namespace bench

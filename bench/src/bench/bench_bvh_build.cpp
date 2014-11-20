@@ -29,46 +29,40 @@ void BenchBvhBuildImpala::display() {
 }
 
 BenchBvh4BuildEmbree::BenchBvh4BuildEmbree(const imba::TriangleMesh* mesh)
-    : Bench("bench_bvh4_build_embree")
-    , scene_(new embree::Scene(RTC_SCENE_DYNAMIC, RTC_INTERSECT1)) {
-    mesh_id_ = scene_->newTriangleMesh(RTC_GEOMETRY_DYNAMIC, mesh->triangle_count(), mesh->vertex_count(), 1);
-    embree::TriangleMesh* embree_mesh = scene_->getTriangleMesh(mesh_id_);
+    : Bench("bench_bvh4_build_embree") {
+    scene_ = rtcNewScene(RTC_SCENE_DYNAMIC | RTC_SCENE_HIGH_QUALITY, RTC_INTERSECT1);
+    mesh_id_ = rtcNewTriangleMesh(scene_, RTC_GEOMETRY_DYNAMIC, mesh->triangle_count(), mesh->vertex_count(), 1);
 
-    char* vptr = reinterpret_cast<char*>(embree_mesh->map(RTC_VERTEX_BUFFER0));
-    int vstride = embree_mesh->getVertexBufferStride();
-
+    float* vptr = reinterpret_cast<float*>(rtcMapBuffer(scene_, mesh_id_, RTC_VERTEX_BUFFER0));
     for (int i = 0; i < mesh->vertex_count(); i++) {
         const imba::Vec3& v = mesh->vertices()[i];
-        float* u = reinterpret_cast<float*>(vptr + vstride * i);
-
-        u[0] = v[0];
-        u[1] = v[1];
-        u[2] = v[2];
+        vptr[i * 4 + 0] = v[0];
+        vptr[i * 4 + 1] = v[1];
+        vptr[i * 4 + 2] = v[2];
     }
+    rtcUnmapBuffer(scene_, mesh_id_, RTC_VERTEX_BUFFER0);
 
-    embree_mesh->unmap(RTC_VERTEX_BUFFER);
-
-    char* iptr = reinterpret_cast<char*>(embree_mesh->map(RTC_INDEX_BUFFER));
-    int istride = embree_mesh->getTriangleBufferStride();
-
+    int* iptr = reinterpret_cast<int*>(rtcMapBuffer(scene_, mesh_id_, RTC_INDEX_BUFFER));
     for (int i = 0; i < mesh->triangle_count(); i++) {
         const imba::TriangleMesh::Triangle& t = mesh->triangles()[i];
-        int* u = reinterpret_cast<int*>(iptr + istride * i);
 
-        u[0] = t[0];
-        u[1] = t[1];
-        u[2] = t[2];
-    }
+        iptr[i * 3 + 0] = t[0];
+        iptr[i * 3 + 1] = t[1];
+        iptr[i * 3 + 2] = t[2];
+    }    
+    rtcUnmapBuffer(scene_, mesh_id_, RTC_INDEX_BUFFER);
 
-    embree_mesh->unmap(RTC_INDEX_BUFFER);
-    scene_->build(0, 1);
+    rtcCommit(scene_);
+}
+
+BenchBvh4BuildEmbree::~BenchBvh4BuildEmbree() {
+    rtcDeleteGeometry(scene_, mesh_id_);
+    rtcDeleteScene(scene_);
 }
 
 void BenchBvh4BuildEmbree::iteration() {
-    embree::TriangleMesh* embree_mesh = scene_->getTriangleMesh(mesh_id_);
-    embree::Accel* accel = embree::BVH4::BVH4Triangle1ObjectSplit(embree_mesh);
-    accel->build(0, 1);
-    delete accel;
+    rtcUpdate(scene_, mesh_id_);
+    rtcCommit(scene_);
 }
 
 } // namespace bench

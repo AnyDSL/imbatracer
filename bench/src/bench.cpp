@@ -83,11 +83,11 @@ int main(int argc, char** argv) {
         benches.push_back(new bench::BenchBvhBuildImpala(mesh));
         benches.push_back(new bench::BenchBvh4BuildEmbree(mesh));
 
-        benches.push_back(new bench::BenchRayBvhImpala(mesh, 4000000));
-        benches.push_back(new bench::BenchRay4BvhImpala(mesh, 1000000));
-
         benches.push_back(new bench::BenchRayBvh4Embree(mesh, 4000000));
         benches.push_back(new bench::BenchRay4Bvh4Embree(mesh, 1000000));
+
+        benches.push_back(new bench::BenchRayBvhImpala(mesh, 4000000));
+        benches.push_back(new bench::BenchRay4BvhImpala(mesh, 1000000));
     }
 
     for (auto b : benches) {
