@@ -31,6 +31,7 @@ public:
     void clear();
 
     static unsigned *loadPNGBuf(const char *fn, size_t& w, size_t& h);
+    static bool writePNGBuf(const char *fn, const unsigned *rawmemi, size_t w, size_t h);
 
 private:
     void mem2surface(unsigned w, unsigned h);

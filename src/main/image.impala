@@ -26,16 +26,17 @@ fn imageGetRawP(img : Image, p : (int, int)) -> Color
 
 fn getLODOffsetY(img : Image, mut lod : uint) -> uint
 {
-    // TODO: use closed formula
+    // TODO: closed formula?
     let mut y = 0u;
     let mut sh = img.h;
-    while lod > 1u // LOD 0 and 1 start at the top...
+    while lod > 1u // LOD 0 and 1 start at the top, everything after it is successively shifted downwards
     {
-        lod--;
+        --lod;
         sh >>= 1u;
         y += sh;
     }
-    y
+
+    y & 0xFFFFFFFEu // Mask out the last bit, which would otherwise introduce an off-by-one for the last mip level
 }
 
 fn imageGetLOD(img : Image, lod : uint, p : (int, int)) -> Color
