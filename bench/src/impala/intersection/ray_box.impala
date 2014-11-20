@@ -1,7 +1,6 @@
 fn intersect_ray_box(ray_inv: RayInv,
                      box: Box,
-                     intr: fn (float, float),
-                     nointr: fn ()) @{
+                     intr: fn (float, float) -> ()) -> () @{
     fn intersection_time(v: Vec3, r: RayInv, i: int) -> float {
         (v.values(i) - r.org.values(i)) * r.inv_dir.values(i)
     }
@@ -38,7 +37,5 @@ fn intersect_ray_box(ray_inv: RayInv,
     if t0 <= t1 {
         @intr(t0, t1)
     }
-
-    nointr()
 }
 

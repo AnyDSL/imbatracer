@@ -6,7 +6,7 @@ set(IMPALA_SRCS
     bench/bench_ray_bvh.impala
     intersection/ray_triangle.impala
     intersection/ray_box.impala
-    intersection/ray_bvh.impala
+    #intersection/ray_bvh.impala
     math/ray.impala
     math/box.impala
     math/matrix.impala

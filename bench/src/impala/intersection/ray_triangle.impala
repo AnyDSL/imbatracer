@@ -1,8 +1,7 @@
 // Thomas Moller Ray-Triangle Intersection routine
 fn intersect_ray_tri(ray: Ray,
                      tri: Tri,
-                     intr: fn (float, float, float),
-                     nointr: fn ()) @{
+                     intr: fn (float, float, float) -> ()) -> () @{
     let e0 = @vec3_sub(tri.v1, tri.v0);
     let e1 = @vec3_sub(tri.v2, tri.v0);
 
@@ -11,8 +10,8 @@ fn intersect_ray_tri(ray: Ray,
 
     let epsilon = 0.0001f;
 
-    if det > -epsilon && det < epsilon {
-        @nointr()
+    if det > -epsilon && det < epsilon @{
+        return()
     }
 
     let inv_det = 1.0f / det;
@@ -20,15 +19,15 @@ fn intersect_ray_tri(ray: Ray,
     let tvec = @vec3_sub(ray.org, tri.v0);
     let u = @vec3_dot(tvec, pvec) * inv_det;
 
-    if u < 0.0f || u > 1.0f {
-        @nointr()
+    if u < 0.0f || u > 1.0f @{
+        return()
     }
 
     let qvec = @vec3_cross(tvec, e0);
     let v = @vec3_dot(ray.dir, qvec) * inv_det;
 
-    if v < 0.0f || u + v > 1.0f {
-        @nointr()
+    if v < 0.0f || u + v > 1.0f @{
+        return()
     }
 
     let t = @vec3_dot(e1, qvec) * inv_det;

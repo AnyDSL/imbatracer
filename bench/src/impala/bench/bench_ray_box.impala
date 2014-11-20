@@ -44,15 +44,12 @@ extern fn bench_ray4_box(nray4s: int,
 
         for j in vrange(0, 4) @{
             let ray = generate_ray(i);
-            let next = continue;
             intersect_ray_box(ray, box,
                 |t0, t1| {
                     intr(j) = 1;
                     tmin(j) = t0;
                     tmax(j) = t1;
-                    next()
-                },
-                next)
+                })
         }
 
         for i in range(0, 4) @{
@@ -83,15 +80,12 @@ extern fn bench_ray_box(nrays: int,
 
     for i in range(0, nrays) @{
         let ray = generate_ray(i);
-        let next = continue;
         intersect_ray_box(ray, box,
             |t0, t1| {
                 result.intr_count = result.intr_count + 1;
-                if result.tmax > t1 { result.tmax = t1; };
-                if result.tmin < t0 { result.tmin = t0; };
-                next()
-            },
-            next)
+                if result.tmax > t1 { result.tmax = t1; }
+                if result.tmin < t0 { result.tmin = t0; }
+            })
     }
 }
 

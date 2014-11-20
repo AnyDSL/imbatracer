@@ -280,7 +280,7 @@ fn build_bvh(boxes: &[Box],
     bvh(nodes, node_count, prim_ids)
 }
 
-fn traverse_bvh(bvh: &Bvh, at_leaf: fn (Box, int, i16) -> (), at_node: fn (Box, i16, fn (int), fn())) -> () @{
+fn traverse_bvh(bvh: &Bvh, at_leaf: fn (Box, int, i16) -> (), at_node: fn (Box, i16, fn (int) -> ()) -> ()) -> () @{
     let mut stack: [int * 32];
     let mut stack_idx = 1;
 
@@ -312,12 +312,12 @@ fn traverse_bvh(bvh: &Bvh, at_leaf: fn (Box, int, i16) -> (), at_node: fn (Box, 
 
             @at_node(cur_node.bounds, cur_node.axis,
                 |child_id| @{
-                    assert(|| { child_id == 0 || child_id == 1 }, "traverse_bvh : recursion returns wrong child index");
+                    assert(|| { child_id == 0 || child_id == 1 }, "traverse_bvh : recursion returns invalid child index");
                     push_node(cur_node.child_first + (1 - child_id));
                     push_node(cur_node.child_first + child_id);
-                    $traverse(end)
-                },
-                || { $traverse(end) })
+                });
+
+            $traverse(end)
         } else @{
             // If the node is a leaf
             @assert(|| { cur_node.prim_count > 0i16 }, "traverse_bvh : invalid bvh (leaf with no primitive)");

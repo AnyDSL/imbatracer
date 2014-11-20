@@ -26,7 +26,12 @@ extern "C" void put_int(int i) {
 }
 
 struct EmbreeInit {
-    EmbreeInit() { rtcInit(); }
+    EmbreeInit() {
+        rtcInit("verbose=0,"
+                "isa=sse4.2,"
+                "tri_accel=bvh4.triangle1,"
+                "threads=1");
+    }
     ~EmbreeInit() { rtcExit(); }
 };
 
@@ -77,19 +82,19 @@ int main(int argc, char** argv) {
         logger->log("file '", scene_file, "' contains no mesh");
     }
 
-    std::cout << "starting benchmarks..." << std::endl;
     for (int i = 0; i < scene.triangle_mesh_count(); i++) {
         const imba::TriangleMesh* mesh = scene.triangle_meshes()[i];
         benches.push_back(new bench::BenchBvhBuildImpala(mesh));
         benches.push_back(new bench::BenchBvh4BuildEmbree(mesh));
 
-        benches.push_back(new bench::BenchRayBvh4Embree(mesh, 4000000));
-        benches.push_back(new bench::BenchRay4Bvh4Embree(mesh, 1000000));
+        benches.push_back(new bench::BenchRayBvh4Embree(mesh, 400000));
+        benches.push_back(new bench::BenchRay4Bvh4Embree(mesh, 100000));
 
-        benches.push_back(new bench::BenchRayBvhImpala(mesh, 4000000));
-        benches.push_back(new bench::BenchRay4BvhImpala(mesh, 1000000));
+        benches.push_back(new bench::BenchRayBvhImpala(mesh, 400000));
+        benches.push_back(new bench::BenchRay4BvhImpala(mesh, 100000));
     }
 
+    std::cout << "starting benchmarks..." << std::endl;
     for (auto b : benches) {
         b->run_verbose();
         std::cout << b->name() << " : "

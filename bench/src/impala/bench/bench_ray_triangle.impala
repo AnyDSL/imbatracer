@@ -43,14 +43,11 @@ extern fn bench_ray4_triangle(nray4s: int,
 
         for j in vrange(0, 4) @{
             let ray = generate_ray(i + j);
-            let next = continue;
             intersect_ray_tri(ray, tri,
                 |t, u, v| {
                     intr(j) = 1;
                     tmin(j) = t;
-                    next()
-                },
-                next)
+                })
         }
 
         for i in range(0, 4) @{
@@ -82,14 +79,11 @@ extern fn bench_ray_triangle(nrays: int,
 
     for i in range(0, nrays) @{
         let ray = generateRay(i);
-        let next = continue;
         intersect_ray_tri(ray, tri,
             |t, u, v| {
                 result.intr_count += 1;
                 if result.tmin > t { result.tmin = t; };
-                next()
-            },
-            next)
+            })
     }
 }
 

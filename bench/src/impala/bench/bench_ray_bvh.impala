@@ -45,15 +45,11 @@ extern fn bench_ray4_bvh(nray4s: int, bvh: &Bvh, vertices: &[Vec3], indices: &[i
 
         fn at_leaf(box: Box, first: int, count: i16) -> () @{
             for j in range(0, 4) @{
-                let next_ray = continue;
-
                 // First intersect the rays with the current node
                 intersect_ray_box(rays_inv(j), box, |t0, t1| @{
                     // If the rays hit the box, intersect triangles too
                     if t1 > 0.0f && t0 < tray(j) @{
                         for k in range(first, first + count as int) @{
-                            let next_triangle = continue;
-
                             let id = bvh.prim_ids(k);
                             let prim = tri(vertices(indices(id * 3 + 0)),
                                            vertices(indices(id * 3 + 1)),
@@ -65,16 +61,14 @@ extern fn bench_ray4_bvh(nray4s: int, bvh: &Bvh, vertices: &[Vec3], indices: &[i
                                         intr(j) = 1;
                                         tray(j) = t;
                                     }
-                                    next_triangle()
-                                }, next_triangle)
+                                })
                         }
                     }
-                    next_ray()
-                }, next_ray)
+                })
             }
         }
 
-        fn at_node(box: Box, axis: i16, go_down: fn (int), go_up: fn ()) {
+        fn at_node(box: Box, axis: i16, push: fn (int) -> ()) -> () @{
             let mut signs = [0, 0, 0, 0];
 
             for j in range(0, 4) @{
@@ -82,8 +76,7 @@ extern fn bench_ray4_bvh(nray4s: int, bvh: &Bvh, vertices: &[Vec3], indices: &[i
                     if t1 > 0.0f && t0 < tray(j) @{
                         signs(j) = if rays_inv(j).inv_dir.values(axis) > 0.0f {1} else {-1};
                     }
-                    continue()
-                }, continue)
+                })
             }
 
             let hit = signs(0) | signs(1) | signs(2) | signs(3);
@@ -91,9 +84,7 @@ extern fn bench_ray4_bvh(nray4s: int, bvh: &Bvh, vertices: &[Vec3], indices: &[i
             // If any ray touches the node, traverse down the tree
             if hit != 0 @{
                 let sum = signs(0) + signs(1) + signs(2) + signs(3);
-                go_down(if sum > 0 {0} else {1})
-            } else @{
-                go_up()
+                push(if sum > 0 {0} else {1})
             }
         }
 
@@ -136,7 +127,6 @@ extern fn bench_ray_bvh(nrays: int, bvh: &Bvh, vertices: &[Vec3], indices: &[int
                 // If the ray hits the box, intersect triangles too
                 if t1 > 0.0f && t0 < tray @{
                     for k in range(first, first + count as int) @{
-                        let next_triangle = continue;
 
                         let id = bvh.prim_ids(k);
                         let prim = tri(vertices(indices(id * 3 + 0)),
@@ -149,25 +139,18 @@ extern fn bench_ray_bvh(nrays: int, bvh: &Bvh, vertices: &[Vec3], indices: &[int
                                     intr = 1;
                                     tray = t;
                                 }
-                                next_triangle()
-                            }, next_triangle)
+                            })
                     }
                 }
-                return()
-            }, return)
+            })
         }
 
-        fn at_node(box: Box, axis: i16, go_down: fn (int), go_up: fn ()) {
+        fn at_node(box: Box, axis: i16, push: fn (int) -> ()) -> () @{
             intersect_ray_box(rinv, box, |t0, t1| @{
                 if t1 > 0.0f && t0 < tray @{
-                    if rinv.inv_dir.values(axis) > 0.0f {
-                        go_down(0)
-                    } else {
-                        go_down(1)
-                    }
+                    push(if rinv.inv_dir.values(axis) > 0.0f {0} else {1})
                 }
-                go_up()
-            }, go_up)
+            })
         }
 
         traverse_bvh(bvh, at_leaf, at_node);
