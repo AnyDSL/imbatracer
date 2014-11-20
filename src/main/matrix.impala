@@ -84,7 +84,7 @@ fn matrixRotation(uo : Vec, a : float) -> Matrix
 
 	@matrix4(
 		@float4(q.x+c  , v.y-S.z, v.x+S.y, 0.0f),
-		@float4(v.x+S.z, q.y+c  , v.z-S.x, 0.0f),
+		@float4(v.y+S.z, q.y+c  , v.z-S.x, 0.0f),
 		@float4(v.x-S.y, v.z+S.x, q.z+c  , 0.0f),
 		@float4(0.0f   ,  0.0f  ,  0.0f  , 1.0f)
 	)
