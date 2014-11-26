@@ -1,4 +1,5 @@
-#include <io/sdlbuffergui.h>
+//#include <io/sdlbuffergui.h>
+#include <io/sdlgui.h>
 #include <io/image.h>
 #include <SDL.h>
 #include <thorin_runtime.h>
@@ -14,12 +15,13 @@ enum class SceneKind {
     Bench2,
 };
 
-class ImpalaGui : public SDLBufferGui
+class ImpalaGui : public SDLGui
 {
 public:
     ImpalaGui(unsigned w, unsigned h, SceneKind sceneKind)
-        : SDLBufferGui(w, h, "ImbaTracer"), sceneKind(sceneKind)
+        : SDLGui(w, h), sceneKind(sceneKind)
     {
+        SetWindowTitle("ImbaTracer starting up...");
         // impala_init may call functions that add objects to the scene
         switch (sceneKind) {
         case SceneKind::Main:
@@ -36,15 +38,20 @@ public:
     }
 
 protected:
-
-    virtual void _Render(CountedPtr<Image> img, float dt)
+    void _Update(float dt) override
     {
+        SDLGui::_Update(dt);
         if (sceneKind == SceneKind::Main)
             impala::impala_update(state, dt);
+        SetWindowTitle("ImbaTracer ("+std::to_string(1/dt)+" fps)");
+    }
+
+    void _Render(Image *img) override
+    {
         impala::impala_render(img->getPtr(), img->width(), img->height(), false, state);
     }
 
-    virtual void _DispatchEvents(const EventHolder *ep, size_t num)
+    void _DispatchEvents(const EventHolder *ep, size_t num) override
     {
         for(size_t i = 0; i < num; ++i)
         {

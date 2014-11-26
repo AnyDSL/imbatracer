@@ -6,12 +6,14 @@
 #include <vector>
 #include <mutex>
 
-struct SDL_Window;
+#include <SDL_video.h>
+
 
 namespace rt {
 
-class SDLGuiThread;
+//class SDLGuiThread;
 class Image;
+class SDLRenderer;
 
 class SDLGui
 {
@@ -19,7 +21,7 @@ public:
     SDLGui(unsigned width, unsigned height);
     virtual ~SDLGui();
 
-    void Init();
+    int main();
 
     bool WaitingForQuit(); // do we want to quit?
     void WaitForQuit(); // do the quitting
@@ -57,18 +59,30 @@ public:
 
 
 protected:
-    // called asynchronously, from GUI thread. Overload in children to react.
+
+    void render(Image *img);
+    void resize(unsigned w, unsigned h);
+    void handleEvents();
+    bool Init();
+    void shutdown();
+    bool createWindow(unsigned w, unsigned h, const char *title);
+    void _sizeChanged(unsigned w, unsigned h);
+    void quitThreadASAP();
+
     virtual void _OnInit() {}
-    virtual CountedPtr<Image> _Update(float dt);
+    virtual void _Update(float dt);
     virtual bool _OnKey(int scancode, int key, int mod, bool down); //!< returns whether the keypress was handled
     virtual void _OnMouseButton(int button, int state, int x, int y);
     virtual void _OnMouseMotion(int xrel, int yrel);
     virtual void _OnMouseWheel(int x, int y);
     virtual void _OnWindowResize(int w, int h, int realw, int realh);
-    virtual void _OnShutdown() {}
+    virtual void _Render(Image *img) = 0;
+    virtual void _UpdateTick();
 
-    void _HandleEvents();
+    void _DispatchEvents();
     virtual void _DispatchEvents(const EventHolder * /*ep*/, size_t /*num*/) {}
+
+    CountedPtr<Image> renderOneImage();
 
     // write only by GUI thread!
     std::atomic_uint windowW, windowH, realWindowW, realWindowH;
@@ -76,13 +90,23 @@ protected:
     bool mouseGrabbed;
 
 private:
-    SDLGuiThread *th;
 
-    friend class SDLGuiThread; // it must trigger above events
+    // SDL stuff
+    SDL_Window *_window;
+    SDL_GLContext _glctx;
+    SDLRenderer *_disp;
+    unsigned _lastW, _lastH;
+    Uint32 lastUpdateTime;
+
+    bool _wantQuit;
+
+    //SDLGuiThread *th;
+
+    //friend class SDLGuiThread; // it must trigger above events
 
     // set by gui thread, r/w access protected by eventLock
-    std::mutex eventLock;
-    std::vector<EventHolder> eventQ;
+    //std::mutex eventLock;
+    std::vector<EventHolder> eventQ; // queues events until passed to impala
 };
 
 
