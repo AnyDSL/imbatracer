@@ -48,7 +48,7 @@ AutoCleanup<F> auto_cleanup(F f) {
 }
 
 int main(int argc, char** argv) {
-    std::unique_ptr<imba::Logger> logger(new imba::Logger("log.txt"));
+    std::unique_ptr<imba::Logger> logger(new imba::FileLogger("log.txt"));
     std::vector<bench::Bench*> benches;
     EmbreeInit embree_init;
 
@@ -73,7 +73,7 @@ int main(int argc, char** argv) {
     imba::ObjLoader loader;
     imba::Scene scene;
     
-    if (!loader.load_scene(".", scene_file, scene, logger.get())) {
+    if (!loader.load_file(imba::Path("teapot.obj"), scene, logger.get())) {
         logger->log("cannot load file ", scene_file);
         return EXIT_FAILURE;
     }

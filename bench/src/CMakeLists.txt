@@ -14,8 +14,8 @@ thorin_runtime_wrap(IMPALA_OBJS IMPALA_LIBS
 
 # Generate the C interface
 add_custom_target(impala-interface DEPENDS ${IMPALA_SRCS_PREFIX}
-                  COMMAND imp2c ${IMPALA_SRCS_PREFIX} ${THORIN_RUNTIME_DIR}/platforms/intrinsics_cpu.impala ${THORIN_RUNTIME_DIR}/platforms/intrinsics_thorin.impala -o impala/impala_interface.h
-                  WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
+                  COMMAND impala -emit-c-interface ${IMPALA_SRCS} ${THORIN_RUNTIME_DIR}/platforms/intrinsics_cpu.impala ${THORIN_RUNTIME_DIR}/platforms/intrinsics_thorin.impala -o impala_interface
+                  WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/impala)
 set_source_files_properties(impala/impala_interface.h PROPERTIES GENERATED TRUE)
 
 # Add executables
@@ -35,6 +35,16 @@ target_link_libraries(bench ${CMAKE_THREAD_LIBS_INIT})
 target_link_libraries(bench ${IMPALA_LIBS})
 add_dependencies(bench impala-interface)
 
+add_executable(imbatracer
+               ${IMPALA_OBJS}
+               main.cpp
+               loaders/png_loader.cpp
+               loaders/obj_loader.cpp)
+
+include_directories(${PNG_INCLUDE_DIRS})
+target_link_libraries(imbatracer ${PNG_LIBRARIES})
+add_dependencies(imbatracer impala-interface)
+
 # Set compiler options
 get_target_property(CXX_FLAGS bench COMPILE_FLAGS)
 if(CXX_FLAGS STREQUAL "CXX_FLAGS-NOTFOUND")
@@ -43,3 +53,9 @@ endif()
 set(CXX_FLAGS "${CXX_FLAGS} -std=c++11")
 set_target_properties(bench PROPERTIES COMPILE_FLAGS ${CXX_FLAGS})
 
+get_target_property(CXX_FLAGS bench COMPILE_FLAGS)
+if(CXX_FLAGS STREQUAL "CXX_FLAGS-NOTFOUND")
+  set(CXX_FLAGS "")
+endif()
+set(CXX_FLAGS "${CXX_FLAGS} -std=c++11")
+set_target_properties(imbatracer PROPERTIES COMPILE_FLAGS ${CXX_FLAGS})

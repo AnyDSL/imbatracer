@@ -1,19 +1,30 @@
-#ifndef IMBA_IMAGE_BUFFER_HPP
-#define IMBA_IMAGE_BUFFER_HPP
+#ifndef IMBA_IMAGE_HPP
+#define IMBA_IMAGE_HPP
 
+#include <vector>
 #include "../common/memory.hpp"
 #include "../common/vector.hpp"
 
 namespace imba {
 
 /// Image buffer with aligned storage.
-class ImageBuffer {
+class Image {
 public:
-    ImageBuffer(int width, int height, int row_stride)
+    Image()
+        : width_(0)
+        , height_(0)
+        , stride_(0)
+    {}
+
+    Image(int width, int height, int row_stride)
         : pixels_(row_stride * height),
           width_(width), height_(height),
           stride_(row_stride)
     {}
+
+    void resize(int width, int height, int row_stride) {
+        pixels_.resize(row_stride * height);
+    }
 
     int width() const { return width_; }
     int height() const { return height_; }
@@ -35,5 +46,5 @@ private:
 
 } // namespace imba
 
-#endif // IMBA_IMAGE_BUFFER_HPP
+#endif // IMBA_IMAGE_HPP
 

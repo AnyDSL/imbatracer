@@ -121,7 +121,7 @@ fn texel(img : Image, x : float, y : float, filter : u8, border : u8, mipmap : u
         latticeTexel(iroundf(x), iroundf(y))
     }*/
 
-    imageGetRawP(img, imageGetClampedPixelCoords(img, iroundf(x), iroundf(y)))
+    imageGetLOD(img, lod as uint, imageGetClampedPixelCoords(img, iroundf(x), iroundf(y)))
 }
 
 // -----------------------------------------------

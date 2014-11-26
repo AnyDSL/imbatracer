@@ -37,6 +37,9 @@ find_library(EMBREE_LIB NAMES embree PATHS ${EMBREE_DIR} ${EMBREE_DIR}/build)
 # pthreads
 find_package(Threads REQUIRED)
 
+# libpng
+find_package(PNG REQUIRED)
+
 # Add the project files
 add_subdirectory(src)
 

@@ -12,37 +12,44 @@ namespace imba {
 class Logger {
 public:
     Logger() {}
-
-    Logger(const std::string& file_name) {
-        stream_ = std::unique_ptr<std::ofstream>(new std::ofstream(file_name));
-    }
-
     virtual ~Logger() {}
 
     template <typename... Args>
     void log(Args... args) {
-        if (stream_) {
-            char buf[64];
-            std::time_t t = time(NULL);
-            std::strftime(buf, 64, "%a %b %d %H:%M:%S", std::localtime(&t));
-            write(buf, " : ", args...);
-            (*stream_.get()) << std::endl;
-        }
+        char buf[64];
+        std::time_t t = time(NULL);
+        std::strftime(buf, 64, "%a %b %d %H:%M:%S", std::localtime(&t));
+        write(buf, " : ", args...);
+        stream() << std::endl;
     }
 
 private:
     template <typename T, typename... Args>
     void write(const T& t, Args... args) {
-        (*stream_.get()) << t;
+        stream() << t;
         write(args...);
     }
 
     template <typename T>
     void write(const T& t) {
-        (*stream_.get()) << t;
+        stream() << t;
     }
 
-    std::unique_ptr<std::ostream> stream_;
+protected:
+    virtual std::ostream& stream() { return std::clog; }
+};
+
+/// Logger that redirects its output to a file;
+class FileLogger : public Logger {
+public:
+    FileLogger(const std::string& file_name)
+        : file_(new std::ofstream(file_name))
+    {}
+
+protected:
+    virtual std::ostream& stream() override { return *file_.get(); }
+
+    std::unique_ptr<std::ostream> file_;
 };
 
 }

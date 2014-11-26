@@ -7,13 +7,17 @@
 
 namespace imba {
 
-bool ObjLoader::load_scene(const std::string& working_dir,
-                           const std::string& name, Scene& scene,
-                           Logger* logger) {
+bool ObjLoader::check_format(const Path& path) {
+    // Checks only the file extension
+    return path.extension() == "obj";
+}
+
+bool ObjLoader::load_file(const Path& path, Scene& scene, Logger* logger) {
     File obj_file;
+
     // Parse the OBJ file
     {
-        std::ifstream stream(working_dir + "//" + name);
+        std::ifstream stream(path);
         if (!stream || !parse_stream(stream, obj_file, logger)) {
             return false;
         }
