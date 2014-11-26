@@ -3,7 +3,8 @@
 
 #include <unordered_set>
 #include <memory>
-#include "image_buffer.hpp"
+
+#include "image.hpp"
 #include "triangle_mesh.hpp"
 #include "material.hpp"
 
@@ -21,7 +22,7 @@ private:
 
 public:
     typedef SceneObjectId<TriangleMesh> TriangleMeshId;
-    typedef SceneObjectId<ImageBuffer>  TextureId;
+    typedef SceneObjectId<Image>        TextureId;
     typedef SceneObjectId<Material>     MaterialId;
 
     ~Scene() {
@@ -34,7 +35,7 @@ public:
         return TriangleMeshId(meshes_.size() - 1);
     }
 
-    TextureId add_texture(ImageBuffer* texture) {
+    TextureId add_texture(Image* texture) {
         textures_.push_back(texture);
         return TextureId(textures_.size() - 1);
     }
@@ -43,11 +44,11 @@ public:
     int texture_count() const { return textures_.size(); }
 
     TriangleMesh* const* triangle_meshes() const { return meshes_.data(); }
-    ImageBuffer* const* textures() const { return textures_.data(); }
+    Image* const* textures() const { return textures_.data(); }
 
 private:
     std::vector<TriangleMesh*> meshes_;
-    std::vector<ImageBuffer*>  textures_;
+    std::vector<Image*>        textures_;
     std::vector<Material>      materials_;
 };
 

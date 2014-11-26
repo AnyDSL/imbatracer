@@ -8,9 +8,12 @@ namespace imba {
 /// Fast, robust OBJ file parser. Supports relative vertex indices.
 class ObjLoader : public SceneLoader {
 public:
-    virtual bool load_scene(const std::string& working_dir,
-                            const std::string& name, Scene& scene,
-                            Logger* logger = nullptr) override;
+    ObjLoader(ImageLoaderManager* manager = nullptr)
+        : SceneLoader(manager)
+    {}
+
+    virtual bool check_format(const Path& path) override;
+    virtual bool load_file(const Path& path, Scene& scene, Logger* logger = nullptr) override;
 
 private:
     struct Index {
