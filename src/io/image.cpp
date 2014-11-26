@@ -233,5 +233,100 @@ end:
 
 }
 
+bool Image::writePNGBuf(const char *filename, const unsigned *rawmemi, size_t w, size_t h)
+{
+	std::vector<png_byte> byteData (w * h * 4);
+	png_byte *ptr = &byteData[0];
+	const unsigned *readptr = rawmemi;
+
+	for(uint y = 0; y < h; ++y)
+		for(uint x = 0; x < w; ++x)
+		{
+			*ptr++ = (unsigned char)(*readptr);
+			*ptr++ = (unsigned char)(*readptr >> 8);
+			*ptr++ = (unsigned char)(*readptr >> 16);
+			*ptr++ = 0xFF;
+			++readptr;
+		}
+
+	std::vector<png_byte*> rowData(h);
+	for(size_t i = 0; i < h; i++)
+		rowData[i] = i * w * 4 + &byteData.front();
+
+	/* create file */
+	FILE *fp = fopen(filename, "wb");
+	if (!fp) {
+		std::cerr << "[write_png_file] File " << filename << " could not be opened for writing." << std::endl;
+		return false;
+	}
+
+	bool success = true;
+
+	/* initialize stuff */
+	png_structp png_ptr;
+	png_ptr = png_create_write_struct(PNG_LIBPNG_VER_STRING, nullptr, nullptr, nullptr);
+
+	if (!png_ptr) {
+		std::cerr << "[write_png_file] png_create_write_struct failed" << std::endl;
+		success = false;
+		goto end;
+	}
+
+	png_infop info_ptr;
+	info_ptr = png_create_info_struct(png_ptr);
+	if (!info_ptr) {
+		std::cerr << "[write_png_file] png_create_info_struct failed" << std::endl;
+		success = false;
+		goto end;
+	}
+
+	if (setjmp(png_jmpbuf(png_ptr))) {
+		std::cerr << "[write_png_file] Error during init_io" << std::endl;
+		success = false;
+		goto end;
+	}
+
+
+	png_init_io(png_ptr, fp);
+
+	/* write header */
+	if (setjmp(png_jmpbuf(png_ptr))) {
+		std::cerr << "[write_png_file] Error during writing header" << std::endl;
+		success = false;
+		goto end;
+	}
+
+	png_set_IHDR(png_ptr, info_ptr, w, h,
+		8, PNG_COLOR_TYPE_RGBA, PNG_INTERLACE_NONE,
+		PNG_COMPRESSION_TYPE_BASE, PNG_FILTER_TYPE_BASE);
+
+	png_write_info(png_ptr, info_ptr);
+
+	/* write bytes */
+	if (setjmp(png_jmpbuf(png_ptr))) {
+		std::cerr << "[write_png_file] Error during writing bytes" << std::endl;
+		success = false;
+		goto end;
+	}
+
+	png_write_image(png_ptr, (png_byte**)&rowData.front());
+
+
+	/* end write */
+	if (setjmp(png_jmpbuf(png_ptr))) {
+		std::cerr << "[write_png_file] Error during end of write" << std::endl;
+		success = false;
+		goto end;
+	}
+
+	png_write_end(png_ptr, nullptr);
+	png_destroy_write_struct(&png_ptr, &info_ptr);
+
+end:
+	if(fp)
+		fclose(fp);
+	return success;
+}
+
 
 } // end namespace rt

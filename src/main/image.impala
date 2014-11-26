@@ -26,16 +26,17 @@ fn imageGetRawP(img : Image, p : (int, int)) -> Color
 
 fn getLODOffsetY(img : Image, mut lod : uint) -> uint
 {
-    // TODO: use closed formula
+    // TODO: closed formula?
     let mut y = 0u;
     let mut sh = img.h;
-    while lod > 1u // LOD 0 and 1 start at the top...
+    while lod > 1u // LOD 0 and 1 start at the top, everything after it is successively shifted downwards
     {
-        lod--;
+        --lod;
         sh >>= 1u;
         y += sh;
     }
-    y
+
+    y & 0xFFFFFFFEu // Mask out the last bit, which would otherwise introduce an off-by-one for the last mip level
 }
 
 fn imageGetLOD(img : Image, lod : uint, p : (int, int)) -> Color
@@ -74,9 +75,15 @@ fn imageGetMirroredPixelCoords(img : Image, x : int, y : int) -> (int, int)
 }
 
 
-fn distanceToLOD(d : float) -> float
+fn distanceToLOD(mut d : float) -> float
 {
-    // FIXME: do something less stupid
-    d / 10.0f
+    d = max(1.0f, (d * 0.1f) - 3.0f);
+
+    // from http://fastapprox.googlecode.com/svn/trunk/fastapprox/src/fastonebigheader.h
+    // WARNING: relies on aliasing!
+    // Should use union instead once suported by impala.
+    d = ((*(&d as &int) as float) * 1.1920928955078125e-7f) - 126.94269504f;
+
+    max(d, 0.0f) // In case of 0 input or precision fail
 }
 

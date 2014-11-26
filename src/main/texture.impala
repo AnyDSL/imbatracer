@@ -79,36 +79,39 @@ fn imageTexture(img : Image, filter : u8, border : u8, mipmap : u8) -> Texture
 // Helper for image texture access
 fn texel(img : Image, x : float, y : float, filter : u8, border : u8, mipmap : u8, lod : float) -> Color
 {
-    let getcoords =      if border == BORDER_CLAMP   { imageGetClampedPixelCoords  }
-                    else if border == BORDER_MIRROR  { imageGetMirroredPixelCoords }
-                    else /* border == BORDER_REPEAT*/{ imageGetRepeatedPixelCoords };
+    let getcoords = imageGetClampedPixelCoords;
+    //let getcoords =      if border == BORDER_CLAMP   { imageGetClampedPixelCoords  }
+    //               else if border == BORDER_MIRROR  { imageGetMirroredPixelCoords }
+    //                else /* border == BORDER_REPEAT*/{ imageGetRepeatedPixelCoords };
 
-    /*let getpixel =
-        if mipmap == MIPMAP_FIXED
+    let getpixel = //|img:Image, p:(int,int)| -> Color { imageGetLOD(img, lod as uint, p) };
+        /*if mipmap == MIPMAP_FIXED
         {
             |img:Image, p:(int,int)| -> Color imageGetLOD(img, lod as uint, p)
         }
         else if mipmap == MIPMAP_SMOOTH
-        {
+        {*/
             |img:Image, p:(int,int)| -> Color
             {
                 let ilod = lod as int;
                 let c1 = imageGetLOD(img, ilod as uint, p);
                 let c2 = imageGetLOD(img, (ilod as uint)+1u, p);
                 clerp(c1, c2, fractional(lod))
-            }
-        }
+            };
+        /*}
         else // MIPMAP_NONE
         {
             imageGetRawP
         };
+    */
 
     fn latticeTexel(ix : int, iy : int) -> Color
     {
         getpixel(img, getcoords(img, ix, iy))
+        //imageGetLOD(img, lod as uint, imageGetMirroredPixelCoords(img, ix, iy))
     }
 
-    if filter == FILTER_BILINEAR
+    /*if filter == FILTER_BILINEAR
     {
         let fx = floorf(x);
         let fy = floorf(y);
@@ -117,11 +120,11 @@ fn texel(img : Image, x : float, y : float, filter : u8, border : u8, mipmap : u
         clerp2d(latticeTexel(ix, iy), latticeTexel(ix+1, iy), latticeTexel(ix, iy+1), latticeTexel(ix+1, iy+1), x-fx, y-fy)
     }
     else
-    {
+    {*/
         latticeTexel(iroundf(x), iroundf(y))
-    }*/
+    //}
 
-    imageGetLOD(img, lod as uint, imageGetClampedPixelCoords(img, iroundf(x), iroundf(y)))
+    //imageGetLOD(img, lod as uint, imageGetClampedPixelCoords(img, iroundf(x), iroundf(y)))*/
 }
 
 // -----------------------------------------------

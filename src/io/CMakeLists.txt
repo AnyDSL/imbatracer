@@ -2,14 +2,16 @@
 set(io_SRC
 image.h
 image.cpp
+renderthread.cpp
+renderthread.h
 sdlgui.h
 sdlgui.cpp
-sdlguithread.h
-sdlguithread.cpp
+#sdlguithread.h
+#sdlguithread.cpp
 sdlrenderer.h
 sdlrenderer.cpp
-sdlbuffergui.h
-sdlbuffergui.cpp
+#sdlbuffergui.h
+#sdlbuffergui.cpp
 )
 
 

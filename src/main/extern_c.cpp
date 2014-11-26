@@ -79,4 +79,8 @@ extern "C"
         *h = (unsigned)hs;
         return buf;
     }
+    bool image_saveraw(const char *fn, const unsigned *buf, unsigned w, unsigned h)
+    {
+        return rt::Image::writePNGBuf(fn, buf, w, h);
+    }
 }
