@@ -76,6 +76,10 @@ fn handleKey(gui : &u8, mut state : &State, key : int, down : bool) -> ()
         {
             state.paused = if state.paused == 0 {1} else {0};
         }
+        else if key >= 49 && key <= 57 // 1-9
+        {
+            state.integrator.itype = key - 49;
+        }
         else
         {
             print_sii("Unhandled key: ", key, down as int);

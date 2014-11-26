@@ -77,7 +77,7 @@ fn imageGetMirroredPixelCoords(img : Image, x : int, y : int) -> (int, int)
 
 fn distanceToLOD(mut d : float) -> float
 {
-    d = max(1.0f, (d * 0.1f) - 3.0f);
+    d = max(1.0f, (d * 0.1f) - 3.0f); // some negative LOD bias to keep near textures sharp
 
     // from http://fastapprox.googlecode.com/svn/trunk/fastapprox/src/fastonebigheader.h
     // WARNING: relies on aliasing!
