@@ -75,9 +75,15 @@ fn imageGetMirroredPixelCoords(img : Image, x : int, y : int) -> (int, int)
 }
 
 
-fn distanceToLOD(d : float) -> float
+fn distanceToLOD(mut d : float) -> float
 {
-    // FIXME: do something less stupid
-    d / 10.0f
+    d = max(1.0f, (d * 0.1f) - 3.0f);
+
+    // from http://fastapprox.googlecode.com/svn/trunk/fastapprox/src/fastonebigheader.h
+    // WARNING: relies on aliasing!
+    // Should use union instead once suported by impala.
+    d = ((*(&d as &int) as float) * 1.1920928955078125e-7f) - 126.94269504f;
+
+    max(d, 0.0f) // In case of 0 input or precision fail
 }
 
