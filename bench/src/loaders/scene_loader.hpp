@@ -15,7 +15,7 @@ namespace imba {
 /// Different loaders can be implemented for different file formats.
 class SceneLoader : public Loader<Scene> {
 public:
-    SceneLoader(ImageLoaderManager* manager)
+    SceneLoader(TextureLoaderManager* manager)
         : manager_(manager)
     {}
 
@@ -25,11 +25,11 @@ public:
     virtual bool load_file(const Path& path, Scene& scene, Logger* logger) = 0;
 
 protected:
-    bool load_image(const Path& path, Image& image, Logger* logger) {
+    bool load_texture(const Path& path, Texture& image, Logger* logger) {
         return (manager_) ? manager_->load_file(path, image, logger) : false;
     }
 
-    ImageLoaderManager* manager_;
+    TextureLoaderManager* manager_;
 };
 
 typedef LoaderManager<Scene> SceneLoaderManager;

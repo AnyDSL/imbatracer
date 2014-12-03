@@ -1,5 +1,7 @@
 extern "C" {
     fn debug_abort(&[u8]) -> ();
+    // TODO : remove this when impala supports auto pointers
+    fn thorin_free(&[u8]) -> ();
 }
 
 fn is_debug() -> bool {

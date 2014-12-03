@@ -18,25 +18,25 @@ struct Mat4 {
 
 fn mat2(a: Vec2, b: Vec2) -> Mat2 {
     Mat2 {
-        c0: a,
-        c1: b
+        c0 : a,
+        c1 : b
     }
 }
 
 fn mat3(a: Vec3, b: Vec3, c: Vec3) -> Mat3 {
     Mat3 {
-        c0: a,
-        c1: b,
-        c2: c
+        c0 : a,
+        c1 : b,
+        c2 : c
     }
 }
 
 fn mat4(a: Vec4, b: Vec4, c: Vec4, d: Vec4) -> Mat4 {
     Mat4 {
-        c0: a,
-        c1: b,
-        c2: c,
-        c3: d
+        c0 : a,
+        c1 : b,
+        c2 : c,
+        c3 : d
     }
 }
 
@@ -104,6 +104,15 @@ fn mat4_mul_vec4(m: Mat4, v: Vec4) -> Vec4 {
     let r3 = mat4_row(m, 3);
 
     vec4(vec4_dot(r0, v), vec4_dot(r1, v), vec4_dot(r2, v), vec4_dot(r3, v))
+}
+
+fn mat4_mul_vec3(m: Mat4, v: Vec3) -> Vec3 {
+    let r0 = vec3_from_vec4(mat4_row(m, 0));
+    let r1 = vec3_from_vec4(mat4_row(m, 1));
+    let r2 = vec3_from_vec4(mat4_row(m, 2));
+    let c3 = vec3_from_vec4(m.c3);
+
+    vec3_add(vec3(vec3_dot(r0, v), vec3_dot(r1, v), vec3_dot(r2, v)), c3)
 }
 
 fn vec2_mul_mat2(v: Vec2, m: Mat2) -> Vec2 {

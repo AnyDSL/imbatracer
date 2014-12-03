@@ -1,0 +1,29 @@
+// TODO : introduce a polymorphic image type
+struct TexturePixel {
+    r: u8,
+    g: u8,
+    b: u8,
+    a: u8
+}
+
+struct Texture {
+    width: int,
+    height: int,
+    stride: int,
+    pixels: &[TexturePixel]
+}
+
+struct GBufferPixel {
+    t: float,
+    u: float,
+    v: float,
+    mat_id: int
+}
+
+struct GBuffer {
+    width: int,
+    height: int,
+    stride: int,
+    buffer: &[GBufferPixel]
+}
+

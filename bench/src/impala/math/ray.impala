@@ -10,15 +10,15 @@ struct RayInv {
 
 fn ray(dir: Vec3, org: Vec3) -> Ray {
     Ray {
-        dir: dir,
-        org: org
+        dir : dir,
+        org : org
     }
 }
 
 fn ray_inv(inv_dir: Vec3, org: Vec3) -> RayInv {
     RayInv {
-        inv_dir: inv_dir,
-        org: org
+        inv_dir : inv_dir,
+        org : org
     }
 }
 

@@ -5,6 +5,7 @@
 
 namespace imba {
 
+/// Path represented as a directory and file name.
 class Path {
 public:
     Path(const std::string& path)

@@ -142,9 +142,28 @@ fn build_bvh_node(mut nodes: &[BvhNode],
         })
 }
 
-fn build_bvh(boxes: &[Box],
-             centers: &[Vec3],
+fn build_bvh(boxes: fn (int) -> Box,
+             centers: fn (int) -> Vec3,
              prim_count: int) -> Bvh {
+    // TODO : do not allocate intermediate arrays when impala is able to compile this.
+    let mut boxes2 = ~[prim_count: Box];
+    let mut centers2 = ~[prim_count: Vec3];
+    for i in range(0, prim_count) @{
+        boxes2(i) = boxes(i);
+        centers2(i) = centers(i);
+    }
+
+    let bvh2 = build_bvh2(boxes2, centers2, prim_count);
+
+    thorin_free(boxes2 as &[u8]);
+    thorin_free(centers2 as &[u8]);
+    
+    bvh2
+}
+
+fn build_bvh2(boxes: &[Box],
+              centers: &[Vec3],
+              prim_count: int) -> Bvh {
     // Allocate & initialize the primitive permutation array
     let mut prim_ids = ~[prim_count: int];
     for i in range(0, prim_count) {
@@ -255,7 +274,7 @@ fn build_bvh(boxes: &[Box],
     }  
 
     // A stack of 32 elements is enough since we limit the depth to log2(prim_count)
-    let mut stack : [(int, int, int, int) * 32];
+    let mut stack: [(int, int, int, int) * 32];
     let mut node_count = 1;
     let mut stack_idx = 0;
 
@@ -278,6 +297,25 @@ fn build_bvh(boxes: &[Box],
     }
 
     bvh(nodes, node_count, prim_ids)
+}
+
+fn refit_bvh(mut bvh: &Bvh, boxes: fn (int) -> Box) -> () @{
+    /*let mut stack: [int * 32];
+    let mut stack_idx = 1;
+
+    fn push_node(node: int) -> () @{
+        stack(stack_idx) = node;
+        stack_idx += 1;
+    }
+
+    fn pop_node() -> int @{
+        stack_idx -= 1;
+        stack(stack_idx)
+    }
+
+    while stack_idx > 0 {
+        
+    }*/
 }
 
 fn traverse_bvh(bvh: Bvh, at_leaf: fn (Box, int, i16) -> (), at_node: fn (Box, i16, fn (int) -> ()) -> ()) -> () @{

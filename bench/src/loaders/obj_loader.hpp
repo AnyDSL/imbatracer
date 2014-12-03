@@ -8,7 +8,7 @@ namespace imba {
 /// Fast, robust OBJ file parser. Supports relative vertex indices.
 class ObjLoader : public SceneLoader {
 public:
-    ObjLoader(ImageLoaderManager* manager = nullptr)
+    ObjLoader(TextureLoaderManager* manager = nullptr)
         : SceneLoader(manager)
     {}
 

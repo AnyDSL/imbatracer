@@ -132,7 +132,7 @@ struct OptionImpl<bool> : public Option {
     bool default_value;
 };
 
-/// Command line argument parser with useful functions to display the program usage.
+/// Command line argument parser with ability to display the program usage.
 class ArgParser {
 public:
     ArgParser(int argc, char** argv)

@@ -5,8 +5,8 @@ struct Box {
 
 fn box(min: Vec3, max: Vec3) -> Box {
     Box {
-        min: min,
-        max: max
+        min : min,
+        max : max
     }
 }
 
@@ -27,9 +27,25 @@ fn box_extents(box: Box) -> Vec3 {
     vec3_sub(box.max, box.min)
 }
 
+fn box_center(box: Box) -> Vec3 {
+    vec3_map(vec3_add(box.min, box.max), |x| x * 0.5f)
+}
+
 fn box_half_area(box: Box) -> float {
     let e = box_extents(box);
     let a = e.values(0) * (e.values(1) + e.values(2)) + e.values(1) * e.values(2);
     if a > 0.0f {a} else {0.0f}
 }
 
+fn transform_box(b: Box, mat: Mat4) -> Box {
+    let h = vec3_map(box_extents(b), |x| x * 0.5f);
+    let c = box_center(b);
+    
+    let th = mat4_mul_vec3(mat, h);
+    let tc = mat4_mul_vec3(mat, c);
+
+    let nmin = vec3_sub(tc, th);
+    let nmax = vec3_add(tc, th);
+
+    box(vec3_min(nmin, nmax), vec3_max(nmin, nmax))
+}

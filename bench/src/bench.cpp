@@ -83,7 +83,7 @@ int main(int argc, char** argv) {
     }
 
     for (int i = 0; i < scene.triangle_mesh_count(); i++) {
-        const imba::TriangleMesh* mesh = scene.triangle_meshes()[i];
+        const imba::TriangleMesh* mesh = scene.triangle_mesh(imba::TriangleMeshId(i));
         benches.push_back(new bench::BenchBvhBuildImpala(mesh));
         benches.push_back(new bench::BenchBvh4BuildEmbree(mesh));
 
