@@ -1,6 +1,5 @@
 #include "sdlgui.h"
 #include "sdlrenderer.h"
-//#include "sdlguithread.h"
 #include <io/image.h>
 
 #include <core/assert.h>
@@ -13,7 +12,7 @@ namespace rt {
 
 
 SDLGui::SDLGui(unsigned width, unsigned height)
-    : windowW(width), windowH(height), realWindowW(width), realWindowH(height), pixelScale(1.0f), mouseGrabbed(false), //th(nullptr),
+    : windowW(width), windowH(height), realWindowW(width), realWindowH(height), pixelScale(1.0f), mouseGrabbed(false),
       _window(nullptr), _glctx(nullptr), _disp(nullptr), _lastW(width), _lastH(height),
       lastUpdateTime(0), _wantQuit(false)
 {
@@ -21,15 +20,10 @@ SDLGui::SDLGui(unsigned width, unsigned height)
 
 SDLGui::~SDLGui()
 {
-    //delete th;
 }
 
 bool SDLGui::Init()
 {
-    //assert(th == nullptr, "Thread already set?");
-    //th = new SDLGuiThread(this);
-    //th->launch();
-
     if (SDL_InitSubSystem(SDL_INIT_VIDEO | SDL_INIT_EVENTS) < 0)
     {
         std::cerr << "SDL_InitSubSystem Error: " << SDL_GetError() << std::endl;
@@ -109,9 +103,7 @@ void SDLGui::shutdown()
 
 void SDLGui::render(Image *img)
 {
-    if(img)
-        _disp->uploadImage(img);
-
+    _disp->uploadImage(img);
     _disp->BeginFrame();
     _disp->render();
     _disp->EndFrame();
@@ -128,8 +120,6 @@ void SDLGui::resize(unsigned w, unsigned h)
     SDL_SetWindowSize(_window, w, h);
     SDL_SetWindowPosition(_window, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED);
 
-
-    //std::lock_guard<std::mutex> lock(stateMutex);
     _lastW = w;
     _lastH = h;
 }
@@ -153,13 +143,11 @@ void SDLGui::SetWindowTitle(const std::string &title)
 
 bool SDLGui::WaitingForQuit()
 {
-    //return th->waitingForQuit();
-    return _wantQuit;
+    return !!_wantQuit;
 }
 
 void SDLGui::WaitForQuit()
 {
-    //th->waitForQuit();
 }
 
 void SDLGui::_UpdateTick()
@@ -205,7 +193,6 @@ bool SDLGui::_OnKey(int /*scancode*/, int key, int /*mod*/, bool state)
         }
     }
 
-    //std::lock_guard<std::mutex> g(eventLock);
     eventQ.push_back(EventHolder::Key(!!state, key));
 
     return false;
@@ -222,26 +209,21 @@ void SDLGui::_OnWindowResize(int w, int h, int realw, int realh)
 
 void SDLGui::_OnMouseButton(int button, int state, int /*x*/, int /*y*/)
 {
-    //std::lock_guard<std::mutex> g(eventLock);
     eventQ.emplace_back(EventHolder::MouseButton(!!state, button));
 }
 
 void SDLGui::_OnMouseMotion(int xrel, int yrel)
 {
-    //std::lock_guard<std::mutex> g(eventLock);
     eventQ.emplace_back(EventHolder::MouseMove((float)xrel / int(realWindowW), (float)yrel / int(realWindowH)));
 }
 
 void SDLGui::_OnMouseWheel(int x, int y)
 {
-    //std::lock_guard<std::mutex> g(eventLock);
     eventQ.emplace_back(EventHolder::MouseWheel(x, y));
 }
 
 void SDLGui::_DispatchEvents()
 {
-    //std::lock_guard<std::mutex> g(eventLock);
-
     if(size_t sz = eventQ.size())
     {
         _DispatchEvents(&eventQ[0], sz);

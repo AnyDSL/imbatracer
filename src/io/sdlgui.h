@@ -11,7 +11,6 @@
 
 namespace rt {
 
-//class SDLGuiThread;
 class Image;
 class SDLRenderer;
 
@@ -26,7 +25,6 @@ public:
     bool WaitingForQuit(); // do we want to quit?
     void WaitForQuit(); // do the quitting
 
-    // only call these functions from the GUI Thread!
     SDL_Window *GetWindow();
     void SetWindowTitle(const std::string &title);
 
@@ -84,7 +82,6 @@ protected:
 
     CountedPtr<Image> renderOneImage();
 
-    // write only by GUI thread!
     std::atomic_uint windowW, windowH, realWindowW, realWindowH;
     float pixelScale;
     bool mouseGrabbed;
@@ -98,14 +95,8 @@ private:
     unsigned _lastW, _lastH;
     Uint32 lastUpdateTime;
 
-    bool _wantQuit;
+    std::atomic_uint _wantQuit;
 
-    //SDLGuiThread *th;
-
-    //friend class SDLGuiThread; // it must trigger above events
-
-    // set by gui thread, r/w access protected by eventLock
-    //std::mutex eventLock;
     std::vector<EventHolder> eventQ; // queues events until passed to impala
 };
 

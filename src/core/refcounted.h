@@ -21,11 +21,11 @@ public:
 
     FORCE_INLINE void incref()
     {
-        _refcount.fetch_add(1);
+        ++_refcount;
     }
     FORCE_INLINE void decref()
     {
-        if (_refcount.fetch_sub(1) == 1) {
+        if (--_refcount == 1) {
             // if the refcount was 1, so it is now zero, it will stay zero forever as nobody has a reference anymore
             delete this;
         }
