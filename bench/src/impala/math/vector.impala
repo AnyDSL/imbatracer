@@ -88,6 +88,10 @@ fn vec4_from_vec3(v: Vec3, w: float) -> Vec4 {
     vec4(v.values(0), v.values(1), v.values(2), w)
 }
 
+fn vec3_from_vec4(v: Vec4) -> Vec3 {
+    vec3(v.values(0), v.values(1), v.values(2))
+}
+
 fn vec4_add(v1: Vec4, v2: Vec4) -> Vec4 { vec4_zip(v1, v2, |x, y| x + y) }
 fn vec4_sub(v1: Vec4, v2: Vec4) -> Vec4 { vec4_zip(v1, v2, |x, y| x - y) }
 fn vec4_mul(v1: Vec4, v2: Vec4) -> Vec4 { vec4_zip(v1, v2, |x, y| x * y) }

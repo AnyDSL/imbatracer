@@ -38,6 +38,7 @@ add_dependencies(bench impala-interface)
 add_executable(imbatracer
                ${IMPALA_OBJS}
                main.cpp
+               scene/scene.cpp
                loaders/png_loader.cpp
                loaders/obj_loader.cpp)
 

@@ -1,0 +1,42 @@
+struct Mesh {
+    vertices:  &[Vec3],
+    normals:   &[Vec3],
+    texcoords: &[Vec2],
+    materials: &[int],
+    indices:   &[int],
+    num_tris:  int
+}
+
+struct MeshInstance {
+    mesh_id: int,
+    inv_mat: Mat4,
+    mat:     Mat4
+}
+
+fn build_mesh_bvh(mesh: &Mesh) -> Bvh @{
+    // Build the bounding boxes and centers
+    let mut centers = ~[mesh.num_tris: Vec3];
+    let mut boxes = ~[mesh.num_tris: Box];
+
+    for i in range(0, mesh.num_tris) @{
+        let v0 = mesh.vertices(mesh.indices(i * 3 + 0));
+        let v1 = mesh.vertices(mesh.indices(i * 3 + 1));
+        let v2 = mesh.vertices(mesh.indices(i * 3 + 2));
+
+        centers(i) = vec3_map(vec3_add(v0, vec3_add(v1, v2)), |x| x * (1.0f / 3.0f));
+        boxes(i).min = vec3_min(v0, vec3_min(v1, v2));
+        boxes(i).max = vec3_max(v0, vec3_max(v1, v2));
+    }
+
+    // Build the BVH
+    // TODO : Change this when impala compiles withoiut hanging
+    let bvh = build_bvh2(boxes, centers, mesh.num_tris);
+    // let bvh = build_bvh(|i| boxes(i), |i| centers(i), mesh.num_tris);
+    
+    // TODO: remove this when impala supports auto pointers
+    thorin_free(boxes as &[u8]);
+    thorin_free(centers as &[u8]);
+
+    bvh
+}
+

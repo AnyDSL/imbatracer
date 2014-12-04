@@ -16,3 +16,4 @@ fn ever(yield: fn () -> ()) -> () {
     yield();
     ever(yield, return)
 }
+

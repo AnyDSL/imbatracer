@@ -6,9 +6,9 @@ struct Tri {
 
 fn tri(v0: Vec3, v1: Vec3, v2: Vec3) -> Tri {
     Tri {
-        v0: v0,
-        v1: v1,
-        v2: v2
+        v0 : v0,
+        v1 : v1,
+        v2 : v2
     }
 }
 

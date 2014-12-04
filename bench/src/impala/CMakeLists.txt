@@ -6,7 +6,6 @@ set(IMPALA_SRCS
     bench/bench_ray_bvh.impala
     intersection/ray_triangle.impala
     intersection/ray_box.impala
-    #intersection/ray_bvh.impala
     math/ray.impala
     math/box.impala
     math/matrix.impala
@@ -15,5 +14,9 @@ set(IMPALA_SRCS
     math/limits.impala
     accel/bvh.impala
     common/range.impala
-    common/debug.impala)
+    common/debug.impala
+    scene/image.impala
+    scene/scene.impala
+    scene/mesh.impala
+    scene/render.impala)
 

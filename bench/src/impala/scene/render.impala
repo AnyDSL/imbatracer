@@ -1,0 +1,7 @@
+extern fn render_gbuffer(scene: &Scene, gbuffer: &GBuffer) -> () {
+    
+}
+
+extern fn apply_shading(scene: &Scene, textures: &[Texture]) -> () {
+
+}

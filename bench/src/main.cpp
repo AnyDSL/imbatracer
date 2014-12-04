@@ -33,11 +33,11 @@ int main(int argc, char** argv) {
         return EXIT_SUCCESS;
     }
     
-    imba::ImageLoaderManager image_loaders;
-    image_loaders.add_loader(new imba::PngLoader());
+    imba::TextureLoaderManager texture_loaders;
+    texture_loaders.add_loader(new imba::PngLoader());
 
     imba::SceneLoaderManager scene_loaders;
-    scene_loaders.add_loader(new imba::ObjLoader(&image_loaders));
+    scene_loaders.add_loader(new imba::ObjLoader(&texture_loaders));
 
     imba::Scene scene;
     imba::Logger logger;
@@ -48,10 +48,10 @@ int main(int argc, char** argv) {
             return EXIT_FAILURE;
         }
     }
-    
-    /*imba::Image image(image_width, image_height);
-    imba::Renderer renderer(scene, image);
-    renderer.run();*/
+
+    imba::GBuffer gbuffer(image_width, image_height);
+    /*imba::Renderer renderer;
+    renderer.render_gbuffer(scene, gbuffer);*/
 
     return EXIT_SUCCESS;
 }
