@@ -6,12 +6,17 @@ set(IMPALA_SRCS
     bench/bench_ray_bvh.impala
     intersection/ray_triangle.impala
     intersection/ray_box.impala
+    intersection/packet_box.impala
+    intersection/packet_tri.impala
+    intersection/frustum_box.impala
     math/ray.impala
     math/box.impala
     math/matrix.impala
     math/vector.impala
     math/triangle.impala
     math/limits.impala
+    math/packet.impala
+    math/frustum.impala
     accel/bvh.impala
     common/range.impala
     common/debug.impala

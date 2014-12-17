@@ -29,9 +29,7 @@ fn build_mesh_bvh(mesh: &Mesh) -> Bvh @{
     }
 
     // Build the BVH
-    // TODO : Change this when impala compiles withoiut hanging
-    let bvh = build_bvh2(boxes, centers, mesh.num_tris);
-    // let bvh = build_bvh(|i| boxes(i), |i| centers(i), mesh.num_tris);
+    let bvh = build_bvh(|i| boxes(i), |i| centers(i), mesh.num_tris);
     
     // TODO: remove this when impala supports auto pointers
     thorin_free(boxes as &[u8]);

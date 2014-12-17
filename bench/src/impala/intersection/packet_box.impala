@@ -1,0 +1,16 @@
+fn intersect_packet_box(p: Packet, h: Hit, b: Box, intr: fn () -> ()) -> () @{
+    // Test with packet frustum
+    intersect_frustum_box(p.frustum, b, || @{
+        // Individual ray test
+        // TODO : Test vectorizer here
+        for i in range(0, packet_size(p)) @{
+            intersect_ray_box(packet_ray_inv(p, i), b, |t0, t1| {
+                if t1 > 0.0f && t0 < hit_tmin(h, i) @{
+                    intr();
+                    return()
+                }
+            })
+        }
+    })
+}
+

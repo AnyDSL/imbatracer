@@ -12,6 +12,20 @@ fn urange(a: uint, b: uint, yield: fn(uint) -> ()) -> () {
     }
 }
 
+fn range_step(a: int, b: int, c: int, yield: fn(int) -> ()) -> () {
+    if a < b {
+        yield(a);
+        range_step(a + c, b, c, yield, return)
+    }
+}
+
+fn urange_step(a: uint, b: uint, c: uint, yield: fn(uint) -> ()) -> () {
+    if a < b {
+        yield(a);
+        urange_step(a + c, b, c, yield, return)
+    }
+}
+
 fn ever(yield: fn () -> ()) -> () {
     yield();
     ever(yield, return)

@@ -145,25 +145,6 @@ fn build_bvh_node(mut nodes: &[BvhNode],
 fn build_bvh(boxes: fn (int) -> Box,
              centers: fn (int) -> Vec3,
              prim_count: int) -> Bvh {
-    // TODO : do not allocate intermediate arrays when impala is able to compile this.
-    let mut boxes2 = ~[prim_count: Box];
-    let mut centers2 = ~[prim_count: Vec3];
-    for i in range(0, prim_count) @{
-        boxes2(i) = boxes(i);
-        centers2(i) = centers(i);
-    }
-
-    let bvh2 = build_bvh2(boxes2, centers2, prim_count);
-
-    thorin_free(boxes2 as &[u8]);
-    thorin_free(centers2 as &[u8]);
-    
-    bvh2
-}
-
-fn build_bvh2(boxes: &[Box],
-              centers: &[Vec3],
-              prim_count: int) -> Bvh {
     // Allocate & initialize the primitive permutation array
     let mut prim_ids = ~[prim_count: int];
     for i in range(0, prim_count) {
@@ -319,6 +300,7 @@ fn refit_bvh(mut bvh: &Bvh, boxes: fn (int) -> Box) -> () @{
 }
 
 fn traverse_bvh(bvh: Bvh, at_leaf: fn (Box, int, i16) -> (), at_node: fn (Box, i16, fn (int) -> ()) -> ()) -> () @{
+    // TODO : add custom user-state to the stack (like active ray id, ...)
     let mut stack: [int * 32];
     let mut stack_idx = 1;
 
@@ -369,7 +351,7 @@ fn traverse_bvh(bvh: Bvh, at_leaf: fn (Box, int, i16) -> (), at_node: fn (Box, i
     $traverse(return)
 
     /* TODO : test this code after the merge with new_master
-
+    stack(0) = 0;
     while stack_idx > 0 @{
         assert(|| { stack_idx < 32 }, "traverse_bvh : stack too small to traverse bvh");
 

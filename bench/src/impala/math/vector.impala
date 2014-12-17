@@ -27,6 +27,11 @@ fn vec2_fold(v: Vec2, f: fn (float, float) -> float) -> float {
     f(v.values(1), v.values(0))
 }
 
+fn vec2_select(v1: Vec2, v2: Vec2, f: fn (int) -> bool) -> Vec2 {
+    vec2(if f(0) { v1.values(0) } else { v2.values(0) },
+         if f(1) { v1.values(1) } else { v2.values(1) })
+}
+
 fn vec2_add(v1: Vec2, v2: Vec2) -> Vec2 { vec2_zip(v1, v2, |x, y| x + y) }
 fn vec2_sub(v1: Vec2, v2: Vec2) -> Vec2 { vec2_zip(v1, v2, |x, y| x - y) }
 fn vec2_mul(v1: Vec2, v2: Vec2) -> Vec2 { vec2_zip(v1, v2, |x, y| x * y) }
@@ -56,6 +61,12 @@ fn vec3_cross(v1: Vec3, v2: Vec3) -> Vec3 {
     vec3(v1.values(1) * v2.values(2) - v1.values(2) * v2.values(1),
          v1.values(2) * v2.values(0) - v1.values(0) * v2.values(2),
          v1.values(0) * v2.values(1) - v1.values(1) * v2.values(0))
+}
+
+fn vec3_select(v1: Vec3, v2: Vec3, f: fn (int) -> bool) -> Vec3 {
+    vec3(if f(0) { v1.values(0) } else { v2.values(0) },
+         if f(1) { v1.values(1) } else { v2.values(1) },
+         if f(2) { v1.values(2) } else { v2.values(2) })
 }
 
 fn vec3_add(v1: Vec3, v2: Vec3) -> Vec3 { vec3_zip(v1, v2, |x, y| x + y) }
@@ -90,6 +101,13 @@ fn vec4_from_vec3(v: Vec3, w: float) -> Vec4 {
 
 fn vec3_from_vec4(v: Vec4) -> Vec3 {
     vec3(v.values(0), v.values(1), v.values(2))
+}
+
+fn vec4_select(v1: Vec4, v2: Vec4, f: fn (int) -> bool) -> Vec4 {
+    vec4(if f(0) { v1.values(0) } else { v2.values(0) },
+         if f(1) { v1.values(1) } else { v2.values(1) },
+         if f(2) { v1.values(2) } else { v2.values(2) },
+         if f(3) { v1.values(3) } else { v2.values(3) })
 }
 
 fn vec4_add(v1: Vec4, v2: Vec4) -> Vec4 { vec4_zip(v1, v2, |x, y| x + y) }

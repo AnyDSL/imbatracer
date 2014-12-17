@@ -1,0 +1,78 @@
+// TODO : Transform this struct into traits (when polymorphism works), 
+// so that we can have different packet sizes (even a packet of size 1)
+struct Packet {
+    org_x : [float * 4],
+    org_y : [float * 4],
+    org_z : [float * 4],
+
+    dir_x : [float * 4],
+    dir_y : [float * 4],
+    dir_z : [float * 4],
+
+    inv_x : [float * 4],
+    inv_y : [float * 4],
+    inv_z : [float * 4],
+
+    frustum : Frustum,
+
+    sign : [int * 3]
+}
+
+struct Hit {
+    t : [float * 4],
+    u : [float * 4],
+    v : [float * 4],
+    obj_id : [int * 4],
+    tri_id : [int * 4]
+}
+
+fn packet_size(p: Packet) -> int {
+    4
+}
+
+fn packet_org(p: Packet, i: int) -> Vec3 {
+    vec3(p.org_x(i), p.org_y(i), p.org_z(i))
+}
+
+fn packet_dir(p: Packet, i: int) -> Vec3 {
+    vec3(p.dir_x(i), p.dir_y(i), p.dir_z(i))
+}
+
+fn packet_inv(p: Packet, i: int) -> Vec3 {
+    vec3(p.inv_x(i), p.inv_y(i), p.inv_z(i))
+}
+
+fn packet_ray(p: Packet, i: int) -> Ray {
+    ray(packet_dir(p, i), packet_org(p, i))
+}
+
+fn packet_ray_inv(p: Packet, i: int) -> RayInv {
+    ray_inv(packet_inv(p, i), packet_org(p, i))
+}
+
+fn packet_sign(p: Packet, i: int) -> int {
+    p.sign(i)
+}
+
+fn hit_tmin(h: Hit, i: int) -> float {
+    h.t(i)
+}
+
+fn record_hit(mut h: &Hit, i: int, t: float, u: float, v: float, mesh_id: int, tri_id: int) -> () {
+    h.u(i) = u;
+    h.v(i) = v;
+    h.t(i) = t;
+    h.obj_id(i) = mesh_id;
+    h.tri_id(i) = tri_id
+}
+
+fn empty_hit() -> Hit{
+    Hit {
+        t : [flt_max, ..4],
+        u : [flt_max, ..4],
+        v : [flt_max, ..4],
+        obj_id : [-1, ..4],
+        tri_id : [-1, ..4]
+    }
+}
+

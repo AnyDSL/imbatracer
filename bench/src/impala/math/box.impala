@@ -49,3 +49,4 @@ fn transform_box(b: Box, mat: Mat4) -> Box {
 
     box(vec3_min(nmin, nmax), vec3_max(nmin, nmax))
 }
+

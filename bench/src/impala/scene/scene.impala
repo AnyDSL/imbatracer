@@ -15,8 +15,8 @@ struct CompiledScene {
     scene_bvh: Bvh,
 }
 
-extern fn compile_scene(mut scene: &Scene, mut cscene: &CompiledScene) -> () @{
-    /*// Build a BVH for each mesh
+extern fn compile_scene(mut scene: &Scene) -> ~CompiledScene {
+    // Build a BVH for each mesh
     let mut mesh_bvhs = ~[scene.num_meshes: Bvh];    
     for i in range(0, scene.num_meshes) @{
         mesh_bvhs(i) = build_mesh_bvh(&scene.meshes(i));
@@ -27,16 +27,19 @@ extern fn compile_scene(mut scene: &Scene, mut cscene: &CompiledScene) -> () @{
                               |i| box_center(mesh_bvhs(i).nodes(0).bounds),
                               scene.num_meshes);
 
-    cscene.mesh_bvhs = mesh_bvhs;
-    cscene.scene_bvh = outer_bvh;*/
+    ~CompiledScene {
+        mesh_bvhs : mesh_bvhs,
+        scene_bvh : outer_bvh
+    }
 }
-/*
-extern fn update_scene(scene: &Scene, mut cscene: &CompiledScene) -> () {
+
+extern fn update_scene(scene: &Scene, mut comp: &CompiledScene) -> () {
     // TODO : Check that the number of textures & meshes has not changed
 
-    // Refit the BVH of each mesh (could be done in parallel)
+    // Refit the BVH of each mesh
+    // TODO : Do this in parallel
     for i in range(0, scene.num_meshes) @{
-        refit_bvh(&cscene.mesh_bvhs(i), |j| @{
+        refit_bvh(&comp.mesh_bvhs(i), |j| @{
             let v0 = scene.meshes(i).vertices(scene.meshes(i).indices(j * 3 + 0));
             let v1 = scene.meshes(i).vertices(scene.meshes(i).indices(j * 3 + 1));
             let v2 = scene.meshes(i).vertices(scene.meshes(i).indices(j * 3 + 2));
@@ -47,12 +50,56 @@ extern fn update_scene(scene: &Scene, mut cscene: &CompiledScene) -> () {
     }
 
     // TODO: remove this when impala supports auto pointers
-    thorin_free(cscene.scene_bvh.nodes as &[u8]);
-    thorin_free(cscene.scene_bvh.prim_ids as &[u8]);
+    thorin_free(comp.scene_bvh.nodes as &[u8]);
+    thorin_free(comp.scene_bvh.prim_ids as &[u8]);
 
     // Rebuild the outer BVH
-    cscene.scene_bvh = build_bvh(|i| cscene.mesh_bvhs(i).nodes(0).bounds,
-                                 |i| box_center(cscene.mesh_bvhs(i).nodes(0).bounds),
-                                 scene.num_meshes);
-}*/
+    // TODO : reuse memory whenever possible
+    comp.scene_bvh = build_bvh(|i| comp.mesh_bvhs(i).nodes(0).bounds,
+                               |i| box_center(comp.mesh_bvhs(i).nodes(0).bounds),
+                               scene.num_meshes);
+}
+
+fn closest_hit_mesh(mesh: &Mesh, mesh_bvh: &Bvh, mesh_id: int, p: Packet, mut hit: &Hit) -> () {
+    // TODO : ranged traversal + active ray test (for single ray case : std traversal)
+    fn mesh_leaf(box: Box, first: int, count: i16) -> () @{
+        intersect_packet_box(p, *hit, box, || {
+            for i in range(first, first + count as int) {
+               let t = tri(mesh.vertices(mesh.indices(i * 3 + 0)),
+                           mesh.vertices(mesh.indices(i * 3 + 1)),
+                           mesh.vertices(mesh.indices(i * 3 + 2)));
+               *hit = intersect_packet_tri(p, *hit, t, mesh_id, i);
+            }
+        })
+    }
+
+    fn mesh_node(box: Box, axis: i16, push: fn (int) -> ()) -> () @{
+        intersect_packet_box(p, *hit, box, || @{
+            push(if packet_sign(p, axis as int) > 0 {0} else {1})
+        })
+    }
+
+    traverse_bvh(*mesh_bvh, mesh_leaf, mesh_node)
+}
+
+fn closest_hit(mut scene: &Scene, mut comp: &CompiledScene, p: Packet) -> Hit {
+    let mut hit = empty_hit();
+
+    fn scene_leaf(box: Box, first: int, count: i16) -> () @{
+        for i in range(first, first + count as int) @{
+            closest_hit_mesh(&scene.meshes(i), &comp.mesh_bvhs(i), i, p, &hit)
+        }
+    }
+
+    fn scene_node(box: Box, axis: i16, push: fn (int) -> ()) -> () @{
+        intersect_packet_box(p, hit, box, || @{
+            push(if packet_sign(p, axis as int) > 0 {0} else {1})
+        })
+    }
+
+    // Intersect the scene BVH and then each relevant mesh BVH
+    traverse_bvh(comp.scene_bvh, scene_leaf, scene_node);
+
+    hit
+}
 
