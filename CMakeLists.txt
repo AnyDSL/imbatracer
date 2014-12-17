@@ -1,6 +1,5 @@
+PROJECT(IMBATRACER)
 CMAKE_MINIMUM_REQUIRED(VERSION 2.8.5 FATAL_ERROR)
-
-PROJECT ( ImbaTracer CXX )
 
 include(FindPkgConfig)
 
@@ -22,16 +21,17 @@ message(STATUS "pkgconfig search path: $ENV{PKG_CONFIG_PATH}")
 pkg_check_modules(SDL2 sdl2 REQUIRED)
 include_directories(${SDL2_INCLUDE_DIRS})
 link_directories(${SDL2_LIBRARY_DIRS})
-# PNG
+
+# libpng
 find_package(PNG REQUIRED)
 include_directories(${PNG_INCLUDE_DIRS})
 link_directories(${PNG_LIBRARY_DIRS})
 
+# pthreads
+find_package(Threads REQUIRED)
+
 # compiler options
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -Wall -Wextra")
-if(UNIX AND NOT APPLE)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pthread")
-endif()
 set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,-z,defs")
 
 # thorin stuff
@@ -51,5 +51,4 @@ endif()
 
 
 add_subdirectory(src)
-
 
