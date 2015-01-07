@@ -1,15 +1,15 @@
 fn intersect_ray_box(ray_inv: RayInv,
                      box: Box,
                      intr: fn (float, float) -> ()) -> () @{
-    fn intersection_time(v: Vec3, r: RayInv, i: int) -> float {
+    fn intersection_time(v: Vec3, r: RayInv, i: int) -> float @{
         (v.values(i) - r.org.values(i)) * r.inv_dir.values(i)
     }
 
-    fn min(a: float, b: float)-> float {
+    fn min(a: float, b: float)-> float @{
         if a < b { a } else { b }
     }
 
-    fn max(a: float, b: float)-> float {
+    fn max(a: float, b: float)-> float @{
         if a > b { a } else { b }
     }
 

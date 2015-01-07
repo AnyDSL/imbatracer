@@ -12,8 +12,16 @@ namespace imba {
 
 template <typename T>
 struct SceneObjectId {
-    SceneObjectId(int i) : id_(i) {}
-    int id_;
+    struct Hash {
+        size_t operator() (const SceneObjectId& i) const { return i.id; }
+    };
+
+    SceneObjectId();
+    SceneObjectId(int i) : id(i) {}
+
+    bool operator == (const SceneObjectId& i) const { return id == i.id; }
+
+    int id;
 };
 
 typedef SceneObjectId<TriangleMesh> TriangleMeshId;
@@ -23,38 +31,66 @@ typedef SceneObjectId<Material>     MaterialId;
 /// Scene represented as a collection of renderable objects, which can be
 /// triangle mesh instances, CSG primitives, and so on.
 class Scene {
+    friend class Render;
 public:
-    ~Scene() {
-        for (auto mesh : meshes_) { delete mesh; }
-        for (auto tex : textures_) { delete tex; }
-    }
+    Scene() : dirty_(true) {}
+
+    ~Scene();
 
     TriangleMeshId add_triangle_mesh(TriangleMesh* mesh) {
         meshes_.push_back(mesh);
-        return TriangleMeshId(meshes_.size() - 1);
+
+        TriangleMeshId id(meshes_.size() - 1);
+        sync_.dirty_meshes.insert(id);
+        dirty_ = true;
+        return id;
     }
 
     TextureId add_texture(Texture* texture) {
         textures_.push_back(texture);
-        return TextureId(textures_.size() - 1);
+
+        TextureId id(textures_.size() - 1);
+        sync_.dirty_textures.insert(id);
+        dirty_ = true;
+        return id;
     }
 
     int triangle_mesh_count() const { return meshes_.size(); }
     int texture_count() const { return textures_.size(); }
 
-    const TriangleMesh* triangle_mesh(TriangleMeshId id) const { return meshes_[id.id_]; }
-    TriangleMesh* triangle_mesh(TriangleMeshId id) { return meshes_[id.id_]; }
+    const TriangleMesh* triangle_mesh(TriangleMeshId id) const { return meshes_[id.id]; }
+    TriangleMesh* triangle_mesh(TriangleMeshId id) {
+        sync_.dirty_meshes.insert(id);
+        dirty_ = true;
+        return meshes_[id.id];
+    }
 
-    const Texture* texture(TextureId id) const { return textures_[id.id_]; }
-    Texture* texture(TextureId id) { return textures_[id.id_]; }
+    const Texture* texture(TextureId id) const { return textures_[id.id]; }
+    Texture* texture(TextureId id) {
+        sync_.dirty_textures.insert(id);
+        dirty_ = true;
+        return textures_[id.id];
+    }
 
 private:
+    void synchronize();
+
     std::vector<TriangleMesh*> meshes_;
     std::vector<Texture*>      textures_;
     std::vector<Material>      materials_;
 
-    ThorinUniquePtr<::Scene>         scene_data_;
-    ThorinUniquePtr<::CompiledScene> compiled_scene_;
+    struct {
+        ThorinUniquePtr<::Scene>         scene_data;
+        ThorinUniquePtr<::CompiledScene> comp_scene;
+
+        ThorinVector<::Texture>      textures;
+        ThorinVector<::Mesh>         meshes;
+
+        std::unordered_set<TriangleMeshId, TriangleMeshId::Hash> dirty_meshes;
+        std::unordered_set<TextureId, TextureId::Hash> dirty_textures;
+    } sync_;
+
+    bool dirty_;
 };
 
 } // namespace imba

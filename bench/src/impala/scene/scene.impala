@@ -16,6 +16,7 @@ struct CompiledScene {
 }
 
 extern fn compile_scene(mut scene: &Scene) -> ~CompiledScene {
+    // TODO : implement instances
     // Build a BVH for each mesh
     let mut mesh_bvhs = ~[scene.num_meshes: Bvh];    
     for i in range(0, scene.num_meshes) @{
@@ -33,8 +34,22 @@ extern fn compile_scene(mut scene: &Scene) -> ~CompiledScene {
     }
 }
 
+extern fn destroy_scene(scene: &Scene, comp: &CompiledScene) -> () {
+    // TODO : change this when impala supports auto pointers
+    thorin_free(comp.scene_bvh.nodes as &[u8]);
+    thorin_free(comp.scene_bvh.prim_ids as &[u8]);
+
+    for i in range(0, scene.num_meshes) @{
+        thorin_free(comp.mesh_bvhs(i).nodes as &[u8]);
+        thorin_free(comp.mesh_bvhs(i).prim_ids as &[u8]);
+    }
+
+    thorin_free(comp.mesh_bvhs as &[u8])
+}
+
 extern fn update_scene(scene: &Scene, mut comp: &CompiledScene) -> () {
-    // TODO : Check that the number of textures & meshes has not changed
+    // TODO : Real update (more meshes -> more bvhs and more nodes in the scene bvh,
+    // connectivity changed -> more nodes in mesh bvh)
 
     // Refit the BVH of each mesh
     // TODO : Do this in parallel
@@ -49,7 +64,7 @@ extern fn update_scene(scene: &Scene, mut comp: &CompiledScene) -> () {
         });
     }
 
-    // TODO: remove this when impala supports auto pointers
+    // TODO : remove this when impala supports auto pointers
     thorin_free(comp.scene_bvh.nodes as &[u8]);
     thorin_free(comp.scene_bvh.prim_ids as &[u8]);
 
@@ -60,34 +75,40 @@ extern fn update_scene(scene: &Scene, mut comp: &CompiledScene) -> () {
                                scene.num_meshes);
 }
 
-fn closest_hit_mesh(mesh: &Mesh, mesh_bvh: &Bvh, mesh_id: int, p: Packet, mut hit: &Hit) -> () {
+fn closest_hit_mesh(mesh: Mesh, mesh_bvh: Bvh, mesh_id: int, p: Packet, prev_h: Hit) -> Hit @{
+    let mut hit = prev_h;
+
     // TODO : ranged traversal + active ray test (for single ray case : std traversal)
     fn mesh_leaf(box: Box, first: int, count: i16) -> () @{
-        intersect_packet_box(p, *hit, box, || {
+        intersect_packet_box(p, hit, box, || {
             for i in range(first, first + count as int) {
-               let t = tri(mesh.vertices(mesh.indices(i * 3 + 0)),
-                           mesh.vertices(mesh.indices(i * 3 + 1)),
-                           mesh.vertices(mesh.indices(i * 3 + 2)));
-               *hit = intersect_packet_tri(p, *hit, t, mesh_id, i);
+               let id = mesh_bvh.prim_ids(i);
+               let t = tri(mesh.vertices(mesh.indices(id * 3 + 0)),
+                           mesh.vertices(mesh.indices(id * 3 + 1)),
+                           mesh.vertices(mesh.indices(id * 3 + 2)));
+               @assert(|| in_box(t.v0, box) && in_box(t.v1, box) && in_box(t.v2, box), "closest_hit_mesh : node bounds too small");
+               hit = intersect_packet_tri(p, hit, t, mesh_id, i);
             }
         })
     }
 
     fn mesh_node(box: Box, axis: i16, push: fn (int) -> ()) -> () @{
-        intersect_packet_box(p, *hit, box, || @{
+        intersect_packet_box(p, hit, box, || @{
             push(if packet_sign(p, axis as int) > 0 {0} else {1})
         })
     }
 
-    traverse_bvh(*mesh_bvh, mesh_leaf, mesh_node)
+    traverse_bvh(mesh_bvh, mesh_leaf, mesh_node);
+
+    hit
 }
 
-fn closest_hit(mut scene: &Scene, mut comp: &CompiledScene, p: Packet) -> Hit {
-    let mut hit = empty_hit();
+fn closest_hit(scene: &Scene, comp: &CompiledScene, p: Packet) -> Hit @{
+    /*let mut hit = empty_hit();
 
     fn scene_leaf(box: Box, first: int, count: i16) -> () @{
         for i in range(first, first + count as int) @{
-            closest_hit_mesh(&scene.meshes(i), &comp.mesh_bvhs(i), i, p, &hit)
+            hit = closest_hit_mesh(scene.meshes(i), comp.mesh_bvhs(i), i, p, hit)
         }
     }
 
@@ -101,5 +122,8 @@ fn closest_hit(mut scene: &Scene, mut comp: &CompiledScene, p: Packet) -> Hit {
     traverse_bvh(comp.scene_bvh, scene_leaf, scene_node);
 
     hit
+    */
+
+    closest_hit_mesh(scene.meshes(0), comp.mesh_bvhs(0), 0, p, empty_hit())
 }
 

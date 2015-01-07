@@ -3,10 +3,6 @@ struct BenchRayTriangleResult {
     tmin: float
 }
 
-extern "C" {
-    fn wfv_get_tid() -> int;
-}
-
 extern fn bench_ray4_triangle(nray4s: int,
                               v0: &[float * 3],
                               v1: &[float * 3],
@@ -22,13 +18,6 @@ extern fn bench_ray4_triangle(nray4s: int,
         ray(vec3(1.0f, 0.0f, 0.0f), vec3(-1.0f, 0.001f + f * 0.001f, 0.001f + f * 0.001f))
     }
 
-    fn vrange(a: int, b: int, yield: fn(int, fn())) -> () {
-        for vectorize(4, a, b) {
-           let x = wfv_get_tid();
-           yield(x);
-        }
-    }
-
     result.tmin = flt_max;
     result.intr_count = 0;
 
@@ -36,12 +25,12 @@ extern fn bench_ray4_triangle(nray4s: int,
         let mut tmin : [float * 4];
         let mut intr : [int * 4];
 
-        for i in vrange(0, 4) @{
+        for i in vrange4(0, 4) @{
             tmin(i) = result.tmin;
             intr(i) = 0;
         }
 
-        for j in vrange(0, 4) @{
+        for j in vrange4(0, 4) @{
             let ray = generate_ray(i + j);
             intersect_ray_tri(ray, tri,
                 |t, u, v| {

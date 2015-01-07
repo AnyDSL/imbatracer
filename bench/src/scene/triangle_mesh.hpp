@@ -115,11 +115,11 @@ public:
     bool has_materials() const { return materials_.size() > 0; }
 
 private:
-    std::vector<Vertex, ThorinAllocator<Vertex> > vertices_;
-    std::vector<Normal, ThorinAllocator<Normal> > normals_;
-    std::vector<Texcoord, ThorinAllocator<Texcoord> > texcoords_;
-    std::vector<int, ThorinAllocator<int> > materials_;
-    std::vector<Triangle, ThorinAllocator<Triangle> > triangles_;
+    ThorinVector<Vertex>   vertices_;
+    ThorinVector<Normal>   normals_;
+    ThorinVector<Texcoord> texcoords_;
+    ThorinVector<int>      materials_;
+    ThorinVector<Triangle> triangles_;
 };
 
 } // namespace imba

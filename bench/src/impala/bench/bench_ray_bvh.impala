@@ -4,12 +4,6 @@ struct BenchRayBvhResult {
     tmax: float
 }
 
-extern "C" {
-    fn put_float(float) -> ();
-    fn put_int(int) -> ();
-    fn puts(&[u8]) -> ();
-}
-
 extern fn bench_ray4_bvh(nray4s: int, bvh: &Bvh, vertices: &[Vec3], indices: &[int], mut result: &BenchRayBvhResult) -> () @{
     fn generate_ray(i: int) -> Ray {
         let theta = ((i % 1000) as float) * flt_pi / 1000.0f;
@@ -19,13 +13,6 @@ extern fn bench_ray4_bvh(nray4s: int, bvh: &Bvh, vertices: &[Vec3], indices: &[i
 
         ray(vec3(sin_theta * cosf(phi), sin_theta * sinf(phi), cosf(theta)),
             vec3(0.3f, -0.1f, 0.2f))
-    }
-
-    fn vrange(a: int, b: int, yield: fn(int, fn())) -> () {
-        for vectorize(4, a, b) {
-           let x = wfv_get_tid();
-           yield(x);
-        }
     }
 
     result.tmax = -flt_max;

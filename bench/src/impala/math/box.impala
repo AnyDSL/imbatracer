@@ -23,16 +23,16 @@ fn box_expand(b: Box, p: Vec3) -> Box {
     box(vec3_min(b.min, p), vec3_max(b.max, p))
 }
 
-fn box_extents(box: Box) -> Vec3 {
-    vec3_sub(box.max, box.min)
+fn box_extents(b: Box) -> Vec3 {
+    vec3_sub(b.max, b.min)
 }
 
-fn box_center(box: Box) -> Vec3 {
-    vec3_map(vec3_add(box.min, box.max), |x| x * 0.5f)
+fn box_center(b: Box) -> Vec3 {
+    vec3_map(vec3_add(b.min, b.max), |x| x * 0.5f)
 }
 
-fn box_half_area(box: Box) -> float {
-    let e = box_extents(box);
+fn box_half_area(b: Box) -> float {
+    let e = box_extents(b);
     let a = e.values(0) * (e.values(1) + e.values(2)) + e.values(1) * e.values(2);
     if a > 0.0f {a} else {0.0f}
 }
@@ -48,5 +48,11 @@ fn transform_box(b: Box, mat: Mat4) -> Box {
     let nmax = vec3_add(tc, th);
 
     box(vec3_min(nmin, nmax), vec3_max(nmin, nmax))
+}
+
+fn in_box(v: Vec3, b: Box) -> bool {
+    v.values(0) >= b.min.values(0) && v.values(0) <= b.max.values(0) &&
+    v.values(1) >= b.min.values(1) && v.values(1) <= b.max.values(1) &&
+    v.values(2) >= b.min.values(2) && v.values(2) <= b.max.values(2)
 }
 

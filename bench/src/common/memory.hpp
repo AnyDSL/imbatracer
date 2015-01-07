@@ -2,6 +2,7 @@
 #define IMBA_MEMORY_HPP
 
 #include <memory>
+#include <vector>
 #include <cstdint>
 #include <thorin_runtime.h>
 
@@ -60,6 +61,9 @@ inline ThorinUniquePtr<T> thorin_make_unique(Args... args) {
     T* ptr = new (reinterpret_cast<T*>(thorin_malloc(sizeof(T)))) T(args...);
     return std::unique_ptr<T, ThorinDeleter<T> >(ptr);
 }
+
+template <typename T>
+using ThorinVector = std::vector<T, ThorinAllocator<T> >;
 
 } // namespace imba
 

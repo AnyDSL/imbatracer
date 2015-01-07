@@ -60,6 +60,20 @@ struct OptionReader<double> {
     }
 };
 
+template <typename T>
+struct OptionWriter {
+    static std::string write(const T& value) {
+        return std::to_string(value);
+    }
+};
+
+template <>
+struct OptionWriter<std::string> {
+    static std::string write(const std::string& value) {
+        return value;
+    }
+};
+
 struct Option {
     Option(const std::string& fn,
            const std::string& sn,

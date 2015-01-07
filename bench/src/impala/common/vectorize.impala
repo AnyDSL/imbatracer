@@ -1,0 +1,17 @@
+extern "C" {
+    fn wfv_get_tid() -> int;
+}
+
+fn vrange4(a: int, b: int, yield: fn(int, fn())) -> () {
+    for vectorize(4, a, b) {
+       let x = wfv_get_tid();
+       yield(x);
+    }
+}
+
+fn vrange8(a: int, b: int, yield: fn(int, fn())) -> () {
+    for vectorize(8, a, b) {
+       let x = wfv_get_tid();
+       yield(x);
+    }
+}

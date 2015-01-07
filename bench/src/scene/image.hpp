@@ -48,15 +48,15 @@ public:
     int height() const { return height_; }
     int stride() const { return stride_; }
 
-    const T* pixels() const { return reinterpret_cast<T*>(pixels_.data()); }
+    const T* pixels() const { return reinterpret_cast<const T*>(pixels_.data()); }
     T* pixels() { return reinterpret_cast<T*>(pixels_.data()); }
 
-    const T* row(int i) const { return reinterpret_cast<T*>(pixels_.data() + i * stride_); }
+    const T* row(int i) const { return reinterpret_cast<const T*>(pixels_.data() + i * stride_); }
     T* row(int i) { return reinterpret_cast<T*>(pixels_.data() + i * stride_); }
 
     typedef T Pixel;
 protected:
-    std::vector<char, ThorinAllocator<char> > pixels_;
+    ThorinVector<char> pixels_;
     int width_, height_;
     int stride_;
 };

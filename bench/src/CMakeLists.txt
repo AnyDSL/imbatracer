@@ -23,6 +23,7 @@ add_executable(bench
                ${IMPALA_OBJS}
                ${EMBREE_SRCS}
                bench.cpp
+               scene/scene.cpp
                loaders/obj_loader.cpp
                bench/bench_bvh_build.cpp
                bench/bench_ray_triangle.cpp
@@ -39,8 +40,10 @@ add_executable(imbatracer
                ${IMPALA_OBJS}
                main.cpp
                scene/scene.cpp
+               scene/render.cpp
                loaders/png_loader.cpp
-               loaders/obj_loader.cpp)
+               loaders/obj_loader.cpp
+               devices/png_device.cpp)
 
 include_directories(${PNG_INCLUDE_DIRS})
 target_link_libraries(imbatracer ${PNG_LIBRARIES})

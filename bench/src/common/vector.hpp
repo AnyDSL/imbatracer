@@ -1,6 +1,8 @@
 #ifndef IMBA_VECTOR_HPP
 #define IMBA_VECTOR_HPP
 
+#include <cmath>
+
 namespace imba {
 
 /// Two dimensional vector
@@ -52,6 +54,18 @@ inline Vec2 operator * (float t, const Vec2& v) {
     return Vec2(v[0] * t, v[1] * t);
 }
 
+inline float dot(const Vec2& a, const Vec2& b) {
+    return a[0] * b[0] + a[1] * b[1];
+}
+
+inline float length(const Vec2& v) {
+    return sqrtf(dot(v, v));
+}
+
+inline Vec2 normalize(const Vec2& v) {
+    return v / length(v);
+}
+
 /// Three dimensional vector
 struct Vec3 {
     Vec3() {}
@@ -101,6 +115,24 @@ inline Vec3 operator * (const Vec3& v, float t) {
 
 inline Vec3 operator * (float t, const Vec3& v) {
     return Vec3(v[0] * t, v[1] * t, v[2] * t);
+}
+
+inline Vec3 cross(const Vec3& a, const Vec3& b) {
+    return Vec3(a[1] * b[2] - a[2] * b[1],
+                a[2] * b[0] - a[0] * b[2],
+                a[0] * b[1] - a[1] * b[0]);
+}
+
+inline float dot(const Vec3& a, const Vec3& b) {
+    return a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+}
+
+inline float length(const Vec3& v) {
+    return sqrtf(dot(v, v));
+}
+
+inline Vec3 normalize(const Vec3& v) {
+    return v / length(v);
 }
 
 /// Three dimensional vector
@@ -155,6 +187,20 @@ inline Vec4 operator * (const Vec4& v, float t) {
 inline Vec4 operator * (float t, const Vec4& v) {
     return Vec4(v[0] * t, v[1] * t, v[2] * t, v[3] * t);
 }
+
+inline float dot(const Vec4& a, const Vec4& b) {
+    return a[0] * b[0] + a[1] * b[1] + a[2] * b[2] + a[3] * b[3];
+}
+
+inline float length(const Vec4& v) {
+    return sqrtf(dot(v, v));
+}
+
+inline Vec4 normalize(const Vec4& v) {
+    return v / length(v);
+}
+
+
 
 } // namespace imba
 

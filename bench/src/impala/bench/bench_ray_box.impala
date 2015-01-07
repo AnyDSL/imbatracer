@@ -20,13 +20,6 @@ extern fn bench_ray4_box(nray4s: int,
                             vec3(-1.0f + 0.00001f * f, 0.001f + f * 0.001f, 0.001f + f * 0.001f)))
     }
 
-    fn vrange(a: int, b: int, yield: fn(int, fn())) -> () {
-        for vectorize(4, a, b) {
-           let x = wfv_get_tid();
-           yield(x);
-        }
-    }
-
     result.tmax = flt_max;
     result.tmin = -flt_max;
     result.intr_count = 0;
@@ -42,7 +35,7 @@ extern fn bench_ray4_box(nray4s: int,
             intr(i) = 0;
         }
 
-        for j in vrange(0, 4) @{
+        for j in vrange4(0, 4) @{
             let ray = generate_ray(i);
             intersect_ray_box(ray, box,
                 |t0, t1| {

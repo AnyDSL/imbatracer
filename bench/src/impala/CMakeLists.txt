@@ -20,6 +20,7 @@ set(IMPALA_SRCS
     accel/bvh.impala
     common/range.impala
     common/debug.impala
+    common/vectorize.impala
     scene/image.impala
     scene/scene.impala
     scene/mesh.impala

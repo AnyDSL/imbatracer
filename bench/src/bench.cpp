@@ -10,19 +10,19 @@
 #include "bench/bench_bvh_build.hpp"
 #include "loaders/obj_loader.hpp"
 
-// Abort function for the impala assert function
-extern "C" void* debug_abort(const char* msg)
-{
-    printf("Impala assertion failed : %s\n", msg);
-    exit(1);
-}
+extern "C" {
+    void put_int(int i) {
+        printf("%d\n", i);    
+    }
 
-extern "C" void put_float(float f) {
-    printf("float : %f\n", (double)f);
-}
+    void put_float(float f) {
+        printf("%f\n", f);    
+    }
 
-extern "C" void put_int(int i) {
-    printf("int : %d\n", i);
+    void debug_abort(const char* msg) {
+        printf("Impala assertion failed : %s\n", msg);
+        exit(1);
+    }
 }
 
 struct EmbreeInit {
