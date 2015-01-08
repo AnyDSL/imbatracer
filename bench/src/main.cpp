@@ -86,15 +86,19 @@ int main(int argc, char** argv) {
     imba::GBuffer gbuffer(image_width, image_height);
 
     // TODO : use a shader instead of this camera def.
-    ::Camera camera = imba::Render::perspective_camera(imba::Vec3(0.0f, 0.0f, 10.0f),
+    ::Camera camera = imba::Render::perspective_camera(imba::Vec3(0.0f, 10.0f, 20.0f),
                                                        imba::Vec3(0.0f, 0.0f, 0.0f),
                                                        imba::Vec3(0.0f, 1.0f, 0.0f),
                                                        60.0f,
                                                        (float)image_width / (float)image_height);
 
+    // Ensure scene is ready so that render time measurements do not include scene update
+    scene.compile();
+
     auto t0 = std::chrono::high_resolution_clock::now();
     imba::Render::render_gbuffer(scene, camera, gbuffer);
     auto t1 = std::chrono::high_resolution_clock::now();
+
     logger.log("G-Buffer rendered in ", std::chrono::duration_cast<std::chrono::milliseconds>(t1 - t0).count(), " ms");
 
     if (device && !device->present(gbuffer)) {

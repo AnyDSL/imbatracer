@@ -87,7 +87,7 @@ fn closest_hit_mesh(mesh: Mesh, mesh_bvh: Bvh, mesh_id: int, p: Packet, prev_h: 
                            mesh.vertices(mesh.indices(id * 3 + 1)),
                            mesh.vertices(mesh.indices(id * 3 + 2)));
                @assert(|| in_box(t.v0, box) && in_box(t.v1, box) && in_box(t.v2, box), "closest_hit_mesh : node bounds too small");
-               hit = intersect_packet_tri(p, hit, t, mesh_id, i);
+               hit = intersect_packet_tri(p, hit, t, mesh_id, id);
             }
         })
     }
@@ -121,9 +121,12 @@ fn closest_hit(scene: &Scene, comp: &CompiledScene, p: Packet) -> Hit @{
     // Intersect the scene BVH and then each relevant mesh BVH
     traverse_bvh(comp.scene_bvh, scene_leaf, scene_node);
 
-    hit
-    */
+    hit*/
 
-    closest_hit_mesh(scene.meshes(0), comp.mesh_bvhs(0), 0, p, empty_hit())
+    let mut hit = empty_hit();
+    for i in range(0, scene.num_meshes) @{
+        hit = closest_hit_mesh(scene.meshes(i), comp.mesh_bvhs(i), i, p, hit)
+    }
+    hit
 }
 

@@ -32,6 +32,6 @@ fn intersect_ray_tri(ray: Ray,
 
     let t = @vec3_dot(e1, qvec) * inv_det;
 
-    intr(t, u, v)
+    @intr(t, u, v)
 }
 

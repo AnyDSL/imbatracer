@@ -33,8 +33,7 @@ typedef SceneObjectId<Material>     MaterialId;
 class Scene {
     friend class Render;
 public:
-    Scene() : dirty_(true) {}
-
+    Scene();
     ~Scene();
 
     TriangleMeshId add_triangle_mesh(TriangleMesh* mesh) {
@@ -72,9 +71,9 @@ public:
         return textures_[id.id];
     }
 
-private:
-    void synchronize();
+    void compile();
 
+private:
     std::vector<TriangleMesh*> meshes_;
     std::vector<Texture*>      textures_;
     std::vector<Material>      materials_;

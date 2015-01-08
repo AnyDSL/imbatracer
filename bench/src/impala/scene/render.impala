@@ -5,13 +5,10 @@ struct Camera {
     eye : Vec3
 }
 
-fn write_gbuffer(x : int, y : int, buf: &GBuffer, t: float, u: float, v: float, id: int) -> () {
+fn write_gbuffer(x : int, y : int, buf: &GBuffer, pixel: GBufferPixel) -> () {
     let p = buf.buffer as u64 + (y * buf.stride) as u64;
     let mut row = p as &[GBufferPixel];
-    row(x).t = t;
-    row(x).u = u;
-    row(x).v = v;
-    row(x).mat_id = id;
+    row(x) = pixel;
 }
 
 extern fn render_gbuffer(scene: &Scene, comp: &CompiledScene, cam: &Camera, gbuffer: &GBuffer) -> () @{
@@ -26,12 +23,13 @@ extern fn render_gbuffer(scene: &Scene, comp: &CompiledScene, cam: &Camera, gbuf
         2.0f * (y as float) / ((gbuffer.height - 1) as float) - 1.0f
     }
 
-    for y in range(0, gbuffer.height) @{
-        let mut p : Packet;
-        for x in range_step(0, gbuffer.width, packet_size(p)) @{
+    for y in range_step(0, gbuffer.height, 2) @{
+        for x in range_step(0, gbuffer.width, 2) @{
+            let mut p : Packet;
+
             for i in range(0, packet_size(p)) @{
-                let kx = xf(x + i);
-                let ky = yf(y);
+                let kx = @xf(x + (i % 2));
+                let ky = @yf(y + (i / 2));
                 p.dir_x(i) = d.values(0) + cam.right.values(0) * kx + cam.up.values(0) * ky;
                 p.dir_y(i) = d.values(1) + cam.right.values(1) * kx + cam.up.values(1) * ky;
                 p.dir_z(i) = d.values(2) + cam.right.values(2) * kx + cam.up.values(2) * ky;
@@ -45,12 +43,14 @@ extern fn render_gbuffer(scene: &Scene, comp: &CompiledScene, cam: &Camera, gbuf
                 p.org_z(i) = cam.eye.values(2);
             }
 
-            let hit = closest_hit(scene, comp, p);
+            let hit = @closest_hit(scene, comp, p);
 
             for i in range(0, packet_size(p)) @{
-                write_gbuffer(x + i, y, gbuffer, hit.t(i), hit.u(i), hit.v(i), hit.tri_id(i) + 1);
+                write_gbuffer(x + (i % 2), y + (i / 2), gbuffer,
+                              gbuffer_pixel(hit.t(i), hit.u(i), hit.v(i), hit.tri_id(i)));
             }
         }
     }
 }
+
 

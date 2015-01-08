@@ -56,14 +56,14 @@ bool PngDevice::present(const GBuffer& gbuffer) {
     for (int y = 0; y < gbuffer.height(); y++) {
         const GBufferPixel* buf_row = gbuffer.row(y);
         for (int x = 0; x < gbuffer.width(); x++) {
-            const float t = buf_row[x].mat_id ? buf_row[x].t : 0.0f;
+            const float t = buf_row[x].mat_id >= 0 ? buf_row[x].t : 0.0f;
             tmax = (tmax > t) ? tmax : t; 
         }
     }
 
     const float e = 0.0001f;
 
-    for (int y = 0; y < gbuffer.height(); y++) {
+    for (int y = gbuffer.height() - 1; y >= 0; y--) {
         const GBufferPixel* buf_row = gbuffer.row(y);
         for (int x = 0; x < gbuffer.width(); x++) {
             // r is t/tmax
@@ -73,7 +73,7 @@ bool PngDevice::present(const GBuffer& gbuffer) {
             row[x * 4 + 0] = (png_byte)(255 * buf_row[x].t / (tmax + e));
             row[x * 4 + 1] = (png_byte)(255 * buf_row[x].u);
             row[x * 4 + 2] = (png_byte)(255 * buf_row[x].v);
-            row[x * 4 + 3] = (png_byte)(buf_row[x].mat_id != 0 ? 255 : 0);
+            row[x * 4 + 3] = (png_byte)(buf_row[x].mat_id >= 0 ? 255 : 0);
         }
         png_write_row(png_ptr, row);
     }

@@ -13,8 +13,6 @@ struct Packet {
     inv_y : [float * 4],
     inv_z : [float * 4],
 
-    frustum : Frustum,
-
     sign : [int * 3]
 }
 

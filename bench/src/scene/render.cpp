@@ -29,14 +29,15 @@ namespace imba {
     return camera;
 }
 
-void Render::render_gbuffer(Scene& scene, const ::Camera& camera, GBuffer& output) {
-    scene.synchronize();
+void Render::render_gbuffer(const Scene& scene, const ::Camera& camera, GBuffer& output) {
     ::GBuffer buf;
     buf.width  = output.width();
     buf.height = output.height();
     buf.stride = output.stride();
     buf.buffer = output.pixels();
-    ::render_gbuffer(scene.sync_.scene_data.get(), scene.sync_.comp_scene.get(), (Camera*)&camera, &buf);
+    ::render_gbuffer(const_cast<::Scene*>(scene.sync_.scene_data.get()),
+                     const_cast<::CompiledScene*>(scene.sync_.comp_scene.get()),
+                     const_cast<Camera*>(&camera), &buf);
 }
 
 } // namespace imba

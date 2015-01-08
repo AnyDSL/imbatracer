@@ -4,6 +4,18 @@
 
 namespace imba {
 
+Scene::Scene()
+    : dirty_(true)
+{
+    sync_.scene_data = thorin_make_unique<::Scene>();
+    sync_.scene_data->meshes       = nullptr;
+    sync_.scene_data->num_meshes   = 0;
+    sync_.scene_data->textures     = nullptr;
+    sync_.scene_data->num_textures = 0;
+    //sync_.scene_data->instances     = nullptr;
+    //sync_.scene_data->num_instances = 0;
+}
+
 Scene::~Scene() {
     for (auto mesh : meshes_) { delete mesh; }
     for (auto tex : textures_) { delete tex; }
@@ -12,7 +24,7 @@ Scene::~Scene() {
         ::destroy_scene(sync_.scene_data.get(), sync_.comp_scene.get());
 }
 
-void Scene::synchronize() {
+void Scene::compile() {
     if (!dirty_) return;
 
     // Synchronize meshes
@@ -32,7 +44,7 @@ void Scene::synchronize() {
     for (auto id : sync_.dirty_textures) {
         if (sync_.textures.size() <= id.id) sync_.textures.resize(id.id + 1);
         
-        sync_.textures[id.id].width = textures_[id.id]->width();
+        sync_.textures[id.id].width  = textures_[id.id]->width();
         sync_.textures[id.id].height = textures_[id.id]->height();
         sync_.textures[id.id].stride = textures_[id.id]->stride();
         sync_.textures[id.id].pixels = textures_[id.id]->pixels();
@@ -41,7 +53,6 @@ void Scene::synchronize() {
 
     // TODO : implement instances
     if (!sync_.comp_scene) {
-        sync_.scene_data = thorin_make_unique<::Scene>();
         //sync_.scene_data->instances     = sync_.instances.data();
         //sync_.scene_data->num_instances = sync_.instances.size();
         sync_.scene_data->meshes        = sync_.meshes.data();
