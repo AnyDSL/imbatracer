@@ -1,26 +1,31 @@
-#ifndef IMBA_PNG_DEVICE_HPP
-#define IMBA_PNG_DEVICE_HPP
+#ifndef IMBA_SDL_DEVICE_HPP
+#define IMBA_SDL_DEVICE_HPP
 
+#include <SDL/SDL.h>
 #include "device.hpp"
-#include "../scene/render.hpp"
+#include "../scene/image.hpp"
 
 namespace imba {
 
 /// A render device that writes images to disk
-class PngDevice : public Device {
+class SdlDevice : public Device {
 public:
-    PngDevice();
+    SdlDevice();
+    ~SdlDevice();
 
     bool render(const Scene& scene, int width, int height, Logger& logger);
     void set_perspective(const Vec3& eye, const Vec3& center, const Vec3& up, float fov, float ratio);
 
 private:
+    void render_surface(const Scene& scene);
+    bool handle_events();
+
+    GBuffer gbuffer_;
     Camera cam_;
-    std::string path_;
-    std::string prefix_;
+    SDL_Surface* screen_;
 };
 
 } // namespace imba
 
-#endif // IMBA_PNG_DEVICE_HPP
+#endif // IMBA_SDL_DEVICE_HPP
 

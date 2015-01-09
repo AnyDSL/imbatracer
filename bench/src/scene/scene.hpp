@@ -71,14 +71,14 @@ public:
         return textures_[id.id];
     }
 
-    void compile();
+    void compile() const;
 
 private:
     std::vector<TriangleMesh*> meshes_;
     std::vector<Texture*>      textures_;
     std::vector<Material>      materials_;
 
-    struct {
+    mutable struct {
         ThorinUniquePtr<::Scene>         scene_data;
         ThorinUniquePtr<::CompiledScene> comp_scene;
 
@@ -89,7 +89,7 @@ private:
         std::unordered_set<TextureId, TextureId::Hash> dirty_textures;
     } sync_;
 
-    bool dirty_;
+    mutable bool dirty_;
 };
 
 } // namespace imba

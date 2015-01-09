@@ -9,6 +9,7 @@
 #include "scene/scene.hpp"
 #include "scene/render.hpp"
 #include "devices/png_device.hpp"
+#include "devices/sdl_device.hpp"
 
 extern "C" {
     void put_int(int i) {
@@ -35,7 +36,7 @@ int main(int argc, char** argv) {
     parser.add_option("help",     "h",   "Shows this message",           show_help,    false);
     parser.add_option("width",    "sx",  "Sets the output image width",  image_width,  512,                 "pixels");
     parser.add_option("height",   "sy",  "Sets the output image height", image_height, 512,                 "pixels");
-    parser.add_option("device",   "dev", "Sets the output device",       output_dev,   std::string("png"),  "dev");
+    parser.add_option("device",   "dev", "Sets the output device",       output_dev,   std::string("sdl"),  "dev");
     parser.add_option("device-options", "dev-opts", "Sets the device options", device_opts, std::string(""), "opts");
 
     if (!parser.parse())
@@ -57,6 +58,9 @@ int main(int argc, char** argv) {
     if (output_dev == "png") {
         device.reset(new imba::PngDevice());
         logger.log("using png image device");
+    } else if (output_dev == "sdl") {
+        device.reset(new imba::SdlDevice());
+        logger.log("using SDL window device");
     } else if (output_dev == "null") {
         logger.log("using null device");
     } else {
@@ -83,26 +87,15 @@ int main(int argc, char** argv) {
         }
     }
 
-    imba::GBuffer gbuffer(image_width, image_height);
-
-    // TODO : use a shader instead of this camera def.
-    ::Camera camera = imba::Render::perspective_camera(imba::Vec3(0.0f, 10.0f, 20.0f),
-                                                       imba::Vec3(0.0f, 0.0f, 0.0f),
-                                                       imba::Vec3(0.0f, 1.0f, 0.0f),
-                                                       60.0f,
-                                                       (float)image_width / (float)image_height);
-
-    // Ensure scene is ready so that render time measurements do not include scene update
-    scene.compile();
-
-    auto t0 = std::chrono::high_resolution_clock::now();
-    imba::Render::render_gbuffer(scene, camera, gbuffer);
-    auto t1 = std::chrono::high_resolution_clock::now();
-
-    logger.log("G-Buffer rendered in ", std::chrono::duration_cast<std::chrono::milliseconds>(t1 - t0).count(), " ms");
-
-    if (device && !device->present(gbuffer)) {
-        std::cerr << "There was a problem when sending the image to the output device." << std::endl;
+    if (device) {
+        // TODO : use a shader instead of this camera def.
+        device->set_perspective(imba::Vec3(0.0f, 10.0f, 20.0f),
+                                imba::Vec3(0.0f, 0.0f, 0.0f),
+                                imba::Vec3(0.0f, 1.0f, 0.0f),
+                                60.0f,
+                                (float)image_width / (float)image_height);
+        if (!device->render(scene, image_width, image_height, logger))
+            std::cerr << "There was a problem when sending the image to the output device." << std::endl;
     }
 
     return EXIT_SUCCESS;

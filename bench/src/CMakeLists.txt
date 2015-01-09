@@ -43,10 +43,12 @@ add_executable(imbatracer
                scene/render.cpp
                loaders/png_loader.cpp
                loaders/obj_loader.cpp
-               devices/png_device.cpp)
+               devices/png_device.cpp
+               devices/sdl_device.cpp)
 
 include_directories(${PNG_INCLUDE_DIRS})
 target_link_libraries(imbatracer ${PNG_LIBRARIES})
+target_link_libraries(imbatracer ${SDL_LIBRARY})
 add_dependencies(imbatracer impala-interface)
 
 # Set compiler options

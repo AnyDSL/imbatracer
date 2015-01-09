@@ -5,9 +5,9 @@
 #include <sstream>
 #include <cctype>
 
-#include "../scene/image.hpp"
 #include "../common/options.hpp"
 #include "../common/logger.hpp"
+#include "../scene/scene.hpp"
 
 namespace imba {
 
@@ -108,7 +108,10 @@ public:
         return ok;
     }
 
-    virtual bool present(const GBuffer& buffer) = 0;
+    virtual bool render(const Scene& scene, int width, int height, Logger& logger) = 0;
+
+    // TODO : replace this call by a ray generation shader
+    virtual void set_perspective(const Vec3& eye, const Vec3& center, const Vec3& up, float fov, float ratio) = 0;
 
 protected:
     template <typename T>

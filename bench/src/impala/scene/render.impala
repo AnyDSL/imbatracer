@@ -20,7 +20,7 @@ extern fn render_gbuffer(scene: &Scene, comp: &CompiledScene, cam: &Camera, gbuf
     }
 
     fn yf(y : int) -> float @{
-        2.0f * (y as float) / ((gbuffer.height - 1) as float) - 1.0f
+        1.0f - 2.0f * (y as float) / ((gbuffer.height - 1) as float)
     }
 
     for y in range_step(0, gbuffer.height, 2) @{

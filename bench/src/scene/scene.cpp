@@ -24,7 +24,7 @@ Scene::~Scene() {
         ::destroy_scene(sync_.scene_data.get(), sync_.comp_scene.get());
 }
 
-void Scene::compile() {
+void Scene::compile() const {
     if (!dirty_) return;
 
     // Synchronize meshes

@@ -1,4 +1,5 @@
 #include <png.h>
+#include <chrono>
 #include "png_device.hpp"
 
 namespace imba {
@@ -17,7 +18,18 @@ PngDevice::PngDevice() {
     register_option("prefix", prefix_);
 }
 
-bool PngDevice::present(const GBuffer& gbuffer) {
+bool PngDevice::render(const Scene& scene, int width, int height, Logger& logger) {
+    GBuffer gbuffer(width, height);
+
+    // Ensure scene is ready so that render time measurements do not include scene update
+    scene.compile();
+
+    auto t0 = std::chrono::high_resolution_clock::now();
+    imba::Render::render_gbuffer(scene, cam_, gbuffer);
+    auto t1 = std::chrono::high_resolution_clock::now();
+
+    logger.log("G-Buffer rendered in ", std::chrono::duration_cast<std::chrono::milliseconds>(t1 - t0).count(), " ms");
+
     std::ofstream file(path_ + "//" + prefix_ + "gbuffer.png");
     if (!file)
         return false;
@@ -50,27 +62,14 @@ bool PngDevice::present(const GBuffer& gbuffer) {
     
     row = new png_byte[4 * gbuffer.width()];
 
-    // Find maximum t
-    float tmax = 0.0f;
-#pragma omp parallel for reduction (max: tmax)
     for (int y = 0; y < gbuffer.height(); y++) {
-        const GBufferPixel* buf_row = gbuffer.row(y);
-        for (int x = 0; x < gbuffer.width(); x++) {
-            const float t = buf_row[x].mat_id >= 0 ? buf_row[x].t : 0.0f;
-            tmax = (tmax > t) ? tmax : t; 
-        }
-    }
-
-    const float e = 0.0001f;
-
-    for (int y = gbuffer.height() - 1; y >= 0; y--) {
         const GBufferPixel* buf_row = gbuffer.row(y);
         for (int x = 0; x < gbuffer.width(); x++) {
             // r is t/tmax
             // g is u
             // b is v
             // a is mat_id != 0
-            row[x * 4 + 0] = (png_byte)(255 * buf_row[x].t / (tmax + e));
+            row[x * 4 + 0] = (png_byte)(255 * buf_row[x].t);
             row[x * 4 + 1] = (png_byte)(255 * buf_row[x].u);
             row[x * 4 + 2] = (png_byte)(255 * buf_row[x].v);
             row[x * 4 + 3] = (png_byte)(buf_row[x].mat_id >= 0 ? 255 : 0);
@@ -83,6 +82,10 @@ bool PngDevice::present(const GBuffer& gbuffer) {
     delete[] row;
 
     return true;
+}
+
+void PngDevice::set_perspective(const Vec3& eye, const Vec3& center, const Vec3& up, float fov, float ratio) {
+    cam_ = Render::perspective_camera(eye, center, up, fov, ratio);
 }
 
 } // namespace imba

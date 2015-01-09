@@ -40,6 +40,10 @@ find_package(Threads REQUIRED)
 # libpng
 find_package(PNG REQUIRED)
 
+# SDL
+find_package(SDL REQUIRED)
+include_directories(${SDL_INCLUDE_DIR})
+
 # Add the project files
 add_subdirectory(src)
 
