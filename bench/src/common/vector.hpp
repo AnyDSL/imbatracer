@@ -135,6 +135,24 @@ inline Vec3 normalize(const Vec3& v) {
     return v / length(v);
 }
 
+inline Vec3 rotate(const Vec3& v, const Vec3& axis, float angle) {
+    float q[4];
+    q[0] = axis[0] * sinf(angle / 2);
+    q[1] = axis[1] * sinf(angle / 2);
+    q[2] = axis[2] * sinf(angle / 2);
+    q[3] = cosf(angle / 2);
+    
+    float p[4];
+    p[0] = q[3] * v[0] + q[1] * v[2] - q[2] * v[1];
+    p[1] = q[3] * v[1] - q[0] * v[2] + q[2] * v[0];
+    p[2] = q[3] * v[2] + q[0] * v[1] - q[1] * v[0];
+    p[3] = -(q[0] * v[0] + q[1] * v[1] + q[2] * v[2]);
+
+    return Vec3(p[3] * -q[0] + p[0] * q[3] + p[1] * -q[2] - p[2] * -q[1],
+                p[3] * -q[1] - p[0] * -q[2] + p[1] * q[3] + p[2] * -q[0],
+                p[3] * -q[2] + p[0] * -q[1] - p[1] * -q[0] + p[2] * q[3]);
+}
+
 /// Three dimensional vector
 struct Vec4 {
     Vec4() {}

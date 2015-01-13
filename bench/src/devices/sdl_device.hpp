@@ -18,10 +18,16 @@ public:
 
 private:
     void render_surface(const Scene& scene);
-    bool handle_events();
+    bool handle_events(bool);
+
+    float speed_;
+    float ratio_, fov_, dist_;
+    Vec3 forward_;
+    Vec3 eye_;
+    Vec3 up_;
+    Vec3 right_;
 
     GBuffer gbuffer_;
-    Camera cam_;
     SDL_Surface* screen_;
 };
 

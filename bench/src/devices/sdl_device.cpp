@@ -4,7 +4,7 @@
 namespace imba {
 
 SdlDevice::SdlDevice()
-    : screen_(nullptr)
+    : screen_(nullptr), speed_(0.005f)
 {
     SDL_Init(SDL_INIT_VIDEO);
 }
@@ -26,11 +26,18 @@ bool SdlDevice::render(const Scene& scene, int width, int height, Logger& logger
     
     SDL_WM_SetCaption("Imbatracer", NULL);
 
+    SDL_EnableKeyRepeat(SDL_DEFAULT_REPEAT_DELAY, SDL_DEFAULT_REPEAT_INTERVAL);
+    SDL_WM_GrabInput(SDL_GRAB_ON);
+    SDL_ShowCursor(SDL_DISABLE);
+
     screen_ = SDL_SetVideoMode(width, height, 32, SDL_DOUBLEBUF);
     if (!screen_) {
         logger.log("unable to set video mode");
         return false;
     }
+
+    // Flush input events (discard first mouse move event)
+    handle_events(true);
 
     bool done = false;
     int frames = 0;
@@ -45,15 +52,18 @@ bool SdlDevice::render(const Scene& scene, int width, int height, Logger& logger
 
         render_surface(scene);
         SDL_Flip(screen_);
-        done = handle_events();
+        done = handle_events(false);
         frames++;
     }
+
+    SDL_WM_GrabInput(SDL_GRAB_OFF);
 
     return true;
 }
 
 void SdlDevice::render_surface(const Scene& scene) {
-    imba::Render::render_gbuffer(scene, cam_, gbuffer_);
+    ::Camera cam = Render::perspective_camera(eye_, eye_ + dist_ * forward_, up_, fov_, ratio_);
+    imba::Render::render_gbuffer(scene, cam, gbuffer_);
 
     SDL_LockSurface(screen_);
     const int r = screen_->format->Rshift / 8;
@@ -72,15 +82,29 @@ void SdlDevice::render_surface(const Scene& scene) {
     SDL_UnlockSurface(screen_);
 }
 
-bool SdlDevice::handle_events() {
+bool SdlDevice::handle_events(bool flush) {
     SDL_Event event;
 
     while (SDL_PollEvent(&event)) {
+        if (flush) continue;
         switch (event.type) {
+            case SDL_MOUSEMOTION:
+                {
+                    right_ = cross(forward_, up_);
+                    forward_ = rotate(forward_, right_, -event.motion.yrel * speed_);
+                    forward_ = rotate(forward_, up_,    -event.motion.xrel * speed_);
+                    forward_ = normalize(forward_);
+                    up_ = normalize(cross(right_, forward_));
+                }
+                break;
             case SDL_KEYDOWN:
                 switch (event.key.keysym.sym) {
+                    case SDLK_UP:    eye_ = eye_ + forward_; break;
+                    case SDLK_DOWN:  eye_ = eye_ - forward_; break;
+                    case SDLK_LEFT:  eye_ = eye_ - right_;   break;
+                    case SDLK_RIGHT: eye_ = eye_ + right_;   break;
                     case SDLK_ESCAPE:
-                        return true;                
+                        return true;
                 }
                 break;
 
@@ -96,7 +120,13 @@ bool SdlDevice::handle_events() {
 
 
 void SdlDevice::set_perspective(const Vec3& eye, const Vec3& center, const Vec3& up, float fov, float ratio) {
-    cam_ = Render::perspective_camera(eye, center, up, fov, ratio);
+    fov_ = fov;
+    ratio_ = ratio;
+    up_ = normalize(up);
+    forward_ = center - eye;
+    dist_ = length(forward_);
+    forward_ = forward_ / dist_;
+    eye_ = eye;
 }
 
 } // namespace imba
