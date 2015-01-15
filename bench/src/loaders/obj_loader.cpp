@@ -196,7 +196,7 @@ bool ObjLoader::parse_stream(std::istream& stream, File& file, Logger* logger) {
                 // Check if the indices are valid or not
                 valid = true;
                 for (int i = 0; i < f.index_count; i++) {
-                    if (f.indices[i].v < 0 || f.indices[i].t < 0 || f.indices[i].n < 0) {
+                    if (f.indices[i].v <= 0 || f.indices[i].t < 0 || f.indices[i].n < 0) {
                         valid = false;
                         break;
                     }

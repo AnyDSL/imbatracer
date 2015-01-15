@@ -15,39 +15,32 @@ extern fn render_gbuffer(scene: &Scene, comp: &CompiledScene, cam: &Camera, gbuf
     // TODO : Do that in parallel
     let d = vec3_sub(cam.center, cam.eye);
 
-    fn xf(x : int) -> float @{
-        2.0f * (x as float) / ((gbuffer.width - 1) as float) - 1.0f
+    fn generate_ray(x: int, y: int) -> Ray {
+        let kx = 2.0f * (x as float) / ((gbuffer.width - 1) as float) - 1.0f;
+        let ky = 1.0f - 2.0f * (y as float) / ((gbuffer.height - 1) as float);
+
+        let dir = vec3(d.values(0) + cam.right.values(0) * kx + cam.up.values(0) * ky,
+                       d.values(1) + cam.right.values(1) * kx + cam.up.values(1) * ky,
+                       d.values(2) + cam.right.values(2) * kx + cam.up.values(2) * ky);
+
+        ray(dir, cam.eye)
     }
 
-    fn yf(y : int) -> float @{
-        1.0f - 2.0f * (y as float) / ((gbuffer.height - 1) as float)
-    }
-
-    for y in range_step(0, gbuffer.height, 2) @{
-        for x in range_step(0, gbuffer.width, 2) @{
+    for y in range_step(0, gbuffer.height, 8) @{
+        for x in range_step(0, gbuffer.width, 8) @{
             let mut p : Packet;
+            let mut hit : Hit = empty_hit(&p);
 
-            for i in range(0, packet_size(p)) @{
-                let kx = @xf(x + (i % 2));
-                let ky = @yf(y + (i / 2));
-                p.dir_x(i) = d.values(0) + cam.right.values(0) * kx + cam.up.values(0) * ky;
-                p.dir_y(i) = d.values(1) + cam.right.values(1) * kx + cam.up.values(1) * ky;
-                p.dir_z(i) = d.values(2) + cam.right.values(2) * kx + cam.up.values(2) * ky;
+            generate_packet(&p, x, y, generate_ray);
+            perspective_frustum(&p);
+            closest_hit(scene, comp, &p, &hit);
 
-                p.inv_x(i) = 1.0f / p.dir_x(i);
-                p.inv_y(i) = 1.0f / p.dir_y(i);
-                p.inv_z(i) = 1.0f / p.dir_z(i);
+            for i in range(0, packet_height(&p)) @{
+                for j in range(0, packet_width(&p)) @{
+                    let k = packet_ray_id(&p, j, i);
 
-                p.org_x(i) = cam.eye.values(0);
-                p.org_y(i) = cam.eye.values(1);
-                p.org_z(i) = cam.eye.values(2);
-            }
-
-            let hit = @closest_hit(scene, comp, p);
-
-            for i in range(0, packet_size(p)) @{
-                write_gbuffer(x + (i % 2), y + (i / 2), gbuffer,
-                              gbuffer_pixel(hit.t(i), hit.u(i), hit.v(i), hit.tri_id(i)));
+                    write_gbuffer(x + j, y + i, gbuffer, gbuffer_pixel(hit.t(k), hit.u(k), hit.v(k), hit.tri_id(k)));
+                }
             }
         }
     }

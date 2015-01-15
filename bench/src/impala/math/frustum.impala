@@ -1,8 +1,8 @@
 struct Frustum {
-    planes: [Vec4 * 6]
+    planes: [Vec4 * 4]
 }
 
-fn frustum(planes: [Vec4 * 6]) -> Frustum {
+fn frustum(planes: [Vec4 * 4]) -> Frustum {
     Frustum {
         planes : planes
     }

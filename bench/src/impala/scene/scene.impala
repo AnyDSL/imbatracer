@@ -73,42 +73,40 @@ extern fn update_scene(scene: &Scene, mut comp: &CompiledScene) -> () {
     comp.scene_bvh = build_bvh(|i| comp.mesh_bvhs(i).nodes(0).bounds,
                                |i| box_center(comp.mesh_bvhs(i).nodes(0).bounds),
                                scene.num_meshes);
+
 }
 
-fn closest_hit_mesh(mesh: Mesh, mesh_bvh: Bvh, mesh_id: int, p: Packet, prev_h: Hit) -> Hit @{
-    let mut hit = prev_h;
-
-    // TODO : ranged traversal + active ray test (for single ray case : std traversal)
+fn closest_hit_mesh(mesh: Mesh, mesh_bvh: Bvh, mesh_id: int, p: &Packet, hit: &Hit) -> () @{
     fn mesh_leaf(box: Box, first: int, count: i16) -> () @{
-        intersect_packet_box(p, hit, box, || {
-            for i in range(first, first + count as int) {
+        // Ranged traversal of the mesh bvh
+        let first_ray = first_active(p, hit, box);
+        if (first_ray < packet_size(p)) @{
+            let last_ray  = last_active(p, hit, box, first_ray);
+
+            for i in range(first, first + count as int) @{
                let id = mesh_bvh.prim_ids(i);
                let t = tri(mesh.vertices(mesh.indices(id * 3 + 0)),
                            mesh.vertices(mesh.indices(id * 3 + 1)),
                            mesh.vertices(mesh.indices(id * 3 + 2)));
                @assert(|| in_box(t.v0, box) && in_box(t.v1, box) && in_box(t.v2, box), "closest_hit_mesh : node bounds too small");
-               hit = intersect_packet_tri(p, hit, t, mesh_id, id);
+               intersect_packet_tri(p, hit, first_ray, last_ray, t, mesh_id, id);
             }
-        })
+        }
     }
 
     fn mesh_node(box: Box, axis: i16, push: fn (int) -> ()) -> () @{
         intersect_packet_box(p, hit, box, || @{
-            push(if packet_sign(p, axis as int) > 0 {0} else {1})
+            push(if packet_sign(p, axis as int) >= 0 {0} else {1})
         })
     }
 
     traverse_bvh(mesh_bvh, mesh_leaf, mesh_node);
-
-    hit
 }
 
-fn closest_hit(scene: &Scene, comp: &CompiledScene, p: Packet) -> Hit @{
-    /*let mut hit = empty_hit();
-
+fn closest_hit(scene: &Scene, comp: &CompiledScene, p: &Packet, hit: &Hit) -> () @{
     fn scene_leaf(box: Box, first: int, count: i16) -> () @{
         for i in range(first, first + count as int) @{
-            hit = closest_hit_mesh(scene.meshes(i), comp.mesh_bvhs(i), i, p, hit)
+            closest_hit_mesh(scene.meshes(i), comp.mesh_bvhs(i), i, p, hit)
         }
     }
 
@@ -120,13 +118,5 @@ fn closest_hit(scene: &Scene, comp: &CompiledScene, p: Packet) -> Hit @{
 
     // Intersect the scene BVH and then each relevant mesh BVH
     traverse_bvh(comp.scene_bvh, scene_leaf, scene_node);
-
-    hit*/
-
-    let mut hit = empty_hit();
-    for i in range(0, scene.num_meshes) @{
-        hit = closest_hit_mesh(scene.meshes(i), comp.mesh_bvhs(i), i, p, hit)
-    }
-    hit
 }
 

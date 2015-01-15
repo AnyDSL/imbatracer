@@ -1,59 +1,152 @@
 // TODO : Transform this struct into traits (when polymorphism works), 
 // so that we can have different packet sizes (even a packet of size 1)
 struct Packet {
-    org_x : [float * 4],
-    org_y : [float * 4],
-    org_z : [float * 4],
+    org_x : [float * 64],
+    org_y : [float * 64],
+    org_z : [float * 64],
 
-    dir_x : [float * 4],
-    dir_y : [float * 4],
-    dir_z : [float * 4],
+    dir_x : [float * 64],
+    dir_y : [float * 64],
+    dir_z : [float * 64],
 
-    inv_x : [float * 4],
-    inv_y : [float * 4],
-    inv_z : [float * 4],
+    inv_x : [float * 64],
+    inv_y : [float * 64],
+    inv_z : [float * 64],
+
+    frustum : Frustum,
 
     sign : [int * 3]
 }
 
 struct Hit {
-    t : [float * 4],
-    u : [float * 4],
-    v : [float * 4],
-    obj_id : [int * 4],
-    tri_id : [int * 4]
+    t : [float * 64],
+    u : [float * 64],
+    v : [float * 64],
+    obj_id : [int * 64],
+    tri_id : [int * 64],
 }
 
-fn packet_size(p: Packet) -> int {
-    4
+fn packet_width(p: &Packet) -> int {
+    8
 }
 
-fn packet_org(p: Packet, i: int) -> Vec3 {
+fn packet_height(p: &Packet) -> int {
+    8
+}
+
+fn packet_size(p: &Packet) -> int {
+    packet_width(p) * packet_height(p)
+}
+
+fn packet_ray_id(p: &Packet, x: int, y: int) -> int {
+    y * packet_width(p) + x
+}
+
+fn packet_org(p: &Packet, i: int) -> Vec3 {
     vec3(p.org_x(i), p.org_y(i), p.org_z(i))
 }
 
-fn packet_dir(p: Packet, i: int) -> Vec3 {
+fn packet_dir(p: &Packet, i: int) -> Vec3 {
     vec3(p.dir_x(i), p.dir_y(i), p.dir_z(i))
 }
 
-fn packet_inv(p: Packet, i: int) -> Vec3 {
+fn packet_inv(p: &Packet, i: int) -> Vec3 {
     vec3(p.inv_x(i), p.inv_y(i), p.inv_z(i))
 }
 
-fn packet_ray(p: Packet, i: int) -> Ray {
+fn packet_ray(p: &Packet, i: int) -> Ray {
     ray(packet_dir(p, i), packet_org(p, i))
 }
 
-fn packet_ray_inv(p: Packet, i: int) -> RayInv {
+fn packet_ray_inv(p: &Packet, i: int) -> RayInv {
     ray_inv(packet_inv(p, i), packet_org(p, i))
 }
 
-fn packet_sign(p: Packet, i: int) -> int {
+fn packet_sign(p: &Packet, i: int) -> int {
     p.sign(i)
 }
 
-fn hit_tmin(h: Hit, i: int) -> float {
+fn hit_tmin(h: &Hit, i: int) -> float {
     h.t(i)
+}
+
+fn generate_packet(mut p: &Packet, x: int, y: int, gen_ray: fn (int, int) -> Ray) -> () @{
+    p.sign(0) = 0;
+    p.sign(1) = 0;
+    p.sign(2) = 0;
+
+    for i in range(0, packet_height(p)) @{
+        for j in range(0, packet_width(p)) @{
+            let k = i * packet_width(p) + j;
+            let ray = gen_ray(x + j, y + i);
+
+            p.sign(0) += if ray.dir.values(0) > 0.0f {1} else {-1};
+            p.sign(1) += if ray.dir.values(1) > 0.0f {1} else {-1};
+            p.sign(2) += if ray.dir.values(2) > 0.0f {1} else {-1};
+
+            p.dir_x(k) = ray.dir.values(0);
+            p.dir_y(k) = ray.dir.values(1);
+            p.dir_z(k) = ray.dir.values(2);
+
+            p.inv_x(k) = 1.0f / ray.dir.values(0);
+            p.inv_y(k) = 1.0f / ray.dir.values(1);
+            p.inv_z(k) = 1.0f / ray.dir.values(2);
+
+            p.org_x(k) = ray.org.values(0);
+            p.org_y(k) = ray.org.values(1);
+            p.org_z(k) = ray.org.values(2);
+        }
+    }
+}
+
+fn first_active(p: &Packet, h: &Hit, b: Box) -> int {
+    let mut i = 0;
+    while i < packet_size(p) @{
+        intersect_ray_box(packet_ray_inv(p, i), b, |t0, t1| {
+            if t1 > 0.0f && t0 < hit_tmin(h, i) @{
+                return(i)
+            }
+        });
+        i += 1;
+    }
+    packet_size(p)
+}
+
+fn last_active(p: &Packet, h: &Hit, b: Box, first: int) -> int @{
+    let mut i = packet_size(p) - 1;
+    while i > first @{
+        intersect_ray_box(packet_ray_inv(p, i), b, |t0, t1| @{
+            if t1 > 0.0f && t0 < hit_tmin(h, i) @{
+                return(i + 1)
+            }
+        });
+        i -= 1;
+    }
+    first + 1
+}
+
+fn perspective_frustum(mut p: &Packet) -> () @{
+    let w = packet_width(p);
+    let h = packet_height(p);
+
+    let r0 = packet_ray(p, 0);
+    let r1 = packet_ray(p, w - 1);
+    let r2 = packet_ray(p, w * (h - 1));
+    let r3 = packet_ray(p, w * h - 1);
+
+    fn ray_plane(a: Ray, b: Ray) -> Vec4 {
+        let n = vec3_cross(a.dir, b.dir);
+        let d = -vec3_dot(n, a.org);
+        vec4_from_vec3(n, d)
+    }
+
+    // Left & Right
+    p.frustum.planes(0) = ray_plane(r0, r2);
+    p.frustum.planes(1) = ray_plane(r3, r1);
+
+    // Top & Bottom
+    p.frustum.planes(2) = ray_plane(r1, r0);
+    p.frustum.planes(3) = ray_plane(r2, r3);
 }
 
 fn record_hit(mut h: &Hit, i: int, t: float, u: float, v: float, mesh_id: int, tri_id: int) -> () {
@@ -64,13 +157,13 @@ fn record_hit(mut h: &Hit, i: int, t: float, u: float, v: float, mesh_id: int, t
     h.tri_id(i) = tri_id
 }
 
-fn empty_hit() -> Hit{
+fn empty_hit(p: &Packet) -> Hit{
     Hit {
-        t : [flt_max, ..4],
-        u : [flt_max, ..4],
-        v : [flt_max, ..4],
-        obj_id : [-1, ..4],
-        tri_id : [-1, ..4]
+        t : [flt_max, ..64],
+        u : [flt_max, ..64],
+        v : [flt_max, ..64],
+        obj_id : [-1, ..64],
+        tri_id : [-1, ..64],
     }
 }
 

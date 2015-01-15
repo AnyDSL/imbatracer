@@ -1,12 +1,15 @@
-fn intersect_packet_box(p: Packet, h: Hit, b: Box, intr: fn () -> ()) -> () @{
-    // Individual ray test
-    for i in range(0, packet_size(p)) @{
-        intersect_ray_box(packet_ray_inv(p, i), b, |t0, t1| @{
-            if t1 > 0.0f && t0 < hit_tmin(h, i) @{
-                intr();
-                return()
-            }
-        })
-    }
+fn intersect_packet_box(p: &Packet, h: &Hit, b: Box, intr: fn () -> ()) -> () @{
+    // Bounding frustum test
+    intersect_frustum_box(p.frustum, b, || {
+        // Individual ray test
+        for i in range(0, packet_size(p)) @{
+            intersect_ray_box(packet_ray_inv(p, i), b, |t0, t1| @{
+                if t1 > 0.0f && t0 < hit_tmin(h, i) @{
+                    intr();
+                    return()
+                }
+            })
+        }
+    });
 }
 

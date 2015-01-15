@@ -1,13 +1,9 @@
-fn intersect_packet_tri(p: Packet, prev_h: Hit, t: Tri, mesh_id: int, tri_id: int) -> Hit @{
-    let mut h = prev_h;
-
-    for i in range(0, packet_size(p)) @{
+fn intersect_packet_tri(p: &Packet, h: &Hit, first: int, last: int, t: Tri, mesh_id: int, tri_id: int) -> () @{
+    for i in range(first, last) @{
         intersect_ray_tri(packet_ray(p, i), t, |t, u, v| @{
-            if t > 0.0f && t < hit_tmin(prev_h, i) @{
-                record_hit(&h, i, t, u, v, mesh_id, tri_id)
+            if t > 0.0f && t < hit_tmin(h, i) @{
+                record_hit(h, i, t, u, v, mesh_id, tri_id)
             }
         })
     }
-
-    h
 }
