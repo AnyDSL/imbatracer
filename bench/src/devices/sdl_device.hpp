@@ -1,7 +1,7 @@
 #ifndef IMBA_SDL_DEVICE_HPP
 #define IMBA_SDL_DEVICE_HPP
 
-#include <SDL/SDL.h>
+#include <SDL.h>
 #include "device.hpp"
 #include "../scene/image.hpp"
 
