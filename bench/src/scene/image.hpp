@@ -55,6 +55,7 @@ public:
     T* row(int i) { return reinterpret_cast<T*>(pixels_.data() + i * stride_); }
 
     typedef T Pixel;
+
 protected:
     ThorinVector<char> pixels_;
     int width_, height_;

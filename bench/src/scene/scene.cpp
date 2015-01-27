@@ -12,8 +12,8 @@ Scene::Scene()
     sync_.scene_data->num_meshes   = 0;
     sync_.scene_data->textures     = nullptr;
     sync_.scene_data->num_textures = 0;
-    //sync_.scene_data->instances     = nullptr;
-    //sync_.scene_data->num_instances = 0;
+    sync_.scene_data->instances     = nullptr;
+    sync_.scene_data->num_instances = 0;
 }
 
 Scene::~Scene() {
@@ -25,46 +25,69 @@ Scene::~Scene() {
 }
 
 void Scene::compile() const {
-    if (!dirty_) return;
+    // Clear list of meshes to refit or rebuild
+    sync_.to_refit.clear();
+    sync_.to_rebuild.clear();
 
     // Synchronize meshes
-    for (auto id : sync_.dirty_meshes) {
-        if (sync_.meshes.size() <= id.id) sync_.meshes.resize(id.id + 1);
-        
-        sync_.meshes[id.id].vertices  = reinterpret_cast<::Vec3*>(meshes_[id.id]->vertices());
-        sync_.meshes[id.id].normals   = reinterpret_cast<::Vec3*>(meshes_[id.id]->vertices());
-        sync_.meshes[id.id].texcoords = reinterpret_cast<::Vec2*>(meshes_[id.id]->vertices());
-        sync_.meshes[id.id].materials = reinterpret_cast<int*>(meshes_[id.id]->materials());
-        sync_.meshes[id.id].indices   = reinterpret_cast<int*>(meshes_[id.id]->triangles());
-        sync_.meshes[id.id].num_tris  = meshes_[id.id]->triangle_count();
-    }
-    sync_.dirty_meshes.clear();
+    if (dirty_) {
+        for (auto id : sync_.dirty_meshes) {
+            if (sync_.meshes.size() <= id) {
+                sync_.meshes.resize(id + 1);
+            } else {
+                // Need to update the existing acceleration structure
+                if (sync_.meshes[id].num_tris == meshes_[id]->triangle_count()) {
+                    // Assume that a refit is enough if only vertices moved
+                    sync_.to_refit.push_back(id);
+                } else {
+                    // Rebuild is necessary
+                    sync_.to_rebuild.push_back(id);
+                }
+            }
+            
+            sync_.meshes[id].vertices  = reinterpret_cast<::Vec3*>(meshes_[id]->vertices());
+            sync_.meshes[id].normals   = reinterpret_cast<::Vec3*>(meshes_[id]->normals());
+            sync_.meshes[id].texcoords = reinterpret_cast<::Vec2*>(meshes_[id]->texcoords());
+            sync_.meshes[id].materials = reinterpret_cast<int*>(meshes_[id]->materials());
+            sync_.meshes[id].indices   = reinterpret_cast<int*>(meshes_[id]->triangles());
+            sync_.meshes[id].num_tris  = meshes_[id]->triangle_count();
+        }
+        sync_.dirty_meshes.clear();
 
-    // Synchronize textures
-    for (auto id : sync_.dirty_textures) {
-        if (sync_.textures.size() <= id.id) sync_.textures.resize(id.id + 1);
-        
-        sync_.textures[id.id].width  = textures_[id.id]->width();
-        sync_.textures[id.id].height = textures_[id.id]->height();
-        sync_.textures[id.id].stride = textures_[id.id]->stride();
-        sync_.textures[id.id].pixels = textures_[id.id]->pixels();
+        // Synchronize textures
+        for (auto id : sync_.dirty_textures) {
+            if (sync_.textures.size() <= id) sync_.textures.resize(id + 1);
+            
+            sync_.textures[id].width  = textures_[id]->width();
+            sync_.textures[id].height = textures_[id]->height();
+            sync_.textures[id].stride = textures_[id]->stride();
+            sync_.textures[id].pixels = textures_[id]->pixels();
+        }
+        sync_.dirty_textures.clear();
     }
-    sync_.dirty_textures.clear();
 
-    // TODO : implement instances
+    const int new_meshes = sync_.meshes.size() - sync_.scene_data->num_meshes;
+    const int new_insts  = sync_.instances.size() - sync_.scene_data->num_instances;
+
+    sync_.scene_data->instances     = sync_.instances.data();
+    sync_.scene_data->num_instances = sync_.instances.size();
+    sync_.scene_data->meshes        = sync_.meshes.data();
+    sync_.scene_data->num_meshes    = sync_.meshes.size();
+    sync_.scene_data->textures      = sync_.textures.data();
+    sync_.scene_data->num_textures  = sync_.textures.size();
+
     if (!sync_.comp_scene) {
-        //sync_.scene_data->instances     = sync_.instances.data();
-        //sync_.scene_data->num_instances = sync_.instances.size();
-        sync_.scene_data->meshes        = sync_.meshes.data();
-        sync_.scene_data->num_meshes    = sync_.meshes.size();
-        sync_.scene_data->textures      = sync_.textures.data();
-        sync_.scene_data->num_textures  = sync_.textures.size();
-
         sync_.comp_scene.reset(compile_scene(sync_.scene_data.get()));
     } else {
-        // TODO : update scene. Pass information on which mesh has changed to impala
-        // Refit meshes that keep the same connectivity, rebuild others.
-        assert(0 && "Not implemented");
+        ::SceneUpdate update_info;
+        update_info.mesh_refit   = sync_.to_refit.data();
+        update_info.num_refit    = sync_.to_refit.size();
+        update_info.mesh_rebuild = sync_.to_rebuild.data();
+        update_info.num_rebuild  = sync_.to_rebuild.size();
+        update_info.inst_new     = new_insts;
+        update_info.mesh_new     = new_meshes;
+
+        update_scene(sync_.scene_data.get(), &update_info, sync_.comp_scene.get());
     }
 
     dirty_ = false;

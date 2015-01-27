@@ -25,9 +25,10 @@ bool ObjLoader::load_file(const Path& path, Scene& scene, Logger* logger) {
 
     // Create a scene from the OBJ file.
     for (auto& obj: obj_file.objects) {
-        // Create a mesh for this object
-        std::unique_ptr<TriangleMesh> mesh(new TriangleMesh());
-        
+        // Convert the faces to triangles & build the new list of indices
+        std::vector<TriangleMesh::Triangle> triangles;
+        std::vector<int> materials;
+
         auto hash_index = [] (const Index& i) { return i.v ^ (i.t << 7) ^ (i.n << 11); };
         auto pred_index = [] (const Index& a, const Index& b) { return (a.v == b.v) && (a.n == b.n) && (a.t == b.t); };
         std::unordered_map<Index, int, decltype(hash_index), decltype(pred_index)> mapping(obj_file.vertices.size(), hash_index, pred_index);
@@ -35,9 +36,7 @@ bool ObjLoader::load_file(const Path& path, Scene& scene, Logger* logger) {
         int cur_idx = 0;
         bool has_normals = false;
         bool has_texcoords = false;
-        int tri_count = 0;
 
-        // Convert the faces to triangles & build the new list of indices
         for (auto& group : obj.groups) {
             for (auto& face : group.faces) {
                 for (int i = 0; i < face.index_count; i++) {
@@ -55,15 +54,22 @@ bool ObjLoader::load_file(const Path& path, Scene& scene, Logger* logger) {
                 int prev = mapping[face.indices[1]];
                 for (int i = 1; i < face.index_count - 1; i++) {
                     const int next = mapping[face.indices[i + 1]];
-                    mesh->add_triangle(TriangleMesh::Triangle(v0, prev, next));
-                    mesh->add_material(face.material);
-                    tri_count++;
+                    triangles.push_back(TriangleMesh::Triangle(v0, prev, next));
+                    materials.push_back(face.material);
                     prev = next;
                 }
             }
         }
 
-        if (tri_count == 0) continue;
+        if (triangles.size() == 0) continue;
+
+        // Create a mesh for this object
+        auto mesh_id = scene.new_triangle_mesh();
+        auto mesh = scene.triangle_mesh(mesh_id);
+
+        // Copy materials & triangles
+        mesh->set_triangles(triangles.data(), triangles.size());
+        mesh->set_materials(materials.data(), materials.size());
 
         // Set up mesh vertices
         mesh->set_vertex_count(cur_idx);
@@ -95,7 +101,13 @@ bool ObjLoader::load_file(const Path& path, Scene& scene, Logger* logger) {
                                       mesh->triangle_count(), " triangles");
         }
 
-        scene.add_triangle_mesh(mesh.release());
+        for (int z = -10; z < 10; z++) {
+            for (int y = -10; y < 10; y++) {
+                for (int x = -10; x < 10; x++) {
+                    scene.new_instance(mesh_id, Mat4::translation(x * 50, z * 50, y * 50) * Mat4::rotation(x + y + z, Vec3(0, 1, 0)));
+                }
+            }
+        }
     }
 
     return true;

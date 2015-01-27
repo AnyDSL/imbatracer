@@ -70,19 +70,17 @@ fn hit_tmin(h: &Hit, i: int) -> float {
     h.t(i)
 }
 
-fn generate_packet(mut p: &Packet, x: int, y: int, gen_ray: fn (int, int) -> Ray) -> () @{
-    p.sign(0) = 0;
-    p.sign(1) = 0;
-    p.sign(2) = 0;
+fn generate_packet(mut p: &Packet, x: int, y: int, generate_ray: fn (int, int) -> Ray) -> () @{
+    let mut ray_sign = [0, 0, 0];
 
     for i in range(0, packet_height(p)) @{
         for j in range(0, packet_width(p)) @{
             let k = i * packet_width(p) + j;
-            let ray = gen_ray(x + j, y + i);
+            let ray = generate_ray(x + j, y + i);
 
-            p.sign(0) += if ray.dir.values(0) > 0.0f {1} else {-1};
-            p.sign(1) += if ray.dir.values(1) > 0.0f {1} else {-1};
-            p.sign(2) += if ray.dir.values(2) > 0.0f {1} else {-1};
+            ray_sign(0) += if ray.dir.values(0) > 0.0f {1} else {-1};
+            ray_sign(1) += if ray.dir.values(1) > 0.0f {1} else {-1};
+            ray_sign(2) += if ray.dir.values(2) > 0.0f {1} else {-1};
 
             p.dir_x(k) = ray.dir.values(0);
             p.dir_y(k) = ray.dir.values(1);
@@ -97,6 +95,10 @@ fn generate_packet(mut p: &Packet, x: int, y: int, gen_ray: fn (int, int) -> Ray
             p.org_z(k) = ray.org.values(2);
         }
     }
+
+    p.sign(0) = if ray_sign(0) < 0 {1} else {0};
+    p.sign(1) = if ray_sign(1) < 0 {1} else {0};
+    p.sign(2) = if ray_sign(2) < 0 {1} else {0};
 }
 
 fn first_active(p: &Packet, h: &Hit, b: Box) -> int {
@@ -147,6 +149,39 @@ fn perspective_frustum(mut p: &Packet) -> () @{
     // Top & Bottom
     p.frustum.planes(2) = ray_plane(r1, r0);
     p.frustum.planes(3) = ray_plane(r2, r3);
+}
+
+fn transform_packet(p: &Packet, mut tp: &Packet, mat: &Mat4, inv_mat: &Mat4) -> () @{
+    let mut ray_sign = [0, 0, 0];
+
+    for i in range(0, packet_size(p)) @{
+        tp.org_x(i) = mat.c0.values(0) * p.org_x(i) + mat.c1.values(0) * p.org_y(i) + mat.c2.values(0) * p.org_z(i) + mat.c3.values(0);
+        tp.org_y(i) = mat.c0.values(1) * p.org_x(i) + mat.c1.values(1) * p.org_y(i) + mat.c2.values(1) * p.org_z(i) + mat.c3.values(1);
+        tp.org_z(i) = mat.c0.values(2) * p.org_x(i) + mat.c1.values(2) * p.org_y(i) + mat.c2.values(2) * p.org_z(i) + mat.c3.values(2);
+
+        tp.dir_x(i) = mat.c0.values(0) * p.dir_x(i) + mat.c1.values(0) * p.dir_y(i) + mat.c2.values(0) * p.dir_z(i);
+        tp.dir_y(i) = mat.c0.values(1) * p.dir_x(i) + mat.c1.values(1) * p.dir_y(i) + mat.c2.values(1) * p.dir_z(i);
+        tp.dir_z(i) = mat.c0.values(2) * p.dir_x(i) + mat.c1.values(2) * p.dir_y(i) + mat.c2.values(2) * p.dir_z(i);
+
+        tp.inv_x(i) = 1.0f / tp.dir_x(i);
+        tp.inv_y(i) = 1.0f / tp.dir_y(i);
+        tp.inv_z(i) = 1.0f / tp.dir_z(i);
+
+        ray_sign(0) += if tp.dir_x(i) > 0.0f {1} else {-1};
+        ray_sign(1) += if tp.dir_y(i) > 0.0f {1} else {-1};
+        ray_sign(2) += if tp.dir_z(i) > 0.0f {1} else {-1};
+    }
+
+    tp.sign(0) = if ray_sign(0) < 0 {1} else {0};
+    tp.sign(1) = if ray_sign(1) < 0 {1} else {0};
+    tp.sign(2) = if ray_sign(2) < 0 {1} else {0};
+
+    let mut tinv_mat = mat4_transpose(inv_mat);
+
+    for i in range(0, 4) @{
+        // Multiply by transpose of inverse to get the new plane normal
+        tp.frustum.planes(i) = mat4_mul_vec4(&tinv_mat, p.frustum.planes(i));
+    }
 }
 
 fn record_hit(mut h: &Hit, i: int, t: float, u: float, v: float, mesh_id: int, tri_id: int) -> () {

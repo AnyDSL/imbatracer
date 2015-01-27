@@ -37,17 +37,16 @@ fn box_half_area(b: Box) -> float {
     if a > 0.0f {a} else {0.0f}
 }
 
-fn transform_box(b: Box, mat: Mat4) -> Box {
+fn transform_box(b: Box, mat: &Mat4) -> Box @{
     let h = vec3_map(box_extents(b), |x| x * 0.5f);
     let c = box_center(b);
+
+    let mut abs_mat = mat4_abs(mat);
     
-    let th = mat4_mul_vec3(mat, h);
-    let tc = mat4_mul_vec3(mat, c);
-
-    let nmin = vec3_sub(tc, th);
-    let nmax = vec3_add(tc, th);
-
-    box(vec3_min(nmin, nmax), vec3_max(nmin, nmax))
+    let tc = mat4_mul_vec3(mat, c, 1.0f);
+    let th = mat4_mul_vec3(&abs_mat, h, 0.0f);
+    
+    box(vec3_sub(tc, th), vec3_add(tc, th))
 }
 
 fn in_box(v: Vec3, b: Box) -> bool {

@@ -13,7 +13,12 @@ struct MeshInstance {
     mat:     Mat4
 }
 
-fn build_mesh_bvh(mesh: &Mesh) -> Bvh @{
+fn rebuild_mesh_bvh(mesh: &Mesh, mut bvh: Bvh) -> Bvh {
+    if mesh.num_tris > bvh.max_prims @{
+        destroy_bvh(bvh);
+        bvh = create_bvh(mesh.num_tris);
+    }
+
     // Build the bounding boxes and centers
     let mut centers = ~[mesh.num_tris: Vec3];
     let mut boxes = ~[mesh.num_tris: Box];
@@ -28,13 +33,17 @@ fn build_mesh_bvh(mesh: &Mesh) -> Bvh @{
         boxes(i).max = vec3_max(v0, vec3_max(v1, v2));
     }
 
-    // Build the BVH
-    let bvh = build_bvh(|i| boxes(i), |i| centers(i), mesh.num_tris);
+    // Rebuild the BVH
+    bvh = build_bvh(bvh, |i| boxes(i), |i| centers(i), mesh.num_tris);
     
     // TODO: remove this when impala supports auto pointers
     thorin_free(boxes as &[u8]);
     thorin_free(centers as &[u8]);
 
     bvh
+}
+
+fn build_mesh_bvh(mesh: &Mesh) -> Bvh @{
+    rebuild_mesh_bvh(mesh, empty_bvh())
 }
 

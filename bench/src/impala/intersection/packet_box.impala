@@ -2,6 +2,23 @@ fn intersect_packet_box(p: &Packet, h: &Hit, b: Box, intr: fn () -> ()) -> () @{
     // Bounding frustum test
     intersect_frustum_box(p.frustum, b, || {
         // Individual ray test
+        /*for i in range_step(0, packet_size(p), 4) @{
+            let mut hit = [false, ..4];
+
+            for j in vrange4(0, 4) @{
+                intersect_ray_box(packet_ray_inv(p, i + j), b, |t0, t1| @{
+                    if t1 > 0.0f && t0 < hit_tmin(h, i + j) @{
+                        hit(j) = true;
+                    }
+                })
+            }
+
+            if hit(0) || hit(1) || hit(2) || hit(3) @{
+                intr();
+                return()
+            }
+        }*/
+
         for i in range(0, packet_size(p)) @{
             intersect_ray_box(packet_ray_inv(p, i), b, |t0, t1| @{
                 if t1 > 0.0f && t0 < hit_tmin(h, i) @{

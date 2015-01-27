@@ -19,14 +19,13 @@ bool SdlDevice::render(const Scene& scene, int width, int height, Logger& logger
         return false;
     }
 
-    scene.compile();
-
     gbuffer_.resize((width % 2 != 0) ? width + 1 : width,
                     (height % 2 != 0) ? height + 1 : height);
     
     SDL_WM_SetCaption("Imbatracer", NULL);
 
     SDL_EnableKeyRepeat(SDL_DEFAULT_REPEAT_DELAY, SDL_DEFAULT_REPEAT_INTERVAL);
+
     SDL_WM_GrabInput(SDL_GRAB_ON);
     SDL_ShowCursor(SDL_DISABLE);
 
@@ -50,7 +49,14 @@ bool SdlDevice::render(const Scene& scene, int width, int height, Logger& logger
             ticks = t;
         }
 
+        for (int i = 0; i < scene.instance_count(); i++) {
+            auto inst = const_cast<Scene*>(&scene)->instance(InstanceId(i));
+            inst->set_matrix(inst->matrix() * Mat4::rotation(0.01f, Vec3(0, 1, 0)));
+        }
+
+        scene.compile();
         render_surface(scene);
+
         SDL_Flip(screen_);
         done = handle_events(false);
         frames++;

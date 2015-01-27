@@ -42,6 +42,7 @@ fn vec2_mulf(v: Vec2, f: float) -> Vec2 { vec2_map(v, |x| x * f) }
 fn vec2_divf(v: Vec2, f: float) -> Vec2 { vec2_map(v, |x| x / f) }
 fn vec2_dot(v1: Vec2, v2: Vec2) -> float { vec2_fold(vec2_zip(v1, v2, |x, y| x * y), |x, y| x + y) }
 fn vec2_lensq(v: Vec2) -> float { vec2_dot(v, v) }
+fn vec2_abs(v: Vec2) -> Vec2 { vec2_map(v, |x| fabsf(x)) }
 
 fn vec3_map(v: Vec3, f: fn (float) -> float) -> Vec3 {
     vec3(f(v.values(0)), f(v.values(1)), f(v.values(2)))
@@ -79,6 +80,7 @@ fn vec3_mulf(v: Vec3, f: float) -> Vec3 { vec3_map(v, |x| x * f) }
 fn vec3_divf(v: Vec3, f: float) -> Vec3 { vec3_map(v, |x| x / f) }
 fn vec3_dot(v1: Vec3, v2: Vec3) -> float { vec3_fold(vec3_zip(v1, v2, |x, y| x * y), |x, y| x + y) }
 fn vec3_lensq(v: Vec3) -> float { vec3_dot(v, v) }
+fn vec3_abs(v: Vec3) -> Vec3 { vec3_map(v, |x| fabsf(x)) }
 
 fn vec4_map(v: Vec4, f: fn (float) -> float) -> Vec4 {
     vec4(f(v.values(0)), f(v.values(1)), f(v.values(2)), f(v.values(3)))
@@ -120,4 +122,5 @@ fn vec4_mulf(v: Vec4, f: float) -> Vec4 { vec4_map(v, |x| x * f) }
 fn vec4_divf(v: Vec4, f: float) -> Vec4 { vec4_map(v, |x| x / f) }
 fn vec4_dot(v1: Vec4, v2: Vec4) -> float { vec4_fold(vec4_zip(v1, v2, |x, y| x * y), |x, y| x + y) }
 fn vec4_lensq(v: Vec4) -> float { vec4_dot(v, v) }
+fn vec4_abs(v: Vec4) -> Vec4 { vec4_map(v, |x| fabsf(x)) }
 

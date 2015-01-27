@@ -13,14 +13,30 @@ struct BvhBin {
 struct Bvh {
     nodes: ~[BvhNode],
     node_count: int,
+    max_prims: int,
     prim_ids: ~[int]
 }
 
-fn bvh(nodes: ~[BvhNode], node_count: int, prim_ids: ~[int]) -> Bvh {
+fn create_bvh(prim_count: int) -> Bvh {
     Bvh {
-        nodes: nodes,
-        node_count: node_count,
-        prim_ids: prim_ids
+        nodes : ~[2 * prim_count + 1: BvhNode],
+        node_count : 0,
+        max_prims : prim_count,
+        prim_ids : ~[prim_count: int]
+    }
+}
+
+fn destroy_bvh(bvh: Bvh) -> () {
+    thorin_free(bvh.nodes as &[u8]);
+    thorin_free(bvh.prim_ids as &[u8]);
+}
+
+fn empty_bvh() -> Bvh {
+    Bvh {
+        nodes : 0 as ~[BvhNode],
+        node_count : 0,
+        max_prims : 0,
+        prim_ids : 0 as ~[int]
     }
 }
 
@@ -142,17 +158,16 @@ fn build_bvh_node(mut nodes: &[BvhNode],
         })
 }
 
-fn build_bvh(boxes: fn (int) -> Box,
+fn build_bvh(mut bvh: Bvh,
+             boxes: fn (int) -> Box,
              centers: fn (int) -> Vec3,
              prim_count: int) -> Bvh {
-    // Allocate & initialize the primitive permutation array
-    let mut prim_ids = ~[prim_count: int];
-    for i in range(0, prim_count) {
-        prim_ids(i) = i;
-    }
+    assert(|| bvh.max_prims <= prim_count, "build_bvh : BVH doesn't have enough nodes");
 
-    // Preallocate the BVH nodes (upper bound)
-    let nodes = ~[(2 * prim_count + 1): BvhNode];
+    // Initialize the primitive permutation array
+    for i in range(0, prim_count) {
+        bvh.prim_ids(i) = i;
+    }
 
     fn ilog2(i: int) -> int {
         let mut p = 1;
@@ -175,7 +190,7 @@ fn build_bvh(boxes: fn (int) -> Box,
         let mut bounds = empty_box();
 
         for i in range(first, last) @{
-            let id = prim_ids(i);
+            let id = bvh.prim_ids(i);
             bounds = box_union(bounds, boxes(id));
         }
 
@@ -187,7 +202,7 @@ fn build_bvh(boxes: fn (int) -> Box,
         // Compute the bounding box of the triangle centers
         let mut center_box = empty_box();
         for i in range(first, last) @{
-            let id = prim_ids(i);
+            let id = bvh.prim_ids(i);
             center_box = box_expand(center_box, centers(id));
         }
 
@@ -220,7 +235,7 @@ fn build_bvh(boxes: fn (int) -> Box,
         }
 
         for i in range(first, last) @{
-            let id = prim_ids(i);
+            let id = bvh.prim_ids(i);
             let bin_id = compute_bin_id(centers(id));
 
             bins(bin_id).bounds = box_union(bins(bin_id).bounds, boxes(id));
@@ -238,12 +253,12 @@ fn build_bvh(boxes: fn (int) -> Box,
                 let mut b = last - 1;
 
                 while a <= b @{
-                    let bin_id = compute_bin_id(centers(prim_ids(a)));
+                    let bin_id = compute_bin_id(centers(bvh.prim_ids(a)));
 
                     if bin_id >= min_id @{
-                        let tmp = prim_ids(a);
-                        prim_ids(a) = prim_ids(b);
-                        prim_ids(b) = tmp;
+                        let tmp = bvh.prim_ids(a);
+                        bvh.prim_ids(a) = bvh.prim_ids(b);
+                        bvh.prim_ids(b) = tmp;
                         b -= 1;
                     } else @{
                         a += 1;
@@ -252,11 +267,10 @@ fn build_bvh(boxes: fn (int) -> Box,
 
                 make_node(axis, a)
             })
-    }  
+    }
 
     // A stack of 32 elements is enough since we limit the depth to log2(prim_count)
     let mut stack: [(int, int, int, int) * 32];
-    let mut node_count = 1;
     let mut stack_idx = 0;
 
     fn push_node(node: (int, int, int, int)) -> () {
@@ -269,34 +283,36 @@ fn build_bvh(boxes: fn (int) -> Box,
         stack(stack_idx)
     }
 
+    bvh.node_count = 1;
     push_node((0, 0, prim_count, 0));
 
     while stack_idx > 0 @{
-        node_count = build_bvh_node(nodes, node_count, push_node, pop_node,
-                                    must_stop, compute_bounds, decide_split);
+        bvh.node_count = build_bvh_node(bvh.nodes, bvh.node_count, push_node, pop_node,
+                                        must_stop, compute_bounds, decide_split);
 
     }
 
-    bvh(nodes, node_count, prim_ids)
+    bvh
 }
 
-fn refit_bvh(mut bvh: &Bvh, boxes: fn (int) -> Box) -> () @{
-    /*let mut stack: [int * 32];
-    let mut stack_idx = 1;
-
-    fn push_node(node: int) -> () @{
-        stack(stack_idx) = node;
-        stack_idx += 1;
-    }
-
-    fn pop_node() -> int @{
-        stack_idx -= 1;
-        stack(stack_idx)
-    }
-
-    while stack_idx > 0 {
+fn refit_bvh(mut bvh: Bvh, boxes: fn (int) -> Box) -> () @{
+    // Refit each node (start at the end of the node array)
+    for i in range(0, bvh.node_count) @{
+        let mut node = &bvh.nodes(bvh.node_count - 1 - i);
         
-    }*/
+        if (node.prim_count != 0i16) @{
+            // Leaf, recompute the bounding box of the node
+            node.bounds = empty_box();
+            for j in range(node.child_first, node.child_first + node.prim_count as int) @{
+                let id = bvh.prim_ids(j);
+                node.bounds = box_union(node.bounds, boxes(id));
+            }
+        } else @{
+            // Node, inherit the bounding box of the children
+            node.bounds = box_union(bvh.nodes(node.child_first).bounds,
+                                    bvh.nodes(node.child_first + 1).bounds);
+        }
+    }
 }
 
 fn traverse_bvh(bvh: Bvh, at_leaf: fn (Box, int, i16) -> (), at_node: fn (Box, i16, fn (int) -> ()) -> ()) -> () @{

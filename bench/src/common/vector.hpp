@@ -218,8 +218,6 @@ inline Vec4 normalize(const Vec4& v) {
     return v / length(v);
 }
 
-
-
 } // namespace imba
 
 #endif // IMBA_VECTOR_HPP

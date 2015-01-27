@@ -69,11 +69,11 @@ int main(int argc, char** argv) {
     benches.push_back(new bench::BenchRay4BoxImpala(1000000));
 
     // Benches that need a simple scene
-    const std::string& scene_file = "teapot.obj";
+    const std::string& scene_file = (argc < 2) ? "teapot.obj" : argv[1];
     imba::ObjLoader loader;
     imba::Scene scene;
     
-    if (!loader.load_file(imba::Path("teapot.obj"), scene, logger.get())) {
+    if (!loader.load_file(imba::Path(scene_file), scene, logger.get())) {
         logger->log("cannot load file ", scene_file);
         return EXIT_FAILURE;
     }
@@ -83,7 +83,7 @@ int main(int argc, char** argv) {
     }
 
     for (int i = 0; i < scene.triangle_mesh_count(); i++) {
-        const imba::TriangleMesh* mesh = scene.triangle_mesh(imba::TriangleMeshId(i));
+        const imba::TriangleMesh* mesh = scene.triangle_mesh(imba::TriangleMeshId(i)).get();
         benches.push_back(new bench::BenchBvhBuildImpala(mesh));
         benches.push_back(new bench::BenchBvh4BuildEmbree(mesh));
 

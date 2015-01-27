@@ -38,7 +38,7 @@ extern fn render_gbuffer(scene: &Scene, comp: &CompiledScene, cam: &Camera, gbuf
             for i in range(0, packet_height(&p)) @{
                 for j in range(0, packet_width(&p)) @{
                     let k = packet_ray_id(&p, j, i);
-
+                    
                     write_gbuffer(x + j, y + i, gbuffer, gbuffer_pixel(hit.t(k), hit.u(k), hit.v(k), hit.tri_id(k)));
                 }
             }
