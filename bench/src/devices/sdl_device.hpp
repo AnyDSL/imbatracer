@@ -27,7 +27,7 @@ private:
     Vec3 up_;
     Vec3 right_;
 
-    GBuffer gbuffer_;
+    Texture texture_;
     SDL_Surface* screen_;
 };
 

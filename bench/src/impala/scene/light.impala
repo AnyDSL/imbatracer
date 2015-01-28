@@ -1,0 +1,22 @@
+struct Light {
+    pos_dir: Vec4,
+    falloff: Vec3,
+    intensity: Vec3,
+    cutoff: float
+}
+
+fn evaluate_light(l: &Light, p: Vec3, n: Vec3) -> Vec3 {
+    // Compute the incident light vector
+    let p2 = vec3_map(p, |x| x * l.pos_dir.values(3));
+    let d = vec3_sub(vec3_from_vec4(l.pos_dir), p2);
+
+    // Compute attenuation at given point
+    let dist = sqrtf(vec3_lensq(d));
+    let k = l.falloff.values(0) + dist * (l.falloff.values(1) + dist * l.falloff.values(2));
+    
+    let dot = vec3_dot(n, d) / dist;
+    let s = if dot < l.cutoff { 0.0f } else { dot / k };
+
+    vec3_map(l.intensity, |x| x * s)
+}
+

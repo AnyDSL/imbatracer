@@ -2,6 +2,9 @@
 #define IMBA_OBJ_LOADER_HPP
 
 #include "scene_loader.hpp"
+#include <string>
+#include <vector>
+#include <unordered_map>
 
 namespace imba {
 
@@ -47,7 +50,7 @@ private:
         std::vector<Group> groups;
     };
 
-    struct File {
+    struct ObjFile {
         std::vector<Object>      objects;
         std::vector<Vertex>      vertices;
         std::vector<Normal>      normals;
@@ -56,7 +59,21 @@ private:
         std::vector<std::string> mtl_libs;
     };
 
-    bool parse_stream(std::istream& stream, File& file, Logger* logger);
+    struct Material {
+        float ka[3];
+        float kd[3];
+        float ks[3];
+        float ns;
+        float d;
+        int illum;
+        std::string map_ka;
+        std::string map_kd;
+        std::string map_ks;
+        std::string map_bump;
+    };
+
+    bool parse_obj_stream(std::istream& stream, ObjFile& file, Logger* logger);
+    bool parse_mtl_stream(std::istream& stream, std::unordered_map<std::string, Material>& materials, Logger* logger);
     bool read_index(char** ptr, Index& idx);
 };
 

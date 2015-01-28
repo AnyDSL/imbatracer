@@ -40,4 +40,15 @@ void Render::render_gbuffer(const Scene& scene, const ::Camera& camera, GBuffer&
                      const_cast<Camera*>(&camera), &buf);
 }
 
+void Render::render_texture(const Scene& scene, const ::Camera& camera, Texture& output) {
+    ::Texture tex;
+    tex.width  = output.width();
+    tex.height = output.height();
+    tex.stride = output.stride();
+    tex.pixels = output.pixels();
+    ::render_texture(const_cast<::Scene*>(scene.sync_.scene_data.get()),
+                     const_cast<::CompiledScene*>(scene.sync_.comp_scene.get()),
+                     const_cast<Camera*>(&camera), &tex);
+}
+
 } // namespace imba

@@ -10,6 +10,7 @@
 #include "triangle_mesh.hpp"
 #include "instance.hpp"
 #include "material.hpp"
+#include "light.hpp"
 #include "proxy.hpp"
 #include "../common/matrix.hpp"
 
@@ -23,6 +24,8 @@ class Scene {
     friend class SceneAccess<TriangleMesh>;
     friend class SceneAccess<Texture>;
     friend class SceneAccess<Instance>;
+    friend class SceneAccess<Material>;
+    friend class SceneAccess<Light>;
 
 public:
     Scene();
@@ -54,9 +57,27 @@ public:
         return InstanceId(sync_.instances.size() - 1);
     }
 
+    template <typename... Args>
+    MaterialId new_material(Args... args) {
+        Material mat(args...);
+        sync_.materials.push_back(*reinterpret_cast<::Material*>(&mat));
+        dirty_ = true;
+        return MaterialId(sync_.materials.size() - 1);
+    }
+
+    template <typename... Args>
+    LightId new_light(Args... args) {
+        Light light(args...);
+        sync_.lights.push_back(*reinterpret_cast<::Light*>(&light));
+        dirty_ = true;
+        return LightId(sync_.lights.size() - 1);
+    }
+
     int triangle_mesh_count() const { return meshes_.size(); }
-    int instance_count() const { return sync_.instances.size(); }
     int texture_count() const { return textures_.size(); }
+    int instance_count() const { return sync_.instances.size(); }
+    int material_count() const { return sync_.materials.size(); }
+    int light_count() const { return sync_.lights.size(); }
 
     ReadOnlyProxy<TriangleMesh> triangle_mesh(TriangleMeshId id) const {
         return ReadOnlyProxy<TriangleMesh>(this, id.id);
@@ -82,13 +103,28 @@ public:
         return ReadWriteProxy<Instance>(this, id.id);
     }
 
+    ReadOnlyProxy<Material> material(MaterialId id) const {
+        return ReadOnlyProxy<Material>(this, id.id);
+    }
+
+    ReadWriteProxy<Material> material(MaterialId id) {
+        return ReadWriteProxy<Material>(this, id.id);
+    }
+
+    ReadOnlyProxy<Light> light(LightId id) const {
+        return ReadOnlyProxy<Light>(this, id.id);
+    }
+
+    ReadWriteProxy<Light> light(LightId id) {
+        return ReadWriteProxy<Light>(this, id.id);
+    }
+
     /// Forces compilation of the scene. Makes sure everything is ready for rendering.
     void compile() const;
 
 private:
     std::vector<TriangleMesh*> meshes_;
     std::vector<Texture*>      textures_;
-    std::vector<Material>      materials_;
 
     mutable struct {
         ThorinUniquePtr<::Scene>         scene_data;
@@ -97,6 +133,8 @@ private:
         ThorinVector<::Texture>      textures;
         ThorinVector<::Mesh>         meshes;
         ThorinVector<::MeshInstance> instances;
+        ThorinVector<::Material>     materials;
+        ThorinVector<::Light>        lights;
 
         ThorinVector<int> to_refit;
         ThorinVector<int> to_rebuild;
@@ -152,6 +190,33 @@ struct SceneAccess<Instance> {
 
     static void notify_change(Scene* scene, int id) {}
 };
+
+template <>
+struct SceneAccess<Material> {
+    static const Material* read_only(const Scene* scene, int id) {
+        return reinterpret_cast<const Material*>(&scene->sync_.materials[0] + id);
+    }
+
+    static Material* read_write(Scene* scene, int id) {
+        return reinterpret_cast<Material*>(&scene->sync_.materials[0] + id);
+    }
+
+    static void notify_change(Scene* scene, int id) {}
+};
+
+template <>
+struct SceneAccess<Light> {
+    static const Light* read_only(const Scene* scene, int id) {
+        return reinterpret_cast<const Light*>(&scene->sync_.lights[0] + id);
+    }
+
+    static Light* read_write(Scene* scene, int id) {
+        return reinterpret_cast<Light*>(&scene->sync_.lights[0] + id);
+    }
+
+    static void notify_change(Scene* scene, int id) {}
+};
+
 
 } // namespace imba
 

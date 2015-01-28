@@ -2,7 +2,6 @@
 #include <algorithm>
 #include <cstdlib>
 #include <locale>
-#include <unordered_map>
 #include "obj_loader.hpp"
 
 namespace imba {
@@ -13,13 +12,42 @@ bool ObjLoader::check_format(const Path& path) {
 }
 
 bool ObjLoader::load_file(const Path& path, Scene& scene, Logger* logger) {
-    File obj_file;
+    ObjFile obj_file;
 
     // Parse the OBJ file
     {
         std::ifstream stream(path);
-        if (!stream || !parse_stream(stream, obj_file, logger)) {
+        if (!stream || !parse_obj_stream(stream, obj_file, logger)) {
             return false;
+        }
+    }
+
+    // Parse the associated MTL files
+    std::unordered_map<std::string, Material> materials;
+    for (auto& lib : obj_file.mtl_libs) {
+        std::ifstream stream(path.base_name() + "/" + lib);
+        if (!stream || !parse_mtl_stream(stream, materials, logger)) {
+            if (logger) logger->log("invalid material library '", lib, "'");
+        }
+    }
+
+    // Add a dummy material, for objects that have no material
+    scene.new_material(Vec3(1.0f, 0.0f, 0.0f));
+    // Add all the other materials
+    for (int i = 1; i < obj_file.materials.size(); i++) {
+        auto& mat_name = obj_file.materials[i];
+        auto it = materials.find(mat_name);
+        if (it == materials.end()) {
+            if (logger) logger->log("material not found '", mat_name, "'");
+            // Add a dummy material in this case
+            scene.new_material(Vec3(0.0f, 0.0f, 1.0f));
+        } else {
+            // TODO : add textures...
+            const Material& mat = it->second;
+            scene.new_material(Vec3(mat.ka[0], mat.ka[1], mat.ka[2]),
+                               Vec3(mat.kd[0], mat.kd[1], mat.kd[2]),
+                               Vec3(mat.ks[0], mat.ks[1], mat.ks[2]),
+                               -1);
         }
     }
 
@@ -85,6 +113,24 @@ bool ObjLoader::load_file(const Path& path, Scene& scene, Logger* logger) {
                 const Normal& n = obj_file.normals[p.first.n];
                 mesh->normals()[p.second] = Vec3(n.x, n.y, n.z);
             }
+        } else {
+            // Recompute normals
+            if (logger) logger->log("Recomputing normals...");
+            mesh->set_normal_count(cur_idx);
+            for (auto& t : triangles) {
+                const Vec3& v0 = mesh->vertices()[t[0]];
+                const Vec3& v1 = mesh->vertices()[t[1]];
+                const Vec3& v2 = mesh->vertices()[t[2]];
+                const Vec3& e0 = v1 - v0;
+                const Vec3& e1 = v2 - v0;
+                const Vec3& n = cross(e0, e1);
+                mesh->normals()[t[0]] = mesh->normals()[t[0]] + n;
+                mesh->normals()[t[1]] = mesh->normals()[t[1]] + n;
+                mesh->normals()[t[2]] = mesh->normals()[t[2]] + n;
+            }
+
+            for (int i = 0; i < cur_idx; i++)
+                mesh->normals()[i] = normalize(mesh->normals()[i]);
         }
 
         if (has_texcoords) {
@@ -101,19 +147,25 @@ bool ObjLoader::load_file(const Path& path, Scene& scene, Logger* logger) {
                                       mesh->triangle_count(), " triangles");
         }
 
-        for (int z = -10; z < 10; z++) {
-            for (int y = -10; y < 10; y++) {
-                for (int x = -10; x < 10; x++) {
-                    scene.new_instance(mesh_id, Mat4::translation(x * 50, z * 50, y * 50) * Mat4::rotation(x + y + z, Vec3(0, 1, 0)));
-                }
-            }
-        }
+        scene.new_instance(mesh_id);
     }
+
+    scene.new_light(Vec4(0.0f, 0.0f, 0.0f, 1.0f), Vec3(1.0f, 0.0f, 0.001f));
 
     return true;
 }
 
-bool ObjLoader::parse_stream(std::istream& stream, File& file, Logger* logger) {
+inline char* strip_spaces(char* ptr) {
+    while (std::isspace(*ptr)) { ptr++; }
+    return ptr;
+}
+
+inline char* strip_text(char* ptr) {
+    while (*ptr && !std::isspace(*ptr)) { ptr++; }
+    return ptr;
+}
+
+bool ObjLoader::parse_obj_stream(std::istream& stream, ObjFile& file, Logger* logger) {
     // Add an empty object to the scene
     int cur_object = 0;
     file.objects.emplace_back();
@@ -135,8 +187,7 @@ bool ObjLoader::parse_stream(std::istream& stream, File& file, Logger* logger) {
     char line[max_line];
     while (stream.getline(line, max_line)) {
         // Strip spaces
-        char* ptr = line;
-        while (std::isspace(*ptr)) { ptr++; }
+        char* ptr = strip_spaces(line);
 
         // Skip comments and empty lines
         if (*ptr == '\0' || *ptr == '#')
@@ -232,9 +283,9 @@ bool ObjLoader::parse_stream(std::istream& stream, File& file, Logger* logger) {
         } else if (!std::strncmp(ptr, "usemtl", 6) && std::isspace(ptr[6])) {
             ptr += 6;
 
-            while (std::isspace(*ptr)) { ptr++; }
+            ptr = strip_spaces(ptr);
             char* base = ptr;
-            while (*ptr && !std::isspace(*ptr)) { ptr++; }
+            ptr = strip_text(ptr);
 
             const std::string mtl_name(base, ptr);
 
@@ -245,9 +296,9 @@ bool ObjLoader::parse_stream(std::istream& stream, File& file, Logger* logger) {
         } else if (!std::strncmp(ptr, "mtllib", 6) && std::isspace(ptr[6])) {
             ptr += 6;
 
-            while (std::isspace(*ptr)) { ptr++; }
+            ptr = strip_spaces(ptr);
             char* base = ptr;
-            while (*ptr && !std::isspace(*ptr)) { ptr++; }
+            ptr = strip_text(ptr);
 
             const std::string lib_name(base, ptr);
 
@@ -262,11 +313,85 @@ bool ObjLoader::parse_stream(std::istream& stream, File& file, Logger* logger) {
     return true;
 }
 
+bool ObjLoader::parse_mtl_stream(std::istream& stream, std::unordered_map<std::string, Material>& materials, Logger* logger) {
+    const int max_line = 1024;
+    char line[max_line];
+
+    std::string mtl_name;
+    auto current_material = [&] () -> Material& {
+        if (!mtl_name.length() && logger)
+            logger->log("invalid material command '", line, "'");
+        return materials[mtl_name];
+    };
+
+    while (stream.getline(line, max_line)) {
+        // Strip spaces
+        char* ptr = strip_spaces(line);
+
+        // Skip comments and empty lines
+        if (*ptr == '\0' || *ptr == '#')
+            continue;
+
+        if (!std::strncmp(ptr, "newmtl", 6) && std::isspace(ptr[6])) {
+            ptr = strip_spaces(ptr + 7);
+            char* base = ptr;
+            ptr = strip_text(ptr);
+
+            mtl_name = std::string(base, ptr);
+            if (materials.find(mtl_name) != materials.end()) {
+                if (logger) logger->log("duplicate material name '", mtl_name, "'");
+            }
+        } else if (ptr[0] == 'K') {
+            if (ptr[1] == 'a' && std::isspace(ptr[2])) {
+                Material& mat = current_material();
+                mat.ka[0] = std::strtof(ptr + 3, &ptr);
+                mat.ka[1] = std::strtof(ptr, &ptr);
+                mat.ka[2] = std::strtof(ptr, &ptr);
+            } else if (ptr[1] == 'd' && std::isspace(ptr[2])) {
+                Material& mat = current_material();
+                mat.kd[0] = std::strtof(ptr + 3, &ptr);
+                mat.kd[1] = std::strtof(ptr, &ptr);
+                mat.kd[2] = std::strtof(ptr, &ptr);
+            } else if (ptr[2] == 's' && std::isspace(ptr[2])) {
+                Material& mat = current_material();
+                mat.ks[0] = std::strtof(ptr + 3, &ptr);
+                mat.ks[1] = std::strtof(ptr, &ptr);
+                mat.ks[2] = std::strtof(ptr, &ptr);
+            }
+        } else if (ptr[0] == 'N' && ptr[1] == 's' && std::isspace(ptr[2])) {
+            Material& mat = current_material();
+            mat.ns = std::strtof(ptr + 3, &ptr);
+        } else if (ptr[0] == 'd' && std::isspace(ptr[1])) {
+            Material& mat = current_material();
+            mat.d = std::strtof(ptr + 2, &ptr);
+        } else if (!std::strncmp(ptr, "illum", 5) && std::isspace(ptr[5])) {
+            Material& mat = current_material();
+            mat.illum = std::strtol(ptr + 6, &ptr, 10);
+        } else if (!std::strncmp(ptr, "map_Ka", 6) && std::isspace(ptr[6])) {
+            Material& mat = current_material();
+            mat.map_ka = std::string(strip_spaces(ptr + 7));
+        } else if (!std::strncmp(ptr, "map_Kd", 6) && std::isspace(ptr[6])) {
+            Material& mat = current_material();
+            mat.map_kd = std::string(strip_spaces(ptr + 7));
+        } else if (!std::strncmp(ptr, "map_Ks", 6) && std::isspace(ptr[6])) {
+            Material& mat = current_material();
+            mat.map_ks = std::string(strip_spaces(ptr + 7));
+        } else if (!std::strncmp(ptr, "map_bump", 8) && std::isspace(ptr[8])) {
+            Material& mat = current_material();
+            mat.map_bump = std::string(strip_spaces(ptr + 9));
+        } else {
+            if (logger) logger->log("unknown material command '", line, "'");
+        }
+    }
+
+    return true;
+}
+
 bool ObjLoader::read_index(char** ptr, ObjLoader::Index& idx) {
     char* base = *ptr;
 
     // Detect end of line (negative indices are supported) 
-    while (isspace(*base)) { base++; }
+    base = strip_spaces(base);
     if (!std::isdigit(*base) && *base != '-') return false;
 
     idx.v = 0;
@@ -275,8 +400,7 @@ bool ObjLoader::read_index(char** ptr, ObjLoader::Index& idx) {
 
     idx.v = std::strtol(base, &base, 10);
 
-    // Strip spaces
-    while (std::isspace(*base)) { base++; }
+    base = strip_spaces(base);
 
     if (*base == '/') {
         base++;
@@ -286,8 +410,7 @@ bool ObjLoader::read_index(char** ptr, ObjLoader::Index& idx) {
             idx.t = std::strtol(base, &base, 10);
         }
 
-        // Strip spaces
-        while (std::isspace(*base)) { base++; }
+        base = strip_spaces(base);
 
         if (*base == '/') {
             base++;

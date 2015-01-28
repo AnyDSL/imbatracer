@@ -5,9 +5,10 @@ namespace imba {
 
 enum class SceneObject {
     TriangleMesh,
+    Texture,
     Instance,
     Material,
-    Texture
+    Light
 };
 
 template <SceneObject Object>
@@ -18,9 +19,10 @@ struct SceneObjectId {
 };
 
 typedef SceneObjectId<SceneObject::TriangleMesh> TriangleMeshId;
-typedef SceneObjectId<SceneObject::Instance>     InstanceId;
 typedef SceneObjectId<SceneObject::Texture>      TextureId;
+typedef SceneObjectId<SceneObject::Instance>     InstanceId;
 typedef SceneObjectId<SceneObject::Material>     MaterialId;
+typedef SceneObjectId<SceneObject::Light>        LightId;
 
 } // namespace imba
 

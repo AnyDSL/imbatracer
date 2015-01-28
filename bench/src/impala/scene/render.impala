@@ -5,33 +5,27 @@ struct Camera {
     eye : Vec3
 }
 
-fn write_gbuffer(x : int, y : int, buf: &GBuffer, pixel: GBufferPixel) -> () {
-    let p = buf.buffer as u64 + (y * buf.stride) as u64;
-    let mut row = p as &[GBufferPixel];
-    row(x) = pixel;
+fn camera_ray(cam: &Camera, d: Vec3, x: int, y: int, w: int, h: int) -> Ray {
+    let kx = 2.0f * (x as float) / ((w - 1) as float) - 1.0f;
+    let ky = 1.0f - 2.0f * (y as float) / ((h - 1) as float);
+
+    let dir = vec3(d.values(0) + cam.right.values(0) * kx + cam.up.values(0) * ky,
+                   d.values(1) + cam.right.values(1) * kx + cam.up.values(1) * ky,
+                   d.values(2) + cam.right.values(2) * kx + cam.up.values(2) * ky);
+
+    ray(dir, cam.eye)
 }
 
 extern fn render_gbuffer(scene: &Scene, comp: &CompiledScene, cam: &Camera, gbuffer: &GBuffer) -> () @{
-    // TODO : Do that in parallel
     let d = vec3_sub(cam.center, cam.eye);
 
-    fn generate_ray(x: int, y: int) -> Ray {
-        let kx = 2.0f * (x as float) / ((gbuffer.width - 1) as float) - 1.0f;
-        let ky = 1.0f - 2.0f * (y as float) / ((gbuffer.height - 1) as float);
-
-        let dir = vec3(d.values(0) + cam.right.values(0) * kx + cam.up.values(0) * ky,
-                       d.values(1) + cam.right.values(1) * kx + cam.up.values(1) * ky,
-                       d.values(2) + cam.right.values(2) * kx + cam.up.values(2) * ky);
-
-        ray(dir, cam.eye)
-    }
-
+    // TODO : Do that in parallel
     for y in range_step(0, gbuffer.height, 8) @{
         for x in range_step(0, gbuffer.width, 8) @{
             let mut p : Packet;
             let mut hit : Hit = empty_hit(&p);
 
-            generate_packet(&p, x, y, generate_ray);
+            generate_packet(&p, x, y, |x, y| camera_ray(cam, d, x, y, gbuffer.width, gbuffer.height));
             perspective_frustum(&p);
             closest_hit(scene, comp, &p, &hit);
 
@@ -39,11 +33,34 @@ extern fn render_gbuffer(scene: &Scene, comp: &CompiledScene, cam: &Camera, gbuf
                 for j in range(0, packet_width(&p)) @{
                     let k = packet_ray_id(&p, j, i);
                     
-                    write_gbuffer(x + j, y + i, gbuffer, gbuffer_pixel(hit.t(k), hit.u(k), hit.v(k), hit.tri_id(k)));
+                    write_gbuffer(x + j, y + i, gbuffer, gbuffer_pixel(hit.t(k), hit.u(k), hit.v(k), hit.tri_id(k), hit.inst_id(k)));
                 }
             }
         }
     }
 }
+
+extern fn render_texture(scene: &Scene, comp: &CompiledScene, cam: &Camera, texture: &Texture) -> () @{
+    let d = vec3_sub(cam.center, cam.eye);
+
+    // TODO : Do that in parallel
+    for y in range_step(0, texture.height, 8) @{
+        for x in range_step(0, texture.width, 8) @{
+            let mut p : Packet;
+            let mut hit : Hit = empty_hit(&p);
+
+            generate_packet(&p, x, y, |x, y| camera_ray(cam, d, x, y, texture.width, texture.height));
+            perspective_frustum(&p);
+            closest_hit(scene, comp, &p, &hit);
+
+            evaluate_material(&p, &hit, scene, |i, j, c| {
+                let cc = vec3_map(vec3_clamp(c, 0.0f, 1.0f), |x| x * 255.0f);
+                let pix = texture_pixel(cc.values(0) as u8, cc.values(1) as u8, cc.values(2) as u8, 255u8);
+                write_texture(x + i, y + j, texture, pix);
+            });
+        }
+    }
+}
+
 
 

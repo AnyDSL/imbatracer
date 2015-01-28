@@ -2,6 +2,7 @@
 #define IMBA_VECTOR_HPP
 
 #include <cmath>
+#include <ostream>
 
 namespace imba {
 
@@ -216,6 +217,21 @@ inline float length(const Vec4& v) {
 
 inline Vec4 normalize(const Vec4& v) {
     return v / length(v);
+}
+
+inline std::ostream& operator << (std::ostream& os, const Vec2& v) {
+    os << v[0] << " " << v[1];
+    return os;
+}
+
+inline std::ostream& operator << (std::ostream& os, const Vec3& v) {
+    os << v[0] << " " << v[1] << " " << v[2];
+    return os;
+}
+
+inline std::ostream& operator << (std::ostream& os, const Vec4& v) {
+    os << v[0] << " " << v[1] << " " << v[2] << " " << v[3];
+    return os;
 }
 
 } // namespace imba

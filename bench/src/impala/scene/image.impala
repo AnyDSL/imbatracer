@@ -6,6 +6,13 @@ struct TexturePixel {
     a: u8
 }
 
+struct Texture {
+    width: int,
+    height: int,
+    stride: int,
+    pixels: &[TexturePixel]
+}
+
 fn texture_pixel(r: u8, g: u8, b: u8, a: u8) -> TexturePixel {
     TexturePixel {
         r : r,
@@ -15,27 +22,18 @@ fn texture_pixel(r: u8, g: u8, b: u8, a: u8) -> TexturePixel {
     }
 }
 
-struct Texture {
-    width: int,
-    height: int,
-    stride: int,
-    pixels: &[TexturePixel]
+fn write_texture(x : int, y : int, tex: &Texture, pixel: TexturePixel) -> () {
+    let p = tex.pixels as u64 + (y * tex.stride) as u64;
+    let mut row = p as &[TexturePixel];
+    row(x) = pixel;
 }
 
 struct GBufferPixel {
     t: float,
     u: float,
     v: float,
-    mat_id: int
-}
-
-fn gbuffer_pixel(t: float, u: float, v: float, mat_id: int) -> GBufferPixel {
-    GBufferPixel {
-        t : t,
-        u : u,
-        v : v,
-        mat_id : mat_id
-    }
+    tri_id: int,
+    inst_id: int
 }
 
 struct GBuffer {
@@ -44,4 +42,22 @@ struct GBuffer {
     stride: int,
     buffer: &[GBufferPixel]
 }
+
+fn gbuffer_pixel(t: float, u: float, v : float, tri_id: int, inst_id: int) -> GBufferPixel {
+    GBufferPixel {
+        t : t,
+        u : u,
+        v : v,
+        tri_id : tri_id,
+        inst_id : inst_id
+    }
+}
+
+fn write_gbuffer(x : int, y : int, buf: &GBuffer, pixel: GBufferPixel) -> () {
+    let p = buf.buffer as u64 + (y * buf.stride) as u64;
+    let mut row = p as &[GBufferPixel];
+    row(x) = pixel;
+}
+
+
 

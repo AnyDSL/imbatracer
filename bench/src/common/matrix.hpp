@@ -362,7 +362,7 @@ inline Mat4 inverse(const Mat4& m) {
         return inv * (1.0f / det); 
 }
 
-inline std::ostream& operator << (std::ostream& os, const imba::Mat4& m) {
+inline std::ostream& operator << (std::ostream& os, const Mat4& m) {
     for (int i = 0; i < 4; i++) {
         for (int j = 0; j < 4; j++) {
             os << m(i, j) << " ";
@@ -373,7 +373,7 @@ inline std::ostream& operator << (std::ostream& os, const imba::Mat4& m) {
 }
 
 
-inline std::ostream& operator << (std::ostream& os, const imba::Mat3& m) {
+inline std::ostream& operator << (std::ostream& os, const Mat3& m) {
     for (int i = 0; i < 3; i++) {
         for (int j = 0; j < 3; j++) {
             os << m(i, j) << " ";

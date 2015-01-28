@@ -24,5 +24,7 @@ set(IMPALA_SRCS
     scene/image.impala
     scene/scene.impala
     scene/mesh.impala
+    scene/material.impala
+    scene/light.impala
     scene/render.impala)
 

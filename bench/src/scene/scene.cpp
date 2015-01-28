@@ -14,6 +14,10 @@ Scene::Scene()
     sync_.scene_data->num_textures = 0;
     sync_.scene_data->instances     = nullptr;
     sync_.scene_data->num_instances = 0;
+    sync_.scene_data->lights       = nullptr;
+    sync_.scene_data->num_lights   = 0;
+    sync_.scene_data->materials    = nullptr;
+    sync_.scene_data->materials    = 0;
 }
 
 Scene::~Scene() {
@@ -75,6 +79,10 @@ void Scene::compile() const {
     sync_.scene_data->num_meshes    = sync_.meshes.size();
     sync_.scene_data->textures      = sync_.textures.data();
     sync_.scene_data->num_textures  = sync_.textures.size();
+    sync_.scene_data->materials     = sync_.materials.data();
+    sync_.scene_data->num_materials = sync_.materials.size();
+    sync_.scene_data->lights        = sync_.lights.data();
+    sync_.scene_data->num_lights    = sync_.lights.size();
 
     if (!sync_.comp_scene) {
         sync_.comp_scene.reset(compile_scene(sync_.scene_data.get()));

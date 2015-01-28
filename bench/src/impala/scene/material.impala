@@ -1,0 +1,51 @@
+struct Material {
+    ka: Vec3,
+    kd: Vec3,
+    ks: Vec3,
+    exp: float,
+    tex_id: int
+}
+
+// TODO : replace materials by shader system in the future
+fn evaluate_material(p: &Packet, h: &Hit, mut scene: &Scene, color: fn (int, int, Vec3) -> ()) -> () {
+    for y in range(0, packet_height(p)) @{
+        for x in range(0, packet_width(p)) @{
+            let id = packet_ray_id(p, x, y);
+
+            let mesh_id = scene.instances(hit_inst(h, id)).mesh_id;
+            let mesh = scene.meshes(mesh_id);
+
+            let tri_id = hit_tri(h, id);
+            if (tri_id >= 0) @{
+                let mat_id = mesh.materials(tri_id);
+                let mat = scene.materials(mat_id);
+
+                let u = hit_u(h, id);
+                let v = hit_v(h, id);
+                let w = 1.0f - u - v;
+                let t = hit_t(h, id);
+
+                // Compute normal
+                let n0 = vec3_map(mesh.normals(mesh.indices(tri_id * 3 + 0)), |x| x * w);
+                let n1 = vec3_map(mesh.normals(mesh.indices(tri_id * 3 + 1)), |x| x * u);
+                let n2 = vec3_map(mesh.normals(mesh.indices(tri_id * 3 + 2)), |x| x * v);
+                let n = vec3_norm(vec3_add(n0, vec3_add(n1, n2)));
+
+                // Ambient light contribution
+                let mut c = mat.ka;
+
+                // Compute light contribution
+                let r = packet_ray(p, id);
+                let p = vec3_add(vec3_map(r.dir, |x| x * t), r.org);
+                for j in range(0, scene.num_lights) @{
+                    c = vec3_add(c, vec3_mul(mat.kd, evaluate_light(&scene.lights(j), p, n)));
+                }
+                
+                color(x, y, c)
+            } else @{
+                color(x, y, vec3(0.0f, 0.0f, 0.0f))
+            }
+        }
+    }
+}
+

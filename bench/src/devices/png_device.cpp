@@ -72,7 +72,7 @@ bool PngDevice::render(const Scene& scene, int width, int height, Logger& logger
             row[x * 4 + 0] = (png_byte)(255 * buf_row[x].t);
             row[x * 4 + 1] = (png_byte)(255 * buf_row[x].u);
             row[x * 4 + 2] = (png_byte)(255 * buf_row[x].v);
-            row[x * 4 + 3] = (png_byte)(buf_row[x].mat_id >= 0 ? 255 : 0);
+            row[x * 4 + 3] = (png_byte)(buf_row[x].inst_id >= 0 ? 255 : 0);
         }
         png_write_row(png_ptr, row);
     }

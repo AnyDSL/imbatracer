@@ -19,7 +19,7 @@ bool SdlDevice::render(const Scene& scene, int width, int height, Logger& logger
         return false;
     }
 
-    gbuffer_.resize((width % 2 != 0) ? width + 1 : width,
+    texture_.resize((width % 2 != 0) ? width + 1 : width,
                     (height % 2 != 0) ? height + 1 : height);
     
     SDL_WM_SetCaption("Imbatracer", NULL);
@@ -49,11 +49,6 @@ bool SdlDevice::render(const Scene& scene, int width, int height, Logger& logger
             ticks = t;
         }
 
-        for (int i = 0; i < scene.instance_count(); i++) {
-            auto inst = const_cast<Scene*>(&scene)->instance(InstanceId(i));
-            inst->set_matrix(inst->matrix() * Mat4::rotation(0.01f, Vec3(0, 1, 0)));
-        }
-
         scene.compile();
         render_surface(scene);
 
@@ -69,7 +64,7 @@ bool SdlDevice::render(const Scene& scene, int width, int height, Logger& logger
 
 void SdlDevice::render_surface(const Scene& scene) {
     ::Camera cam = Render::perspective_camera(eye_, eye_ + dist_ * forward_, up_, fov_, ratio_);
-    imba::Render::render_gbuffer(scene, cam, gbuffer_);
+    imba::Render::render_texture(scene, cam, texture_);
 
     SDL_LockSurface(screen_);
     const int r = screen_->format->Rshift / 8;
@@ -78,11 +73,11 @@ void SdlDevice::render_surface(const Scene& scene) {
 #pragma omp parallel for
     for (int y = 0; y < screen_->h; y++) {
         unsigned char* row = (unsigned char*)screen_->pixels + screen_->pitch * y;
-        const GBufferPixel* buf_row = gbuffer_.row(y);
+        const TexturePixel* buf_row = texture_.row(y);
         for (int x = 0; x < screen_->w; x++) {
-            row[x * 4 + r] = 255 * buf_row[x].t;
-            row[x * 4 + g] = 255 * buf_row[x].u;
-            row[x * 4 + b] = 255 * buf_row[x].v;
+            row[x * 4 + r] = buf_row[x].r;
+            row[x * 4 + g] = buf_row[x].g;
+            row[x * 4 + b] = buf_row[x].b;
         }
     }
     SDL_UnlockSurface(screen_);

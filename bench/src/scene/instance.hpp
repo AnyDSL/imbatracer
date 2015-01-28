@@ -6,6 +6,7 @@
 
 namespace imba {
 
+/// Instance object, represents a copy of a mesh along with a transformation.
 class Instance {
 public:
     Instance(TriangleMeshId mesh_id, const Mat4& mat = Mat4::identity()) {

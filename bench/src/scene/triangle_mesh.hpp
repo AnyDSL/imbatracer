@@ -74,7 +74,6 @@ public:
           triangles_(tris, tris + tcount)
     {}
 
-public:
     void add_vertex(const Vertex& v) { vertices_.push_back(v); }
     void add_normal(const Normal& n) { normals_.push_back(n); }
     void add_texcoord(const Texcoord& t) { texcoords_.push_back(t); }

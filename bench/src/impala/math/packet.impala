@@ -22,7 +22,7 @@ struct Hit {
     t : [float * 64],
     u : [float * 64],
     v : [float * 64],
-    obj_id : [int * 64],
+    inst_id : [int * 64],
     tri_id : [int * 64],
 }
 
@@ -179,17 +179,37 @@ fn transform_packet(p: &Packet, mut tp: &Packet, mat: &Mat4, inv_mat: &Mat4) -> 
     let mut tinv_mat = mat4_transpose(inv_mat);
 
     for i in range(0, 4) @{
-        // Multiply by transpose of inverse to get the new plane normal
+        // Multiply by transpose of inverse to get the new plane normal (Xt (MX) = (MtX)t X)
         tp.frustum.planes(i) = mat4_mul_vec4(&tinv_mat, p.frustum.planes(i));
     }
 }
 
-fn record_hit(mut h: &Hit, i: int, t: float, u: float, v: float, mesh_id: int, tri_id: int) -> () {
+fn record_hit(mut h: &Hit, i: int, t: float, u: float, v: float, inst_id: int, tri_id: int) -> () {
+    h.t(i) = t;
     h.u(i) = u;
     h.v(i) = v;
-    h.t(i) = t;
-    h.obj_id(i) = mesh_id;
+    h.inst_id(i) = inst_id;
     h.tri_id(i) = tri_id
+}
+
+fn hit_t(h: &Hit, i: int) -> float {
+    h.t(i)
+}
+
+fn hit_u(h: &Hit, i: int) -> float {
+    h.u(i)
+}
+
+fn hit_v(h: &Hit, i: int) -> float {
+    h.v(i)
+}
+
+fn hit_tri(h: &Hit, i: int) -> int {
+    h.tri_id(i)
+}
+
+fn hit_inst(h: &Hit, i: int) -> int {
+    h.inst_id(i)
 }
 
 fn empty_hit(p: &Packet) -> Hit{
@@ -197,7 +217,7 @@ fn empty_hit(p: &Packet) -> Hit{
         t : [flt_max, ..64],
         u : [flt_max, ..64],
         v : [flt_max, ..64],
-        obj_id : [-1, ..64],
+        inst_id : [-1, ..64],
         tri_id : [-1, ..64],
     }
 }
