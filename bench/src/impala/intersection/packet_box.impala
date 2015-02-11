@@ -7,7 +7,7 @@ fn intersect_packet_box(p: &Packet, h: &Hit, b: Box, intr: fn () -> ()) -> () @{
 
             for j in vrange4(0, 4) @{
                 intersect_ray_box(packet_ray_inv(p, i + j), b, |t0, t1| @{
-                    if t1 > 0.0f && t0 < hit_tmin(h, i + j) @{
+                    if t1 > 0.0f && t0 < hit_t(h, i + j) @{
                         hit(j) = true;
                     }
                 })
@@ -21,7 +21,7 @@ fn intersect_packet_box(p: &Packet, h: &Hit, b: Box, intr: fn () -> ()) -> () @{
 
         for i in range(0, packet_size(p)) @{
             intersect_ray_box(packet_ray_inv(p, i), b, |t0, t1| @{
-                if t1 > 0.0f && t0 < hit_tmin(h, i) @{
+                if t1 > 0.0f && t0 < hit_t(h, i) @{
                     intr();
                     return()
                 }

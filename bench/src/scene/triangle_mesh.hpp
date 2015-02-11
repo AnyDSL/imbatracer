@@ -80,11 +80,11 @@ public:
     void add_material(int m) { materials_.push_back(m); }
     void add_triangle(const Triangle& tri) { triangles_.push_back(tri); }
 
-    void set_vertices(Vertex* verts, int count) { vertices_.assign(verts, verts + count); }
-    void set_normals(Normal* norms, int count) { normals_.assign(norms, norms + count); }
-    void set_texcoords(Texcoord* texs, int count) { texcoords_.assign(texs, texs + count); }
-    void set_materials(int* mats, int count) { materials_.assign(mats, mats + count); }
-    void set_triangles(Triangle* tris, int count) { triangles_.assign(tris, tris + count); }
+    void set_vertices(const Vertex* verts, int count) { vertices_.assign(verts, verts + count); }
+    void set_normals(const Normal* norms, int count) { normals_.assign(norms, norms + count); }
+    void set_texcoords(const Texcoord* texs, int count) { texcoords_.assign(texs, texs + count); }
+    void set_materials(const int* mats, int count) { materials_.assign(mats, mats + count); }
+    void set_triangles(const Triangle* tris, int count) { triangles_.assign(tris, tris + count); }
 
     const Vertex* vertices() const { return vertices_.data(); }
     const Normal* normals() const { return normals_.data(); }

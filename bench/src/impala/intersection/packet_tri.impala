@@ -1,7 +1,7 @@
 fn intersect_packet_tri(p: &Packet, h: &Hit, first: int, last: int, t: Tri, mesh_id: int, tri_id: int) -> () @{
     for i in range(first, last) @{
         intersect_ray_tri(packet_ray(p, i), t, |t, u, v| @{
-            if t > 0.0f && t < hit_tmin(h, i) @{
+            if t > 0.0f && t < hit_t(h, i) @{
                 record_hit(h, i, t, u, v, mesh_id, tri_id)
             }
         })

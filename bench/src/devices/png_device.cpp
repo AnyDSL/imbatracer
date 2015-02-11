@@ -30,7 +30,7 @@ bool PngDevice::render(const Scene& scene, int width, int height, Logger& logger
 
     logger.log("G-Buffer rendered in ", std::chrono::duration_cast<std::chrono::milliseconds>(t1 - t0).count(), " ms");
 
-    std::ofstream file(path_ + "//" + prefix_ + "gbuffer.png");
+    std::ofstream file(path_ + "/" + prefix_ + "gbuffer.png");
     if (!file)
         return false;
 

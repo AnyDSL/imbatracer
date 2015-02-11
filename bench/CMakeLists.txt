@@ -39,6 +39,7 @@ find_package(Threads REQUIRED)
 
 # libpng
 find_package(PNG REQUIRED)
+include_directories(${PNG_INCLUDE_DIRS})
 
 # SDL
 find_package(SDL REQUIRED)

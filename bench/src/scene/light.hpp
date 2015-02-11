@@ -5,7 +5,7 @@ namespace imba {
 
 /// Light definition. May be replaced completely by shaders in the not-so-distant future.
 class Light {
-public:    
+public:
     Light(const Vec4& pos_dir, const Vec3& falloff = Vec3(1.0f, 0.0f, 0.0f), const Vec3& intensity = Vec3(1.0f), float cutoff = 0.0f) {
         set_position(pos_dir);
         set_falloff(falloff);

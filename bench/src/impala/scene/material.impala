@@ -7,43 +7,82 @@ struct Material {
 }
 
 // TODO : replace materials by shader system in the future
-fn evaluate_material(p: &Packet, h: &Hit, mut scene: &Scene, color: fn (int, int, Vec3) -> ()) -> () {
-    for y in range(0, packet_height(p)) @{
-        for x in range(0, packet_width(p)) @{
-            let id = packet_ray_id(p, x, y);
+fn evaluate_material(p: &Packet, h: &Hit, mut scene: &Scene, comp: &CompiledScene, accumulate: fn (int, Vec3) -> ()) -> () {
+    let mut normals : [Vec3 * 64];
 
-            let mesh_id = scene.instances(hit_inst(h, id)).mesh_id;
+    // Compute normals
+    for i in range(0, packet_size(p)) @{
+        let mesh_id = scene.instances(hit_inst(h, i)).mesh_id;
+        let mesh = scene.meshes(mesh_id);
+
+        let tri_id = hit_tri(h, i);
+        if tri_id >= 0 @{
+            let u = hit_u(h, i);
+            let v = hit_v(h, i);
+            let w = 1.0f - u - v;
+            let t = hit_t(h, i);
+
+            // Compute normal
+            let n0 = vec3_map(mesh.normals(mesh.indices(tri_id * 3 + 0)), |x| x * w);
+            let n1 = vec3_map(mesh.normals(mesh.indices(tri_id * 3 + 1)), |x| x * u);
+            let n2 = vec3_map(mesh.normals(mesh.indices(tri_id * 3 + 2)), |x| x * v);
+            let n = vec3_norm(vec3_add(n0, vec3_add(n1, n2)));
+
+            normals(i) = n;
+        } else @{
+            normals(i) = vec3(0.0f, 0.0f, 0.0f);
+        }
+    }
+
+    // Ambient light contribution
+    for i in range(0, packet_size(p)) @{
+        let tri_id = hit_tri(h, i);
+        if tri_id >= 0 @{
+            let mesh_id = scene.instances(hit_inst(h, i)).mesh_id;
             let mesh = scene.meshes(mesh_id);
+            let mat_id = mesh.materials(tri_id);
+            let mat = scene.materials(mat_id);
+            accumulate(i, mat.ka);
+        }
+    }
 
-            let tri_id = hit_tri(h, id);
-            if (tri_id >= 0) @{
+    for j in range(0, scene.num_lights) @{
+        let mut sp : Packet;
+        let mut sh = empty_hit(&sp, 1.0f);
+
+        if scene.lights(j).pos_dir.values(3) != 0.0f @{
+            generate_packet(&sp, |x, y| @{
+                let id = packet_ray_id(p, x, y);
+                let t = hit_t(h, id);
+                let p = vec3_add(vec3_map(packet_dir(p, id), |x| x * t), packet_org(p, id));
+                let d = vec3_sub(vec3_from_vec4(scene.lights(j).pos_dir), p);
+                ray(d, vec3_add(p, vec3_map(d, |x| x * 0.01f)))
+            });
+            shadow_frustum(&sp, vec3_from_vec4(scene.lights(j).pos_dir));
+        } else @{
+            generate_packet(&sp, |x, y| @{
+                let id = packet_ray_id(p, x, y);
+                let t = hit_t(h, id);
+                let p = vec3_add(vec3_map(packet_dir(p, id), |x| x * t), packet_org(p, id));
+                let d = vec3_map(vec3_from_vec4(scene.lights(j).pos_dir), |x| -x);
+                ray(d, vec3_add(p, vec3_map(d, |x| x * 0.01f)))
+            });
+            bounding_frustum(&sp, &sh);
+        }
+        
+        first_hit(scene, comp, &sp, &sh);
+
+        // Compute light contribution
+        for i in range(0, packet_size(p)) @{
+            let tri_id = hit_tri(h, i);
+            if tri_id >= 0 && hit_tri(&sh, i) < 0 @{
+                let mesh_id = scene.instances(hit_inst(h, i)).mesh_id;
+                let mesh = scene.meshes(mesh_id);
                 let mat_id = mesh.materials(tri_id);
                 let mat = scene.materials(mat_id);
-
-                let u = hit_u(h, id);
-                let v = hit_v(h, id);
-                let w = 1.0f - u - v;
-                let t = hit_t(h, id);
-
-                // Compute normal
-                let n0 = vec3_map(mesh.normals(mesh.indices(tri_id * 3 + 0)), |x| x * w);
-                let n1 = vec3_map(mesh.normals(mesh.indices(tri_id * 3 + 1)), |x| x * u);
-                let n2 = vec3_map(mesh.normals(mesh.indices(tri_id * 3 + 2)), |x| x * v);
-                let n = vec3_norm(vec3_add(n0, vec3_add(n1, n2)));
-
-                // Ambient light contribution
-                let mut c = mat.ka;
-
-                // Compute light contribution
-                let r = packet_ray(p, id);
-                let p = vec3_add(vec3_map(r.dir, |x| x * t), r.org);
-                for j in range(0, scene.num_lights) @{
-                    c = vec3_add(c, vec3_mul(mat.kd, evaluate_light(&scene.lights(j), p, n)));
-                }
-                
-                color(x, y, c)
-            } else @{
-                color(x, y, vec3(0.0f, 0.0f, 0.0f))
+                let t = hit_t(h, i);
+                let p = vec3_add(vec3_map(packet_dir(p, i), |x| x * t), packet_org(p, i));
+                accumulate(i, vec3_mul(mat.kd, evaluate_light(&scene.lights(j), p, normals(i))));
             }
         }
     }

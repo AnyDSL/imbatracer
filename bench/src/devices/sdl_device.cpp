@@ -1,3 +1,4 @@
+#include <SDL.h>
 #include "sdl_device.hpp"
 #include "../scene/render.hpp"
 

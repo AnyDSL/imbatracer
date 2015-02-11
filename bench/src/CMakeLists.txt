@@ -18,13 +18,31 @@ add_custom_target(impala-interface DEPENDS ${IMPALA_SRCS_PREFIX}
                   WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/impala)
 set_source_files_properties(impala/impala_interface.h PROPERTIES GENERATED TRUE)
 
+# Generate the core library
+add_library(imba_core
+            ${IMPALA_OBJS}
+            ${IMPALA_LIBS}
+            scene/scene.cpp
+            scene/render.cpp)
+
+add_library(imba_devices
+            devices/png_device.cpp
+            devices/sdl_device.cpp)
+
+add_library(imba_loaders
+            loaders/png_loader.cpp
+            loaders/obj_loader.cpp)
+
+add_dependencies(imba_core impala-interface)
+
+target_link_libraries(imba_devices ${PNG_LIBRARIES})
+target_link_libraries(imba_devices ${SDL_LIBRARY})
+target_link_libraries(imba_loaders ${PNG_LIBRARIES})
+
 # Add executables
 add_executable(bench
-               ${IMPALA_OBJS}
                ${EMBREE_SRCS}
                bench.cpp
-               scene/scene.cpp
-               loaders/obj_loader.cpp
                bench/bench_bvh_build.cpp
                bench/bench_ray_triangle.cpp
                bench/bench_ray_box.cpp
@@ -33,35 +51,29 @@ add_executable(bench
 include_directories(${THORIN_RUNTIME_INCLUDE_DIR})
 target_link_libraries(bench ${EMBREE_LIB} ${EMBREE_AVX_LIB} ${EMBREE_AVX2_LIB} ${EMBREE_SSE41_LIB} ${EMBREE_SSE42_LIB} ${EMBREE_SIMD_LIB} ${EMBREE_SYS_LIB})
 target_link_libraries(bench ${CMAKE_THREAD_LIBS_INIT})
-target_link_libraries(bench ${IMPALA_LIBS})
-add_dependencies(bench impala-interface)
+target_link_libraries(bench imba_loaders)
+target_link_libraries(bench imba_core)
 
 add_executable(imbatracer
-               ${IMPALA_OBJS}
-               main.cpp
-               scene/scene.cpp
-               scene/render.cpp
-               loaders/png_loader.cpp
-               loaders/obj_loader.cpp
-               devices/png_device.cpp
-               devices/sdl_device.cpp)
+               main.cpp)
 
-include_directories(${PNG_INCLUDE_DIRS})
-target_link_libraries(imbatracer ${PNG_LIBRARIES})
-target_link_libraries(imbatracer ${SDL_LIBRARY})
-add_dependencies(imbatracer impala-interface)
+target_link_libraries(imbatracer imba_devices)
+target_link_libraries(imbatracer imba_loaders)
+target_link_libraries(imbatracer imba_core)
 
 # Set compiler options
-get_target_property(CXX_FLAGS bench COMPILE_FLAGS)
-if(CXX_FLAGS STREQUAL "CXX_FLAGS-NOTFOUND")
-  set(CXX_FLAGS "")
-endif()
-set(CXX_FLAGS "${CXX_FLAGS} -std=c++11")
-set_target_properties(bench PROPERTIES COMPILE_FLAGS ${CXX_FLAGS})
+function(ADD_CXX_FLAG target opt)
+    get_target_property(CXX_FLAGS ${target} COMPILE_FLAGS)
+    if(CXX_FLAGS STREQUAL "CXX_FLAGS-NOTFOUND")
+      set(CXX_FLAGS "")
+    endif()
+    set(CXX_FLAGS "${CXX_FLAGS} ${opt}")
+    set_target_properties(${target} PROPERTIES COMPILE_FLAGS ${CXX_FLAGS})
+endfunction(ADD_CXX_FLAG)
 
-get_target_property(CXX_FLAGS bench COMPILE_FLAGS)
-if(CXX_FLAGS STREQUAL "CXX_FLAGS-NOTFOUND")
-  set(CXX_FLAGS "")
-endif()
-set(CXX_FLAGS "${CXX_FLAGS} -std=c++11")
-set_target_properties(imbatracer PROPERTIES COMPILE_FLAGS ${CXX_FLAGS})
+add_cxx_flag(imba_core    "-std=c++11")
+add_cxx_flag(imba_loaders "-std=c++11")
+add_cxx_flag(imba_devices "-std=c++11")
+add_cxx_flag(bench        "-std=c++11")
+add_cxx_flag(imbatracer   "-std=c++11")
+

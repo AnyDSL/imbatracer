@@ -50,6 +50,12 @@ struct Mat3 {
         return Mat3(1.0f);
     }
 
+    static Mat3 scale(const Vec3& s) {
+        return Mat3(s[0], 0.0f, 0.0f,
+                    0.0f, s[1], 0.0f,
+                    0.0f, 0.0f, s[2]);
+    }
+
     static Mat3 rotation(float angle, const Vec3& axis) {
         const float s = sinf(angle);
         const float c = cosf(angle);
@@ -215,11 +221,18 @@ struct Mat4 {
         return Mat4(1.0f);
     }
 
-    static Mat4 translation(float x, float y, float z) {
+    static Mat4 scale(const Vec3& s) {
+        return Mat4(s[0], 0.0f, 0.0f, 0.0f,
+                    0.0f, s[1], 0.0f, 0.0f,
+                    0.0f, 0.0f, s[2], 0.0f,
+                    0.0f, 0.0f, 0.0f, 1.0f);
+    }
+
+    static Mat4 translation(const Vec3& t) {
         return Mat4(1.0f, 0.0f, 0.0f, 0.0f,
                     0.0f, 1.0f, 0.0f, 0.0f,
                     0.0f, 0.0f, 1.0f, 0.0f,
-                       x,    y,    z, 1.0f);
+                    t[0], t[1], t[2], 1.0f);
     }
 
     static Mat4 rotation(float angle, const Vec3& axis) {

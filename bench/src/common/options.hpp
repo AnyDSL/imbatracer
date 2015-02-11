@@ -116,7 +116,7 @@ struct OptionImpl : public Option {
         return OptionReader<T>::read(arg, value);
     }
 
-    bool has_arg() const override { true; }
+    bool has_arg() const override { return true; }
     std::string arg_name() const override { return arg_desc; }
 
     T& value;

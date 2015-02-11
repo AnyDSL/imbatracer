@@ -12,6 +12,7 @@
 namespace imba {
 
 struct DeviceOption {
+    virtual ~DeviceOption() {}
     virtual bool read(const std::string& opt) = 0;
     virtual std::string to_string() const = 0;
 };

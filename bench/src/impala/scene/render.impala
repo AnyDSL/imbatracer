@@ -23,9 +23,9 @@ extern fn render_gbuffer(scene: &Scene, comp: &CompiledScene, cam: &Camera, gbuf
     for y in range_step(0, gbuffer.height, 8) @{
         for x in range_step(0, gbuffer.width, 8) @{
             let mut p : Packet;
-            let mut hit : Hit = empty_hit(&p);
+            let mut hit : Hit = empty_hit(&p, flt_max);
 
-            generate_packet(&p, x, y, |x, y| camera_ray(cam, d, x, y, gbuffer.width, gbuffer.height));
+            generate_packet(&p, |i, j| camera_ray(cam, d, x + i, y + j, gbuffer.width, gbuffer.height));
             perspective_frustum(&p);
             closest_hit(scene, comp, &p, &hit);
 
@@ -47,17 +47,29 @@ extern fn render_texture(scene: &Scene, comp: &CompiledScene, cam: &Camera, text
     for y in range_step(0, texture.height, 8) @{
         for x in range_step(0, texture.width, 8) @{
             let mut p : Packet;
-            let mut hit : Hit = empty_hit(&p);
+            let mut hit : Hit = empty_hit(&p, flt_max);
+            let mut color : [Vec3 * 64];
 
-            generate_packet(&p, x, y, |x, y| camera_ray(cam, d, x, y, texture.width, texture.height));
+            generate_packet(&p, |i, j| camera_ray(cam, d, x + i, y + j, texture.width, texture.height));
             perspective_frustum(&p);
             closest_hit(scene, comp, &p, &hit);
 
-            evaluate_material(&p, &hit, scene, |i, j, c| {
-                let cc = vec3_map(vec3_clamp(c, 0.0f, 1.0f), |x| x * 255.0f);
-                let pix = texture_pixel(cc.values(0) as u8, cc.values(1) as u8, cc.values(2) as u8, 255u8);
-                write_texture(x + i, y + j, texture, pix);
+            for i in range(0, packet_size(&p)) {
+                color(i) = vec3(0.0f, 0.0f, 0.0f);
+            }
+
+            evaluate_material(&p, &hit, scene, comp, |i, c| @{
+                color(i) = vec3_add(color(i), c)
             });
+
+            for i in range(0, packet_height(&p)) @{
+                for j in range(0, packet_width(&p)) @{
+                    let c = color(packet_ray_id(&p, j, i));
+                    let cc = vec3_map(vec3_clamp(c, 0.0f, 1.0f), |x| x * 255.0f);
+                    let pix = texture_pixel(cc.values(0) as u8, cc.values(1) as u8, cc.values(2) as u8, 255u8);
+                    write_texture(x + j, y + i, texture, pix);
+                }
+            }
         }
     }
 }

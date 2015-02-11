@@ -20,6 +20,30 @@ struct Vec2 {
         v[1] = y;
     }
 
+    Vec2& operator += (const Vec2& w) {
+        v[0] += w[0];
+        v[1] += w[1];
+        return *this;
+    }
+
+    Vec2& operator -= (const Vec2& w) {
+        v[0] -= w[0];
+        v[1] -= w[1];
+        return *this;
+    }
+
+    Vec2& operator *= (const Vec2& w) {
+        v[0] *= w[0];
+        v[1] *= w[1];
+        return *this;
+    }
+
+    Vec2& operator /= (const Vec2& w) {
+        v[0] /= w[0];
+        v[1] /= w[1];
+        return *this;
+    }
+
     float operator[] (int i) const {
         return v[i];    
     }
@@ -81,6 +105,34 @@ struct Vec3 {
         v[0] = x;
         v[1] = y;
         v[2] = z;
+    }
+
+    Vec3& operator += (const Vec3& w) {
+        v[0] += w[0];
+        v[1] += w[1];
+        v[2] += w[2];
+        return *this;
+    }
+
+    Vec3& operator -= (const Vec3& w) {
+        v[0] -= w[0];
+        v[1] -= w[1];
+        v[2] -= w[2];
+        return *this;
+    }
+
+    Vec3& operator *= (const Vec3& w) {
+        v[0] *= w[0];
+        v[1] *= w[1];
+        v[2] *= w[2];
+        return *this;
+    }
+
+    Vec3& operator /= (const Vec3& w) {
+        v[0] /= w[0];
+        v[1] /= w[1];
+        v[2] /= w[2];
+        return *this;
     }
 
     float operator[] (int i) const {
@@ -170,6 +222,38 @@ struct Vec4 {
         v[1] = y;
         v[2] = z;
         v[3] = w;
+    }
+
+    Vec4& operator += (const Vec4& w) {
+        v[0] += w[0];
+        v[1] += w[1];
+        v[2] += w[2];
+        v[3] += w[3];
+        return *this;
+    }
+
+    Vec4& operator -= (const Vec4& w) {
+        v[0] -= w[0];
+        v[1] -= w[1];
+        v[2] -= w[2];
+        v[3] -= w[3];
+        return *this;
+    }
+
+    Vec4& operator *= (const Vec4& w) {
+        v[0] *= w[0];
+        v[1] *= w[1];
+        v[2] *= w[2];
+        v[3] *= w[3];
+        return *this;
+    }
+
+    Vec4& operator /= (const Vec4& w) {
+        v[0] /= w[0];
+        v[1] /= w[1];
+        v[2] /= w[2];
+        v[3] /= w[3];
+        return *this;
     }
 
     float operator[] (int i) const {

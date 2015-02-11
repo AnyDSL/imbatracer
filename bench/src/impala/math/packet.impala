@@ -15,7 +15,9 @@ struct Packet {
 
     frustum : Frustum,
 
-    sign : [int * 3]
+    sign : [int * 3],
+    first_alive : int,
+    last_alive: int
 }
 
 struct Hit {
@@ -66,17 +68,35 @@ fn packet_sign(p: &Packet, i: int) -> int {
     p.sign(i)
 }
 
-fn hit_tmin(h: &Hit, i: int) -> float {
-    h.t(i)
+fn packet_first_alive(p: &Packet) -> int {
+    p.first_alive
 }
 
-fn generate_packet(mut p: &Packet, x: int, y: int, generate_ray: fn (int, int) -> Ray) -> () @{
+fn packet_last_alive(p: &Packet) -> int {
+    p.last_alive
+}
+
+fn packet_alive(p: &Packet) -> bool {
+    p.first_alive <= p.last_alive
+}
+
+fn compute_alive(mut p: &Packet, h: &Hit) -> () {
+    while p.first_alive <= p.last_alive && hit_tri(h, p.first_alive) > 0 {
+        p.first_alive++;
+    }
+
+    while p.last_alive >= p.first_alive && hit_tri(h, p.last_alive) > 0 {
+        p.last_alive--;
+    }
+}
+
+fn generate_packet(mut p: &Packet, generate_ray: fn (int, int) -> Ray) -> () @{
     let mut ray_sign = [0, 0, 0];
 
     for i in range(0, packet_height(p)) @{
         for j in range(0, packet_width(p)) @{
             let k = i * packet_width(p) + j;
-            let ray = generate_ray(x + j, y + i);
+            let ray = generate_ray(j, i);
 
             ray_sign(0) += if ray.dir.values(0) > 0.0f {1} else {-1};
             ray_sign(1) += if ray.dir.values(1) > 0.0f {1} else {-1};
@@ -99,13 +119,16 @@ fn generate_packet(mut p: &Packet, x: int, y: int, generate_ray: fn (int, int) -
     p.sign(0) = if ray_sign(0) < 0 {1} else {0};
     p.sign(1) = if ray_sign(1) < 0 {1} else {0};
     p.sign(2) = if ray_sign(2) < 0 {1} else {0};
+
+    p.first_alive = 0;
+    p.last_alive = packet_size(p) - 1;
 }
 
 fn first_active(p: &Packet, h: &Hit, b: Box) -> int {
-    let mut i = 0;
-    while i < packet_size(p) @{
+    let mut i = p.first_alive;
+    while i <= p.last_alive @{
         intersect_ray_box(packet_ray_inv(p, i), b, |t0, t1| {
-            if t1 > 0.0f && t0 < hit_tmin(h, i) @{
+            if t1 > 0.0f && t0 < hit_t(h, i) @{
                 return(i)
             }
         });
@@ -115,10 +138,10 @@ fn first_active(p: &Packet, h: &Hit, b: Box) -> int {
 }
 
 fn last_active(p: &Packet, h: &Hit, b: Box, first: int) -> int @{
-    let mut i = packet_size(p) - 1;
+    let mut i = p.last_alive;
     while i > first @{
         intersect_ray_box(packet_ray_inv(p, i), b, |t0, t1| @{
-            if t1 > 0.0f && t0 < hit_tmin(h, i) @{
+            if t1 > 0.0f && t0 < hit_t(h, i) @{
                 return(i + 1)
             }
         });
@@ -151,10 +174,75 @@ fn perspective_frustum(mut p: &Packet) -> () @{
     p.frustum.planes(3) = ray_plane(r2, r3);
 }
 
+fn shadow_frustum(mut p: &Packet, light_pos: Vec3) -> () {
+    let mut min = light_pos;
+    let mut max = light_pos;
+
+    for i in range(0, packet_size(p)) {
+        let org = packet_org(p, i);
+        min = vec3_min(min, org);
+        max = vec3_max(max, org);
+    }
+
+    let extents = vec3_sub(max, min);
+    let mut axis = 0;
+    if extents.values(1) < extents.values(0) { axis = 1 }
+    if extents.values(2) < extents.values(axis) { axis = 2 }
+
+    let u = (axis + 1) % 3;
+    let v = (axis + 2) % 3;
+
+    // Bounds on axis U
+    p.frustum.planes(0) = vec4(0.0f, 0.0f, 0.0f, -max.values(u));
+    p.frustum.planes(0).values(u) = 1.0f;
+    p.frustum.planes(1) = vec4(0.0f, 0.0f, 0.0f, min.values(u));
+    p.frustum.planes(1).values(u) = -1.0f;
+
+    // Bounds on axis V
+    p.frustum.planes(2) = vec4(0.0f, 0.0f, 0.0f, -max.values(v));
+    p.frustum.planes(2).values(v) = 1.0f;
+    p.frustum.planes(3) = vec4(0.0f, 0.0f, 0.0f, min.values(v));
+    p.frustum.planes(3).values(v) = -1.0f;
+}
+
+fn bounding_frustum(mut p: &Packet, h: &Hit) -> () {
+    let mut min = vec3(flt_max, flt_max, flt_max);
+    let mut max = vec3(-flt_max, -flt_max, -flt_max);
+
+    for i in range(0, packet_size(p)) @{
+        let org = packet_org(p, i);
+        let end = vec3_add(org, vec3_map(packet_dir(p, i), |x| x * hit_t(h, i)));
+        min = vec3_min(min, org);
+        min = vec3_min(min, end);
+        max = vec3_max(max, org);
+        max = vec3_max(max, end);
+    }
+
+    let extents = vec3_sub(max, min);
+    let mut axis = 0;
+    if extents.values(1) < extents.values(0) { axis = 1 }
+    if extents.values(2) < extents.values(axis) { axis = 2 }
+
+    let u = (axis + 1) % 3;
+    let v = (axis + 2) % 3;
+
+    // Bounds on axis U
+    p.frustum.planes(0) = vec4(0.0f, 0.0f, 0.0f, -max.values(u));
+    p.frustum.planes(0).values(u) = 1.0f;
+    p.frustum.planes(1) = vec4(0.0f, 0.0f, 0.0f, min.values(u));
+    p.frustum.planes(1).values(u) = -1.0f;
+
+    // Bounds on axis V
+    p.frustum.planes(2) = vec4(0.0f, 0.0f, 0.0f, -max.values(v));
+    p.frustum.planes(2).values(v) = 1.0f;
+    p.frustum.planes(3) = vec4(0.0f, 0.0f, 0.0f, min.values(v));
+    p.frustum.planes(3).values(v) = -1.0f;
+}
+
 fn transform_packet(p: &Packet, mut tp: &Packet, mat: &Mat4, inv_mat: &Mat4) -> () @{
     let mut ray_sign = [0, 0, 0];
 
-    for i in range(0, packet_size(p)) @{
+    for i in range(p.first_alive, p.last_alive + 1) @{
         tp.org_x(i) = mat.c0.values(0) * p.org_x(i) + mat.c1.values(0) * p.org_y(i) + mat.c2.values(0) * p.org_z(i) + mat.c3.values(0);
         tp.org_y(i) = mat.c0.values(1) * p.org_x(i) + mat.c1.values(1) * p.org_y(i) + mat.c2.values(1) * p.org_z(i) + mat.c3.values(1);
         tp.org_z(i) = mat.c0.values(2) * p.org_x(i) + mat.c1.values(2) * p.org_y(i) + mat.c2.values(2) * p.org_z(i) + mat.c3.values(2);
@@ -175,6 +263,9 @@ fn transform_packet(p: &Packet, mut tp: &Packet, mat: &Mat4, inv_mat: &Mat4) -> 
     tp.sign(0) = if ray_sign(0) < 0 {1} else {0};
     tp.sign(1) = if ray_sign(1) < 0 {1} else {0};
     tp.sign(2) = if ray_sign(2) < 0 {1} else {0};
+
+    tp.first_alive = p.first_alive;
+    tp.last_alive = p.last_alive;
 
     let mut tinv_mat = mat4_transpose(inv_mat);
 
@@ -212,11 +303,11 @@ fn hit_inst(h: &Hit, i: int) -> int {
     h.inst_id(i)
 }
 
-fn empty_hit(p: &Packet) -> Hit{
+fn empty_hit(p: &Packet, tmax: float) -> Hit {
     Hit {
-        t : [flt_max, ..64],
-        u : [flt_max, ..64],
-        v : [flt_max, ..64],
+        t : [tmax, ..64],
+        u : [0.0f, ..64],
+        v : [0.0f, ..64],
         inst_id : [-1, ..64],
         tri_id : [-1, ..64],
     }

@@ -178,6 +178,62 @@ fn closest_hit(mut scene: &Scene, comp: &CompiledScene, p: &Packet, hit: &Hit) -
                 transform_packet(p, &tp, &scene.instances(inst_id).inv_mat, &scene.instances(inst_id).mat);
                 closest_hit_mesh(scene.meshes(mesh_id), comp.mesh_bvhs(mesh_id), inst_id, &tp, hit)
             }
+        });
+    }
+
+    fn scene_node(box: Box, axis: i16, push: fn (int) -> ()) -> () @{
+        intersect_packet_box(p, hit, box, || @{
+            push(packet_sign(p, axis as int))
+        })
+    }
+
+    // Intersect the scene BVH and then each relevant mesh BVH
+    traverse_bvh(comp.scene_bvh, scene_leaf, scene_node);
+}
+
+fn first_hit_mesh(mesh: Mesh, mesh_bvh: Bvh, inst_id: int, p: &Packet, hit: &Hit, exit: fn()) -> () @{
+    fn mesh_leaf(box: Box, first: int, count: i16) -> () @{
+        // Ranged traversal of the mesh bvh
+        let first_ray = first_active(p, hit, box);
+        if (first_ray < packet_size(p)) @{
+            let last_ray = $last_active(p, hit, box, first_ray);
+
+            for i in range(first, first + count as int) @{
+               let id = mesh_bvh.prim_ids(i);
+               let t = tri(mesh.vertices(mesh.indices(id * 3 + 0)),
+                           mesh.vertices(mesh.indices(id * 3 + 1)),
+                           mesh.vertices(mesh.indices(id * 3 + 2)));
+               @assert(|| in_box(t.v0, box) && in_box(t.v1, box) && in_box(t.v2, box), "first_hit_mesh : node bounds too small");
+               intersect_packet_tri(p, hit, first_ray, last_ray, t, inst_id, id);
+            }
+
+            $compute_alive(p, hit);
+    
+            if !packet_alive(p) { exit() }
+        }
+    }
+
+    fn mesh_node(box: Box, axis: i16, push: fn (int) -> ()) -> () @{
+        intersect_packet_box(p, hit, box, || @{
+            push(packet_sign(p, axis as int))
+        })
+    }
+
+    traverse_bvh(mesh_bvh, mesh_leaf, mesh_node);
+}
+
+fn first_hit(mut scene: &Scene, comp: &CompiledScene, p: &Packet, hit: &Hit) -> () @{
+    let mut tp : Packet;
+
+    fn scene_leaf(box: Box, first: int, count: i16) -> () @{
+        intersect_packet_box(p, hit, box, || @{
+            for i in range(first, first + count as int) @{
+                let inst_id = comp.scene_bvh.prim_ids(i);
+                let mesh_id = scene.instances(inst_id).mesh_id;
+
+                transform_packet(p, &tp, &scene.instances(inst_id).inv_mat, &scene.instances(inst_id).mat);
+                first_hit_mesh(scene.meshes(mesh_id), comp.mesh_bvhs(mesh_id), inst_id, &tp, hit, return)
+            }
         })
     }
 
