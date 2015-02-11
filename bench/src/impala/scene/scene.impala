@@ -206,8 +206,8 @@ fn first_hit_mesh(mesh: Mesh, mesh_bvh: Bvh, inst_id: int, p: &Packet, hit: &Hit
                @assert(|| in_box(t.v0, box) && in_box(t.v1, box) && in_box(t.v2, box), "first_hit_mesh : node bounds too small");
                intersect_packet_tri(p, hit, first_ray, last_ray, t, inst_id, id);
             }
-
-            $compute_alive(p, hit);
+    
+            compute_alive(p, hit);
     
             if !packet_alive(p) { exit() }
         }

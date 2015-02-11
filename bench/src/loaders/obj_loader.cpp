@@ -154,7 +154,7 @@ bool ObjLoader::load_file(const Path& path, Scene& scene, Logger* logger) {
         scene.new_instance(mesh_id);
     }
 
-    scene.new_light(Vec4(0.0f, 10.0f, 0.0f, 1.0f), Vec3(1.0f, 0.0f, 0.0001f));
+    scene.new_light(Vec4(0.0f, 50.0f, 0.0f, 1.0f), Vec3(1.0f, 0.0f, 0.0001f));
 
     return true;
 }

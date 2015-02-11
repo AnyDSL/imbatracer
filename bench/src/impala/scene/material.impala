@@ -53,21 +53,29 @@ fn evaluate_material(p: &Packet, h: &Hit, mut scene: &Scene, comp: &CompiledScen
         if scene.lights(j).pos_dir.values(3) != 0.0f @{
             generate_packet(&sp, |x, y| @{
                 let id = packet_ray_id(p, x, y);
-                let t = hit_t(h, id);
-                let p = vec3_add(vec3_map(packet_dir(p, id), |x| x * t), packet_org(p, id));
-                let d = vec3_sub(vec3_from_vec4(scene.lights(j).pos_dir), p);
-                ray(d, vec3_add(p, vec3_map(d, |x| x * 0.01f)))
+                if hit_tri(h, id) >= 0 {
+                    let t = hit_t(h, id);
+                    let p = vec3_add(vec3_map(packet_dir(p, id), |x| x * t), packet_org(p, id));
+                    let d = vec3_sub(vec3_from_vec4(scene.lights(j).pos_dir), p);
+                    ray(d, vec3_add(p, vec3_map(d, |x| x * 0.01f)))
+                } else {
+                    ray(vec3(0.0f, 0.0f, 0.0f), vec3(0.0f, 0.0f, 0.0f))
+                }
             });
-            shadow_frustum(&sp, vec3_from_vec4(scene.lights(j).pos_dir));
+            shadow_frustum(&sp, vec3_from_vec4(scene.lights(j).pos_dir), |i| hit_tri(h, i) >= 0);
         } else @{
             generate_packet(&sp, |x, y| @{
                 let id = packet_ray_id(p, x, y);
-                let t = hit_t(h, id);
-                let p = vec3_add(vec3_map(packet_dir(p, id), |x| x * t), packet_org(p, id));
-                let d = vec3_map(vec3_from_vec4(scene.lights(j).pos_dir), |x| -x);
-                ray(d, vec3_add(p, vec3_map(d, |x| x * 0.01f)))
+                if hit_tri(h, id) >= 0 {
+                    let t = hit_t(h, id);
+                    let p = vec3_add(vec3_map(packet_dir(p, id), |x| x * t), packet_org(p, id));
+                    let d = vec3_map(vec3_from_vec4(scene.lights(j).pos_dir), |x| -x);
+                    ray(d, vec3_add(p, vec3_map(d, |x| x * 0.01f)))
+                } else {
+                    ray(vec3(0.0f, 0.0f, 0.0f), vec3(0.0f, 0.0f, 0.0f))
+                }
             });
-            bounding_frustum(&sp, &sh);
+            bounding_frustum(&sp, &sh, |i| hit_tri(h, i) >= 0);
         }
         
         first_hit(scene, comp, &sp, &sh);
