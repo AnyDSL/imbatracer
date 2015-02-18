@@ -1,5 +1,0 @@
-
-fn assert(f : fn() -> bool, msg : &[u8]) -> ()
-{
-}
-

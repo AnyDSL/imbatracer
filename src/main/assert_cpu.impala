@@ -1,9 +1,0 @@
-
-
-fn assert(f : fn() -> bool, msg: &[u8]) -> ()
-{
-    if @isDebug() && !f() {
-        assert_failed(msg)
-    }
-}
-

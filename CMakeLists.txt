@@ -1,54 +1,50 @@
-PROJECT(IMBATRACER)
-CMAKE_MINIMUM_REQUIRED(VERSION 2.8.5 FATAL_ERROR)
+project(IMBATRACER)
 
-include(FindPkgConfig)
+cmake_minimum_required(VERSION 2.4)
 
-# Dependencies: Also let pkgconfig search in LD_LIBRARY_PATH/pkgconfig
-set(PKG_PATHS "$ENV{LD_LIBRARY_PATH}")
-if(NOT (PKG_PATHS STREQUAL ""))
-	string(REGEX REPLACE ":" "/pkgconfig:" PKG_PATHS "${PKG_PATHS}") # append /pkgconfig to all paths but the last one
-	set(PKG_PATHS "${PKG_PATHS}/pkgconfig") # also append it to the last path
-	# update environment variable
-	if (ENV{PKG_CONFIG_PATH} STREQUAL "")
-		set(ENV{PKG_CONFIG_PATH} ":${PKG_PATHS}")
-	else()
-		set(ENV{PKG_CONFIG_PATH} "$ENV{PKG_CONFIG_PATH}:${PKG_PATHS}")
-	endif()
-endif()
-message(STATUS "pkgconfig search path: $ENV{PKG_CONFIG_PATH}")
+# Thorin setup
+find_package(THORIN REQUIRED)
 
-# SDL
-pkg_check_modules(SDL2 sdl2 REQUIRED)
-include_directories(${SDL2_INCLUDE_DIRS})
-link_directories(${SDL2_LIBRARY_DIRS})
-
-# libpng
-find_package(PNG REQUIRED)
-include_directories(${PNG_INCLUDE_DIRS})
-link_directories(${PNG_LIBRARY_DIRS})
-
-# pthreads
-find_package(Threads REQUIRED)
-
-# compiler options
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -Wall -Wextra")
-set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,-z,defs")
-
-# thorin stuff
-FIND_PACKAGE ( THORIN REQUIRED )
-message(STATUS "Using THORIN at ${THORIN_RUNTIME_DIR}")
 include(${THORIN_RUNTIME_DIR}/cmake/ThorinRuntime.cmake)
 include_directories(${THORIN_RUNTIME_INCLUDE_DIR})
 
-# which run-time do we use?
-set(RTTYPE "nvvm" CACHE STRING "The runtime-type of the tests")
-message(STATUS "Using runtime-type ${RTTYPE}")
-if(RTTYPE STREQUAL "cpu" OR RTTYPE STREQUAL "avx")
+set(RTTYPE "cpu" CACHE PATH "Runtime type (cpu, avx, nvvm, cuda)")
+if (RTTYPE STREQUAL "cpu" OR RTTYPE STREQUAL "avx")
     set(DEVICE "cpu")
 else()
     set(DEVICE "gpu")
 endif()
 
+# Embree setup
+set(EMBREE_DIR "" CACHE PATH "Embree source directory")
+set(EMBREE_COMMON_DIR "${EMBREE_DIR}/common")
+set(EMBREE_INCLUDE_DIR "${EMBREE_DIR}/include")
+set(EMBREE_KERNELS_DIR "${EMBREE_DIR}/kernels")
+set(EMBREE_KERNELS_XEON_DIR "${EMBREE_DIR}/kernels/xeon")
 
+include_directories(${EMBREE_KERNELS_DIR} ${EMBREE_KERNELS_XEON_DIR})
+include_directories(${EMBREE_INCLUDE_DIR})
+include_directories(${EMBREE_COMMON_DIR})
+
+find_library(EMBREE_SIMD_LIB NAMES simd PATHS ${EMBREE_DIR} ${EMBREE_DIR}/build)
+find_library(EMBREE_SYS_LIB NAMES sys PATHS ${EMBREE_DIR} ${EMBREE_DIR}/build)
+find_library(EMBREE_AVX_LIB NAMES embree_avx PATHS ${EMBREE_DIR} ${EMBREE_DIR}/build)
+find_library(EMBREE_AVX2_LIB NAMES embree_avx2 PATHS ${EMBREE_DIR} ${EMBREE_DIR}/build)
+find_library(EMBREE_SSE41_LIB NAMES embree_sse41 PATHS ${EMBREE_DIR} ${EMBREE_DIR}/build)
+find_library(EMBREE_SSE42_LIB NAMES embree_sse42 PATHS ${EMBREE_DIR} ${EMBREE_DIR}/build)
+find_library(EMBREE_LIB NAMES embree PATHS ${EMBREE_DIR} ${EMBREE_DIR}/build)
+
+# pthreads
+find_package(Threads REQUIRED)
+
+# libpng
+find_package(PNG REQUIRED)
+include_directories(${PNG_INCLUDE_DIRS})
+
+# SDL
+find_package(SDL REQUIRED)
+include_directories(${SDL_INCLUDE_DIR})
+
+# Add the project files
 add_subdirectory(src)
 
