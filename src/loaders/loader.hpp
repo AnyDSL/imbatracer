@@ -14,6 +14,7 @@ namespace imba {
 template <typename Loaded>
 class Loader {
 public:
+    virtual ~Loader() {}
     virtual bool check_format(const Path& path) = 0;
     virtual bool load_file(const Path& path, Loaded& loaded, Logger* logger = nullptr) = 0;
 };
