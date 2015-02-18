@@ -221,14 +221,11 @@ ELSE (WIN32)
 
 ENDIF (WIN32)
 
-INCLUDE (ispc)
-
 ##############################################################
 # Search paths
 ##############################################################
 INCLUDE_DIRECTORIES(${PROJECT_SOURCE_DIR} ${PROJECT_SOURCE_DIR}/common)
 INCLUDE_DIRECTORIES(${PROJECT_SOURCE_DIR} ${PROJECT_SOURCE_DIR}/include)
-INCLUDE_DIRECTORIES_ISPC(${PROJECT_SOURCE_DIR})
 LINK_DIRECTORIES(${EXECUTABLE_OUTPUT_PATH})
 
 ##############################################################

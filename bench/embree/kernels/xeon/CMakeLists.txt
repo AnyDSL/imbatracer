@@ -32,7 +32,7 @@ IF (TARGET_AVX2)
  ADD_DEFINITIONS(-D__TARGET_AVX2__)
 ENDIF()
 
-ADD_ISPC_LIBRARY(embree ${EMBREE_LIB_TYPE}
+ADD_LIBRARY(embree ${EMBREE_LIB_TYPE}
   embree.rc
   ../common/stat.cpp
   ../common/globals.cpp
@@ -40,8 +40,6 @@ ADD_ISPC_LIBRARY(embree ${EMBREE_LIB_TYPE}
   ../common/tasksys.cpp
   ../common/acceln.cpp
   ../common/rtcore.cpp
-  ../common/rtcore_ispc.cpp
-  ../common/rtcore_ispc.ispc
   ../common/buffer.cpp
   ../common/scene.cpp
   ../common/geometry.cpp
