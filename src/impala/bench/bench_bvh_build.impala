@@ -20,7 +20,8 @@ extern fn bench_bvh_build(vertices: &[Vec3], indices: &[int], num_tris: int, mut
     }
 
     // Build the BVH
-    result.bvh = build_bvh(create_bvh(num_tris), |i| boxes(i), |i| centers(i), num_tris);
+    result.bvh = create_bvh(num_tris);
+    build_bvh(result.bvh, |i| boxes(i), |i| centers(i), num_tris);
     result.boxes = boxes;
     result.centers = centers;
 }

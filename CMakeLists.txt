@@ -15,25 +15,6 @@ else()
     set(DEVICE "gpu")
 endif()
 
-# Embree setup
-set(EMBREE_DIR "" CACHE PATH "Embree source directory")
-set(EMBREE_COMMON_DIR "${EMBREE_DIR}/common")
-set(EMBREE_INCLUDE_DIR "${EMBREE_DIR}/include")
-set(EMBREE_KERNELS_DIR "${EMBREE_DIR}/kernels")
-set(EMBREE_KERNELS_XEON_DIR "${EMBREE_DIR}/kernels/xeon")
-
-include_directories(${EMBREE_KERNELS_DIR} ${EMBREE_KERNELS_XEON_DIR})
-include_directories(${EMBREE_INCLUDE_DIR})
-include_directories(${EMBREE_COMMON_DIR})
-
-find_library(EMBREE_SIMD_LIB NAMES simd PATHS ${EMBREE_DIR} ${EMBREE_DIR}/build)
-find_library(EMBREE_SYS_LIB NAMES sys PATHS ${EMBREE_DIR} ${EMBREE_DIR}/build)
-find_library(EMBREE_AVX_LIB NAMES embree_avx PATHS ${EMBREE_DIR} ${EMBREE_DIR}/build)
-find_library(EMBREE_AVX2_LIB NAMES embree_avx2 PATHS ${EMBREE_DIR} ${EMBREE_DIR}/build)
-find_library(EMBREE_SSE41_LIB NAMES embree_sse41 PATHS ${EMBREE_DIR} ${EMBREE_DIR}/build)
-find_library(EMBREE_SSE42_LIB NAMES embree_sse42 PATHS ${EMBREE_DIR} ${EMBREE_DIR}/build)
-find_library(EMBREE_LIB NAMES embree PATHS ${EMBREE_DIR} ${EMBREE_DIR}/build)
-
 # pthreads
 find_package(Threads REQUIRED)
 
@@ -47,4 +28,7 @@ include_directories(${SDL_INCLUDE_DIR})
 
 # Add the project files
 add_subdirectory(src)
+
+include_directories(src)
+add_subdirectory(bench)
 

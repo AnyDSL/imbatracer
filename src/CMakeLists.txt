@@ -22,16 +22,39 @@ set_source_files_properties(impala/impala_interface.h PROPERTIES GENERATED TRUE)
 add_library(imba_core
             ${IMPALA_OBJS}
             ${IMPALA_LIBS}
+            scene/image.hpp
+            scene/instance.hpp
+            scene/light.hpp
+            scene/material.hpp
+            scene/object.hpp
+            scene/proxy.hpp
+            scene/render.cpp
+            scene/render.hpp
             scene/scene.cpp
-            scene/render.cpp)
+            scene/scene.hpp
+            scene/triangle_mesh.hpp
+            common/logger.hpp
+            common/matrix.hpp
+            common/memory.hpp
+            common/options.hpp
+            common/path.hpp
+            common/vector.hpp)
 
 add_library(imba_devices
+            devices/device.hpp
             devices/png_device.cpp
-            devices/sdl_device.cpp)
+            devices/png_device.hpp
+            devices/sdl_device.cpp
+            devices/sdl_device.hpp)
 
 add_library(imba_loaders
+            loaders/loader.hpp
+            loaders/image_loader.hpp
+            loaders/scene_loader.hpp
             loaders/png_loader.cpp
-            loaders/obj_loader.cpp)
+            loaders/png_loader.hpp
+            loaders/obj_loader.cpp
+            loaders/obj_loader.hpp)
 
 add_dependencies(imba_core impala-interface)
 
@@ -39,21 +62,7 @@ target_link_libraries(imba_devices ${PNG_LIBRARIES})
 target_link_libraries(imba_devices ${SDL_LIBRARY})
 target_link_libraries(imba_loaders ${PNG_LIBRARIES})
 
-# Add executables
-add_executable(bench
-               ${EMBREE_SRCS}
-               bench.cpp
-               bench/bench_bvh_build.cpp
-               bench/bench_ray_triangle.cpp
-               bench/bench_ray_box.cpp
-               bench/bench_ray_bvh.cpp)
-
-include_directories(${THORIN_RUNTIME_INCLUDE_DIR})
-target_link_libraries(bench ${EMBREE_LIB} ${EMBREE_AVX_LIB} ${EMBREE_AVX2_LIB} ${EMBREE_SSE41_LIB} ${EMBREE_SSE42_LIB} ${EMBREE_SIMD_LIB} ${EMBREE_SYS_LIB})
-target_link_libraries(bench ${CMAKE_THREAD_LIBS_INIT})
-target_link_libraries(bench imba_loaders)
-target_link_libraries(bench imba_core)
-
+# Generate the main executable
 add_executable(imbatracer
                main.cpp)
 
@@ -74,6 +83,5 @@ endfunction(ADD_CXX_FLAG)
 add_cxx_flag(imba_core    "-std=c++11")
 add_cxx_flag(imba_loaders "-std=c++11")
 add_cxx_flag(imba_devices "-std=c++11")
-add_cxx_flag(bench        "-std=c++11")
 add_cxx_flag(imbatracer   "-std=c++11")
 
