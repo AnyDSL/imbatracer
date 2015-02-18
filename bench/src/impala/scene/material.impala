@@ -48,9 +48,10 @@ fn evaluate_material(p: &Packet, h: &Hit, mut scene: &Scene, comp: &CompiledScen
 
     for j in range(0, scene.num_lights) @{
         let mut sp : Packet;
-        let mut sh = empty_hit(&sp, 1.0f);
+        let mut sh : Hit;
 
         if scene.lights(j).pos_dir.values(3) != 0.0f @{
+            sh = empty_hit(&sp, 1.0f);
             generate_packet(&sp, |x, y| @{
                 let id = packet_ray_id(p, x, y);
                 if hit_tri(h, id) >= 0 {
@@ -64,6 +65,7 @@ fn evaluate_material(p: &Packet, h: &Hit, mut scene: &Scene, comp: &CompiledScen
             });
             shadow_frustum(&sp, vec3_from_vec4(scene.lights(j).pos_dir), |i| hit_tri(h, i) >= 0);
         } else @{
+            sh = empty_hit(&sp, flt_max);
             generate_packet(&sp, |x, y| @{
                 let id = packet_ray_id(p, x, y);
                 if hit_tri(h, id) >= 0 {

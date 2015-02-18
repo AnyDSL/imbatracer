@@ -114,6 +114,63 @@ public:
     bool has_texcoords() const { return texcoords_.size() > 0; }
     bool has_materials() const { return materials_.size() > 0; }
 
+    void compute_normals(bool smooth) {
+        if (smooth) {
+            normals_.resize(vertices_.size());
+            std::fill(normals_.begin(), normals_.end(), imba::Vec3(0.0f));
+
+            for (auto& t : triangles_) {
+                const imba::Vec3& v0 = vertices_[t[0]];
+                const imba::Vec3& v1 = vertices_[t[1]];
+                const imba::Vec3& v2 = vertices_[t[2]];
+                const imba::Vec3& e0 = v1 - v0;
+                const imba::Vec3& e1 = v2 - v0;
+                const imba::Vec3& n = imba::cross(e0, e1);
+                normals_[t[0]] += n;
+                normals_[t[1]] += n;
+                normals_[t[2]] += n;
+            }
+
+            for (auto& n : normals_)
+                n = imba::normalize(n);
+        } else {
+            ThorinVector<Vertex> new_verts;
+            ThorinVector<Texcoord> new_tex;
+            ThorinVector<Normal> new_norm;
+
+            for (auto& t : triangles_) {
+                const imba::Vec3& v0 = vertices_[t[0]];
+                const imba::Vec3& v1 = vertices_[t[1]];
+                const imba::Vec3& v2 = vertices_[t[2]];
+
+                new_verts.push_back(v0);
+                new_verts.push_back(v1);
+                new_verts.push_back(v2);
+
+                if (has_texcoords()) {
+                    new_tex.push_back(texcoords_[t[0]]);
+                    new_tex.push_back(texcoords_[t[1]]);
+                    new_tex.push_back(texcoords_[t[2]]);
+                }
+
+                const imba::Vec3& e0 = v1 - v0;
+                const imba::Vec3& e1 = v2 - v0;
+                const imba::Vec3& n = imba::normalize(imba::cross(e0, e1));
+                new_norm.push_back(n);
+                new_norm.push_back(n);
+                new_norm.push_back(n);
+
+                t[0] = new_verts.size() - 3;
+                t[1] = new_verts.size() - 2;
+                t[2] = new_verts.size() - 1;
+            }
+
+            std::swap(vertices_, new_verts);
+            std::swap(texcoords_, new_tex);
+            std::swap(normals_, new_norm);
+        }
+    }
+
 private:
     ThorinVector<Vertex>   vertices_;
     ThorinVector<Normal>   normals_;
