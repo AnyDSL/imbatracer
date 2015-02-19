@@ -1,7 +1,6 @@
 #ifndef IMBA_LOGGER_HPP
 #define IMBA_LOGGER_HPP
 
-#include <memory>
 #include <fstream>
 #include <iostream>
 #include <ctime>
@@ -43,13 +42,13 @@ protected:
 class FileLogger : public Logger {
 public:
     FileLogger(const std::string& file_name)
-        : file_(new std::ofstream(file_name))
+        : file_(file_name)
     {}
 
 protected:
-    virtual std::ostream& stream() override { return *file_.get(); }
+    virtual std::ostream& stream() override { return file_; }
 
-    std::unique_ptr<std::ostream> file_;
+    std::ofstream file_;
 };
 
 }

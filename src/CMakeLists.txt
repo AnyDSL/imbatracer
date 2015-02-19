@@ -21,7 +21,6 @@ set_source_files_properties(impala/impala_interface.h PROPERTIES GENERATED TRUE)
 # Generate the core library
 add_library(imba_core
             ${IMPALA_OBJS}
-            ${IMPALA_LIBS}
             scene/image.hpp
             scene/instance.hpp
             scene/light.hpp
@@ -58,8 +57,8 @@ add_library(imba_loaders
 
 add_dependencies(imba_core impala-interface)
 
-target_link_libraries(imba_devices ${PNG_LIBRARIES})
-target_link_libraries(imba_devices ${SDL_LIBRARY})
+target_link_libraries(imba_core  ${IMPALA_LIBS})
+target_link_libraries(imba_devices ${PNG_LIBRARIES} ${SDL_LIBRARY})
 target_link_libraries(imba_loaders ${PNG_LIBRARIES})
 
 # Generate the main executable
