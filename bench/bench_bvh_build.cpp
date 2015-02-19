@@ -8,7 +8,6 @@ void BenchBvhBuildImpala::iteration() {
                     (int*)mesh_->triangles(),
                     mesh_->triangle_count(),
                     result_.get());
-
     nodes_ = result_->bvh.node_count;
 
     thorin_free(result_->bvh.nodes);

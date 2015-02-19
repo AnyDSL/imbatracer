@@ -67,10 +67,10 @@ int main(int argc, char** argv) {
     benches.push_back(new bench::BenchRay4BoxImpala(1000000));
 
     // Benches that need a simple scene
+    imba::Scene scene;
     if (argc >= 2) {
         const std::string& scene_file = argv[1];
         imba::ObjLoader loader;
-        imba::Scene scene;
 
         if (!loader.load_file(imba::Path(scene_file), scene, logger.get())) {
             logger->log("cannot load file ", scene_file);
