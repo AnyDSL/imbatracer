@@ -9,7 +9,7 @@ foreach(FILE IN ITEMS ${IMPALA_SRCS})
 endforeach(FILE IN ${IMPALA_SRCS})
 
 thorin_runtime_wrap(IMPALA_OBJS IMPALA_LIBS
-                    RTTYPE ${RTTYPE}
+                    BACKEND ${BACKEND}
                     FILES ${IMPALA_SRCS_PREFIX})
 
 # Generate the C interface
