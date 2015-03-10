@@ -14,7 +14,7 @@ thorin_runtime_wrap(IMPALA_OBJS IMPALA_LIBS
 
 # Generate the C interface
 add_custom_target(impala-interface DEPENDS ${IMPALA_SRCS_PREFIX}
-                  COMMAND impala -emit-c-interface ${IMPALA_SRCS} ${THORIN_RUNTIME_DIR}/platforms/intrinsics_cpu.impala ${THORIN_RUNTIME_DIR}/platforms/intrinsics_thorin.impala -o impala_interface
+                  COMMAND impala -emit-c-interface ${IMPALA_SRCS} ${THORIN_RUNTIME_DIR}/platforms/intrinsics_${BACKEND}.impala ${THORIN_RUNTIME_DIR}/platforms/intrinsics_thorin.impala -o impala_interface
                   WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/impala)
 set_source_files_properties(impala/impala_interface.h PROPERTIES GENERATED TRUE)
 

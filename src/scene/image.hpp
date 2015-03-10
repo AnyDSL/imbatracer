@@ -8,6 +8,9 @@
 
 namespace imba {
 
+using ::GBufferPixel;
+using ::TexturePixel;
+
 /// Image buffer with aligned storage.
 template <typename T>
 class ImageBuffer {
@@ -62,8 +65,8 @@ protected:
     int stride_;
 };
 
-typedef ImageBuffer<::GBufferPixel> GBuffer;
-typedef ImageBuffer<::TexturePixel> Texture;
+typedef ImageBuffer<GBufferPixel> GBuffer;
+typedef ImageBuffer<TexturePixel> Texture;
 
 } // namespace imba
 

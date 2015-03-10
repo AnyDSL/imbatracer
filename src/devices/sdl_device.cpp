@@ -64,7 +64,7 @@ bool SdlDevice::render(const Scene& scene, int width, int height, Logger& logger
 }
 
 void SdlDevice::render_surface(const Scene& scene) {
-    ::Camera cam = Render::perspective_camera(eye_, eye_ + dist_ * forward_, up_, fov_, ratio_);
+    Camera cam = Render::perspective_camera(eye_, eye_ + dist_ * forward_, up_, fov_, ratio_);
     imba::Render::render_texture(scene, cam, texture_);
 
     SDL_LockSurface(screen_);

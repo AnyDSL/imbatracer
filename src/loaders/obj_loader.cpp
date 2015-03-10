@@ -116,25 +116,7 @@ bool ObjLoader::load_file(const Path& path, Scene& scene, Logger* logger) {
         } else {
             // Recompute normals
             if (logger) logger->log("Recomputing normals...");
-            mesh->set_normal_count(cur_idx);
-
-            for (int i = 0; i < cur_idx; i++)
-                mesh->normals()[i] = imba::Vec3(0.0f);
-
-            for (auto& t : triangles) {
-                const Vec3& v0 = mesh->vertices()[t[0]];
-                const Vec3& v1 = mesh->vertices()[t[1]];
-                const Vec3& v2 = mesh->vertices()[t[2]];
-                const Vec3& e0 = v1 - v0;
-                const Vec3& e1 = v2 - v0;
-                const Vec3& n = normalize(cross(e0, e1));
-                mesh->normals()[t[0]] += n;
-                mesh->normals()[t[1]] += n;
-                mesh->normals()[t[2]] += n;
-            }
-
-            for (int i = 0; i < cur_idx; i++)
-                mesh->normals()[i] = normalize(mesh->normals()[i]);
+            mesh->compute_normals(true);
         }
 
         if (has_texcoords) {
@@ -154,7 +136,7 @@ bool ObjLoader::load_file(const Path& path, Scene& scene, Logger* logger) {
         scene.new_instance(mesh_id);
     }
 
-    scene.new_light(Vec4(0.0f, 50.0f, 0.0f, 1.0f), Vec3(1.0f, 0.0f, 0.0001f));
+    scene.new_light(Vec4(0.0f, 10.0f, 0.0f, 1.0f), Vec3(1.0f, 0.0f, 0.0001f));
 
     return true;
 }

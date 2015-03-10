@@ -44,7 +44,8 @@ extern fn render_texture(scene: &Scene, comp: &CompiledScene, cam: &Camera, text
     let d = vec3_sub(cam.center, cam.eye);
 
     // TODO : Do that in parallel
-    for y in range_step(0, texture.height, 8) @{
+    for yb in parallel(0, 0, texture.height / 8) @{
+        let y = yb * 8;
         for x in range_step(0, texture.width, 8) @{
             let mut p : Packet;
             let mut hit : Hit = empty_hit(&p, flt_max);

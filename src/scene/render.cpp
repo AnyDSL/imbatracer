@@ -3,7 +3,7 @@
 
 namespace imba {
 
-::Camera Render::perspective_camera(Vec3 eye, Vec3 center, Vec3 up, float fov, float ratio) {
+imba::Camera Render::perspective_camera(Vec3 eye, Vec3 center, Vec3 up, float fov, float ratio) {
     auto setv = [] (::Vec3& v, const Vec3& u) {
         v.values[0] = u[0];
         v.values[1] = u[1];
@@ -29,7 +29,7 @@ namespace imba {
     return camera;
 }
 
-void Render::render_gbuffer(const Scene& scene, const ::Camera& camera, GBuffer& output) {
+void Render::render_gbuffer(const Scene& scene, const Camera& camera, GBuffer& output) {
     ::GBuffer buf;
     buf.width  = output.width();
     buf.height = output.height();
@@ -40,7 +40,7 @@ void Render::render_gbuffer(const Scene& scene, const ::Camera& camera, GBuffer&
                      const_cast<Camera*>(&camera), &buf);
 }
 
-void Render::render_texture(const Scene& scene, const ::Camera& camera, Texture& output) {
+void Render::render_texture(const Scene& scene, const Camera& camera, Texture& output) {
     ::Texture tex;
     tex.width  = output.width();
     tex.height = output.height();

@@ -4,6 +4,8 @@
 namespace imba {
 
 /// Light definition. May be replaced completely by shaders in the not-so-distant future.
+/// Currently we use the following convention : a point light has pos_dir.w = 1.0 and
+/// a directional light has pos_dir.w = 0.0 (This is subject to change)
 class Light {
 public:
     Light(const Vec4& pos_dir, const Vec3& falloff = Vec3(1.0f, 0.0f, 0.0f), const Vec3& intensity = Vec3(1.0f), float cutoff = 0.0f) {

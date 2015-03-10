@@ -114,6 +114,7 @@ public:
     bool has_texcoords() const { return texcoords_.size() > 0; }
     bool has_materials() const { return materials_.size() > 0; }
 
+    /// Recomputes the mesh normals. Smoothly interpolates normals if "smooth" is set to true.
     void compute_normals(bool smooth) {
         if (smooth) {
             normals_.resize(vertices_.size());
