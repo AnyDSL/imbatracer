@@ -1,9 +1,22 @@
-fn intersect_packet_tri(p: &Packet, h: &Hit, first: int, last: int, t: Tri, mesh_id: int, tri_id: int) -> () @{
+fn intersect_packet_tri(p: &Packet, h: &Hit, first: int, last: int, t: Tri, mesh_id: int, tri_id: int, mask: fn (int) -> bool) -> () @{
     for i in range(first, last) @{
-        intersect_ray_tri(packet_ray(p, i), t, |t, u, v| @{
-            if t > 0.0f && t < hit_t(h, i) @{
-                record_hit(h, i, t, u, v, mesh_id, tri_id)
-            }
-        })
-    }
+        if mask(i) {
+            intersect_ray_tri(packet_ray(p, i), t, |t, u, v| @{
+                if t > 0.0f && t < hit_t(h, i) @{
+                    record_hit(h, i, t, u, v, mesh_id, tri_id)
+                }
+            })
+        }
+    }/*
+    let first_mod = if first % 4 == 0 {first} else {first - first % 4};
+    let last_mod  = if last  % 4 == 0 {last}  else {last + 4 - last % 4};
+    for i in range_step(first_mod, last_mod, 8) @{
+        for j in vrange4(0, 8) @{
+            intersect_ray_tri(packet_ray(p, i + j), t, |t, u, v| @{
+                if t > 0.0f && t < hit_t(h, i + j) @{
+                    record_hit(h, i + j, t, u, v, mesh_id, tri_id)
+                }
+            })
+        }
+    }*/
 }

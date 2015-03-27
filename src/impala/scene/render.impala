@@ -16,7 +16,7 @@ fn camera_ray(cam: &Camera, d: Vec3, x: int, y: int, w: int, h: int) -> Ray {
     ray(dir, cam.eye)
 }
 
-extern fn render_gbuffer(scene: &Scene, comp: &CompiledScene, cam: &Camera, gbuffer: &GBuffer) -> () @{
+fn render_gbuffer_bvh_scene(scene: &Scene, comp: &CompiledBvhScene, cam: &Camera, gbuffer: &GBuffer) -> () @{
     let d = vec3_sub(cam.center, cam.eye);
 
     // TODO : Do that in parallel
@@ -27,7 +27,7 @@ extern fn render_gbuffer(scene: &Scene, comp: &CompiledScene, cam: &Camera, gbuf
 
             generate_packet(&p, |i, j| camera_ray(cam, d, x + i, y + j, gbuffer.width, gbuffer.height));
             perspective_frustum(&p);
-            closest_hit(scene, comp, &p, &hit);
+            closest_hit_bvh_scene(scene, comp, &p, &hit);
 
             for i in range(0, packet_height(&p)) @{
                 for j in range(0, packet_width(&p)) @{
@@ -40,7 +40,7 @@ extern fn render_gbuffer(scene: &Scene, comp: &CompiledScene, cam: &Camera, gbuf
     }
 }
 
-extern fn render_texture(scene: &Scene, comp: &CompiledScene, cam: &Camera, texture: &Texture) -> () @{
+fn render_texture_bvh_scene(scene: &Scene, comp: &CompiledBvhScene, cam: &Camera, texture: &Texture) -> () @{
     let d = vec3_sub(cam.center, cam.eye);
 
     // TODO : Do that in parallel
@@ -53,13 +53,13 @@ extern fn render_texture(scene: &Scene, comp: &CompiledScene, cam: &Camera, text
 
             generate_packet(&p, |i, j| camera_ray(cam, d, x + i, y + j, texture.width, texture.height));
             perspective_frustum(&p);
-            closest_hit(scene, comp, &p, &hit);
+            closest_hit_bvh_scene(scene, comp, &p, &hit);
 
             for i in range(0, packet_size(&p)) {
                 color(i) = vec3(0.0f, 0.0f, 0.0f);
             }
 
-            evaluate_material(&p, &hit, scene, comp, |i, c| @{
+            evaluate_material_bvh(&p, &hit, scene, comp, |i, c| @{
                 color(i) = vec3_add(color(i), c)
             });
 
@@ -74,6 +74,4 @@ extern fn render_texture(scene: &Scene, comp: &CompiledScene, cam: &Camera, text
         }
     }
 }
-
-
 

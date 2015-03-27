@@ -5,7 +5,7 @@ struct BenchRayBvhResult {
 }
 
 extern fn bench_ray4_bvh(nray4s: int, bvh: &Bvh, vertices: &[Vec3], indices: &[int], mut result: &BenchRayBvhResult) -> () @{
-    fn generate_ray(i: int) -> Ray {
+    /*fn generate_ray(i: int) -> Ray {
         let theta = ((i % 1000) as float) * flt_pi / 1000.0f;
         let phi = (i as float) * 2.0f * flt_pi / 1000.0f;
 
@@ -25,13 +25,13 @@ extern fn bench_ray4_bvh(nray4s: int, bvh: &Bvh, vertices: &[Vec3], indices: &[i
         let mut tray = [flt_max,  .. 4];
         let mut intr = [0, .. 4];
 
-        for j in range(0, 4) {
+        for j in vrange4(0, 4) {
             rays(j) = generate_ray(i * 4 + j);
             inv_dirs(j) = vec3_map(rays(j).dir, |x| 1.0f / x);
         }
 
         fn at_leaf(box: Box, first: int, count: i16) -> () @{
-            for j in range(0, 4) @{
+            for j in vrange4(0, 4) @{
                 // First intersect the rays with the current node
                 @intersect_ray_box(@ray_inv(inv_dirs(j), rays(j).org), box, |t0, t1| @{
                     // If the rays hit the box, intersect triangles too
@@ -58,7 +58,7 @@ extern fn bench_ray4_bvh(nray4s: int, bvh: &Bvh, vertices: &[Vec3], indices: &[i
         fn at_node(box: Box, axis: i16, push: fn (int) -> ()) -> () @{
             let mut signs = [0, .. 4];
 
-            for j in range(0, 4) @{
+            for j in vrange4(0, 4) @{
                 @intersect_ray_box(@ray_inv(inv_dirs(j), rays(j).org), box, |t0, t1| @{
                     if t1 > 0.0f && t0 < tray(j) @{
                         signs(j) = if inv_dirs(j).values(axis) > 0.0f {1} else {-1};
@@ -84,11 +84,11 @@ extern fn bench_ray4_bvh(nray4s: int, bvh: &Bvh, vertices: &[Vec3], indices: &[i
                 if result.tmin > tray(j) { result.tmin = tray(j); }
             }
         }
-    }
+    }*/
 }
 
 extern fn bench_ray_bvh(nrays: int, bvh: &Bvh, vertices: &[Vec3], indices: &[int], mut result: &BenchRayBvhResult) -> () @{
-    fn generate_ray(i: int) -> Ray {
+    /*fn generate_ray(i: int) -> Ray {
         let theta = ((i % 1000) as float) * flt_pi / 1000.0f;
         let phi = (i as float) * 2.0f * flt_pi / 1000.0f;
 
@@ -147,6 +147,6 @@ extern fn bench_ray_bvh(nrays: int, bvh: &Bvh, vertices: &[Vec3], indices: &[int
             if result.tmax < tray { result.tmax = tray; }
             if result.tmin > tray { result.tmin = tray; }
         }
-    }
+    }*/
 }
 

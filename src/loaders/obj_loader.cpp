@@ -133,7 +133,13 @@ bool ObjLoader::load_file(const Path& path, Scene& scene, Logger* logger) {
                                       mesh->triangle_count(), " triangles");
         }
 
-        scene.new_instance(mesh_id);
+        for (int z = 0; z < 50; z++) {
+            for (int y = 0; y < 50; y++) {
+                for (int x = 0; x < 50; x++) {
+                    scene.new_instance(mesh_id, imba::Mat4::translation(imba::Vec3(-1250 + x * 50, -1250 + y * 50, -1250 + z * 50)));
+                }
+            }
+        }
     }
 
     scene.new_light(Vec4(0.0f, 10.0f, 0.0f, 1.0f), Vec3(1.0f, 0.0f, 0.0001f));

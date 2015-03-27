@@ -1,0 +1,22 @@
+struct CompiledScene {}
+
+extern fn compile_scene(scene: &Scene) -> &CompiledScene @{
+    compile_bvh_scene(scene) as &CompiledScene
+}
+
+extern fn destroy_scene(scene: &Scene, comp: &CompiledScene) -> () @{
+    destroy_bvh_scene(scene, comp as &CompiledBvhScene)
+}
+
+extern fn update_scene(scene: &Scene, update: &SceneUpdate, comp: &CompiledScene) -> () @{
+    update_bvh_scene(scene, update, comp as &CompiledBvhScene)
+}
+
+extern fn render_gbuffer(scene: &Scene, comp: &CompiledScene, cam: &Camera, gbuffer: &GBuffer) -> () @{
+    render_gbuffer_bvh_scene(scene, comp as &CompiledBvhScene, cam, gbuffer)
+}
+
+extern fn render_texture(scene: &Scene, comp: &CompiledScene, cam: &Camera, texture: &Texture) -> () @{
+    render_texture_bvh_scene(scene, comp as &CompiledBvhScene, cam, texture)
+}
+

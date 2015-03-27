@@ -1,4 +1,4 @@
-struct Mesh {
+    struct Mesh {
     vertices:  &[Vec3],
     normals:   &[Vec3],
     texcoords: &[Vec2],

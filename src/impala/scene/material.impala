@@ -7,13 +7,23 @@ struct Material {
 }
 
 // TODO : replace materials by shader system in the future
-fn evaluate_material(p: &Packet, h: &Hit, mut scene: &Scene, comp: &CompiledScene, accumulate: fn (int, Vec3) -> ()) -> () {
+fn evaluate_material_bvh(p: &Packet, h: &Hit, mut scene: &Scene, comp: &CompiledBvhScene, accumulate: fn (int, Vec3) -> ()) -> () {
     let mut normals : [Vec3 * 64];
+    let mut face_normals : [Vec3 * 64];
+
+    fn frontfacing(id: int, d: Vec3, front: fn() -> ()) -> () {
+        if vec3_dot(face_normals(id), d) > 0.0f {
+            front()
+        }
+    }
 
     // Compute normals
     for i in range(0, packet_size(p)) @{
-        let mesh_id = scene.instances(hit_inst(h, i)).mesh_id;
+        let inst_id = hit_inst(h, i);
+        let mesh_id = scene.instances(inst_id).mesh_id;
         let mesh = scene.meshes(mesh_id);
+
+        let mut tinv = mat4_transpose(&scene.instances(inst_id).inv_mat);
 
         let tri_id = hit_tri(h, i);
         if tri_id >= 0 @{
@@ -22,15 +32,25 @@ fn evaluate_material(p: &Packet, h: &Hit, mut scene: &Scene, comp: &CompiledScen
             let w = 1.0f - u - v;
             let t = hit_t(h, i);
 
-            // Compute normal
+            // Compute interpolated normal
             let n0 = vec3_map(mesh.normals(mesh.indices(tri_id * 3 + 0)), |x| x * w);
             let n1 = vec3_map(mesh.normals(mesh.indices(tri_id * 3 + 1)), |x| x * u);
             let n2 = vec3_map(mesh.normals(mesh.indices(tri_id * 3 + 2)), |x| x * v);
-            let n = vec3_norm(vec3_add(n0, vec3_add(n1, n2)));
+            let n = vec3_add(n0, vec3_add(n1, n2));
 
-            normals(i) = n;
+            normals(i) = vec3_norm(mat4_mul_vec3(&tinv, n, 0.0f));
+
+            // Compute face normal
+            let v0 = mesh.vertices(mesh.indices(tri_id * 3 + 0));
+            let v1 = mesh.vertices(mesh.indices(tri_id * 3 + 1));
+            let v2 = mesh.vertices(mesh.indices(tri_id * 3 + 2));
+            let e0 = vec3_sub(v1, v0);
+            let e1 = vec3_sub(v2, v0);
+            let tn = mat4_mul_vec3(&tinv, vec3_cross(e0, e1), 0.0f);
+            face_normals(i) = if vec3_dot(tn, packet_dir(p, i)) > 0.0f { vec3_map(tn, |x| -x) } else { tn };
         } else @{
             normals(i) = vec3(0.0f, 0.0f, 0.0f);
+            face_normals(i) = vec3(0.0f, 0.0f, 0.0f);
         }
     }
 
@@ -51,49 +71,57 @@ fn evaluate_material(p: &Packet, h: &Hit, mut scene: &Scene, comp: &CompiledScen
         let mut sh : Hit;
 
         if scene.lights(j).pos_dir.values(3) != 0.0f @{
-            sh = empty_hit(&sp, 1.0f);
-            generate_packet(&sp, |x, y| @{
+            sh = empty_hit(&sp, 0.99f);
+            generate_packet(&sp, |x, y, ret| @{
                 let id = packet_ray_id(p, x, y);
+
                 if hit_tri(h, id) >= 0 {
                     let t = hit_t(h, id);
                     let p = vec3_add(vec3_map(packet_dir(p, id), |x| x * t), packet_org(p, id));
                     let d = vec3_sub(vec3_from_vec4(scene.lights(j).pos_dir), p);
-                    ray(d, vec3_add(p, vec3_map(d, |x| x * 0.01f)))
-                } else {
-                    ray(vec3(0.0f, 0.0f, 0.0f), vec3(0.0f, 0.0f, 0.0f))
+                    frontfacing(id, d, || {
+                        ret(ray(d, p))
+                    });
                 }
+
+                ret(ray(vec3(0.0f, 0.0f, 0.0f), vec3(0.0f, 0.0f, 0.0f)))
             });
             shadow_frustum(&sp, vec3_from_vec4(scene.lights(j).pos_dir), |i| hit_tri(h, i) >= 0);
         } else @{
             sh = empty_hit(&sp, flt_max);
-            generate_packet(&sp, |x, y| @{
+            generate_packet(&sp, |x, y, ret| @{
                 let id = packet_ray_id(p, x, y);
+
                 if hit_tri(h, id) >= 0 {
-                    let t = hit_t(h, id);
-                    let p = vec3_add(vec3_map(packet_dir(p, id), |x| x * t), packet_org(p, id));
                     let d = vec3_map(vec3_from_vec4(scene.lights(j).pos_dir), |x| -x);
-                    ray(d, vec3_add(p, vec3_map(d, |x| x * 0.01f)))
-                } else {
-                    ray(vec3(0.0f, 0.0f, 0.0f), vec3(0.0f, 0.0f, 0.0f))
+                    frontfacing(id, d, || {
+                        let t = hit_t(h, id);
+                        let p = vec3_add(vec3_map(packet_dir(p, id), |x| x * t), packet_org(p, id));
+                        ret(ray(d, p))
+                    });
                 }
+
+                ret(ray(vec3(0.0f, 0.0f, 0.0f), vec3(0.0f, 0.0f, 0.0f)))
             });
             bounding_frustum(&sp, &sh, |i| hit_tri(h, i) >= 0);
         }
         
-        first_hit(scene, comp, &sp, &sh);
+        first_hit_bvh_scene(scene, comp, &sp, &sh, h);
 
         // Compute light contribution
-        for i in range(0, packet_size(p)) @{
+        for i in range(packet_first_alive(&sp), packet_last_alive(&sp) + 1) @{
             let tri_id = hit_tri(h, i);
-            if tri_id >= 0 && hit_tri(&sh, i) < 0 @{
-                let mesh_id = scene.instances(hit_inst(h, i)).mesh_id;
-                let mesh = scene.meshes(mesh_id);
-                let mat_id = mesh.materials(tri_id);
-                let mat = scene.materials(mat_id);
-                let t = hit_t(h, i);
-                let p = vec3_add(vec3_map(packet_dir(p, i), |x| x * t), packet_org(p, i));
-                accumulate(i, vec3_mul(mat.kd, evaluate_light(&scene.lights(j), p, normals(i))));
-            }
+            frontfacing(i, packet_dir(&sp, i), || {
+                if tri_id >= 0 && hit_tri(&sh, i) < 0 @{
+                    let mesh_id = scene.instances(hit_inst(h, i)).mesh_id;
+                    let mesh = scene.meshes(mesh_id);
+                    let mat_id = mesh.materials(tri_id);
+                    let mat = scene.materials(mat_id);
+                    let t = hit_t(h, i);
+                    let p = vec3_add(vec3_map(packet_dir(p, i), |x| x * t), packet_org(p, i));
+                    accumulate(i, vec3_mul(mat.kd, evaluate_light(&scene.lights(j), p, normals(i))));
+                }
+            });
         }
     }
 }

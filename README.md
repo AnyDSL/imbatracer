@@ -28,7 +28,7 @@ int main(int argc, char** argv) {
     // They can be recomputed on the fly if you don't have any normals available.
     mesh->compute_normals(true);
 
-    // Materials are per face. So the material buffer has mesh->triangle_count() elements.
+    // Materials are per face. So the material buffer should have mesh->triangle_count() elements.
     // Each element is an index to some scene material. Here we set the material of the first face :
     mesh->add_material(0);
 
@@ -38,7 +38,7 @@ int main(int argc, char** argv) {
                        Vec3(1.0f));   // Specular
 
     // Now we need to add an instance of the mesh, otherwise nothing will be rendered
-    scene.new_instance(mesh_id, imba::Mat4::identity());
+    scene.new_instance(mesh_id, Mat4::identity());
 
     // If you need a light :
     scene.new_light(Vec4(0.0f, 0.0f, 5.0f, 1.0f),  // Light position (point light, w = 1) or direction (directional light, w = 0)

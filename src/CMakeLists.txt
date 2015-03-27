@@ -1,20 +1,34 @@
 # Get the Impala source files names
 add_subdirectory(impala)
-get_directory_property(IMPALA_SRCS DIRECTORY impala DEFINITION IMPALA_SRCS)
+get_directory_property(IMPALA_SRCS           DIRECTORY impala DEFINITION IMPALA_SRCS)
+get_directory_property(IMPALA_BENCH_SRCS     DIRECTORY impala DEFINITION IMPALA_BENCH_SRCS)
+get_directory_property(IMPALA_INTERFACE_SRCS DIRECTORY impala DEFINITION IMPALA_INTERFACE_SRCS)
 
-set(IMPALA_SRCS_PREFIX "")
-foreach(FILE IN ITEMS ${IMPALA_SRCS})
-    set(NEW_FILE "impala/${FILE}")
-    list(APPEND IMPALA_SRCS_PREFIX ${NEW_FILE})
-endforeach(FILE IN ${IMPALA_SRCS})
+# Add a directory prefix to the impala files
+function(ADD_PREFIX list prefix_list prefix)
+    set(new_list "")
+    foreach(ITEM IN ITEMS ${list})
+        set(NEW_ITEM "${prefix}${ITEM}")
+        list(APPEND new_list ${NEW_ITEM})
+    endforeach(ITEM IN ITEMS ${list})
+    set(${prefix_list} "${new_list}" PARENT_SCOPE)
+endfunction(ADD_PREFIX)
 
+add_prefix("${IMPALA_SRCS}"           IMPALA_SRCS_PREFIX           "impala/")
+add_prefix("${IMPALA_BENCH_SRCS}"     IMPALA_BENCH_SRCS_PREFIX     "impala/")
+add_prefix("${IMPALA_INTERFACE_SRCS}" IMPALA_INTERFACE_SRCS_PREFIX "impala/")
+
+# Do not include the benchmarks
 thorin_runtime_wrap(IMPALA_OBJS IMPALA_LIBS
                     BACKEND ${BACKEND}
-                    FILES ${IMPALA_SRCS_PREFIX})
+                    FILES ${IMPALA_SRCS_PREFIX} ${IMPALA_INTERFACE_SRCS_PREFIX})
 
 # Generate the C interface
-add_custom_target(impala-interface DEPENDS ${IMPALA_SRCS_PREFIX}
-                  COMMAND impala -emit-c-interface ${IMPALA_SRCS} ${THORIN_RUNTIME_DIR}/platforms/intrinsics_${BACKEND}.impala ${THORIN_RUNTIME_DIR}/platforms/intrinsics_thorin.impala -o impala_interface
+add_custom_target(impala_interface DEPENDS ${IMPALA_SRCS_PREFIX} ${IMPALA_BENCH_SRCS_PREFIX} ${IMPALA_INTERFACE_SRCS_PREFIX}
+                  COMMAND impala -emit-c-interface ${IMPALA_SRCS} ${IMPALA_BENCH_SRCS} ${IMPALA_INTERFACE_SRCS}
+                          ${THORIN_RUNTIME_DIR}/platforms/intrinsics_${BENCH_BACKEND}.impala
+                          ${THORIN_RUNTIME_DIR}/platforms/intrinsics_thorin.impala
+                          -o impala_interface
                   WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/impala)
 set_source_files_properties(impala/impala_interface.h PROPERTIES GENERATED TRUE)
 
@@ -55,7 +69,7 @@ add_library(imba_loaders
             loaders/obj_loader.cpp
             loaders/obj_loader.hpp)
 
-add_dependencies(imba_core impala-interface)
+add_dependencies(imba_core impala_interface)
 
 target_link_libraries(imba_core  ${IMPALA_LIBS})
 target_link_libraries(imba_devices ${PNG_LIBRARIES} ${SDL_LIBRARY})

@@ -14,6 +14,10 @@ else()
     set(DEVICE "gpu")
 endif()
 
+if(NOT BENCH_BACKEND)
+    set(BENCH_BACKEND ${BACKEND} CACHE)
+endif()
+
 # pthreads
 find_package(Threads REQUIRED)
 

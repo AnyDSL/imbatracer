@@ -53,6 +53,10 @@ extern fn bench_ray4_box(nray4s: int,
     }
 }
 
+extern "C" {
+    fn magic_cast_benchbvhray_id(&[BenchRayBoxResult]) -> &[BenchRayBoxResult];
+}
+
 extern fn bench_ray_box(nrays: int,
                         box_min: &[float * 3],
                         box_max: &[float * 3],
@@ -71,7 +75,7 @@ extern fn bench_ray_box(nrays: int,
     result.tmin = -flt_max;
     result.intr_count = 0;
 
-    for i in range(0, nrays) @{
+    /*for i in range(0, nrays) @{
         let ray = generate_ray(i);
         intersect_ray_box(ray, box,
             |t0, t1| {
@@ -79,6 +83,21 @@ extern fn bench_ray_box(nrays: int,
                 if result.tmax > t1 { result.tmax = t1; }
                 if result.tmin < t0 { result.tmin = t0; }
             })
-    }
+    }*/
+
+    let dev = 0;
+    let grid = (nrays, 1, 1);
+    let block = (128, 1, 1);
+
+    let result_array = result as &[BenchRayBoxResult];
+
+    acc(dev, grid, block, || @{
+        let mut res = magic_cast_benchbvhray_id(result_array);
+        let ray = generate_ray(acc_gidx());
+        intersect_ray_box(ray, box,
+            |t0, t1| {
+                atomic_add(&res(0).intr_count, 1);
+            });
+    });
 }
 
