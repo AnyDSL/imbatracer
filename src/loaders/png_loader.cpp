@@ -85,16 +85,19 @@ bool PngLoader::load_file(const Path& path, Texture& texture, Logger* logger) {
     if (color_type == PNG_COLOR_TYPE_RGB)
         png_set_filler(png_ptr, 0xFF, PNG_FILLER_AFTER);
 
-    int stride = width * (bit_depth / 8) * channels;
-    row_ptrs = new png_bytep[height];
-
-    texture.resize(width, height, stride);
-    for (int i = 0; i < height; i++) {
-        row_ptrs[i] = (png_bytep)texture.row(height - 1 - i);
+    texture.resize(width, height);
+    std::vector<png_byte> row_bytes(width * 4);
+    for (int y = 0; y < height; y++) {
+        png_read_row(png_ptr, row_bytes.data(), nullptr);
+        TexturePixel* buf_row = texture.row(height - y - 1);
+        for (int x = 0; x < width; x++) {
+            buf_row[x].r = row_bytes[x * 4 + 0] / 255.0f;
+            buf_row[x].g = row_bytes[x * 4 + 1] / 255.0f;
+            buf_row[x].b = row_bytes[x * 4 + 2] / 255.0f;
+            buf_row[x].a = row_bytes[x * 4 + 3] / 255.0f;
+        }
     }
 
-    png_read_image(png_ptr, row_ptrs);
-    delete[] row_ptrs;
     png_destroy_read_struct(&png_ptr, &info_ptr, nullptr);
     
     if (logger) {

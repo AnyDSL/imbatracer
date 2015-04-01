@@ -71,14 +71,16 @@ void SdlDevice::render_surface(const Scene& scene) {
     const int r = screen_->format->Rshift / 8;
     const int g = screen_->format->Gshift / 8;
     const int b = screen_->format->Bshift / 8;
+    auto clamp = [] (float x) { return std::min(std::max(x, 0.0f), 1.0f); };
+
 #pragma omp parallel for
     for (int y = 0; y < screen_->h; y++) {
         unsigned char* row = (unsigned char*)screen_->pixels + screen_->pitch * y;
         const TexturePixel* buf_row = texture_.row(y);
         for (int x = 0; x < screen_->w; x++) {
-            row[x * 4 + r] = buf_row[x].r;
-            row[x * 4 + g] = buf_row[x].g;
-            row[x * 4 + b] = buf_row[x].b;
+            row[x * 4 + r] = 255.0f * clamp(buf_row[x].r);
+            row[x * 4 + g] = 255.0f * clamp(buf_row[x].g);
+            row[x * 4 + b] = 255.0f * clamp(buf_row[x].b);
         }
     }
     SDL_UnlockSurface(screen_);

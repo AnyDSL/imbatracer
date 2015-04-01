@@ -3,6 +3,7 @@
 
 #include <vector>
 #include <algorithm>
+#include <cassert>
 #include "../common/memory.hpp"
 #include "../common/vector.hpp"
 
@@ -113,6 +114,25 @@ public:
     bool has_normals() const { return normals_.size() > 0; }
     bool has_texcoords() const { return texcoords_.size() > 0; }
     bool has_materials() const { return materials_.size() > 0; }
+
+    void append(const TriangleMesh& other) {
+        assert(normals_.size()   == 0 || normals_.size()   == vertices_.size());
+        assert(texcoords_.size() == 0 || texcoords_.size() == vertices_.size());
+        assert(materials_.size() == triangles_.size());
+
+        size_t old_verts = vertices_.size();
+
+        vertices_.insert(vertices_.end(), other.vertices_.begin(), other.vertices_.end());
+        normals_.insert(normals_.end(), other.normals_.begin(), other.normals_.end());
+        texcoords_.insert(texcoords_.end(), other.texcoords_.begin(), other.texcoords_.end());
+        materials_.insert(materials_.end(), other.materials_.begin(), other.materials_.end());
+
+        // Transform indices so that they refer to the new normals and indices
+        std::transform(other.triangles_.begin(), other.triangles_.end(),
+                       std::back_inserter(triangles_), [old_verts] (const Triangle& tri) {
+            return Triangle(tri[0] + old_verts, tri[1] + old_verts, tri[2] + old_verts);
+        });
+    }
 
     /// Recomputes the mesh normals. Smoothly interpolates normals if "smooth" is set to true.
     void compute_normals(bool smooth) {

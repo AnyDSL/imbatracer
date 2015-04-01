@@ -54,7 +54,22 @@ fn evaluate_material_bvh(p: &Packet, h: &Hit, mut scene: &Scene, comp: &Compiled
         }
     }
 
-    // Ambient light contribution
+    let mut diff : [Vec3 * 64];
+    let repeat = BoundaryHandling {
+        top:    |y, h| { y - y % h },
+        left:   |x, w| { x - x % w },
+        bottom: |y, h| { y % h },
+        right:  |x, w| { x % w }
+    };
+
+    let clamp = BoundaryHandling {
+        top:    |y, h| { 0 },
+        left:   |x, w| { 0 },
+        bottom: |y, h| { h - 1 },
+        right:  |x, w| { w - 1 }
+    };
+
+    // Ambient light contribution & diffuse param. computation
     for i in range(0, packet_size(p)) @{
         let tri_id = hit_tri(h, i);
         if tri_id >= 0 @{
@@ -62,7 +77,25 @@ fn evaluate_material_bvh(p: &Packet, h: &Hit, mut scene: &Scene, comp: &Compiled
             let mesh = scene.meshes(mesh_id);
             let mat_id = mesh.materials(tri_id);
             let mat = scene.materials(mat_id);
+
             accumulate(i, mat.ka);
+
+            diff(i) = if mat.tex_id >= 0 @{
+                let u = hit_u(h, i);
+                let v = hit_v(h, i);
+                let w = 1.0f - u - v;
+
+                let uv0 = vec2_map(mesh.texcoords(mesh.indices(tri_id * 3 + 0)), |x| x * w);
+                let uv1 = vec2_map(mesh.texcoords(mesh.indices(tri_id * 3 + 1)), |x| x * u);
+                let uv2 = vec2_map(mesh.texcoords(mesh.indices(tri_id * 3 + 2)), |x| x * v);
+
+                let uv = vec2_add(uv0, vec2_add(uv1, uv2));
+
+                let c = bilinear_interpolation(&scene.textures(mat.tex_id), uv.values(0), uv.values(1), clamp);
+                vec3_mul(mat.kd, vec3(c.a * c.r, c.a * c.g, c.a * c.b))
+            } else {
+                mat.kd
+            };
         }
     }
 
@@ -119,7 +152,7 @@ fn evaluate_material_bvh(p: &Packet, h: &Hit, mut scene: &Scene, comp: &Compiled
                     let mat = scene.materials(mat_id);
                     let t = hit_t(h, i);
                     let p = vec3_add(vec3_map(packet_dir(p, i), |x| x * t), packet_org(p, i));
-                    accumulate(i, vec3_mul(mat.kd, evaluate_light(&scene.lights(j), p, normals(i))));
+                    accumulate(i, vec3_mul(diff(i), evaluate_light(&scene.lights(j), p, normals(i))));
                 }
             });
         }

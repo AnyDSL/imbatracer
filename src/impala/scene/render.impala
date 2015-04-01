@@ -33,7 +33,13 @@ fn render_gbuffer_bvh_scene(scene: &Scene, comp: &CompiledBvhScene, cam: &Camera
                 for j in range(0, packet_width(&p)) @{
                     let k = packet_ray_id(&p, j, i);
                     
-                    write_gbuffer(x + j, y + i, gbuffer, gbuffer_pixel(hit.t(k), hit.u(k), hit.v(k), hit.tri_id(k), hit.inst_id(k)));
+                    write_gbuffer(x + j, y + i, gbuffer, GBufferPixel {
+                        t: hit.t(k),
+                        u: hit.u(k),
+                        v: hit.v(k),
+                        tri_id: hit.tri_id(k),
+                        inst_id: hit.inst_id(k)
+                    });
                 }
             }
         }
@@ -66,9 +72,12 @@ fn render_texture_bvh_scene(scene: &Scene, comp: &CompiledBvhScene, cam: &Camera
             for i in range(0, packet_height(&p)) @{
                 for j in range(0, packet_width(&p)) @{
                     let c = color(packet_ray_id(&p, j, i));
-                    let cc = vec3_map(vec3_clamp(c, 0.0f, 1.0f), |x| x * 255.0f);
-                    let pix = texture_pixel(cc.values(0) as u8, cc.values(1) as u8, cc.values(2) as u8, 255u8);
-                    write_texture(x + j, y + i, texture, pix);
+                    write_texture(x + j, y + i, texture, TexturePixel {
+                        r: c.values(0),
+                        g: c.values(1),
+                        b: c.values(2),
+                        a: 1.0f
+                    });
                 }
             }
         }

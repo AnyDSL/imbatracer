@@ -21,6 +21,13 @@ public:
         , stride_(0)
     {}
 
+    ImageBuffer(ImageBuffer&& other) {
+        pixels_ = std::move(other.pixels_);
+        width_ = other.width_;
+        height_ = other.height_;
+        stride_ = other.stride_;
+    }
+
     ImageBuffer(int width, int height)
         : pixels_(width * height * sizeof(T)),
           width_(width), height_(height),

@@ -33,7 +33,7 @@ public:
 
     template <typename... Args>
     TriangleMeshId new_triangle_mesh(Args... args) {
-        meshes_.push_back(new TriangleMesh(args...));
+        meshes_.push_back(new TriangleMesh(std::forward<Args>(args)...));
         TriangleMeshId id(meshes_.size() - 1);
         sync_.dirty_meshes.insert(id.id);
         dirty_ = true;
@@ -42,7 +42,7 @@ public:
 
     template <typename... Args>
     TextureId new_texture(Args... args) {
-        textures_.push_back(new Texture(args...));
+        textures_.push_back(new Texture(std::forward<Args>(args)...));
         TextureId id(textures_.size() - 1);
         sync_.dirty_textures.insert(id.id);
         dirty_ = true;
@@ -51,7 +51,7 @@ public:
 
     template <typename... Args>
     InstanceId new_instance(Args... args) {
-        Instance inst(args...);
+        Instance inst(std::forward<Args>(args)...);
         sync_.instances.push_back(*reinterpret_cast<::MeshInstance*>(&inst));
         dirty_ = true;
         return InstanceId(sync_.instances.size() - 1);
@@ -59,7 +59,7 @@ public:
 
     template <typename... Args>
     MaterialId new_material(Args... args) {
-        Material mat(args...);
+        Material mat(std::forward<Args>(args)...);
         sync_.materials.push_back(*reinterpret_cast<::Material*>(&mat));
         dirty_ = true;
         return MaterialId(sync_.materials.size() - 1);
@@ -67,7 +67,7 @@ public:
 
     template <typename... Args>
     LightId new_light(Args... args) {
-        Light light(args...);
+        Light light(std::forward<Args>(args)...);
         sync_.lights.push_back(*reinterpret_cast<::Light*>(&light));
         dirty_ = true;
         return LightId(sync_.lights.size() - 1);

@@ -33,7 +33,9 @@ bool ObjLoader::load_file(const Path& path, Scene& scene, Logger* logger) {
 
     // Add a dummy material, for objects that have no material
     scene.new_material(Vec3(1.0f, 0.0f, 0.0f));
+
     // Add all the other materials
+    std::unordered_map<std::string, TextureId> tex_map;
     for (int i = 1; i < obj_file.materials.size(); i++) {
         auto& mat_name = obj_file.materials[i];
         auto it = materials.find(mat_name);
@@ -42,12 +44,27 @@ bool ObjLoader::load_file(const Path& path, Scene& scene, Logger* logger) {
             // Add a dummy material in this case
             scene.new_material(Vec3(0.0f, 0.0f, 1.0f));
         } else {
-            // TODO : add textures...
             const Material& mat = it->second;
+
+            TextureId tex_id(-1);
+            if (!mat.map_kd.empty()) {
+                if (tex_map.find(mat.map_kd) == tex_map.end()) {
+                    Texture tex;
+                    if (load_texture(Path(mat.map_kd), tex, logger)) {
+                        tex_id = scene.new_texture(std::move(tex));
+                    } else {
+                        if (logger) logger->log("cannot load texture '", mat.map_kd, "'");
+                    }
+                    tex_map[mat.map_kd] = tex_id;
+                } else {
+                    tex_id = TextureId(tex_map[mat.map_kd].id);
+                }
+            }
+
             scene.new_material(Vec3(mat.ka[0], mat.ka[1], mat.ka[2]),
                                Vec3(mat.kd[0], mat.kd[1], mat.kd[2]),
                                Vec3(mat.ks[0], mat.ks[1], mat.ks[2]),
-                               -1);
+                               0.0f, tex_id.id);
         }
     }
 
@@ -106,6 +123,15 @@ bool ObjLoader::load_file(const Path& path, Scene& scene, Logger* logger) {
             mesh->vertices()[p.second] = Vec3(v.x, v.y, v.z);
         }
 
+        if (has_texcoords) {
+            // Set up mesh texture coordinates
+            mesh->set_texcoord_count(cur_idx);
+            for (auto& p : mapping) {
+                const Texcoord& t = obj_file.texcoords[p.first.t];
+                mesh->texcoords()[p.second] = Vec2(t.u, t.v);
+            }
+        }
+
         if (has_normals) {
             // Set up mesh normals
             mesh->set_normal_count(cur_idx);
@@ -119,27 +145,19 @@ bool ObjLoader::load_file(const Path& path, Scene& scene, Logger* logger) {
             mesh->compute_normals(true);
         }
 
-        if (has_texcoords) {
-            // Set up mesh texture coordinates
-            mesh->set_texcoord_count(cur_idx);
-            for (auto& p : mapping) {
-                const Texcoord& t = obj_file.texcoords[p.first.t];
-                mesh->texcoords()[p.second] = Vec2(t.u, t.v);
-            }
-        }
-
         if (logger) {
             logger->log("mesh with ", mesh->vertex_count(), " vertices, ",
                                       mesh->triangle_count(), " triangles");
         }
 
-        for (int z = 0; z < 50; z++) {
+        /*for (int z = 0; z < 50; z++) {
             for (int y = 0; y < 50; y++) {
                 for (int x = 0; x < 50; x++) {
                     scene.new_instance(mesh_id, imba::Mat4::translation(imba::Vec3(-1250 + x * 50, -1250 + y * 50, -1250 + z * 50)));
                 }
             }
-        }
+        }*/
+        scene.new_instance(mesh_id);
     }
 
     scene.new_light(Vec4(0.0f, 10.0f, 0.0f, 1.0f), Vec3(1.0f, 0.0f, 0.0001f));
@@ -180,10 +198,18 @@ bool ObjLoader::parse_obj_stream(std::istream& stream, ObjFile& file, Logger* lo
     while (stream.getline(line, max_line)) {
         // Strip spaces
         char* ptr = strip_spaces(line);
+        const char* err_line = ptr;
 
         // Skip comments and empty lines
         if (*ptr == '\0' || *ptr == '#')
             continue;
+
+        // Remove empty space before end of line
+        int i = std::strlen(ptr) - 1;
+        while (i > 0 && std::isspace(ptr[i])) {
+            ptr[i] = '\0';
+            i--;
+        }
 
         // Test each command in turn, the most frequent first
         if (*ptr == 'v') {
@@ -216,7 +242,7 @@ bool ObjLoader::parse_obj_stream(std::istream& stream, ObjFile& file, Logger* lo
                     }
                     break;
                 default:
-                    if (logger) logger->log("unknown command '", line, "'");
+                    if (logger) logger->log("unknown command '", err_line, "'");
                     break;
             }
         } else if (*ptr == 'f' && std::isspace(ptr[1])) {
@@ -239,7 +265,7 @@ bool ObjLoader::parse_obj_stream(std::istream& stream, ObjFile& file, Logger* lo
             }
 
             if (f.index_count < 3) {
-                if (logger) logger->log("face with less than 3 vertices '", line, "'");
+                if (logger) logger->log("face with less than 3 vertices '", err_line, "'");
             } else {
                 // Convert relative indices to absolute
                 for (int i = 0; i < f.index_count; i++) {
@@ -260,7 +286,7 @@ bool ObjLoader::parse_obj_stream(std::istream& stream, ObjFile& file, Logger* lo
                 if (valid) {
                     file.objects[cur_object].groups[cur_group].faces.push_back(f);
                 } else {
-                    if (logger) logger->log("invalid face indices '", line, "'");
+                    if (logger) logger->log("invalid face indices '", err_line, "'");
                 }
             }
         } else if (*ptr == 'g' && std::isspace(ptr[1])) {
@@ -296,9 +322,9 @@ bool ObjLoader::parse_obj_stream(std::istream& stream, ObjFile& file, Logger* lo
 
             file.mtl_libs.push_back(lib_name);
         } else if (*ptr == 's' && std::isspace(ptr[1])) {
-            if (logger) logger->log("smooth command ignored '", line, "'");
+            if (logger) logger->log("smooth command ignored '", err_line, "'");
         } else {
-            if (logger) logger->log("unknown command '", line, "'");
+            if (logger) logger->log("unknown command '", err_line, "'");
         }
     }
 
@@ -308,21 +334,30 @@ bool ObjLoader::parse_obj_stream(std::istream& stream, ObjFile& file, Logger* lo
 bool ObjLoader::parse_mtl_stream(std::istream& stream, std::unordered_map<std::string, Material>& materials, Logger* logger) {
     const int max_line = 1024;
     char line[max_line];
+    char* err_line = line;
 
     std::string mtl_name;
     auto current_material = [&] () -> Material& {
         if (!mtl_name.length() && logger)
-            logger->log("invalid material command '", line, "'");
+            logger->log("invalid material command '", err_line, "'");
         return materials[mtl_name];
     };
 
     while (stream.getline(line, max_line)) {
         // Strip spaces
         char* ptr = strip_spaces(line);
+        err_line = ptr;
 
         // Skip comments and empty lines
         if (*ptr == '\0' || *ptr == '#')
             continue;
+
+        // Remove empty space before end of line
+        int i = std::strlen(ptr) - 1;
+        while (i > 0 && std::isspace(ptr[i])) {
+            ptr[i] = '\0';
+            i--;
+        }
 
         if (!std::strncmp(ptr, "newmtl", 6) && std::isspace(ptr[6])) {
             ptr = strip_spaces(ptr + 7);
@@ -372,7 +407,7 @@ bool ObjLoader::parse_mtl_stream(std::istream& stream, std::unordered_map<std::s
             Material& mat = current_material();
             mat.map_bump = std::string(strip_spaces(ptr + 9));
         } else {
-            if (logger) logger->log("unknown material command '", line, "'");
+            if (logger) logger->log("unknown material command '", err_line, "'");
         }
     }
 

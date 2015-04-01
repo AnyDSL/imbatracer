@@ -294,16 +294,16 @@ inline Mat4 operator * (const Mat4& a, const Mat4& b) {
 }
 
 inline Vec4 operator * (const Mat4& m, const Vec4& v) {
-    return Vec4(m[ 0] * v[0] + m[ 1] * v[1] + m[ 2] * v[2] + m[ 3] * v[3],
-                m[ 4] * v[0] + m[ 5] * v[1] + m[ 6] * v[2] + m[ 7] * v[3],
-                m[ 8] * v[0] + m[ 9] * v[1] + m[10] * v[2] + m[11] * v[3],
-                m[12] * v[0] + m[13] * v[1] + m[14] * v[2] + m[15] * v[3]);
+    return Vec4(m[0] * v[0] + m[4] * v[1] + m[ 8] * v[2] + m[12] * v[3],
+                m[1] * v[0] + m[5] * v[1] + m[ 9] * v[2] + m[13] * v[3],
+                m[2] * v[0] + m[6] * v[1] + m[10] * v[2] + m[14] * v[3],
+                m[3] * v[0] + m[7] * v[1] + m[11] * v[2] + m[15] * v[3]);
 }
 
 inline Vec3 operator * (const Mat4& m, const Vec3& v) {
-    return Vec3(m[ 0] * v[0] + m[ 1] * v[1] + m[ 2] * v[2] + m[ 3],
-                m[ 4] * v[0] + m[ 5] * v[1] + m[ 6] * v[2] + m[ 7],
-                m[ 8] * v[0] + m[ 9] * v[1] + m[10] * v[2] + m[11]);
+    return Vec3(m[0] * v[0] + m[4] * v[1] + m[ 8] * v[2] + m[12],
+                m[1] * v[0] + m[5] * v[1] + m[ 9] * v[2] + m[13],
+                m[2] * v[0] + m[6] * v[1] + m[10] * v[2] + m[14]);
 }
 
 inline Mat4 operator * (float t, const Mat4& m) {

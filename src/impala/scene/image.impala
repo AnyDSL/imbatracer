@@ -1,9 +1,9 @@
 // TODO : introduce a polymorphic image type
 struct TexturePixel {
-    r: u8,
-    g: u8,
-    b: u8,
-    a: u8
+    r: float,
+    g: float,
+    b: float,
+    a: float
 }
 
 struct Texture {
@@ -13,19 +13,16 @@ struct Texture {
     pixels: &[TexturePixel]
 }
 
-fn texture_pixel(r: u8, g: u8, b: u8, a: u8) -> TexturePixel {
-    TexturePixel {
-        r : r,
-        g : g,
-        b : b,
-        a : a
-    }
-}
-
 fn write_texture(x : int, y : int, tex: &Texture, pixel: TexturePixel) -> () {
     let p = tex.pixels as u64 + (y * tex.stride) as u64;
     let mut row = p as &[TexturePixel];
     row(x) = pixel;
+}
+
+fn read_texture(x : int, y : int, tex: &Texture) -> TexturePixel {
+    let p = tex.pixels as u64 + (y * tex.stride) as u64;
+    let row = p as &[TexturePixel];
+    row(x)
 }
 
 struct GBufferPixel {
@@ -43,21 +40,67 @@ struct GBuffer {
     buffer: &[GBufferPixel]
 }
 
-fn gbuffer_pixel(t: float, u: float, v : float, tri_id: int, inst_id: int) -> GBufferPixel {
-    GBufferPixel {
-        t : t,
-        u : u,
-        v : v,
-        tri_id : tri_id,
-        inst_id : inst_id
-    }
-}
-
 fn write_gbuffer(x : int, y : int, buf: &GBuffer, pixel: GBufferPixel) -> () {
     let p = buf.buffer as u64 + (y * buf.stride) as u64;
     let mut row = p as &[GBufferPixel];
     row(x) = pixel;
 }
 
+fn read_gbuffer(x : int, y : int, buf: &GBuffer) -> GBufferPixel {
+    let p = buf.buffer as u64 + (y * buf.stride) as u64;
+    let row = p as &[GBufferPixel];
+    row(x)
+}
 
+struct BoundaryHandling {
+    top: fn (int, int) -> int,
+    left: fn (int, int) -> int,
+    bottom: fn (int, int) -> int,
+    right: fn (int, int) -> int
+}
+
+// Bilinearly interpolates pixels on a texture (u, v in [0, 1])
+fn bilinear_interpolation(tex: &Texture, u: float, v: float, bh: BoundaryHandling) -> TexturePixel @{
+    let px = u * (tex.width  as float) - 0.5f;
+    let py = v * (tex.height as float) - 0.5f;
+
+    let x0 = floorf(px) as int;
+    let y0 = floorf(py) as int;
+    let x1 = x0 + 1;
+    let y1 = y0 + 1;
+
+    fn pixel(x: int, y: int) -> TexturePixel {
+        let mut bx = x;
+        let mut by = y;
+
+        if x < 0 { bx = bh.left(x, tex.width) }
+        if y < 0 { by = bh.bottom(y, tex.height) }
+        if x >= tex.width  { bx = bh.right(x, tex.width) }
+        if y >= tex.height { by = bh.top(y, tex.height) }
+
+        assert(|| {bx >= 0 && bx < tex.width && by >=0 && by < tex.height}, "bilinear_interpolation : invalid boundary handling");
+        read_texture(bx, by, tex)
+    }
+
+    let c0 = pixel(x0, y0);
+    let c1 = pixel(x1, y0);
+    let c2 = pixel(x0, y1);
+    let c3 = pixel(x1, y1);
+
+    let kx = px - x0 as float;
+    let ky = py - y0 as float;
+    let ikx = 1.0f - kx;
+    let iky = 1.0f - ky;
+
+    TexturePixel {
+        r: iky * (ikx * c0.r + kx * c1.r) +
+           ky  * (ikx * c2.r + kx * c3.r),
+        g: iky * (ikx * c0.g + kx * c1.g) +
+           ky  * (ikx * c2.g + kx * c3.g),
+        b: iky * (ikx * c0.b + kx * c1.b) +
+           ky  * (ikx * c2.b + kx * c3.b),
+        a: iky * (ikx * c0.a + kx * c1.a) +
+           ky  * (ikx * c2.a + kx * c3.a)
+    }
+}
 
