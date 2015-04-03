@@ -8,14 +8,14 @@ find_package(THORIN REQUIRED)
 include(${THORIN_RUNTIME_DIR}/cmake/ThorinRuntime.cmake)
 include_directories(${THORIN_RUNTIME_INCLUDE_DIR})
 
-if (BACKEND STREQUAL "cpu" OR BACKEND STREQUAL "avx")
-    set(DEVICE "cpu")
+if(BACKEND STREQUAL "cpu" OR BACKEND STREQUAL "avx")
+    set(BACKEND "cpu")
 else()
-    set(DEVICE "gpu")
+    set(BACKEND "cuda")
 endif()
 
 if(NOT BENCH_BACKEND)
-    set(BENCH_BACKEND ${BACKEND} CACHE)
+    set(BENCH_BACKEND ${BACKEND} CACHE STRING "bench backend")
 endif()
 
 # pthreads
