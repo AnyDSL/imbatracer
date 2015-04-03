@@ -1,7 +1,9 @@
 #ifndef IMBA_OBJ_LOADER_HPP
 #define IMBA_OBJ_LOADER_HPP
 
+#include "../common/vector.hpp"
 #include "scene_loader.hpp"
+
 #include <string>
 #include <vector>
 #include <unordered_map>
@@ -60,9 +62,9 @@ private:
     };
 
     struct Material {
-        float ka[3];
-        float kd[3];
-        float ks[3];
+        Vec3 ka;
+        Vec3 kd;
+        Vec3 ks;
         float ns;
         float d;
         int illum;

@@ -59,10 +59,24 @@ struct BoundaryHandling {
     right: fn (int, int) -> int
 }
 
-// Bilinearly interpolates pixels on a texture (u, v in [0, 1])
+static bh_repeat = BoundaryHandling {
+    bottom: |y, h| { y - y % h },
+    left:   |x, w| { x - x % w },
+    top:    |y, h| { y % h },
+    right:  |x, w| { x % w }
+};
+
+static bh_clamp = BoundaryHandling {
+    bottom: |y, h| { 0 },
+    left:   |x, w| { 0 },
+    top:    |y, h| { h - 1 },
+    right:  |x, w| { w - 1 }
+};
+
+// Bilinearly interpolates pixels on a texture (u, v in [0, 1], and (0,0) is bottom left corner)
 fn bilinear_interpolation(tex: &Texture, u: float, v: float, bh: BoundaryHandling) -> TexturePixel @{
     let px = u * (tex.width  as float) - 0.5f;
-    let py = v * (tex.height as float) - 0.5f;
+    let py = (1.0f - v) * (tex.height as float) - 0.5f;
 
     let x0 = floorf(px) as int;
     let y0 = floorf(py) as int;
@@ -102,5 +116,39 @@ fn bilinear_interpolation(tex: &Texture, u: float, v: float, bh: BoundaryHandlin
         a: iky * (ikx * c0.a + kx * c1.a) +
            ky  * (ikx * c2.a + kx * c3.a)
     }
+}
+
+fn sample_cubemap(mut textures: &[Texture], cube: &[int * 6], dir: Vec3) -> TexturePixel {
+    let abs = vec3_map(dir, |x| fabsf(x));
+    let mut max = 0;
+    if abs.values(0) < abs.values(1) { max = 1 }
+    if abs.values(max) < abs.values(2) { max = 2 }
+
+    let sign = if dir.values(max) > 0.0f { 1 } else { 0 };
+    let tex_id = cube(max * 2 + sign);
+
+    let m2 = max % 2;
+    let m3 = max % 3;
+
+    // index: axis
+    // axis_u = [2, 0, 0]
+    // axis_v = [1, 2, 1]
+    let axis_u = 2 - (m2 + m3);
+    let axis_v = m2 + 1;
+
+    // index: axis * 2 + sign
+    // sign_u = [ 1, -1,  1,  1, -1,  1]
+    // sign_v = [ 1,  1,  1, -1,  1,  1]
+    let is = 1 - 2 * sign;
+    let sign_u = (1 - m2) * (1 - max) * is + m2;
+    let sign_v = m2 * is - (m2 - 1);
+
+    assert(|| { fabsf(sign_u as float) == 1.0f }, "sample_cubemap : invalid value for u parameter");
+    assert(|| { fabsf(sign_v as float) == 1.0f }, "sample_cubemap : invalid value for v parameter");
+
+    let u = (dir.values(axis_u) * (sign_u as float) / abs.values(max) + 1.0f) * 0.5f;
+    let v = (dir.values(axis_v) * (sign_v as float) / abs.values(max) + 1.0f) * 0.5f;
+
+    bilinear_interpolation(&textures(tex_id), u, v, bh_clamp)
 }
 

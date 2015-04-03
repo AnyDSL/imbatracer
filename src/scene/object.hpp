@@ -13,7 +13,7 @@ enum class SceneObject {
 
 template <SceneObject Object>
 struct SceneObjectId {
-    SceneObjectId() {}
+    SceneObjectId() : id(-1) {}
     SceneObjectId(int i) : id(i) {}
     int id;
 };

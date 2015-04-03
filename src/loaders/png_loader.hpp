@@ -7,6 +7,7 @@ namespace imba {
 
 /// PNG image loader. Supports images with or wihout alpha channel.
 class PngLoader : public TextureLoader {
+public:
     virtual bool check_format(const Path& path) override;
     virtual bool load_file(const Path& path, Texture& texture, Logger* logger = nullptr) override;
 };

@@ -7,12 +7,20 @@ namespace imba {
 /// by shaders in the future.
 class Material {
 public:
-    Material(const Vec3& a = Vec3(0.0f), const Vec3& d = Vec3(0.0f), const Vec3& s = Vec3(0.0f), float exp = 0.0f, int tex_id = -1) {
+    Material(const Vec3& a = Vec3(0.0f),
+             const Vec3& d = Vec3(0.0f),
+             const Vec3& s = Vec3(0.0f),
+             float exp = 0.0f,
+             TextureId tex_a = TextureId(),
+             TextureId tex_d = TextureId(),
+             TextureId tex_s = TextureId()) {
         set_ambient(a);
         set_diffuse(d);
         set_specular(s);
         mat_.exp = exp;
-        mat_.tex_id = tex_id;
+        mat_.tex_a = tex_a.id;
+        mat_.tex_d = tex_d.id;
+        mat_.tex_s = tex_s.id;
     }
 
     Vec3 ambient() const {
@@ -31,8 +39,16 @@ public:
         return mat_.exp;
     }
 
-    int texture_id() const {
-        return mat_.tex_id;
+    int ambient_texture() const {
+        return mat_.tex_a;
+    }
+
+    int diffuse_texture() const {
+        return mat_.tex_d;
+    }
+
+    int specular_texture() const {
+        return mat_.tex_s;
     }
 
     void set_ambient(const Vec3& a) {
@@ -57,8 +73,16 @@ public:
         mat_.exp = exp;
     }
 
-    void set_texture_id(int tex_id) {
-        mat_.tex_id = tex_id;
+    void set_ambient_texture(TextureId tex_id) {
+        mat_.tex_a = tex_id.id;
+    }
+
+    void set_diffuse_texture(TextureId tex_id) {
+        mat_.tex_d = tex_id.id;
+    }
+
+    void set_specular_texture(TextureId tex_id) {
+        mat_.tex_s = tex_id.id;
     }
 
 private:

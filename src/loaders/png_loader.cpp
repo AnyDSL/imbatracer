@@ -37,6 +37,7 @@ bool PngLoader::load_file(const Path& path, Texture& texture, Logger* logger) {
     }
 
     png_structp png_ptr = png_create_read_struct(PNG_LIBPNG_VER_STRING, nullptr, nullptr, nullptr);
+    //png_structp png_ptr = png_create_read_struct("1.2.25", nullptr, nullptr, nullptr); // KATANA-RELATED HACK !!!!
     if (!png_ptr) {
         return false;
     }
@@ -89,7 +90,7 @@ bool PngLoader::load_file(const Path& path, Texture& texture, Logger* logger) {
     std::vector<png_byte> row_bytes(width * 4);
     for (int y = 0; y < height; y++) {
         png_read_row(png_ptr, row_bytes.data(), nullptr);
-        TexturePixel* buf_row = texture.row(height - y - 1);
+        TexturePixel* buf_row = texture.row(y);
         for (int x = 0; x < width; x++) {
             buf_row[x].r = row_bytes[x * 4 + 0] / 255.0f;
             buf_row[x].g = row_bytes[x * 4 + 1] / 255.0f;

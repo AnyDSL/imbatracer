@@ -73,6 +73,28 @@ public:
         return LightId(sync_.lights.size() - 1);
     }
 
+    /// Sets the background to black
+    void set_background() {
+        sync_.scene_data->bg_type = 0;
+    }
+
+    /// Sets the background image
+    void set_background(TextureId id) {
+        assert(id.id >= 0);
+        sync_.scene_data->bg_texid[0] = id.id;
+        sync_.scene_data->bg_type = 1;
+    }
+
+    /// Sets the background cubemap
+    void set_background(const std::array<TextureId, 6>& cubemap) {
+        assert(cubemap[0].id >= 0 && cubemap[1].id >= 0 && cubemap[2].id >= 0 &&
+               cubemap[3].id >= 0 && cubemap[4].id >= 0 && cubemap[5].id >= 0);
+
+        for (int i = 0; i < 6; i++)
+            sync_.scene_data->bg_texid[i] = cubemap[i].id;
+        sync_.scene_data->bg_type = 2;
+    }
+
     int triangle_mesh_count() const { return meshes_.size(); }
     int texture_count() const { return textures_.size(); }
     int instance_count() const { return sync_.instances.size(); }

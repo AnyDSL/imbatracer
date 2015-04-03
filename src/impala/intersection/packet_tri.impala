@@ -7,8 +7,8 @@ fn intersect_packet_tri(p: &Packet, h: &Hit, first: int, last: int, t: Tri, mesh
                 }
             })
         }
-    }/*
-    let first_mod = if first % 4 == 0 {first} else {first - first % 4};
+    }
+    /*let first_mod = if first % 4 == 0 {first} else {first - first % 4};
     let last_mod  = if last  % 4 == 0 {last}  else {last + 4 - last % 4};
     for i in range_step(first_mod, last_mod, 8) @{
         for j in vrange4(0, 8) @{

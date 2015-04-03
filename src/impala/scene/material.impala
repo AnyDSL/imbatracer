@@ -3,7 +3,9 @@ struct Material {
     kd: Vec3,
     ks: Vec3,
     exp: float,
-    tex_id: int
+    tex_a: int,
+    tex_d: int,
+    tex_s: int
 }
 
 // TODO : replace materials by shader system in the future
@@ -55,21 +57,9 @@ fn evaluate_material_bvh(p: &Packet, h: &Hit, mut scene: &Scene, comp: &Compiled
     }
 
     let mut diff : [Vec3 * 64];
-    let repeat = BoundaryHandling {
-        top:    |y, h| { y - y % h },
-        left:   |x, w| { x - x % w },
-        bottom: |y, h| { y % h },
-        right:  |x, w| { x % w }
-    };
+    let mut spec : [Vec3 * 64];
 
-    let clamp = BoundaryHandling {
-        top:    |y, h| { 0 },
-        left:   |x, w| { 0 },
-        bottom: |y, h| { h - 1 },
-        right:  |x, w| { w - 1 }
-    };
-
-    // Ambient light contribution & diffuse param. computation
+    // Ambient light contribution & diffuse/spec param. computation
     for i in range(0, packet_size(p)) @{
         let tri_id = hit_tri(h, i);
         if tri_id >= 0 @{
@@ -78,27 +68,56 @@ fn evaluate_material_bvh(p: &Packet, h: &Hit, mut scene: &Scene, comp: &Compiled
             let mat_id = mesh.materials(tri_id);
             let mat = scene.materials(mat_id);
 
-            accumulate(i, mat.ka);
-
-            diff(i) = if mat.tex_id >= 0 @{
+            if mat.tex_a >= 0 | mat.tex_d >= 0 | mat.tex_s >= 0 @{
                 let u = hit_u(h, i);
                 let v = hit_v(h, i);
                 let w = 1.0f - u - v;
 
-                let uv0 = vec2_map(mesh.texcoords(mesh.indices(tri_id * 3 + 0)), |x| x * w);
-                let uv1 = vec2_map(mesh.texcoords(mesh.indices(tri_id * 3 + 1)), |x| x * u);
-                let uv2 = vec2_map(mesh.texcoords(mesh.indices(tri_id * 3 + 2)), |x| x * v);
+                let uv0 = @vec2_map(mesh.texcoords(mesh.indices(tri_id * 3 + 0)), |x| x * w);
+                let uv1 = @vec2_map(mesh.texcoords(mesh.indices(tri_id * 3 + 1)), |x| x * u);
+                let uv2 = @vec2_map(mesh.texcoords(mesh.indices(tri_id * 3 + 2)), |x| x * v);
 
-                let uv = vec2_add(uv0, vec2_add(uv1, uv2));
+                let uv = @vec2_add(uv0, vec2_add(uv1, uv2));
 
-                let c = bilinear_interpolation(&scene.textures(mat.tex_id), uv.values(0), uv.values(1), clamp);
-                vec3_mul(mat.kd, vec3(c.a * c.r, c.a * c.g, c.a * c.b))
+                let ambient = if mat.tex_a >= 0 @{
+                    let c = bilinear_interpolation(&scene.textures(mat.tex_a), uv.values(0), uv.values(1), bh_clamp);
+                    vec3(c.a * c.r, c.a * c.g, c.a * c.b)
+                } else @{
+                    vec3(1.0f, 1.0f, 1.0f)
+                };
+
+                diff(i) = if mat.tex_d == mat.tex_a @{
+                    ambient
+                } else if mat.tex_d >= 0 @{
+                    let c = bilinear_interpolation(&scene.textures(mat.tex_d), uv.values(0), uv.values(1), bh_clamp);
+                    vec3(c.a * c.r, c.a * c.g, c.a * c.b)
+                } else @{
+                    vec3(1.0f, 1.0f, 1.0f)
+                };
+
+                spec(i) = if mat.tex_s == mat.tex_a @{
+                    ambient
+                } else if mat.tex_s == mat.tex_d @{
+                    diff(i)
+                } else if mat.tex_s >= 0 @{
+                    let c = bilinear_interpolation(&scene.textures(mat.tex_s), uv.values(0), uv.values(1), bh_clamp);
+                    vec3(c.a * c.r, c.a * c.g, c.a * c.b)
+                } else @{
+                    vec3(1.0f, 1.0f, 1.0f)
+                };
+
+                @accumulate(i, vec3_mul(ambient, mat.ka));
+                diff(i) = vec3_mul(diff(i), mat.kd);
+                spec(i) = vec3_mul(spec(i), mat.ks);
             } else {
-                mat.kd
-            };
+                @accumulate(i, mat.ka);
+                diff(i) = mat.kd;
+                spec(i) = mat.ks;
+            }
         }
     }
 
+    // Add the contribution of each light
     for j in range(0, scene.num_lights) @{
         let mut sp : Packet;
         let mut sh : Hit;
@@ -141,7 +160,7 @@ fn evaluate_material_bvh(p: &Packet, h: &Hit, mut scene: &Scene, comp: &Compiled
         
         first_hit_bvh_scene(scene, comp, &sp, &sh, h);
 
-        // Compute light contribution
+        // Loop over pixels that need to be lit
         for i in range(packet_first_alive(&sp), packet_last_alive(&sp) + 1) @{
             let tri_id = hit_tri(h, i);
             frontfacing(i, packet_dir(&sp, i), || {

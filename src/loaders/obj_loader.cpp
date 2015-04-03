@@ -36,6 +36,21 @@ bool ObjLoader::load_file(const Path& path, Scene& scene, Logger* logger) {
 
     // Add all the other materials
     std::unordered_map<std::string, TextureId> tex_map;
+    auto load_map = [this, &tex_map, &logger, &scene, path] (const std::string& name) {
+        TextureId tex_id;
+        if (name.empty()) return tex_id;
+        if (tex_map.find(name) == tex_map.end()) {
+            Texture tex;
+            if (load_texture(Path(path.base_name() + "/" + name), tex, logger)) {
+                tex_id = scene.new_texture(std::move(tex));
+            }
+            tex_map[name] = tex_id;
+        } else {
+            tex_id = tex_map[name];
+        }
+        return tex_id;
+    };
+
     for (int i = 1; i < obj_file.materials.size(); i++) {
         auto& mat_name = obj_file.materials[i];
         auto it = materials.find(mat_name);
@@ -46,25 +61,23 @@ bool ObjLoader::load_file(const Path& path, Scene& scene, Logger* logger) {
         } else {
             const Material& mat = it->second;
 
-            TextureId tex_id(-1);
-            if (!mat.map_kd.empty()) {
-                if (tex_map.find(mat.map_kd) == tex_map.end()) {
-                    Texture tex;
-                    if (load_texture(Path(mat.map_kd), tex, logger)) {
-                        tex_id = scene.new_texture(std::move(tex));
-                    } else {
-                        if (logger) logger->log("cannot load texture '", mat.map_kd, "'");
-                    }
-                    tex_map[mat.map_kd] = tex_id;
-                } else {
-                    tex_id = TextureId(tex_map[mat.map_kd].id);
-                }
+            // Change the ambient map if needed
+            std::string map_ka;
+            if (mat.map_ka.empty() &&
+                dot(mat.ka, mat.ka) > 0.0f &&
+                !mat.map_kd.empty()) {
+                map_ka = mat.map_kd;
+            } else {
+                map_ka = mat.map_ka;
             }
 
             scene.new_material(Vec3(mat.ka[0], mat.ka[1], mat.ka[2]),
                                Vec3(mat.kd[0], mat.kd[1], mat.kd[2]),
                                Vec3(mat.ks[0], mat.ks[1], mat.ks[2]),
-                               0.0f, tex_id.id);
+                               mat.ns,
+                               load_map(map_ka),
+                               load_map(mat.map_kd),
+                               load_map(mat.map_ks));
         }
     }
 
@@ -160,7 +173,22 @@ bool ObjLoader::load_file(const Path& path, Scene& scene, Logger* logger) {
         scene.new_instance(mesh_id);
     }
 
-    scene.new_light(Vec4(0.0f, 10.0f, 0.0f, 1.0f), Vec3(1.0f, 0.0f, 0.0001f));
+    std::array<imba::TextureId, 6> cubemap;
+    const char* axis_names[3] = {"x", "y", "z"};
+    const char* dir_names[2] = {"neg", "pos"};
+    for (int i = 0; i < 3; i++) {
+        std::string axis = axis_names[i];
+        for (int j = 0; j < 2; j++) {
+            std::string dir = dir_names[j];
+            imba::Texture tex;
+            if (load_texture(Path(path.base_name() + "/powerlines." + dir + axis + ".png"), tex, logger)) {
+                cubemap[i * 2 + j] = scene.new_texture(std::move(tex));
+            }
+        }
+    }
+    scene.set_background(cubemap);
+
+    scene.new_light(Vec4(0.0f, 50.0f, 0.0f, 1.0f), Vec3(1.0f, 0.0f, 0.0001f));
 
     return true;
 }

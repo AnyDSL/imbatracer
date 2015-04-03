@@ -33,6 +33,7 @@ public:
                 return loader->load_file(path, loaded, logger);
             }
         }
+        if (logger) logger->log("cannot load file '", path.path(), "'");
         return false;
     }
 

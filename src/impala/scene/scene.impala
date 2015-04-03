@@ -1,3 +1,7 @@
+static bg_none = 0;
+static bg_image = 1;
+static bg_cubemap = 2;
+
 struct Scene {
     instances:     &[MeshInstance],
     num_instances: int,
@@ -8,7 +12,9 @@ struct Scene {
     materials:     &[Material],
     num_materials: int,
     lights:        &[Light],
-    num_lights:    int
+    num_lights:    int,
+    bg_texid:      [int * 6],
+    bg_type:       int
 }
 
 struct SceneUpdate {
