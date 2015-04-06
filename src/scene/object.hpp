@@ -15,6 +15,7 @@ template <SceneObject Object>
 struct SceneObjectId {
     SceneObjectId() : id(-1) {}
     SceneObjectId(int i) : id(i) {}
+    operator bool () const { return id >= 0; }
     int id;
 };
 

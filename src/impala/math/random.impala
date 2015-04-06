@@ -1,0 +1,79 @@
+struct RandomState {
+    table: [u32 * 623],
+    index: int
+}
+
+fn random_state(mut state: &RandomState, seed: u32) -> () {
+    state.index = 0;
+    state.table(0) = seed;
+    for i in range(1, 623) @{
+        let p = state.table(i - 1) as u64;
+        state.table(i) = (1812433253u64 * (p ^ (p >> 30u64)) + i as u64) as u32
+    }
+}
+
+fn extract_number(mut state: &RandomState) -> u32 {
+    if state.index == 0 {
+        generate_numbers(state)
+    }
+
+    let mut y = state.table(state.index);
+    y = y ^ (y >> 11u32);
+    y = y ^ ((y << 7u32) & 2636928640u32);
+    y = y ^ ((y << 15u32) & 4022730752u32);
+    y = y ^ (y >> 18u32);
+
+    state.index = (state.index + 1) % 624;
+    y
+}
+
+fn generate_numbers(mut state: &RandomState) -> () {
+    for i in range(0, 623) @{
+        let y = (state.table(i) & 0x80000000u32) +
+                (state.table((i + 1) % 624) & 0x7fffffffu32);
+        state.table(i) = state.table((i + 397) & 624) ^ (y >> 1u32);
+        if y % 2u32 != 0u32 {
+            state.table(i) = state.table(i) ^ 2567483615u32;
+        }
+    }
+}
+
+fn random_float(state: &RandomState) -> float {
+    let mut u = extract_number(state) & 0x007fffffu32 | 0x40000000u32;
+    let p = &u as &float;
+    0.5f * (*p - 2.0f)
+}
+
+fn random_int(state: &RandomState) -> int {
+    extract_number(state) as int
+}
+
+fn sample_hemisphere(n: Vec3, u1: float, u2: float) -> Vec3 {
+    let theta = acosf(sqrtf(1.0f - u1));
+    let phi = 2.0f * flt_pi * u2;
+
+    let xs = sinf(theta) * cosf(phi);
+    let ys = cosf(theta);
+    let zs = sinf(theta) * sinf(phi);
+
+    let y = n;
+    let mut h = y;
+    if fabsf(h.values(0)) <= fabsf(h.values(1)) &&
+       fabsf(h.values(0)) <= fabsf(h.values(2)) {
+        h.values(0) = 1.0f;
+    } else if fabsf(h.values(1)) <= fabsf(h.values(0)) &&
+              fabsf(h.values(1)) <= fabsf(h.values(2)) {
+        h.values(1) = 1.0f;
+    } else {
+        h.values(2) = 1.0f;
+    }
+
+    let x = vec3_norm(vec3_cross(h, y));
+    let z = vec3_cross(x, y);
+
+    vec3_add(vec3_add(
+        vec3_map(x, |x| x * xs),
+        vec3_map(y, |y| y * ys)),
+        vec3_map(z, |z| z * zs))
+}
+

@@ -13,6 +13,7 @@ set(IMPALA_SRCS
     math/limits.impala
     math/packet.impala
     math/frustum.impala
+    math/random.impala
     accel/bvh.impala
     common/range.impala
     common/debug.impala

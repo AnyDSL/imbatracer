@@ -118,6 +118,7 @@ fn bilinear_interpolation(tex: &Texture, u: float, v: float, bh: BoundaryHandlin
     }
 }
 
+// Samples a cube map that from a direction vector. The cube map is given as an array of 6 texture indices.
 fn sample_cubemap(mut textures: &[Texture], cube: &[int * 6], dir: Vec3) -> TexturePixel {
     let abs = vec3_map(dir, |x| fabsf(x));
     let mut max = 0;

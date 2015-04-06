@@ -9,11 +9,11 @@ struct Material {
 }
 
 // TODO : replace materials by shader system in the future
-fn evaluate_material_bvh(p: &Packet, h: &Hit, mut scene: &Scene, comp: &CompiledBvhScene, accumulate: fn (int, Vec3) -> ()) -> () {
+fn evaluate_material_bvh(p: &Packet, h: &Hit, mut scene: &Scene, comp: &CompiledBvhScene, accumulate: fn (int, Vec3) -> (), rnd: fn () -> float) -> () {
     let mut normals : [Vec3 * 64];
     let mut face_normals : [Vec3 * 64];
 
-    fn frontfacing(id: int, d: Vec3, front: fn() -> ()) -> () {
+    fn frontfacing(id: int, d: Vec3, front: fn()) -> () {
         if vec3_dot(face_normals(id), d) > 0.0f {
             front()
         }
@@ -118,62 +118,29 @@ fn evaluate_material_bvh(p: &Packet, h: &Hit, mut scene: &Scene, comp: &Compiled
     }
 
     // Add the contribution of each light
+    let mut sp : Packet;
+    let mut sh : Hit;
+
     for j in range(0, scene.num_lights) @{
-        let mut sp : Packet;
-        let mut sh : Hit;
+        let f = 1.0f / (light_samples(&scene.lights(j)) as float);
+        for s in range(0, light_samples(&scene.lights(j))) {
+            light_packet(&scene.lights(j), p, h, &sp, &sh, frontfacing, rnd);
+            first_hit_bvh_scene(scene, comp, &sp, &sh, h);
 
-        if scene.lights(j).pos_dir.values(3) != 0.0f @{
-            sh = empty_hit(&sp, 0.99f);
-            generate_packet(&sp, |x, y, ret| @{
-                let id = packet_ray_id(p, x, y);
-
-                if hit_tri(h, id) >= 0 {
-                    let t = hit_t(h, id);
-                    let p = vec3_add(vec3_map(packet_dir(p, id), |x| x * t), packet_org(p, id));
-                    let d = vec3_sub(vec3_from_vec4(scene.lights(j).pos_dir), p);
-                    frontfacing(id, d, || {
-                        ret(ray(d, p))
-                    });
-                }
-
-                ret(ray(vec3(0.0f, 0.0f, 0.0f), vec3(0.0f, 0.0f, 0.0f)))
-            });
-            shadow_frustum(&sp, vec3_from_vec4(scene.lights(j).pos_dir), |i| hit_tri(h, i) >= 0);
-        } else @{
-            sh = empty_hit(&sp, flt_max);
-            generate_packet(&sp, |x, y, ret| @{
-                let id = packet_ray_id(p, x, y);
-
-                if hit_tri(h, id) >= 0 {
-                    let d = vec3_map(vec3_from_vec4(scene.lights(j).pos_dir), |x| -x);
-                    frontfacing(id, d, || {
-                        let t = hit_t(h, id);
-                        let p = vec3_add(vec3_map(packet_dir(p, id), |x| x * t), packet_org(p, id));
-                        ret(ray(d, p))
-                    });
-                }
-
-                ret(ray(vec3(0.0f, 0.0f, 0.0f), vec3(0.0f, 0.0f, 0.0f)))
-            });
-            bounding_frustum(&sp, &sh, |i| hit_tri(h, i) >= 0);
-        }
-        
-        first_hit_bvh_scene(scene, comp, &sp, &sh, h);
-
-        // Loop over pixels that need to be lit
-        for i in range(packet_first_alive(&sp), packet_last_alive(&sp) + 1) @{
-            let tri_id = hit_tri(h, i);
-            frontfacing(i, packet_dir(&sp, i), || {
-                if tri_id >= 0 && hit_tri(&sh, i) < 0 @{
-                    let mesh_id = scene.instances(hit_inst(h, i)).mesh_id;
-                    let mesh = scene.meshes(mesh_id);
-                    let mat_id = mesh.materials(tri_id);
-                    let mat = scene.materials(mat_id);
-                    let t = hit_t(h, i);
-                    let p = vec3_add(vec3_map(packet_dir(p, i), |x| x * t), packet_org(p, i));
-                    accumulate(i, vec3_mul(diff(i), evaluate_light(&scene.lights(j), p, normals(i))));
-                }
-            });
+            // Loop over pixels that need to be lit
+            for i in range(packet_first_alive(&sp), packet_last_alive(&sp) + 1) @{
+                let tri_id = hit_tri(h, i);
+                frontfacing(i, packet_dir(&sp, i), || {
+                    if tri_id >= 0 && hit_tri(&sh, i) < 0 @{
+                        let t = hit_t(h, i);
+                        let p = vec3_add(vec3_map(packet_dir(p, i), |x| x * t), packet_org(p, i));
+                        let sp = vec3_add(packet_dir(&sp, i), packet_org(&sp, i));
+                        let k = vec3_map(evaluate_light(&scene.lights(j), sp, p, normals(i)), |x| x * f);
+                        accumulate(i, vec3_mul(diff(i), k));
+                    }
+                    continue()
+                });
+            }
         }
     }
 }

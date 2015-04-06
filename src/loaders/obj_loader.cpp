@@ -188,7 +188,7 @@ bool ObjLoader::load_file(const Path& path, Scene& scene, Logger* logger) {
     }
     scene.set_background(cubemap);
 
-    scene.new_light(Vec4(0.0f, 50.0f, 0.0f, 1.0f), Vec3(1.0f, 0.0f, 0.0001f));
+    scene.new_light(Vec3(0.0f, 20.0f, 0.0f), Vec3(1000.0f, 1000.0f, 1000.0f), 1.0f);
 
     return true;
 }

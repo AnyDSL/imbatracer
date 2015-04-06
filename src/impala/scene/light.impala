@@ -1,22 +1,88 @@
+static point_light = 0;    // Point light, defined by position only
+static spot_light = 1;     // Spot light defined by position, direction, cutoff angle, penumbra angle
+static sphere_light = 2;   // Area light with sphere shape, defined by position and radius
+
 struct Light {
-    pos_dir: Vec4,
-    falloff: Vec3,
-    intensity: Vec3,
-    cutoff: float
+    light_type: int, // Light type, see above
+    intensity: Vec3, // For point light, spot light and sphere light
+    pos: Vec3,       // For point light, spot light and sphere light
+    dir: Vec3,       // Spot light only
+    cutoff: float,   // Spot light only
+    penumbra: float, // Spot light only
+    radius: float    // Sphere light only
 }
 
-fn evaluate_light(l: &Light, p: Vec3, n: Vec3) -> Vec3 {
+fn light_samples(light: &Light) -> int {
+    let samples = [1, 1, 16];
+    assert(|| {light.light_type >= 0 && light.light_type <= 2}, "light_samples : invalid light type");
+    samples(light.light_type)
+}
+
+fn generate_sample(light: &Light, p: Vec3, rnd: fn () -> float) -> Vec3 @{
+    if light.light_type == point_light ||
+       light.light_type == spot_light @{
+        light.pos
+    } else @{
+        assert(|| {light.light_type == sphere_light}, "generate_sample : invalid light type");
+        let u1 = rnd();
+        let u2 = rnd();
+        let r = sqrtf(1.0f - u1  * u1);
+        let phi = 2.0f * flt_pi * u2;
+        let z = vec3_norm(vec3_sub(p, light.pos));
+        let x = if z.values(0) > 0.1f { vec3_cross(vec3(0.0f, 1.0f, 1.0f), z) }
+                else { vec3_norm(vec3_cross(vec3(1.0f, 1.0f, 1.0f), z)) };
+        let y = vec3_cross(z, x);
+        let d = vec3_norm(vec3_add(vec3_add(
+                    vec3_map(x, |x| x * cosf(phi) * r),
+                    vec3_map(y, |y| y * sinf(phi) * r)),
+                    vec3_map(z, |z| z * u1)));
+        vec3_add(light.pos, vec3_map(d, |x| x * light.radius))
+    }
+}
+
+fn light_packet(light: &Light,
+                p: &Packet,
+                h: &Hit,
+                sp: &Packet,
+                mut sh: &Hit,
+                frontfacing: fn (int, Vec3, fn ()) -> (),
+                rnd: fn() -> float) -> () @{
+    *sh = empty_hit(sp, 0.99f);
+
+    generate_packet(sp, |x, y, ret| @{
+        let id = packet_ray_id(p, x, y);
+
+        if hit_tri(h, id) >= 0 {
+            let t = hit_t(h, id);
+            let p = vec3_add(vec3_map(packet_dir(p, id), |x| x * t), packet_org(p, id));
+            let d = vec3_sub(generate_sample(light, p, rnd), p);
+            frontfacing(id, d, || {
+                ret(ray(d, p))
+            });
+        }
+
+        ret(ray(vec3(0.0f, 0.0f, 0.0f), vec3(0.0f, 0.0f, 0.0f)))
+    });
+
+    if light.light_type == point_light ||
+       light.light_type == spot_light @{
+        shadow_frustum(sp, light.pos, |i| hit_tri(h, i) >= 0);
+    } else {
+        bounding_frustum(sp, sh, |i| hit_tri(h, i) >= 0);
+    }
+}
+
+fn evaluate_light(light: &Light, sample: Vec3, p: Vec3, n: Vec3) -> Vec3 {
     // Compute the incident light vector
-    let p2 = vec3_map(p, |x| x * l.pos_dir.values(3));
-    let d = vec3_sub(vec3_from_vec4(l.pos_dir), p2);
+    let d = vec3_sub(sample, p);
 
     // Compute attenuation at given point
     let dist = sqrtf(vec3_lensq(d));
-    let k = l.falloff.values(0) + dist * (l.falloff.values(1) + dist * l.falloff.values(2));
+    let k = dist * dist + 0.0001f;
     
     let dot = vec3_dot(n, d) / dist;
-    let s = if dot < l.cutoff { 0.0f } else { dot / k };
+    let s = if dot < light.cutoff { 0.0f } else { dot / k };
 
-    vec3_map(l.intensity, |x| x * s)
+    vec3_map(light.intensity, |x| x * s)
 }
 

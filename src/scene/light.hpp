@@ -4,28 +4,49 @@
 namespace imba {
 
 /// Light definition. May be replaced completely by shaders in the not-so-distant future.
-/// Currently we use the following convention : a point light has pos_dir.w = 1.0 and
-/// a directional light has pos_dir.w = 0.0 (This is subject to change)
 class Light {
+private:
+    enum Type {
+        POINT_LIGHT = 0,
+        SPOT_LIGHT = 1,
+        SPHERE_LIGHT = 2
+    };
+
 public:
-    Light(const Vec4& pos_dir, const Vec3& falloff = Vec3(1.0f, 0.0f, 0.0f), const Vec3& intensity = Vec3(1.0f), float cutoff = 0.0f) {
-        set_position(pos_dir);
-        set_falloff(falloff);
+    /// Creates a point light.
+    Light(const Vec3& pos, const Vec3& intensity) {
+        light_.light_type = POINT_LIGHT;
+        set_position(pos);
         set_intensity(intensity);
+        light_.radius = 0.0f;
+        light_.cutoff = 0.0f;
+        light_.penumbra = 0.0f;
+    }
+
+    /// Creates a spot light.
+    Light(const Vec3& pos, const Vec3& intensity, float cutoff, float penumbra) {
+        light_.light_type = SPOT_LIGHT;
+        set_position(pos);
+        set_intensity(intensity);
+        light_.radius = 0.0f;
         light_.cutoff = cutoff;
+        light_.penumbra = penumbra;
     }
 
-    Vec4 position() const {
-        return Vec4(light_.pos_dir.values[0],
-                    light_.pos_dir.values[1],
-                    light_.pos_dir.values[2],
-                    light_.pos_dir.values[3]);
+    /// Creates a spherical area light.
+    Light(const Vec3& pos, const Vec3& intensity, float radius) {
+        light_.light_type = SPHERE_LIGHT;
+        set_position(pos);
+        set_intensity(intensity);
+        light_.radius = radius;
+        light_.cutoff = 0.0f;
+        light_.penumbra = 0.0f;
     }
 
-    Vec3 falloff() const {
-        return Vec3(light_.falloff.values[0],
-                    light_.falloff.values[1],
-                    light_.falloff.values[2]);
+    Vec3 position() const {
+        return Vec3(light_.pos.values[0],
+                    light_.pos.values[1],
+                    light_.pos.values[2]);
     }
 
     Vec3 intensity() const {
@@ -38,17 +59,10 @@ public:
         return light_.cutoff;
     }
 
-    void set_position(const Vec4& p) {
-        light_.pos_dir.values[0] = p[0];
-        light_.pos_dir.values[1] = p[1];
-        light_.pos_dir.values[2] = p[2];
-        light_.pos_dir.values[3] = p[3];
-    }
-
-    void set_falloff(const Vec3& f) {
-        light_.falloff.values[0] = f[0];
-        light_.falloff.values[1] = f[1];
-        light_.falloff.values[2] = f[2];
+    void set_position(const Vec3& p) {
+        light_.pos.values[0] = p[0];
+        light_.pos.values[1] = p[1];
+        light_.pos.values[2] = p[2];
     }
 
     void set_intensity(const Vec3& i) {
