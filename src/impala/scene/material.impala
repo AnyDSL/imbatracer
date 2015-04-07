@@ -123,6 +123,7 @@ fn evaluate_material_bvh(p: &Packet, h: &Hit, mut scene: &Scene, comp: &Compiled
 
     for j in range(0, scene.num_lights) @{
         let f = 1.0f / (light_samples(&scene.lights(j)) as float);
+
         for s in range(0, light_samples(&scene.lights(j))) {
             light_packet(&scene.lights(j), p, h, &sp, &sh, frontfacing, rnd);
             first_hit_bvh_scene(scene, comp, &sp, &sh, h);

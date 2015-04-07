@@ -176,19 +176,23 @@ bool ObjLoader::load_file(const Path& path, Scene& scene, Logger* logger) {
     std::array<imba::TextureId, 6> cubemap;
     const char* axis_names[3] = {"x", "y", "z"};
     const char* dir_names[2] = {"neg", "pos"};
-    for (int i = 0; i < 3; i++) {
+    bool failed = false;
+    for (int i = 0; i < 3 && !failed; i++) {
         std::string axis = axis_names[i];
-        for (int j = 0; j < 2; j++) {
+        for (int j = 0; j < 2 && !failed; j++) {
             std::string dir = dir_names[j];
             imba::Texture tex;
             if (load_texture(Path(path.base_name() + "/powerlines." + dir + axis + ".png"), tex, logger)) {
                 cubemap[i * 2 + j] = scene.new_texture(std::move(tex));
+            } else {
+                failed = true;
             }
         }
     }
-    scene.set_background(cubemap);
+    if (!failed)
+        scene.set_background(cubemap);
 
-    scene.new_light(Vec3(0.0f, 20.0f, 0.0f), Vec3(1000.0f, 1000.0f, 1000.0f), 1.0f);
+    scene.new_light(Vec3(0.0f, 50.0f, 0.0f), Vec3(10000.0f, 10000.0f, 10000.0f), imba::normalize(Vec3(0.0f, 1.0f, 0.1f)), 0.99f, 0.001f);
 
     return true;
 }

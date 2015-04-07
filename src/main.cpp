@@ -1,4 +1,5 @@
 #include <chrono>
+#include <random>
 #include "common/options.hpp"
 #include "common/logger.hpp"
 #include "common/path.hpp"

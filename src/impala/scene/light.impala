@@ -26,17 +26,9 @@ fn generate_sample(light: &Light, p: Vec3, rnd: fn () -> float) -> Vec3 @{
         assert(|| {light.light_type == sphere_light}, "generate_sample : invalid light type");
         let u1 = rnd();
         let u2 = rnd();
-        let r = sqrtf(1.0f - u1  * u1);
-        let phi = 2.0f * flt_pi * u2;
-        let z = vec3_norm(vec3_sub(p, light.pos));
-        let x = if z.values(0) > 0.1f { vec3_cross(vec3(0.0f, 1.0f, 1.0f), z) }
-                else { vec3_norm(vec3_cross(vec3(1.0f, 1.0f, 1.0f), z)) };
-        let y = vec3_cross(z, x);
-        let d = vec3_norm(vec3_add(vec3_add(
-                    vec3_map(x, |x| x * cosf(phi) * r),
-                    vec3_map(y, |y| y * sinf(phi) * r)),
-                    vec3_map(z, |z| z * u1)));
-        vec3_add(light.pos, vec3_map(d, |x| x * light.radius))
+        let d = vec3_norm(vec3_sub(p, light.pos));
+        let r = vec3_map(sample_hemisphere(d, u1, u2), |x| x * light.radius);
+        vec3_add(light.pos, r)
     }
 }
 
@@ -80,8 +72,25 @@ fn evaluate_light(light: &Light, sample: Vec3, p: Vec3, n: Vec3) -> Vec3 {
     let dist = sqrtf(vec3_lensq(d));
     let k = dist * dist + 0.0001f;
     
-    let dot = vec3_dot(n, d) / dist;
-    let s = if dot < light.cutoff { 0.0f } else { dot / k };
+    let cos_n = vec3_dot(n, d) / dist;
+    let cos_d = vec3_dot(light.dir, d);
+
+    let i = if cos_n > 0.0f { cos_n / k } else { 0.0f };
+
+    // Check that the angle with the light direction is less than cutoff (spotlight)
+    let min_d = dist * light.cutoff;
+    let max_d = dist * (light.penumbra + light.cutoff);
+    let s = if cos_d < max_d {
+        // Check for penumbra angle
+        if cos_d > min_d {
+            let t = (cos_d - min_d) / (max_d - min_d);
+            i * t * t
+        } else {
+            0.0f
+        }
+    } else {
+        i
+    };
 
     vec3_map(light.intensity, |x| x * s)
 }
