@@ -1,6 +1,8 @@
 #ifndef IMBA_LIGHT_HPP
 #define IMBA_LIGHT_HPP
 
+#include "../common/math.hpp"
+
 namespace imba {
 
 /// Light definition. May be replaced completely by shaders in the not-so-distant future.
@@ -20,7 +22,8 @@ public:
         set_intensity(intensity);
         set_direction(Vec3(0.0f, 0.0f, 0.0f));
         light_.radius = 0.0f;
-        light_.cutoff = 0.0f;
+        light_.max_cutoff = 0.0f;
+        light_.min_cutoff = 0.0f;
         light_.penumbra = 0.0f;
     }
 
@@ -31,7 +34,8 @@ public:
         set_intensity(intensity);
         set_direction(dir);
         light_.radius = 0.0f;
-        light_.cutoff = cutoff;
+        light_.min_cutoff = cosf(to_radians(cutoff + penumbra));
+        light_.max_cutoff = cosf(to_radians(cutoff));
         light_.penumbra = penumbra;
     }
 
@@ -42,7 +46,8 @@ public:
         set_intensity(intensity);
         set_direction(Vec3(0.0f, 0.0f, 0.0f));
         light_.radius = radius;
-        light_.cutoff = 0.0f;
+        light_.max_cutoff = 0.0f;
+        light_.min_cutoff = 0.0f;
         light_.penumbra = 0.0f;
     }
 
@@ -64,10 +69,6 @@ public:
                     light_.intensity.values[2]);
     }
 
-    float cutoff() const {
-        return light_.cutoff;
-    }
-
     void set_position(const Vec3& p) {
         light_.pos.values[0] = p[0];
         light_.pos.values[1] = p[1];
@@ -84,10 +85,6 @@ public:
         light_.intensity.values[0] = i[0];
         light_.intensity.values[1] = i[1];
         light_.intensity.values[2] = i[2];
-    }
-
-    void set_cutoff(float cutoff) {
-        light_.cutoff = cutoff;
     }
 
 private:

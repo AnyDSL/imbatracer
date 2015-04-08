@@ -21,8 +21,7 @@ imba::Camera Render::perspective_camera(Vec3 eye, Vec3 center, Vec3 up, float fo
     Vec3 r = normalize(cross(d, up));
     Vec3 u = cross(r, d);
 
-    const float pi = 3.14159265359f;
-    float f = l * tanf(pi * fov / 360);
+    float f = l * tanf(to_radians(fov / 2));
     setv(camera.right, r * f);
     setv(camera.up, u * (f / ratio));
 

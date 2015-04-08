@@ -3,17 +3,18 @@ static spot_light = 1;     // Spot light defined by position, direction, cutoff 
 static sphere_light = 2;   // Area light with sphere shape, defined by position and radius
 
 struct Light {
-    light_type: int, // Light type, see above
-    intensity: Vec3, // For point light, spot light and sphere light
-    pos: Vec3,       // For point light, spot light and sphere light
-    dir: Vec3,       // Spot light only
-    cutoff: float,   // Spot light only
-    penumbra: float, // Spot light only
-    radius: float    // Sphere light only
+    light_type: int,   // Light type, see above
+    intensity: Vec3,   // For point light, spot light and sphere light
+    pos: Vec3,         // For point light, spot light and sphere light
+    dir: Vec3,         // Spot light only
+    max_cutoff: float, // Spot light only
+    min_cutoff: float, // Spot light only
+    penumbra: float,   // Spot light only
+    radius: float      // Sphere light only
 }
 
 fn light_samples(light: &Light) -> int {
-    let samples = [1, 1, 16];
+    let samples = [1, 1, 8];
     assert(|| {light.light_type >= 0 && light.light_type <= 2}, "light_samples : invalid light type");
     samples(light.light_type)
 }
@@ -78,8 +79,8 @@ fn evaluate_light(light: &Light, sample: Vec3, p: Vec3, n: Vec3) -> Vec3 {
     let i = if cos_n > 0.0f { cos_n / k } else { 0.0f };
 
     // Check that the angle with the light direction is less than cutoff (spotlight)
-    let min_d = dist * light.cutoff;
-    let max_d = dist * (light.penumbra + light.cutoff);
+    let min_d = dist * light.min_cutoff;
+    let max_d = dist * light.max_cutoff;
     let s = if cos_d < max_d {
         // Check for penumbra angle
         if cos_d > min_d {

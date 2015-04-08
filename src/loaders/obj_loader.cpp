@@ -192,7 +192,7 @@ bool ObjLoader::load_file(const Path& path, Scene& scene, Logger* logger) {
     if (!failed)
         scene.set_background(cubemap);
 
-    scene.new_light(Vec3(0.0f, 50.0f, 0.0f), Vec3(10000.0f, 10000.0f, 10000.0f), imba::normalize(Vec3(0.0f, 1.0f, 0.1f)), 0.99f, 0.001f);
+    scene.new_light(Vec3(0.0f, 20.0f, 0.0f), Vec3(5000.0f, 5000.0f, 5000.0f), imba::normalize(Vec3(0.0f, 1.0f, 0.0f)), 10.0f, 5.0f);
 
     return true;
 }

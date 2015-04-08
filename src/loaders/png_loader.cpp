@@ -36,8 +36,8 @@ bool PngLoader::load_file(const Path& path, Texture& texture, Logger* logger) {
             return false;
     }
 
-    png_structp png_ptr = png_create_read_struct(PNG_LIBPNG_VER_STRING, nullptr, nullptr, nullptr);
-    //png_structp png_ptr = png_create_read_struct("1.2.25", nullptr, nullptr, nullptr); // KATANA-RELATED HACK !!!!
+    //png_structp png_ptr = png_create_read_struct(PNG_LIBPNG_VER_STRING, nullptr, nullptr, nullptr);
+    png_structp png_ptr = png_create_read_struct("1.2.25", nullptr, nullptr, nullptr); // KATANA-RELATED HACK !!!!
     if (!png_ptr) {
         return false;
     }
