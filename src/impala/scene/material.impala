@@ -3,15 +3,99 @@ struct Material {
     kd: Vec3,
     ks: Vec3,
     exp: float,
-    tex_a: int,
-    tex_d: int,
-    tex_s: int
+    tex_a: [int * 2],
+    tex_d: [int * 2],
+    tex_s: [int * 2]
+}
+
+/*fn sample_texture(mut textures: &[Texture], tex_id: [int * 2], st: Vec2, dstdx: Vec2, dstdy: Vec2, bh: BoundaryHandling) -> Vec3 {
+    if tex_id(0) >= 0 @{
+        if tex_id(1) > 0 {
+            // Trilinear interpolation between mipmap levels
+            let d = 1.0f - 1.0f / expf(vec2_lensq(dstdx) + vec2_lensq(dstdy));
+            let c = sample_mipmap(textures, tex_id(0), tex_id(1), d, st, bh);
+            vec3(c.a * c.r, c.a * c.g, c.a * c.b)
+        } else {
+            // Simple bilinear interpolation
+            let c = bilinear_interpolation(&textures(tex_id(0)), st, bh);
+            vec3(c.a * c.r, c.a * c.g, c.a * c.b)
+        }
+    } else @{
+        vec3(1.0f, 1.0f, 1.0f)
+    }
+}*/
+
+fn compute_differentials(packet: &Packet, i: int, p: Vec3, n: Vec3, dpdu: Vec3, dpdv: Vec3) -> (Vec2, Vec2) {
+    /*let d = vec3_dot(p, n);
+
+    fn intersect_plane(r: Ray) -> float {
+        (d - vec3_dot(r.org, n)) / vec3_dot(r.dir, n)
+    }
+
+    // Get the intersection between the differential rays and the surface plane
+    let rx = packet_diff_x(packet, i);
+    let ry = packet_diff_y(packet, i);
+    let tx = intersect_plane(rx);
+    let ty = intersect_plane(ry);
+    let px = vec3_add(rx.org, vec3_mulf(rx.dir, tx));
+    let py = vec3_add(ry.org, vec3_mulf(ry.dir, ty));
+
+    let dpdx = vec3_sub(px, p);
+    let dpdy = vec3_sub(py, p);
+
+    // Find correct equations
+    let axes = if fabsf(n.values(0)) > fabsf(n.values(1)) &&
+       fabsf(n.values(0)) > fabsf(n.values(2)) {
+        [1, 2]
+    } else if fabsf(n.values(1)) > fabsf(n.values(2)) {
+        [0, 2]
+    } else {
+        [0, 1]
+    };
+
+    // Solve linear systems to get the differential
+    let a = [dpdu.values(axes(0)), dpdv.values(axes(0)),
+             dpdu.values(axes(1)), dpdv.values(axes(1))];
+
+    fn solve_system(b: [float * 2], s: fn (float, float) -> (), ns: fn() -> ()) -> () {
+        let det = a(0) * a(3) - a(1) * a(2);
+        if fabsf(det) < 0.001f {
+            ns()
+        } else {
+            let idet = 1.0f / det;
+            s((b(0) * a(3) - a(1) * b(1)) * idet,
+              (a(0) * b(1) - b(0) * a(2)) * idet)
+        }
+    }*/
+
+    let mut du : Vec2;
+    let mut dv : Vec2;
+    /*solve_system([px.values(axes(0)) - p.values(axes(0)),
+                  px.values(axes(1)) - p.values(axes(1))], |dudx, dvdx| {
+        du.values(0) = dudx;
+        dv.values(0) = dvdx;
+    }, || {
+        du.values(0) = 0.0f;
+        dv.values(0) = 0.0f;
+    });
+    solve_system([py.values(axes(0)) - p.values(axes(0)),
+                  py.values(axes(1)) - p.values(axes(1))], |dudy, dvdy| {
+        du.values(1) = dudy;
+        dv.values(1) = dvdy;
+    }, || {
+        du.values(1) = 0.0f;
+        dv.values(1) = 0.0f;
+    });*/
+
+    (du, dv)
 }
 
 // TODO : replace materials by shader system in the future
-fn evaluate_material_bvh(p: &Packet, h: &Hit, mut scene: &Scene, comp: &CompiledBvhScene, accumulate: fn (int, Vec3) -> (), rnd: fn () -> float) -> () {
+fn evaluate_material_bvh(p: &Packet, h: &Hit, mut scene: &Scene, comp: &CompiledBvhScene, accumulate: fn (int, Vec3) -> (), rnd: fn () -> float) -> () @{
     let mut normals : [Vec3 * 64];
     let mut face_normals : [Vec3 * 64];
+    let mut du : [Vec2 * 64];
+    let mut dv : [Vec2 * 64];
 
     fn frontfacing(id: int, d: Vec3, front: fn()) -> () {
         if vec3_dot(face_normals(id), d) > 0.0f {
@@ -19,7 +103,7 @@ fn evaluate_material_bvh(p: &Packet, h: &Hit, mut scene: &Scene, comp: &Compiled
         }
     }
 
-    // Compute normals
+    // Compute normals and differentials
     for i in range(0, packet_size(p)) @{
         let inst_id = hit_inst(h, i);
         let mesh_id = scene.instances(inst_id).mesh_id;
@@ -35,9 +119,9 @@ fn evaluate_material_bvh(p: &Packet, h: &Hit, mut scene: &Scene, comp: &Compiled
             let t = hit_t(h, i);
 
             // Compute interpolated normal
-            let n0 = vec3_map(mesh.normals(mesh.indices(tri_id * 3 + 0)), |x| x * w);
-            let n1 = vec3_map(mesh.normals(mesh.indices(tri_id * 3 + 1)), |x| x * u);
-            let n2 = vec3_map(mesh.normals(mesh.indices(tri_id * 3 + 2)), |x| x * v);
+            let n0 = vec3_mulf(mesh.normals(mesh.indices(tri_id * 3 + 0)), w);
+            let n1 = vec3_mulf(mesh.normals(mesh.indices(tri_id * 3 + 1)), u);
+            let n2 = vec3_mulf(mesh.normals(mesh.indices(tri_id * 3 + 2)), v);
             let n = vec3_add(n0, vec3_add(n1, n2));
 
             normals(i) = vec3_norm(mat4_mul_vec3(&tinv, n, 0.0f));
@@ -50,6 +134,12 @@ fn evaluate_material_bvh(p: &Packet, h: &Hit, mut scene: &Scene, comp: &Compiled
             let e1 = vec3_sub(v2, v0);
             let tn = mat4_mul_vec3(&tinv, vec3_cross(e0, e1), 0.0f);
             face_normals(i) = if vec3_dot(tn, packet_dir(p, i)) > 0.0f { vec3_map(tn, |x| -x) } else { tn };
+
+            // Compute differentials (for mipmapping)
+            let p_intr = vec3(0.0f, 0.0f, 0.0f);//vec3_add(packet_org(p, i), vec3_mulf(packet_dir(p, i), t));
+            let dudv = compute_differentials(p, i, p_intr, face_normals(i), e0, e1);
+            /*du(i) = dudv(0);
+            dv(i) = dudv(1);*/
         } else @{
             normals(i) = vec3(0.0f, 0.0f, 0.0f);
             face_normals(i) = vec3(0.0f, 0.0f, 0.0f);
@@ -68,43 +158,46 @@ fn evaluate_material_bvh(p: &Packet, h: &Hit, mut scene: &Scene, comp: &Compiled
             let mat_id = mesh.materials(tri_id);
             let mat = scene.materials(mat_id);
 
-            if mat.tex_a >= 0 | mat.tex_d >= 0 | mat.tex_s >= 0 @{
+            if mat.tex_a(0) >= 0 | mat.tex_d(0) >= 0 | mat.tex_s(0) >= 0 {
                 let u = hit_u(h, i);
                 let v = hit_v(h, i);
-                let w = 1.0f - u - v;
 
-                let uv0 = @vec2_map(mesh.texcoords(mesh.indices(tri_id * 3 + 0)), |x| x * w);
-                let uv1 = @vec2_map(mesh.texcoords(mesh.indices(tri_id * 3 + 1)), |x| x * u);
-                let uv2 = @vec2_map(mesh.texcoords(mesh.indices(tri_id * 3 + 2)), |x| x * v);
+                let st0 = mesh.texcoords(mesh.indices(tri_id * 3 + 0));
+                let st1 = mesh.texcoords(mesh.indices(tri_id * 3 + 1));
+                let st2 = mesh.texcoords(mesh.indices(tri_id * 3 + 2));
 
-                let uv = @vec2_add(uv0, vec2_add(uv1, uv2));
+                let dstdu = vec2_sub(st1, st0);
+                let dstdv = vec2_sub(st2, st0);
+                let st = vec2_add(vec2_add(st0,
+                                  vec2_mulf(dstdu, u)),
+                                  vec2_mulf(dstdv, v));
 
-                let ambient = if mat.tex_a >= 0 @{
-                    let c = bilinear_interpolation(&scene.textures(mat.tex_a), uv.values(0), uv.values(1), bh_clamp);
-                    vec3(c.a * c.r, c.a * c.g, c.a * c.b)
-                } else @{
-                    vec3(1.0f, 1.0f, 1.0f)
-                };
+                let dudx = du(i).values(0);
+                let dudy = du(i).values(1);
+                let dvdx = dv(i).values(0);
+                let dvdy = dv(i).values(1);
+                let dstdx = vec2_add(vec2_mulf(dstdu, dudx), vec2_mulf(dstdv, dvdx));
+                let dstdy = vec2_add(vec2_mulf(dstdu, dudy), vec2_mulf(dstdv, dvdy));
+
+                // Sample textures (reuse previous results if possible)
+                /*let ambient = sample_texture(scene.textures, mat.tex_a, st, dstdx, dstdy, bh_repeat);
 
                 diff(i) = if mat.tex_d == mat.tex_a @{
                     ambient
-                } else if mat.tex_d >= 0 @{
-                    let c = bilinear_interpolation(&scene.textures(mat.tex_d), uv.values(0), uv.values(1), bh_clamp);
-                    vec3(c.a * c.r, c.a * c.g, c.a * c.b)
-                } else @{
-                    vec3(1.0f, 1.0f, 1.0f)
+                } else {
+                    sample_texture(scene.textures, mat.tex_d, st, dstdx, dstdy, bh_repeat)
                 };
 
                 spec(i) = if mat.tex_s == mat.tex_a @{
                     ambient
                 } else if mat.tex_s == mat.tex_d @{
                     diff(i)
-                } else if mat.tex_s >= 0 @{
-                    let c = bilinear_interpolation(&scene.textures(mat.tex_s), uv.values(0), uv.values(1), bh_clamp);
-                    vec3(c.a * c.r, c.a * c.g, c.a * c.b)
-                } else @{
-                    vec3(1.0f, 1.0f, 1.0f)
-                };
+                } else {
+                    sample_texture(scene.textures, mat.tex_s, st, dstdx, dstdy, bh_repeat)
+                };*/
+                let ambient = vec3(1.0f, 1.0f, 1.0f);
+                diff(i) = vec3(1.0f, 1.0f, 1.0f);
+                spec(i) = vec3(1.0f, 1.0f, 1.0f);
 
                 @accumulate(i, vec3_mul(ambient, mat.ka));
                 diff(i) = vec3_mul(diff(i), mat.kd);

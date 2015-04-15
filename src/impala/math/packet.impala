@@ -40,6 +40,40 @@ fn packet_size(p: &Packet) -> int {
     packet_width(p) * packet_height(p)
 }
 
+fn packet_diff_x(p: &Packet, i: int) -> Ray @{
+    let x = i % packet_width(p);
+    let y = i / packet_width(p);
+
+    if x >= 7 @{
+        let j = packet_ray_id(p, x - 1, y);
+        let org0 = packet_org(p, i);
+        let org1 = packet_org(p, j);
+        let dir0 = packet_dir(p, i);
+        let dir1 = packet_dir(p, j);
+        ray(vec3_sub(vec3_mulf(dir0, 2.0f), dir1),
+            vec3_sub(vec3_mulf(org0, 2.0f), org1))
+    } else @{
+        packet_ray(p, i + 1)
+    }
+}
+
+fn packet_diff_y(p: &Packet, i: int) -> Ray @{
+    let x = i % packet_width(p);
+    let y = i / packet_width(p);
+
+    if y >= 7 @{
+        let j = packet_ray_id(p, x, y - 1);
+        let org0 = packet_org(p, i);
+        let org1 = packet_org(p, j);
+        let dir0 = packet_dir(p, i);
+        let dir1 = packet_dir(p, j);
+        ray(vec3_sub(vec3_mulf(dir0, 2.0f), dir1),
+            vec3_sub(vec3_mulf(org0, 2.0f), org1))
+    } else @{
+        packet_ray(p, i + packet_width(p))
+    }
+}
+
 fn packet_ray_id(p: &Packet, x: int, y: int) -> int {
     y * packet_width(p) + x
 }
@@ -214,7 +248,7 @@ fn bounding_frustum(mut p: &Packet, h: &Hit, mask: fn (int) -> bool) -> () {
     for i in range(0, packet_size(p)) @{
         if mask(i) {
             let org = packet_org(p, i);
-            let end = vec3_add(org, vec3_map(packet_dir(p, i), |x| x * hit_t(h, i)));
+            let end = vec3_add(org, vec3_mulf(packet_dir(p, i), hit_t(h, i)));
             min = vec3_min(min, org);
             min = vec3_min(min, end);
             max = vec3_max(max, org);

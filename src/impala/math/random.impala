@@ -71,9 +71,9 @@ fn sample_hemisphere(n: Vec3, u1: float, u2: float) -> Vec3 {
     let x = vec3_norm(vec3_cross(h, y));
     let z = vec3_cross(x, y);
 
-    vec3_add(vec3_add(
-        vec3_map(x, |x| x * xs),
-        vec3_map(y, |y| y * ys)),
-        vec3_map(z, |z| z * zs))
+    @vec3_add(vec3_add(
+        vec3_mulf(x, xs),
+        vec3_mulf(y, ys)),
+        vec3_mulf(z, zs))
 }
 

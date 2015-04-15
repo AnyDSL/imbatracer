@@ -54,16 +54,3 @@ target_link_libraries(bench embree)
 
 include_directories(bench ../src)
 
-# Set compiler options
-function(ADD_CXX_FLAG target opt)
-    get_target_property(CXX_FLAGS ${target} COMPILE_FLAGS)
-    if(CXX_FLAGS STREQUAL "CXX_FLAGS-NOTFOUND")
-      set(CXX_FLAGS "")
-    endif()
-    set(CXX_FLAGS "${CXX_FLAGS} ${opt}")
-    set_target_properties(${target} PROPERTIES COMPILE_FLAGS ${CXX_FLAGS})
-endfunction(ADD_CXX_FLAG)
-
-add_cxx_flag(bench "-std=c++11")
-add_cxx_flag(imba_bench "-std=c++11")
-

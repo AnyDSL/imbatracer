@@ -2,6 +2,7 @@
 #define IMBA_PATH_HPP
 
 #include <string>
+#include <algorithm>
 
 namespace imba {
 
@@ -11,9 +12,10 @@ public:
     Path(const std::string& path)
         : path_(path)
     {
-        auto pos = path.find_last_of("\\/");
-        base_ = (pos != std::string::npos) ? path.substr(0, pos)  : ".";
-        file_ = (pos != std::string::npos) ? path.substr(pos + 1) : path;
+        std::replace(path_.begin(), path_.end(), '\\', '/');
+        auto pos = path_.rfind('/');
+        base_ = (pos != std::string::npos) ? path_.substr(0, pos)  : ".";
+        file_ = (pos != std::string::npos) ? path_.substr(pos + 1) : path_;
     }
 
     const std::string& path() const { return path_; }

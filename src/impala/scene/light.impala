@@ -28,7 +28,7 @@ fn generate_sample(light: &Light, p: Vec3, rnd: fn () -> float) -> Vec3 @{
         let u1 = rnd();
         let u2 = rnd();
         let d = vec3_norm(vec3_sub(p, light.pos));
-        let r = vec3_map(sample_hemisphere(d, u1, u2), |x| x * light.radius);
+        let r = vec3_mulf(sample_hemisphere(d, u1, u2), light.radius);
         vec3_add(light.pos, r)
     }
 }
@@ -47,7 +47,7 @@ fn light_packet(light: &Light,
 
         if hit_tri(h, id) >= 0 {
             let t = hit_t(h, id);
-            let p = vec3_add(vec3_map(packet_dir(p, id), |x| x * t), packet_org(p, id));
+            let p = vec3_add(vec3_mulf(packet_dir(p, id), t), packet_org(p, id));
             let d = vec3_sub(generate_sample(light, p, rnd), p);
             frontfacing(id, d, || {
                 ret(ray(d, p))
@@ -93,6 +93,6 @@ fn evaluate_light(light: &Light, sample: Vec3, p: Vec3, n: Vec3) -> Vec3 {
         i
     };
 
-    vec3_map(light.intensity, |x| x * s)
+    vec3_mulf(light.intensity, s)
 }
 

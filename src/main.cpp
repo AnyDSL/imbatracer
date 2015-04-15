@@ -7,6 +7,7 @@
 #include "loaders/image_loader.hpp"
 #include "loaders/obj_loader.hpp"
 #include "loaders/png_loader.hpp"
+#include "loaders/tga_loader.hpp"
 #include "scene/scene.hpp"
 #include "scene/render.hpp"
 #include "devices/png_device.hpp"
@@ -75,6 +76,7 @@ int main(int argc, char** argv) {
 
     imba::TextureLoaderManager texture_loaders;
     texture_loaders.add_loader(new imba::PngLoader());
+    texture_loaders.add_loader(new imba::TgaLoader());
 
     imba::SceneLoaderManager scene_loaders;
     scene_loaders.add_loader(new imba::ObjLoader(&texture_loaders));

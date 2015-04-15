@@ -28,7 +28,7 @@ fn box_extents(b: Box) -> Vec3 {
 }
 
 fn box_center(b: Box) -> Vec3 {
-    vec3_map(vec3_add(b.min, b.max), |x| x * 0.5f)
+    vec3_mulf(vec3_add(b.min, b.max), 0.5f)
 }
 
 fn box_half_area(b: Box) -> float {
@@ -38,7 +38,7 @@ fn box_half_area(b: Box) -> float {
 }
 
 fn transform_box(b: Box, mat: &Mat4) -> Box @{
-    let h = vec3_map(box_extents(b), |x| x * 0.5f);
+    let h = vec3_mulf(box_extents(b), 0.5f);
     let c = box_center(b);
 
     let mut abs_mat = mat4_abs(mat);

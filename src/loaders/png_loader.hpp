@@ -14,5 +14,5 @@ public:
 
 } // namespace imba
 
-#endif
+#endif // IMBA_PNG_LOADER_HPP
 

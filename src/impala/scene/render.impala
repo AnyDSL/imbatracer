@@ -90,7 +90,7 @@ fn render_texture_bvh_scene(mut scene: &Scene, comp: &CompiledBvhScene, cam: &Ca
                             if hit_tri(&hit, id) < 0 {
                                 let u = (x + j) as float / (texture.width  as float);
                                 let v = 1.0f - (y + i) as float / (texture.height as float);
-                                let pix = bilinear_interpolation(&scene.textures(scene.bg_texid(0)), u, v, bh_clamp);
+                                let pix = bilinear_interpolation(&scene.textures(scene.bg_texid(0)), vec2(u, v), bh_clamp);
                                 color(id) = vec3(pix.r, pix.g, pix.b)
                             }
                         }

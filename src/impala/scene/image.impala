@@ -60,8 +60,8 @@ struct BoundaryHandling {
 }
 
 static bh_repeat = BoundaryHandling {
-    bottom: |y, h| { y - y % h },
-    left:   |x, w| { x - x % w },
+    bottom: |y, h| { h + y % h },
+    left:   |x, w| { w + x % w },
     top:    |y, h| { y % h },
     right:  |x, w| { x % w }
 };
@@ -74,9 +74,9 @@ static bh_clamp = BoundaryHandling {
 };
 
 // Bilinearly interpolates pixels on a texture (u, v in [0, 1], and (0,0) is bottom left corner)
-fn bilinear_interpolation(tex: &Texture, u: float, v: float, bh: BoundaryHandling) -> TexturePixel @{
-    let px = u * (tex.width  as float) - 0.5f;
-    let py = (1.0f - v) * (tex.height as float) - 0.5f;
+fn bilinear_interpolation(tex: &Texture, uv: Vec2, bh: BoundaryHandling) -> TexturePixel @{
+    let px = uv.values(0) * (tex.width  as float) - 0.5f;
+    let py = (1.0f - uv.values(1)) * (tex.height as float) - 0.5f;
 
     let x0 = floorf(px) as int;
     let y0 = floorf(py) as int;
@@ -119,8 +119,8 @@ fn bilinear_interpolation(tex: &Texture, u: float, v: float, bh: BoundaryHandlin
 }
 
 // Samples a cube map that from a direction vector. The cube map is given as an array of 6 texture indices.
-fn sample_cubemap(mut textures: &[Texture], cube: &[int * 6], dir: Vec3) -> TexturePixel {
-    let abs = vec3_map(dir, |x| fabsf(x));
+fn sample_cubemap(mut textures: &[Texture], cube: &[int * 6], dir: Vec3) -> TexturePixel @{
+    let abs = vec3_abs(dir);
     let mut max = 0;
     if abs.values(0) < abs.values(1) { max = 1 }
     if abs.values(max) < abs.values(2) { max = 2 }
@@ -150,6 +150,28 @@ fn sample_cubemap(mut textures: &[Texture], cube: &[int * 6], dir: Vec3) -> Text
     let u = (dir.values(axis_u) * (sign_u as float) / abs.values(max) + 1.0f) * 0.5f;
     let v = (dir.values(axis_v) * (sign_v as float) / abs.values(max) + 1.0f) * 0.5f;
 
-    bilinear_interpolation(&textures(tex_id), u, v, bh_clamp)
+    bilinear_interpolation(&textures(tex_id), vec2(u, v), bh_clamp)
+}
+
+// Samples a mipmap with trilinear interpolation. The lod level is given as a floating point value between 0 and 1 
+fn sample_mipmap(mut textures: &[Texture], base: int, n: int, d: float, uv: Vec2, bh: BoundaryHandling) -> TexturePixel @{
+    assert(|| {fabsf(d) <= 1.0f}, "sample_mipmap : invalid lod level");
+
+    let lod = d * ((n - 1) as float);
+    let l0 = floorf(lod) as int;
+    let l1 = if l0 >= (n - 1) { n - 1 } else { l0 + 1 };
+
+    let c0 = bilinear_interpolation(&textures(base + l0), uv, bh);
+    let c1 = bilinear_interpolation(&textures(base + l1), uv, bh);
+
+    let k = lod - l0 as float;
+    let ik = 1.0f - k;
+
+    TexturePixel {
+        r: ik * c0.r + k * c1.r,
+        g: ik * c0.g + k * c1.g,
+        b: ik * c0.b + k * c1.b,
+        a: ik * c0.a + k * c1.a
+    }
 }
 

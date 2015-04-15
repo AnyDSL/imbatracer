@@ -14,7 +14,7 @@ extern fn bench_bvh_build(vertices: &[Vec3], indices: &[int], num_tris: int, mut
         let v1 = vertices(indices(i * 3 + 1));
         let v2 = vertices(indices(i * 3 + 2));
 
-        centers(i) = vec3_map(vec3_add(v0, vec3_add(v1, v2)), |x| x / 3.0f);
+        centers(i) = vec3_mulf(vec3_add(v0, vec3_add(v1, v2)), 1.0f / 3.0f);
         boxes(i).min = vec3_min(v0, vec3_min(v1, v2));
         boxes(i).max = vec3_max(v0, vec3_max(v1, v2));
     }

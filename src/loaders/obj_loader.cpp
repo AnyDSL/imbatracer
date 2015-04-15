@@ -192,7 +192,7 @@ bool ObjLoader::load_file(const Path& path, Scene& scene, Logger* logger) {
     if (!failed)
         scene.set_background(cubemap);
 
-    scene.new_light(Vec3(0.0f, 20.0f, 0.0f), Vec3(5000.0f, 5000.0f, 5000.0f), imba::normalize(Vec3(0.0f, 1.0f, 0.0f)), 10.0f, 5.0f);
+    scene.new_light(Vec3(0.0f, 1000.0f, 0.0f), Vec3(600000.0f, 600000.0f, 600000.0f));//, imba::normalize(Vec3(0.0f, 1.0f, 0.0f)), 15.0f, 1.0f);
 
     return true;
 }
@@ -205,6 +205,14 @@ inline char* strip_spaces(char* ptr) {
 inline char* strip_text(char* ptr) {
     while (*ptr && !std::isspace(*ptr)) { ptr++; }
     return ptr;
+}
+
+inline void remove_eol(char* ptr) {
+    int i = std::strlen(ptr) - 1;
+    while (i > 0 && std::isspace(ptr[i])) {
+        ptr[i] = '\0';
+        i--;
+    }
 }
 
 bool ObjLoader::parse_obj_stream(std::istream& stream, ObjFile& file, Logger* logger) {
@@ -236,12 +244,7 @@ bool ObjLoader::parse_obj_stream(std::istream& stream, ObjFile& file, Logger* lo
         if (*ptr == '\0' || *ptr == '#')
             continue;
 
-        // Remove empty space before end of line
-        int i = std::strlen(ptr) - 1;
-        while (i > 0 && std::isspace(ptr[i])) {
-            ptr[i] = '\0';
-            i--;
-        }
+        remove_eol(ptr);
 
         // Test each command in turn, the most frequent first
         if (*ptr == 'v') {
@@ -384,12 +387,7 @@ bool ObjLoader::parse_mtl_stream(std::istream& stream, std::unordered_map<std::s
         if (*ptr == '\0' || *ptr == '#')
             continue;
 
-        // Remove empty space before end of line
-        int i = std::strlen(ptr) - 1;
-        while (i > 0 && std::isspace(ptr[i])) {
-            ptr[i] = '\0';
-            i--;
-        }
+        remove_eol(ptr);
 
         if (!std::strncmp(ptr, "newmtl", 6) && std::isspace(ptr[6])) {
             ptr = strip_spaces(ptr + 7);

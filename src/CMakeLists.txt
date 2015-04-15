@@ -18,6 +18,10 @@ add_prefix("${IMPALA_SRCS}"           IMPALA_SRCS_PREFIX           "impala/")
 add_prefix("${IMPALA_BENCH_SRCS}"     IMPALA_BENCH_SRCS_PREFIX     "impala/")
 add_prefix("${IMPALA_INTERFACE_SRCS}" IMPALA_INTERFACE_SRCS_PREFIX "impala/")
 
+# Compatibility with old GLIBC
+set(CMAKE_SHARED_LINKER_FLAGS "-static-libstdc++ -Wl,--wrap=memcpy -Wl,--wrap=clock_gettime -lrt")
+set(COMPAT_SRCS memcpy.c clock_gettime.c)
+
 # Do not include the benchmarks
 thorin_runtime_wrap(IMPALA_OBJS IMPALA_LIBS
                     BACKEND ${BACKEND}
@@ -34,6 +38,7 @@ set_source_files_properties(impala/impala_interface.h PROPERTIES GENERATED TRUE)
 
 # Generate the core library
 add_library(imba_core
+            ${COMPAT_SRCS}
             ${IMPALA_OBJS}
             scene/image.hpp
             scene/instance.hpp
@@ -54,6 +59,7 @@ add_library(imba_core
             common/vector.hpp)
 
 add_library(imba_devices
+            ${COMPAT_SRCS}
             devices/device.hpp
             devices/png_device.cpp
             devices/png_device.hpp
@@ -61,11 +67,14 @@ add_library(imba_devices
             devices/sdl_device.hpp)
 
 add_library(imba_loaders
+            ${COMPAT_SRCS}
             loaders/loader.hpp
             loaders/image_loader.hpp
             loaders/scene_loader.hpp
             loaders/png_loader.cpp
             loaders/png_loader.hpp
+            loaders/tga_loader.cpp
+            loaders/tga_loader.hpp
             loaders/obj_loader.cpp
             loaders/obj_loader.hpp)
 
@@ -82,19 +91,4 @@ add_executable(imbatracer
 target_link_libraries(imbatracer imba_devices)
 target_link_libraries(imbatracer imba_loaders)
 target_link_libraries(imbatracer imba_core)
-
-# Set compiler options
-function(ADD_CXX_FLAG target opt)
-    get_target_property(CXX_FLAGS ${target} COMPILE_FLAGS)
-    if(CXX_FLAGS STREQUAL "CXX_FLAGS-NOTFOUND")
-      set(CXX_FLAGS "")
-    endif()
-    set(CXX_FLAGS "${CXX_FLAGS} ${opt}")
-    set_target_properties(${target} PROPERTIES COMPILE_FLAGS ${CXX_FLAGS})
-endfunction(ADD_CXX_FLAG)
-
-add_cxx_flag(imba_core    "-std=c++11")
-add_cxx_flag(imba_loaders "-std=c++11")
-add_cxx_flag(imba_devices "-std=c++11")
-add_cxx_flag(imbatracer   "-std=c++11")
 
