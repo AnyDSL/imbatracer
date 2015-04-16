@@ -8,8 +8,8 @@ struct Material {
     tex_s: [int * 2]
 }
 
-/*fn sample_texture(mut textures: &[Texture], tex_id: [int * 2], st: Vec2, dstdx: Vec2, dstdy: Vec2, bh: BoundaryHandling) -> Vec3 {
-    if tex_id(0) >= 0 @{
+fn sample_texture(mut textures: &[Texture], tex_id: [int * 2], st: Vec2, dstdx: Vec2, dstdy: Vec2, bh: BoundaryHandling) -> Vec3 @{
+    /*if tex_id(0) >= 0 @{
         if tex_id(1) > 0 {
             // Trilinear interpolation between mipmap levels
             let d = 1.0f - 1.0f / expf(vec2_lensq(dstdx) + vec2_lensq(dstdy));
@@ -17,16 +17,16 @@ struct Material {
             vec3(c.a * c.r, c.a * c.g, c.a * c.b)
         } else {
             // Simple bilinear interpolation
-            let c = bilinear_interpolation(&textures(tex_id(0)), st, bh);
+            let c = @bilinear_interpolation(&textures(tex_id(0)), st, bh);
             vec3(c.a * c.r, c.a * c.g, c.a * c.b)
         }
-    } else @{
+    } else @{*/
         vec3(1.0f, 1.0f, 1.0f)
-    }
-}*/
+    //}
+}
 
-fn compute_differentials(packet: &Packet, i: int, p: Vec3, n: Vec3, dpdu: Vec3, dpdv: Vec3) -> (Vec2, Vec2) {
-    /*let d = vec3_dot(p, n);
+fn compute_differentials(packet: &Packet, i: int, p: Vec3, n: Vec3, dpdu: Vec3, dpdv: Vec3, mut du: &Vec2, mut dv: &Vec2) -> () {
+    let d = vec3_dot(p, n);
 
     fn intersect_plane(r: Ray) -> float {
         (d - vec3_dot(r.org, n)) / vec3_dot(r.dir, n)
@@ -66,11 +66,9 @@ fn compute_differentials(packet: &Packet, i: int, p: Vec3, n: Vec3, dpdu: Vec3, 
             s((b(0) * a(3) - a(1) * b(1)) * idet,
               (a(0) * b(1) - b(0) * a(2)) * idet)
         }
-    }*/
+    }
 
-    let mut du : Vec2;
-    let mut dv : Vec2;
-    /*solve_system([px.values(axes(0)) - p.values(axes(0)),
+    solve_system([px.values(axes(0)) - p.values(axes(0)),
                   px.values(axes(1)) - p.values(axes(1))], |dudx, dvdx| {
         du.values(0) = dudx;
         dv.values(0) = dvdx;
@@ -85,9 +83,7 @@ fn compute_differentials(packet: &Packet, i: int, p: Vec3, n: Vec3, dpdu: Vec3, 
     }, || {
         du.values(1) = 0.0f;
         dv.values(1) = 0.0f;
-    });*/
-
-    (du, dv)
+    });
 }
 
 // TODO : replace materials by shader system in the future
@@ -136,10 +132,8 @@ fn evaluate_material_bvh(p: &Packet, h: &Hit, mut scene: &Scene, comp: &Compiled
             face_normals(i) = if vec3_dot(tn, packet_dir(p, i)) > 0.0f { vec3_map(tn, |x| -x) } else { tn };
 
             // Compute differentials (for mipmapping)
-            let p_intr = vec3(0.0f, 0.0f, 0.0f);//vec3_add(packet_org(p, i), vec3_mulf(packet_dir(p, i), t));
-            let dudv = compute_differentials(p, i, p_intr, face_normals(i), e0, e1);
-            /*du(i) = dudv(0);
-            dv(i) = dudv(1);*/
+            let p_intr = vec3_add(packet_org(p, i), vec3_mulf(packet_dir(p, i), t));
+            compute_differentials(p, i, p_intr, face_normals(i), e0, e1, &du(i), &dv(i));
         } else @{
             normals(i) = vec3(0.0f, 0.0f, 0.0f);
             face_normals(i) = vec3(0.0f, 0.0f, 0.0f);
@@ -180,7 +174,7 @@ fn evaluate_material_bvh(p: &Packet, h: &Hit, mut scene: &Scene, comp: &Compiled
                 let dstdy = vec2_add(vec2_mulf(dstdu, dudy), vec2_mulf(dstdv, dvdy));
 
                 // Sample textures (reuse previous results if possible)
-                /*let ambient = sample_texture(scene.textures, mat.tex_a, st, dstdx, dstdy, bh_repeat);
+                let ambient = @sample_texture(scene.textures, mat.tex_a, st, dstdx, dstdy, bh_repeat);
 
                 diff(i) = if mat.tex_d == mat.tex_a @{
                     ambient
@@ -188,15 +182,15 @@ fn evaluate_material_bvh(p: &Packet, h: &Hit, mut scene: &Scene, comp: &Compiled
                     sample_texture(scene.textures, mat.tex_d, st, dstdx, dstdy, bh_repeat)
                 };
 
-                spec(i) = if mat.tex_s == mat.tex_a @{
+                /*spec(i) = if mat.tex_s == mat.tex_a @{
                     ambient
                 } else if mat.tex_s == mat.tex_d @{
                     diff(i)
                 } else {
                     sample_texture(scene.textures, mat.tex_s, st, dstdx, dstdy, bh_repeat)
                 };*/
-                let ambient = vec3(1.0f, 1.0f, 1.0f);
-                diff(i) = vec3(1.0f, 1.0f, 1.0f);
+                //let ambient = vec3(1.0f, 1.0f, 1.0f);
+                //diff(i) = vec3(1.0f, 1.0f, 1.0f);
                 spec(i) = vec3(1.0f, 1.0f, 1.0f);
 
                 @accumulate(i, vec3_mul(ambient, mat.ka));
