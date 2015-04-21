@@ -64,7 +64,7 @@ void Scene::compile() const {
             
             sync_.textures[id].width  = textures_[id]->width();
             sync_.textures[id].height = textures_[id]->height();
-            sync_.textures[id].stride = textures_[id]->stride();
+            sync_.textures[id].levels = textures_[id]->levels();
             sync_.textures[id].pixels = textures_[id]->pixels();
         }
         sync_.dirty_textures.clear();

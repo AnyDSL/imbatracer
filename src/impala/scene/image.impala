@@ -9,20 +9,23 @@ struct TexturePixel {
 struct Texture {
     width: int,
     height: int,
-    stride: int,
+    levels: int,
     pixels: &[TexturePixel]
 }
 
-fn write_texture(x : int, y : int, tex: &Texture, pixel: TexturePixel) -> () {
-    let p = tex.pixels as u64 + (y * tex.stride) as u64;
-    let mut row = p as &[TexturePixel];
-    row(x) = pixel;
+fn level_offset(width: int, height: int, level: int) -> int {
+    let s = width * height;
+    4 * (s - (s >> (2 * level))) / 3
 }
 
-fn read_texture(x : int, y : int, tex: &Texture) -> TexturePixel {
-    let p = tex.pixels as u64 + (y * tex.stride) as u64;
-    let row = p as &[TexturePixel];
-    row(x)
+fn write_texture(x: int, y: int, level: int, mut tex: &Texture, pixel: TexturePixel) -> () {
+    tex.pixels(level_offset(tex.width, tex.height, level) +
+               (y >> level) * (tex.width >> level) + (x >> level)) = pixel;
+}
+
+fn read_texture(x: int, y: int, level: int, tex: &Texture) -> TexturePixel {
+    tex.pixels(level_offset(tex.width, tex.height, level) +
+               (y >> level) * (tex.width >> level) + (x >> level))
 }
 
 struct GBufferPixel {
@@ -36,20 +39,18 @@ struct GBufferPixel {
 struct GBuffer {
     width: int,
     height: int,
-    stride: int,
+    levels: int,
     buffer: &[GBufferPixel]
 }
 
-fn write_gbuffer(x : int, y : int, buf: &GBuffer, pixel: GBufferPixel) -> () {
-    let p = buf.buffer as u64 + (y * buf.stride) as u64;
-    let mut row = p as &[GBufferPixel];
-    row(x) = pixel;
+fn write_gbuffer(x: int, y : int, level: int, mut buf: &GBuffer, pixel: GBufferPixel) -> () {
+    buf.buffer(level_offset(buf.width, buf.height, level) +
+               (y >> level) * (buf.width >> level) + (x >> level)) = pixel;
 }
 
-fn read_gbuffer(x : int, y : int, buf: &GBuffer) -> GBufferPixel {
-    let p = buf.buffer as u64 + (y * buf.stride) as u64;
-    let row = p as &[GBufferPixel];
-    row(x)
+fn read_gbuffer(x: int, y: int, level: int, buf: &GBuffer) -> GBufferPixel {
+    buf.buffer(level_offset(buf.width, buf.height, level) +
+               (y >> level) * (buf.width >> level) + (x >> level))
 }
 
 struct BoundaryHandling {
@@ -60,8 +61,8 @@ struct BoundaryHandling {
 }
 
 static bh_repeat = BoundaryHandling {
-    bottom: |y, h| { h + y % h },
-    left:   |x, w| { w + x % w },
+    bottom: |y, h| { h + y % h - 1},
+    left:   |x, w| { w + x % w - 1},
     top:    |y, h| { y % h },
     right:  |x, w| { x % w }
 };
@@ -74,7 +75,7 @@ static bh_clamp = BoundaryHandling {
 };
 
 // Bilinearly interpolates pixels on a texture (u, v in [0, 1], and (0,0) is bottom left corner)
-fn bilinear_interpolation(tex: &Texture, uv: Vec2, bh: BoundaryHandling) -> TexturePixel @{
+fn bilinear_interpolation(tex: &Texture, level: int, uv: Vec2, bh: BoundaryHandling) -> TexturePixel @{
     let px = uv.values(0) * (tex.width  as float) - 0.5f;
     let py = (1.0f - uv.values(1)) * (tex.height as float) - 0.5f;
 
@@ -93,7 +94,7 @@ fn bilinear_interpolation(tex: &Texture, uv: Vec2, bh: BoundaryHandling) -> Text
         if y >= tex.height { by = bh.top(y, tex.height) }
 
         assert(|| {bx >= 0 && bx < tex.width && by >=0 && by < tex.height}, "bilinear_interpolation : invalid boundary handling");
-        read_texture(bx, by, tex)
+        read_texture(bx, by, level, tex)
     }
 
     let c0 = pixel(x0, y0);
@@ -115,6 +116,28 @@ fn bilinear_interpolation(tex: &Texture, uv: Vec2, bh: BoundaryHandling) -> Text
            ky  * (ikx * c2.b + kx * c3.b),
         a: iky * (ikx * c0.a + kx * c1.a) +
            ky  * (ikx * c2.a + kx * c3.a)
+    }
+}
+
+// Samples a mipmap with trilinear interpolation. The lod level is given as a floating point value between 0 and 1
+fn sample_mipmap(tex: &Texture, d: float, uv: Vec2, bh: BoundaryHandling) -> TexturePixel @{
+    assert(|| {fabsf(d) <= 1.0f}, "sample_mipmap : invalid lod level");
+
+    let lod = d * ((tex.levels - 1) as float);
+    let l0 = floorf(lod) as int;
+    let l1 = if l0 >= (tex.levels - 1) { tex.levels - 1 } else { l0 + 1 };
+
+    let c0 = bilinear_interpolation(tex, l0, uv, bh);
+    let c1 = bilinear_interpolation(tex, l1, uv, bh);
+
+    let k = lod - l0 as float;
+    let ik = 1.0f - k;
+
+    TexturePixel {
+        r: ik * c0.r + k * c1.r,
+        g: ik * c0.g + k * c1.g,
+        b: ik * c0.b + k * c1.b,
+        a: ik * c0.a + k * c1.a
     }
 }
 
@@ -150,28 +173,6 @@ fn sample_cubemap(mut textures: &[Texture], cube: &[int * 6], dir: Vec3) -> Text
     let u = (dir.values(axis_u) * (sign_u as float) / abs.values(max) + 1.0f) * 0.5f;
     let v = (dir.values(axis_v) * (sign_v as float) / abs.values(max) + 1.0f) * 0.5f;
 
-    bilinear_interpolation(&textures(tex_id), vec2(u, v), bh_clamp)
-}
-
-// Samples a mipmap with trilinear interpolation. The lod level is given as a floating point value between 0 and 1 
-fn sample_mipmap(mut textures: &[Texture], base: int, n: int, d: float, uv: Vec2, bh: BoundaryHandling) -> TexturePixel @{
-    assert(|| {fabsf(d) <= 1.0f}, "sample_mipmap : invalid lod level");
-
-    let lod = d * ((n - 1) as float);
-    let l0 = floorf(lod) as int;
-    let l1 = if l0 >= (n - 1) { n - 1 } else { l0 + 1 };
-
-    let c0 = bilinear_interpolation(&textures(base + l0), uv, bh);
-    let c1 = bilinear_interpolation(&textures(base + l1), uv, bh);
-
-    let k = lod - l0 as float;
-    let ik = 1.0f - k;
-
-    TexturePixel {
-        r: ik * c0.r + k * c1.r,
-        g: ik * c0.g + k * c1.g,
-        b: ik * c0.b + k * c1.b,
-        a: ik * c0.a + k * c1.a
-    }
+    bilinear_interpolation(&textures(tex_id), 0, vec2(u, v), bh_clamp)
 }
 

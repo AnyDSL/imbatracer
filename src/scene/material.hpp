@@ -18,12 +18,9 @@ public:
         set_diffuse(d);
         set_specular(s);
         mat_.exp = exp;
-        mat_.tex_a[0] = tex_a.id;
-        mat_.tex_d[0] = tex_d.id;
-        mat_.tex_s[0] = tex_s.id;
-        mat_.tex_a[1] = -1;
-        mat_.tex_d[1] = -1;
-        mat_.tex_s[1] = -1;
+        mat_.tex_a = tex_a.id;
+        mat_.tex_d = tex_d.id;
+        mat_.tex_s = tex_s.id;
     }
 
     Vec3 ambient() const {
@@ -43,15 +40,15 @@ public:
     }
 
     int ambient_texture() const {
-        return mat_.tex_a[0];
+        return mat_.tex_a;
     }
 
     int diffuse_texture() const {
-        return mat_.tex_d[0];
+        return mat_.tex_d;
     }
 
     int specular_texture() const {
-        return mat_.tex_s[0];
+        return mat_.tex_s;
     }
 
     void set_ambient(const Vec3& a) {
@@ -76,19 +73,16 @@ public:
         mat_.exp = exp;
     }
 
-    void set_ambient_texture(TextureId tex_id, int levels = -1) {
-        mat_.tex_a[0] = tex_id.id;
-        mat_.tex_a[1] = levels;
+    void set_ambient_texture(TextureId tex_id) {
+        mat_.tex_a = tex_id.id;
     }
 
-    void set_diffuse_texture(TextureId tex_id, int levels = -1) {
-        mat_.tex_d[0] = tex_id.id;
-        mat_.tex_d[1] = levels;
+    void set_diffuse_texture(TextureId tex_id) {
+        mat_.tex_d = tex_id.id;
     }
 
     void set_specular_texture(TextureId tex_id, int levels = -1) {
-        mat_.tex_s[0] = tex_id.id;
-        mat_.tex_s[1] = levels;
+        mat_.tex_s = tex_id.id;
     }
 
 private:

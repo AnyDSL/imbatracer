@@ -39,10 +39,15 @@ bool ObjLoader::load_file(const Path& path, Scene& scene, Logger* logger) {
     auto load_map = [this, &tex_map, &logger, &scene, path] (const std::string& name) {
         TextureId tex_id;
         if (name.empty()) return tex_id;
+
         if (tex_map.find(name) == tex_map.end()) {
             Texture tex;
             if (load_texture(Path(path.base_name() + "/" + name), tex, logger)) {
                 tex_id = scene.new_texture(std::move(tex));
+                auto tex = scene.texture(tex_id);
+                if (is_pow2(tex->width()) && is_pow2(tex->height())) {
+                    generate_mipmaps(*tex.get());
+                }
             }
             tex_map[name] = tex_id;
         } else {
@@ -71,13 +76,13 @@ bool ObjLoader::load_file(const Path& path, Scene& scene, Logger* logger) {
                 map_ka = mat.map_ka;
             }
 
-            scene.new_material(Vec3(mat.ka[0], mat.ka[1], mat.ka[2]),
-                               Vec3(mat.kd[0], mat.kd[1], mat.kd[2]),
-                               Vec3(mat.ks[0], mat.ks[1], mat.ks[2]),
-                               mat.ns,
-                               load_map(map_ka),
-                               load_map(mat.map_kd),
-                               load_map(mat.map_ks));
+            auto id = scene.new_material(Vec3(mat.ka[0], mat.ka[1], mat.ka[2]),
+                                         Vec3(mat.kd[0], mat.kd[1], mat.kd[2]),
+                                         Vec3(mat.ks[0], mat.ks[1], mat.ks[2]),
+                                         mat.ns,
+                                         load_map(mat.map_ka),
+                                         load_map(mat.map_kd),
+                                         load_map(mat.map_ks));
         }
     }
 
@@ -173,7 +178,7 @@ bool ObjLoader::load_file(const Path& path, Scene& scene, Logger* logger) {
         scene.new_instance(mesh_id);
     }
 
-    std::array<imba::TextureId, 6> cubemap;
+    /*std::array<imba::TextureId, 6> cubemap;
     const char* axis_names[3] = {"x", "y", "z"};
     const char* dir_names[2] = {"neg", "pos"};
     bool failed = false;
@@ -190,9 +195,14 @@ bool ObjLoader::load_file(const Path& path, Scene& scene, Logger* logger) {
         }
     }
     if (!failed)
-        scene.set_background(cubemap);
+        scene.set_background(cubemap);*/
 
-    scene.new_light(Vec3(0.0f, 1000.0f, 0.0f), Vec3(600000.0f, 600000.0f, 600000.0f));//, imba::normalize(Vec3(0.0f, 1.0f, 0.0f)), 15.0f, 1.0f);
+    /*imba::Texture tex;
+    if (load_texture(Path(path.base_name() + "/nicolas.png"), tex, logger)) {
+        scene.set_background(scene.new_texture(std::move(tex)));
+    }*/
+
+    scene.new_light(Vec3(0.0f, 50.0f, 0.0f), Vec3(6000.0f, 6000.0f, 6000.0f));//, imba::normalize(Vec3(0.0f, 1.0f, 0.0f)), 15.0f, 1.0f);
 
     return true;
 }

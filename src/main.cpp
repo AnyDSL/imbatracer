@@ -92,8 +92,8 @@ int main(int argc, char** argv) {
 
     if (device) {
         // TODO : use a shader instead of this camera def.
-        device->set_perspective(imba::Vec3(0.0f, 10.0f, 20.0f),
-                                imba::Vec3(0.0f, 0.0f, 0.0f),
+        device->set_perspective(imba::Vec3(0.0f, 5.0f, 20.0f),
+                                imba::Vec3(0.0f, 0.0f, 10.0f),
                                 imba::Vec3(0.0f, 1.0f, 0.0f),
                                 60.0f,
                                 (float)image_width / (float)image_height);

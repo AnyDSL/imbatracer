@@ -33,7 +33,7 @@ fn render_gbuffer_bvh_scene(scene: &Scene, comp: &CompiledBvhScene, cam: &Camera
                 for j in range(0, packet_width(&p)) @{
                     let k = packet_ray_id(&p, j, i);
                     
-                    write_gbuffer(x + j, y + i, gbuffer, GBufferPixel {
+                    write_gbuffer(x + j, y + i, 0, gbuffer, GBufferPixel {
                         t: hit.t(k),
                         u: hit.u(k),
                         v: hit.v(k),
@@ -74,23 +74,23 @@ fn render_texture_bvh_scene(mut scene: &Scene, comp: &CompiledBvhScene, cam: &Ca
             // Add a final touch : background or cube map
             if scene.bg_type > 0 {
                 if scene.bg_type == bg_cubemap {
-                    for i in range(0, packet_height(&p)) @{
+                    for i in range(0, packet_height(&p)) {
                         for j in range(0, packet_width(&p)) @{
                             let id = packet_ray_id(&p, j, i);
-                            if hit_tri(&hit, id) < 0 {
+                            if hit_tri(&hit, id) < 0 @{
                                 let pix = sample_cubemap(scene.textures, &scene.bg_texid, packet_dir(&p, id));
                                 color(id) = vec3(pix.r, pix.g, pix.b)
                             }
                         }
                     }
                 } else if scene.bg_type == bg_image {
-                    for i in range(0, packet_height(&p)) @{
+                    for i in range(0, packet_height(&p)) {
                         for j in range(0, packet_width(&p)) @{
                             let id = packet_ray_id(&p, j, i);
                             if hit_tri(&hit, id) < 0 {
                                 let u = (x + j) as float / (texture.width  as float);
                                 let v = 1.0f - (y + i) as float / (texture.height as float);
-                                let pix = bilinear_interpolation(&scene.textures(scene.bg_texid(0)), vec2(u, v), bh_clamp);
+                                let pix = bilinear_interpolation(&scene.textures(scene.bg_texid(0)), 0, vec2(u, v), bh_clamp);
                                 color(id) = vec3(pix.r, pix.g, pix.b)
                             }
                         }
@@ -103,7 +103,7 @@ fn render_texture_bvh_scene(mut scene: &Scene, comp: &CompiledBvhScene, cam: &Ca
             for i in range(0, packet_height(&p)) @{
                 for j in range(0, packet_width(&p)) @{
                     let c = color(packet_ray_id(&p, j, i));
-                    write_texture(x + j, y + i, texture, TexturePixel {
+                    write_texture(x + j, y + i, 0, texture, TexturePixel {
                         r: c.values(0),
                         g: c.values(1),
                         b: c.values(2),

@@ -8,6 +8,10 @@ namespace imba {
 
 static const float pi = 3.14159265359f;
 
+inline bool is_pow2(int i) {
+    return ((i - 1) & i) == 0;
+}
+
 inline float to_radians(float x) {
     return x * pi / 180.0f;
 }

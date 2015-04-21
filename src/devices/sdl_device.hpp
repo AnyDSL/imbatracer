@@ -19,9 +19,9 @@ public:
 
 private:
     void render_surface(const Scene& scene);
-    bool handle_events(bool);
+    bool handle_events(bool, Logger&);
 
-    float speed_;
+    float rspeed_, tspeed_;
     float ratio_, fov_, dist_;
     Vec3 forward_;
     Vec3 eye_;

@@ -21,10 +21,6 @@ imba::Camera Render::perspective_camera(Vec3 eye, Vec3 center, Vec3 up, float fo
     Vec3 r = normalize(cross(d, up));
     Vec3 u = cross(r, d);
 
-    assert_normalized(d);
-    assert_normalized(r);
-    assert_normalized(u);    
-
     float f = l * tanf(to_radians(fov / 2));
 
     setv(camera.right, r * f * ratio);
@@ -37,7 +33,7 @@ void Render::render_gbuffer(const Scene& scene, const Camera& camera, GBuffer& o
     ::GBuffer buf;
     buf.width  = output.width();
     buf.height = output.height();
-    buf.stride = output.stride();
+    buf.levels = output.levels();
     buf.buffer = output.pixels();
     ::render_gbuffer(const_cast<::Scene*>(scene.sync_.scene_data.get()),
                      const_cast<::CompiledScene*>(scene.sync_.comp_scene.get()),
@@ -48,7 +44,7 @@ void Render::render_texture(const Scene& scene, const Camera& camera, Texture& o
     ::Texture tex;
     tex.width  = output.width();
     tex.height = output.height();
-    tex.stride = output.stride();
+    tex.levels = output.levels();
     tex.pixels = output.pixels();
     ::render_texture(const_cast<::Scene*>(scene.sync_.scene_data.get()),
                      const_cast<::CompiledScene*>(scene.sync_.comp_scene.get()),

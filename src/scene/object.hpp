@@ -14,8 +14,8 @@ enum class SceneObject {
 template <SceneObject Object>
 struct SceneObjectId {
     SceneObjectId() : id(-1) {}
-    SceneObjectId(int i) : id(i) {}
-    operator bool () const { return id >= 0; }
+    explicit SceneObjectId(int i) : id(i) {}
+    explicit operator bool () const { return id >= 0; }
     int id;
 };
 

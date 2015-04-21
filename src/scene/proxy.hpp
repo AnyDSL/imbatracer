@@ -32,6 +32,10 @@ public:
         return SceneAccess<T>::read_write(scene_, id_);
     }
 
+    T* get() {
+        return SceneAccess<T>::read_write(scene_, id_);
+    }
+
     const T* get() const {
         return SceneAccess<T>::read_only(scene_, id_);
     }

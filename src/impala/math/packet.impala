@@ -313,6 +313,68 @@ fn transform_packet(p: &Packet, mut tp: &Packet, mat: &Mat4, inv_mat: &Mat4) -> 
     }
 }
 
+// Compute ray differentials for the given ray in the packet. Result is stored in du and dv.
+fn compute_differentials(packet: &Packet, i: int, p: Vec3, n: Vec3, dpdu: Vec3, dpdv: Vec3, mut du : &Vec2, mut dv : &Vec2) -> () {
+    let d = vec3_dot(p, n);
+
+    fn intersect_plane(r: Ray) -> float {
+        (d - vec3_dot(r.org, n)) / vec3_dot(r.dir, n)
+    }
+
+    // Get the intersection between the differential rays and the surface plane
+    let rx = packet_diff_x(packet, i);
+    let ry = packet_diff_y(packet, i);
+    let tx = intersect_plane(rx);
+    let ty = intersect_plane(ry);
+    let px = vec3_add(rx.org, vec3_mulf(rx.dir, tx));
+    let py = vec3_add(ry.org, vec3_mulf(ry.dir, ty));
+
+    let dpdx = vec3_sub(px, p);
+    let dpdy = vec3_sub(py, p);
+
+    // Find correct equations
+    let axes = if fabsf(n.values(0)) > fabsf(n.values(1)) &&
+       fabsf(n.values(0)) > fabsf(n.values(2)) {
+        [1, 2]
+    } else if fabsf(n.values(1)) > fabsf(n.values(2)) {
+        [0, 2]
+    } else {
+        [0, 1]
+    };
+
+    // Solve linear systems to get the differential
+    let a = [dpdu.values(axes(0)), dpdv.values(axes(0)),
+             dpdu.values(axes(1)), dpdv.values(axes(1))];
+
+    fn solve_system(b: [float * 2], s: fn (float, float) -> (), ns: fn() -> ()) -> () {
+        let det = a(0) * a(3) - a(1) * a(2);
+        if fabsf(det) < 0.001f {
+            ns()
+        } else {
+            let idet = 1.0f / det;
+            s((b(0) * a(3) - a(1) * b(1)) * idet,
+              (a(0) * b(1) - b(0) * a(2)) * idet)
+        }
+    }
+
+    solve_system([px.values(axes(0)) - p.values(axes(0)),
+                  px.values(axes(1)) - p.values(axes(1))], |dudx, dvdx| {
+        du.values(0) = dudx;
+        dv.values(0) = dvdx;
+    }, || {
+        du.values(0) = 0.0f;
+        dv.values(0) = 0.0f;
+    });
+    solve_system([py.values(axes(0)) - p.values(axes(0)),
+                  py.values(axes(1)) - p.values(axes(1))], |dudy, dvdy| {
+        du.values(1) = dudy;
+        dv.values(1) = dvdy;
+    }, || {
+        du.values(1) = 0.0f;
+        dv.values(1) = 0.0f;
+    });
+}
+
 fn record_hit(mut h: &Hit, i: int, t: float, u: float, v: float, inst_id: int, tri_id: int) -> () {
     h.t(i) = t;
     h.u(i) = u;

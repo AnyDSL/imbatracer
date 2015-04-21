@@ -5,7 +5,7 @@
 namespace imba {
 
 SdlDevice::SdlDevice()
-    : screen_(nullptr), speed_(0.005f)
+    : screen_(nullptr), rspeed_(0.005f), tspeed_(1.0f)
 {
     SDL_Init(SDL_INIT_VIDEO);
 }
@@ -37,7 +37,7 @@ bool SdlDevice::render(const Scene& scene, int width, int height, Logger& logger
     }
 
     // Flush input events (discard first mouse move event)
-    handle_events(true);
+    handle_events(true, logger);
 
     bool done = false;
     int frames = 0;
@@ -54,7 +54,8 @@ bool SdlDevice::render(const Scene& scene, int width, int height, Logger& logger
         render_surface(scene);
 
         SDL_Flip(screen_);
-        done = handle_events(false);
+        done = handle_events(false, logger);
+
         frames++;
     }
 
@@ -86,7 +87,7 @@ void SdlDevice::render_surface(const Scene& scene) {
     SDL_UnlockSurface(screen_);
 }
 
-bool SdlDevice::handle_events(bool flush) {
+bool SdlDevice::handle_events(bool flush, Logger& logger) {
     SDL_Event event;
 
     while (SDL_PollEvent(&event)) {
@@ -95,18 +96,25 @@ bool SdlDevice::handle_events(bool flush) {
             case SDL_MOUSEMOTION:
                 {
                     right_ = cross(forward_, up_);
-                    forward_ = rotate(forward_, right_, -event.motion.yrel * speed_);
-                    forward_ = rotate(forward_, up_,    -event.motion.xrel * speed_);
+                    forward_ = rotate(forward_, right_, -event.motion.yrel * rspeed_);
+                    forward_ = rotate(forward_, up_,    -event.motion.xrel * rspeed_);
                     forward_ = normalize(forward_);
                     up_ = normalize(cross(right_, forward_));
                 }
                 break;
             case SDL_KEYDOWN:
                 switch (event.key.keysym.sym) {
-                    case SDLK_UP:    eye_ = eye_ + forward_; break;
-                    case SDLK_DOWN:  eye_ = eye_ - forward_; break;
-                    case SDLK_LEFT:  eye_ = eye_ - right_;   break;
-                    case SDLK_RIGHT: eye_ = eye_ + right_;   break;
+                    case SDLK_UP:    eye_ = eye_ + tspeed_ * forward_; break;
+                    case SDLK_DOWN:  eye_ = eye_ - tspeed_ * forward_; break;
+                    case SDLK_LEFT:  eye_ = eye_ - tspeed_ * right_;   break;
+                    case SDLK_RIGHT: eye_ = eye_ + tspeed_ * right_;   break;
+                    case SDLK_KP_PLUS:  tspeed_ *= 1.1f; break;
+                    case SDLK_KP_MINUS: tspeed_ /= 1.1f; break;
+                    case SDLK_c:
+                        logger.log("Eye : ", eye_);
+                        logger.log("Center : ", eye_ + dist_ * forward_);
+                        logger.log("Up : ", up_);
+                        break;
                     case SDLK_ESCAPE:
                         return true;
                 }
