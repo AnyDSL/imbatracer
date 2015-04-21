@@ -1,6 +1,8 @@
 #include <iostream>
 #include <vector>
 
+#include <thorin_runtime.h>
+
 #include "bench.hpp"
 #include "bench_ray_triangle.hpp"
 #include "bench_ray_box.hpp"
@@ -94,6 +96,9 @@ int main(int argc, char** argv) {
         }
     }
 
+    // initialize AnyDSL runtime
+    thorin_init();
+
     std::cout << "starting benchmarks..." << std::endl;
     for (auto b : benches) {
         b->run_verbose();
@@ -101,6 +106,9 @@ int main(int argc, char** argv) {
                   << b->milliseconds() << " ms"
                   << std::endl;
     }
+
+    // print total timing on accelerator devices
+    thorin_print_total_timing();
 
     return EXIT_SUCCESS;
 }
