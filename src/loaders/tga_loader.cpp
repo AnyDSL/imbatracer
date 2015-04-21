@@ -1,4 +1,5 @@
 #include <png.h>
+#include <string.h>
 #include <cassert>
 #include "tga_loader.hpp"
 
