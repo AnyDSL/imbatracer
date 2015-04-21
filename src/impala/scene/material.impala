@@ -5,7 +5,8 @@ struct Material {
     exp: float,
     tex_a: int,
     tex_d: int,
-    tex_s: int
+    tex_s: int,
+    tex_t: int
 }
 
 fn sample_texture(mut textures: &[Texture], tex_id: int, st: Vec2, dstdx: Vec2, dstdy: Vec2, bh: BoundaryHandling) -> Vec3 @{
@@ -13,12 +14,10 @@ fn sample_texture(mut textures: &[Texture], tex_id: int, st: Vec2, dstdx: Vec2, 
         let tex = &textures(tex_id);
         if tex.levels > 1 @{
             // Trilinear interpolation between mipmap levels
-            fn max(a: float, b: float) -> float { if a > b { a } else { b } }
-            fn min(a: float, b: float) -> float { if a < b { a } else { b } }
             let size = (tex.width * tex.height) as float;
-            let dmax = size * max(vec2_lensq(dstdx), vec2_lensq(dstdy));
+            let dmax = size * maxf(vec2_lensq(dstdx), vec2_lensq(dstdy));
             let bias = 0.025f;
-            let d = min(1.0f, max(0.0f, bias + 0.5f * log2f(dmax) / (tex.levels as float)));
+            let d = minf(1.0f, maxf(0.0f, bias + 0.5f * log2f(dmax) / (tex.levels as float)));
             let c = sample_mipmap(tex, d, st, bh);
             vec3(c.a * c.r, c.a * c.g, c.a * c.b)
         } else @{
@@ -86,6 +85,7 @@ fn evaluate_material_bvh(p: &Packet, h: &Hit, mut scene: &Scene, comp: &Compiled
 
     let mut diff : [Vec3 * 64];
     let mut spec : [Vec3 * 64];
+    let mut shiny : [float * 64];
 
     // Ambient light contribution & diffuse/spec param. computation
     for i in range(0, packet_size(p)) @{
@@ -137,10 +137,12 @@ fn evaluate_material_bvh(p: &Packet, h: &Hit, mut scene: &Scene, comp: &Compiled
                 @accumulate(i, vec3_mul(ambient, mat.ka));
                 diff(i) = vec3_mul(diff(i), mat.kd);
                 spec(i) = vec3_mul(spec(i), mat.ks);
+                shiny(i) = mat.exp;
             } else {
                 @accumulate(i, mat.ka);
                 diff(i) = mat.kd;
                 spec(i) = mat.ks;
+                shiny(i) = mat.exp;
             }
         }
     }
@@ -162,10 +164,17 @@ fn evaluate_material_bvh(p: &Packet, h: &Hit, mut scene: &Scene, comp: &Compiled
                 frontfacing(i, packet_dir(&sp, i), || {
                     if tri_id >= 0 && hit_tri(&sh, i) < 0 @{
                         let t = hit_t(h, i);
-                        let p = vec3_add(vec3_map(packet_dir(p, i), |x| x * t), packet_org(p, i));
-                        let sp = vec3_add(packet_dir(&sp, i), packet_org(&sp, i));
-                        let k = vec3_map(evaluate_light(&scene.lights(j), sp, p, normals(i)), |x| x * f);
-                        accumulate(i, vec3_mul(diff(i), k));
+                        let intr   = vec3_add(vec3_mulf(packet_dir(p, i), t), packet_org(p, i));
+                        let intr_s = vec3_add(packet_dir(&sp, i), packet_org(&sp, i));
+                        let intensity = evaluate_light(&scene.lights(j), intr_s, intr, normals(i));
+
+                        let view = vec3_norm(packet_dir(p, i));
+                        let reflect = vec3_reflect(vec3_norm(packet_dir(&sp, i)), normals(i));
+                        let cos_view = -vec3_dot(view, reflect);
+                        let ks = powf(maxf(0.0f, cos_view), shiny(i));
+
+                        let brdf = vec3_add(diff(i), vec3_mulf(spec(i), ks));
+                        accumulate(i, vec3_mul(intensity, vec3_mulf(brdf, f)));
                     }
                     continue()
                 });

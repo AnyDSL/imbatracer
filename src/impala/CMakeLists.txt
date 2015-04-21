@@ -10,7 +10,7 @@ set(IMPALA_SRCS
     math/matrix.impala
     math/vector.impala
     math/triangle.impala
-    math/limits.impala
+    math/float.impala
     math/packet.impala
     math/frustum.impala
     math/random.impala

@@ -27,6 +27,6 @@ fn ray_inv_from_ray(r: Ray) -> RayInv {
 }
 
 fn ray_reflect(r: Ray, p: Vec3, n: Vec3) -> Ray {
-    ray(vec3_sub(r.dir, vec3_mulf(n, 2.0f * vec3_dot(n, r.dir))), p)
+    ray(vec3_reflect(r.dir, n), p)
 }
 

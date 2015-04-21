@@ -94,6 +94,10 @@ fn vec3_norm(v: Vec3) -> Vec3 {
     vec3_map(v, |x| x * s)
 }
 
+fn vec3_reflect(d: Vec3, n: Vec3) -> Vec3 {
+    vec3_sub(vec3_mulf(n, 2.0f * vec3_dot(n, d)), d)
+}
+
 fn vec4_map(v: Vec4, f: fn (float) -> float) -> Vec4 {
     vec4(f(v.values(0)), f(v.values(1)), f(v.values(2)), f(v.values(3)))
 }

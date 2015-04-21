@@ -13,7 +13,8 @@ public:
              float exp = 0.0f,
              TextureId tex_a = TextureId(),
              TextureId tex_d = TextureId(),
-             TextureId tex_s = TextureId()) {
+             TextureId tex_s = TextureId(),
+             TextureId tex_t = TextureId()) {
         set_ambient(a);
         set_diffuse(d);
         set_specular(s);
@@ -21,6 +22,7 @@ public:
         mat_.tex_a = tex_a.id;
         mat_.tex_d = tex_d.id;
         mat_.tex_s = tex_s.id;
+        mat_.tex_t = tex_t.id;
     }
 
     Vec3 ambient() const {
@@ -81,8 +83,12 @@ public:
         mat_.tex_d = tex_id.id;
     }
 
-    void set_specular_texture(TextureId tex_id, int levels = -1) {
+    void set_specular_texture(TextureId tex_id) {
         mat_.tex_s = tex_id.id;
+    }
+
+    void set_transparency_texture(TextureId tex_id) {
+        mat_.tex_t = tex_id.id;
     }
 
 private:

@@ -202,7 +202,7 @@ bool ObjLoader::load_file(const Path& path, Scene& scene, Logger* logger) {
         scene.set_background(scene.new_texture(std::move(tex)));
     }*/
 
-    scene.new_light(Vec3(0.0f, 50.0f, 0.0f), Vec3(6000.0f, 6000.0f, 6000.0f));//, imba::normalize(Vec3(0.0f, 1.0f, 0.0f)), 15.0f, 1.0f);
+    scene.new_light(Vec3(0.0f, 50.0f, 0.0f), Vec3(2000.0f, 2000.0f, 2000.0f));//, imba::normalize(Vec3(0.0f, 1.0f, 0.0f)), 15.0f, 1.0f);
 
     return true;
 }
@@ -419,7 +419,7 @@ bool ObjLoader::parse_mtl_stream(std::istream& stream, std::unordered_map<std::s
                 mat.kd[0] = std::strtof(ptr + 3, &ptr);
                 mat.kd[1] = std::strtof(ptr, &ptr);
                 mat.kd[2] = std::strtof(ptr, &ptr);
-            } else if (ptr[2] == 's' && std::isspace(ptr[2])) {
+            } else if (ptr[1] == 's' && std::isspace(ptr[2])) {
                 Material& mat = current_material();
                 mat.ks[0] = std::strtof(ptr + 3, &ptr);
                 mat.ks[1] = std::strtof(ptr, &ptr);
