@@ -148,6 +148,19 @@ inline void generate_mipmaps(Texture& tex) {
     }
 }
 
+/// Transforms the texture into a grayscale image.
+inline Texture grayscale(const Texture& tex) {
+    Texture res(tex.width(), tex.height());
+
+    for (int i = 0; i < tex.width() * tex.height(); i++) {
+        const TexturePixel* in = tex.pixels() + i;
+        TexturePixel* out = res.pixels() + i;
+        out->r = out->g = out->b = out->a = (in->r + in->g + in->b) * (1.0f / 3.0f);
+    }
+
+    return res;
+}
+
 } // namespace imba
 
 #endif // IMBA_IMAGE_HPP

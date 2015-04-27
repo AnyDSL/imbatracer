@@ -3,6 +3,7 @@
 
 #include <cmath>
 #include <ostream>
+#include <cassert>
 
 namespace imba {
 
@@ -45,13 +46,13 @@ struct Vec2 {
     }
 
     float operator[] (int i) const {
-        return v[i];    
+        return v[i];
     }
 
     float& operator[] (int i) {
-        return v[i];    
+        return v[i];
     }
-    
+
     float v[2];
 };
 
@@ -136,13 +137,13 @@ struct Vec3 {
     }
 
     float operator[] (int i) const {
-        return v[i];    
+        return v[i];
     }
 
     float& operator[] (int i) {
-        return v[i];    
+        return v[i];
     }
-    
+
     float v[3];
 };
 
@@ -194,7 +195,7 @@ inline Vec3 rotate(const Vec3& v, const Vec3& axis, float angle) {
     q[1] = axis[1] * sinf(angle / 2);
     q[2] = axis[2] * sinf(angle / 2);
     q[3] = cosf(angle / 2);
-    
+
     float p[4];
     p[0] = q[3] * v[0] + q[1] * v[2] - q[2] * v[1];
     p[1] = q[3] * v[1] - q[0] * v[2] + q[2] * v[0];
@@ -257,13 +258,13 @@ struct Vec4 {
     }
 
     float operator[] (int i) const {
-        return v[i];    
+        return v[i];
     }
 
     float& operator[] (int i) {
-        return v[i];    
+        return v[i];
     }
-    
+
     float v[4];
 };
 
@@ -316,6 +317,18 @@ inline std::ostream& operator << (std::ostream& os, const Vec3& v) {
 inline std::ostream& operator << (std::ostream& os, const Vec4& v) {
     os << v[0] << " " << v[1] << " " << v[2] << " " << v[3];
     return os;
+}
+
+inline void assert_normalized(const Vec2& v) {
+    assert(fabs(length(v) - 1.0f) < 0.0001f);
+}
+
+inline void assert_normalized(const Vec3& v) {
+    assert(fabs(length(v) - 1.0f) < 0.0001f);
+}
+
+inline void assert_normalized(const Vec4& v) {
+    assert(fabs(length(v) - 1.0f) < 0.0001f);
 }
 
 } // namespace imba

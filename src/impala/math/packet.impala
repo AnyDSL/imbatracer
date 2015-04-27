@@ -15,6 +15,8 @@ struct Packet {
 
     frustum : Frustum,
 
+    mask : [bool * 64],
+
     sign : [int * 3],
     first_alive : int,
     last_alive: int
@@ -114,6 +116,30 @@ fn packet_alive(p: &Packet) -> bool {
     p.first_alive <= p.last_alive
 }
 
+fn packet_range_alive(p: &Packet, body: fn (int) -> ()) -> () {
+    for i in range(p.first_alive, p.last_alive + 1) {
+        if p.mask(i) {
+            body(i)
+        }
+    }
+}
+
+fn packet_range(p: &Packet, valid: fn (int) -> (), invalid: fn (int) -> ()) -> () {
+    for i in range(0, packet_size(p)) {
+        if p.mask(i) {
+            valid(i)
+        } else {
+            invalid(i)
+        }
+    }
+}
+
+fn packet_reset_mask(mut p: &Packet) -> () {
+    for i in range(0, packet_size(p)) {
+        p.mask(i) = false;
+    }
+}
+
 fn compute_alive(mut p: &Packet, h: &Hit) -> () {
     while p.first_alive <= p.last_alive && hit_tri(h, p.first_alive) > 0 {
         p.first_alive++;
@@ -124,29 +150,54 @@ fn compute_alive(mut p: &Packet, h: &Hit) -> () {
     }
 }
 
-fn generate_packet(mut p: &Packet, generate_ray: fn (int, int) -> Ray) -> () @{
+fn generate_packet(mut p: &Packet, generate_ray: fn (int, int, fn ()) -> Ray) -> () @{
     let mut ray_sign = [0, 0, 0];
 
     for i in range(0, packet_height(p)) @{
         for j in range(0, packet_width(p)) @{
             let k = i * packet_width(p) + j;
-            let ray = generate_ray(j, i);
 
-            ray_sign(0) += if ray.dir.values(0) > 0.0f {1} else {-1};
-            ray_sign(1) += if ray.dir.values(1) > 0.0f {1} else {-1};
-            ray_sign(2) += if ray.dir.values(2) > 0.0f {1} else {-1};
+            fn fill(r: Ray) {
+                ray_sign(0) += if r.dir.values(0) > 0.0f {1} else {-1};
+                ray_sign(1) += if r.dir.values(1) > 0.0f {1} else {-1};
+                ray_sign(2) += if r.dir.values(2) > 0.0f {1} else {-1};
 
-            p.dir_x(k) = ray.dir.values(0);
-            p.dir_y(k) = ray.dir.values(1);
-            p.dir_z(k) = ray.dir.values(2);
+                p.dir_x(k) = r.dir.values(0);
+                p.dir_y(k) = r.dir.values(1);
+                p.dir_z(k) = r.dir.values(2);
 
-            p.inv_x(k) = 1.0f / ray.dir.values(0);
-            p.inv_y(k) = 1.0f / ray.dir.values(1);
-            p.inv_z(k) = 1.0f / ray.dir.values(2);
+                p.inv_x(k) = 1.0f / r.dir.values(0);
+                p.inv_y(k) = 1.0f / r.dir.values(1);
+                p.inv_z(k) = 1.0f / r.dir.values(2);
 
-            p.org_x(k) = ray.org.values(0);
-            p.org_y(k) = ray.org.values(1);
-            p.org_z(k) = ray.org.values(2);
+                p.org_x(k) = r.org.values(0);
+                p.org_y(k) = r.org.values(1);
+                p.org_z(k) = r.org.values(2);
+
+                p.mask(k) = true;
+
+                continue()
+            }
+
+            fn skip() {
+                p.dir_x(k) = 0.0f;
+                p.dir_y(k) = 0.0f;
+                p.dir_z(k) = 0.0f;
+
+                p.inv_x(k) = 0.0f;
+                p.inv_y(k) = 0.0f;
+                p.inv_z(k) = 0.0f;
+
+                p.org_x(k) = 0.0f;
+                p.org_y(k) = 0.0f;
+                p.org_z(k) = 0.0f;
+
+                p.mask(k) = false;
+
+                continue()
+            }
+
+            generate_ray(j, i, skip, fill)
         }
     }
 
@@ -156,6 +207,54 @@ fn generate_packet(mut p: &Packet, generate_ray: fn (int, int) -> Ray) -> () @{
 
     p.first_alive = 0;
     p.last_alive = packet_size(p) - 1;
+}
+
+fn continue_packet(mut p: &Packet, mut h: &Hit, normals: &[Vec3], tmax: float, mask: fn(int) -> bool) -> () {
+    let mut first = packet_size(p);
+    let mut last  = 0;
+    let bias = 0.001f;
+
+    fn continue_ray(i: int) -> () {
+        let d = vec3_norm(packet_dir(p, i));
+        let off = bias + bias * maxf(0.0f, 1.0f + vec3_dot(normals(i), d));
+        let t = hit_t(h, i);
+        first = if first > i { i } else { first };
+        last  = if last  < i { i } else { last  };
+        p.org_x(i) = p.org_x(i) + t * p.dir_x(i) + off * d.values(0);
+        p.org_y(i) = p.org_y(i) + t * p.dir_y(i) + off * d.values(1);
+        p.org_z(i) = p.org_z(i) + t * p.dir_z(i) + off * d.values(2);
+
+        h.tri_id(i)  = -1;
+        h.inst_id(i) = -1;
+        h.t(i) = tmax;
+        h.u(i) = 0.0f;
+        h.v(i) = 0.0f;
+
+        p.mask(i) = true;
+    }
+
+    fn skip_ray(i: int) -> () {
+        p.org_x(i) = 0.0f;
+        p.org_y(i) = 0.0f;
+        p.org_z(i) = 0.0f;
+
+        p.dir_x(i) = 0.0f;
+        p.dir_y(i) = 0.0f;
+        p.dir_z(i) = 0.0f;
+
+        p.inv_x(i) = 0.0f;
+        p.inv_y(i) = 0.0f;
+        p.inv_z(i) = 0.0f;
+
+        p.mask(i) = false;
+    }
+
+    packet_range(p, continue_ray, continue_ray);/* |i| {
+        if mask(i) { continue_ray(i) } else { skip_ray(i) }
+    }, |i| { skip_ray(i) });*/
+
+    p.first_alive = first;
+    p.last_alive = last;
 }
 
 fn first_active(p: &Packet, h: &Hit, b: Box) -> int {
@@ -208,16 +307,14 @@ fn perspective_frustum(mut p: &Packet) -> () @{
     p.frustum.planes(3) = ray_plane(r2, r3);
 }
 
-fn shadow_frustum(mut p: &Packet, light_pos: Vec3, mask: fn (int) -> bool) -> () {
+fn shadow_frustum(mut p: &Packet, light_pos: Vec3) -> () {
     let mut min = light_pos;
     let mut max = light_pos;
 
-    for i in range(0, packet_size(p)) {
-        if mask(i) {
-            let org = packet_org(p, i);
-            min = vec3_min(min, org);
-            max = vec3_max(max, org);
-        }
+    for i in packet_range_alive(p) {
+        let org = packet_org(p, i);
+        min = vec3_min(min, org);
+        max = vec3_max(max, org);
     }
 
     let extents = vec3_sub(max, min);
@@ -241,19 +338,17 @@ fn shadow_frustum(mut p: &Packet, light_pos: Vec3, mask: fn (int) -> bool) -> ()
     p.frustum.planes(3).values(v) = -1.0f;
 }
 
-fn bounding_frustum(mut p: &Packet, h: &Hit, mask: fn (int) -> bool) -> () {
+fn bounding_frustum(mut p: &Packet, h: &Hit) -> () {
     let mut min = vec3(flt_max, flt_max, flt_max);
     let mut max = vec3(-flt_max, -flt_max, -flt_max);
 
-    for i in range(0, packet_size(p)) @{
-        if mask(i) {
-            let org = packet_org(p, i);
-            let end = vec3_add(org, vec3_mulf(packet_dir(p, i), hit_t(h, i)));
-            min = vec3_min(min, org);
-            min = vec3_min(min, end);
-            max = vec3_max(max, org);
-            max = vec3_max(max, end);
-        }
+    for i in packet_range_alive(p) @{
+        let org = packet_org(p, i);
+        let end = vec3_add(org, vec3_mulf(packet_dir(p, i), hit_t(h, i)));
+        min = vec3_min(min, org);
+        min = vec3_min(min, end);
+        max = vec3_max(max, org);
+        max = vec3_max(max, end);
     }
 
     let extents = vec3_sub(max, min);
@@ -280,7 +375,7 @@ fn bounding_frustum(mut p: &Packet, h: &Hit, mask: fn (int) -> bool) -> () {
 fn transform_packet(p: &Packet, mut tp: &Packet, mat: &Mat4, inv_mat: &Mat4) -> () @{
     let mut ray_sign = [0, 0, 0];
 
-    for i in range(p.first_alive, p.last_alive + 1) @{
+    packet_range(p, |i| {
         tp.org_x(i) = mat.c0.values(0) * p.org_x(i) + mat.c1.values(0) * p.org_y(i) + mat.c2.values(0) * p.org_z(i) + mat.c3.values(0);
         tp.org_y(i) = mat.c0.values(1) * p.org_x(i) + mat.c1.values(1) * p.org_y(i) + mat.c2.values(1) * p.org_z(i) + mat.c3.values(1);
         tp.org_z(i) = mat.c0.values(2) * p.org_x(i) + mat.c1.values(2) * p.org_y(i) + mat.c2.values(2) * p.org_z(i) + mat.c3.values(2);
@@ -296,7 +391,23 @@ fn transform_packet(p: &Packet, mut tp: &Packet, mat: &Mat4, inv_mat: &Mat4) -> 
         ray_sign(0) += if tp.dir_x(i) > 0.0f {1} else {-1};
         ray_sign(1) += if tp.dir_y(i) > 0.0f {1} else {-1};
         ray_sign(2) += if tp.dir_z(i) > 0.0f {1} else {-1};
-    }
+
+        tp.mask(i) = true;
+    }, |i| {
+        tp.org_x(i) = 0.0f;
+        tp.org_y(i) = 0.0f;
+        tp.org_z(i) = 0.0f;
+
+        tp.dir_x(i) = 0.0f;
+        tp.dir_y(i) = 0.0f;
+        tp.dir_z(i) = 0.0f;
+
+        tp.inv_x(i) = 0.0f;
+        tp.inv_y(i) = 0.0f;
+        tp.inv_z(i) = 0.0f;
+
+        tp.mask(i) = false;
+    });
 
     tp.sign(0) = if ray_sign(0) < 0 {1} else {0};
     tp.sign(1) = if ray_sign(1) < 0 {1} else {0};

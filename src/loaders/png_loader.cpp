@@ -24,7 +24,7 @@ bool PngLoader::check_format(const Path& path) {
 }
 
 bool PngLoader::load_file(const Path& path, Texture& texture, Logger* logger) {
-    std::ifstream file(path);
+    std::ifstream file(path, std::ifstream::binary);
     if (!file)
         return false;
 

@@ -1,5 +1,5 @@
 #include <png.h>
-#include <string.h>
+#include <cstring>
 #include <cassert>
 #include "tga_loader.hpp"
 
@@ -10,6 +10,7 @@ struct TgaHeader
     unsigned short width;
     unsigned short height;
     unsigned char bpp;
+    unsigned char desc;
 };
 
 enum TgaType {
@@ -22,10 +23,10 @@ inline TgaType check_signature(const char* sig) {
     const char raw_sig[12] = {0,0,2, 0,0,0,0,0,0,0,0,0};
     const char comp_sig[12] = {0,0,10,0,0,0,0,0,0,0,0,0};
 
-    if (!memcmp(sig, raw_sig, sizeof(char) * 12))
+    if (!std::memcmp(sig, raw_sig, sizeof(char) * 12))
         return TGA_RAW;
 
-    if (!memcmp(sig, comp_sig, sizeof(char) * 12))
+    if (!std::memcmp(sig, comp_sig, sizeof(char) * 12))
         return TGA_COMP;
 
     return TGA_NONE;
@@ -97,6 +98,8 @@ static void load_compressed(const TgaHeader& tga, std::istream& stream, Texture&
         stream.read((char*)&chunk, 1);
 
         if (chunk < 128) {
+            chunk++;
+
             char pixels[4 * 128];
             stream.read(pixels, chunk * (tga.bpp / 8));
             if (cur_pix + chunk > pix_count) chunk = pix_count - cur_pix;
@@ -110,8 +113,8 @@ static void load_compressed(const TgaHeader& tga, std::istream& stream, Texture&
             cur_pix += chunk;
         } else {
             chunk -= 127;
-            char tga_pix[4];
-            stream.read(tga_pix, (tga.bpp / 8));
+            unsigned char tga_pix[4];
+            stream.read((char*)tga_pix, (tga.bpp / 8));
 
             if (cur_pix + chunk > pix_count) chunk = pix_count - cur_pix;
 
@@ -138,7 +141,7 @@ static void load_compressed(const TgaHeader& tga, std::istream& stream, Texture&
 }
 
 bool TgaLoader::load_file(const Path& path, Texture& texture, Logger* logger) {
-    std::ifstream file(path);
+    std::ifstream file(path, std::ifstream::binary);
     if (!file)
         return false;
 
@@ -155,13 +158,17 @@ bool TgaLoader::load_file(const Path& path, Texture& texture, Logger* logger) {
 
     if(header.width <= 0 || header.height <= 0 ||
        (header.bpp != 24 && header.bpp !=32)) {
-        return false;    
+        return false;
     }
 
     if (type == TGA_RAW) {
         load_raw(header, file, texture, logger);
     } else {
         load_compressed(header, file, texture, logger);
+    }
+
+    if (logger) {
+        logger->log("TGA image (", header.width, "x", header.height, " pixels)");
     }
 
     return true;

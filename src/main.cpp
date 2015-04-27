@@ -92,11 +92,22 @@ int main(int argc, char** argv) {
 
     if (device) {
         // TODO : use a shader instead of this camera def.
-        device->set_perspective(imba::Vec3(0.0f, 5.0f, 20.0f),
+        /*device->set_perspective(imba::Vec3(0.0f, 5.0f, 20.0f),
                                 imba::Vec3(0.0f, 0.0f, 10.0f),
                                 imba::Vec3(0.0f, 1.0f, 0.0f),
                                 60.0f,
+                                (float)image_width / (float)image_height);*/
+        /*device->set_perspective(imba::Vec3(6.18075f, 15.2525f, 30.5825f),
+                                imba::Vec3(19.7304f, 18.9456f, 25.7235f),
+                                imba::Vec3(0.0f, 1.0f, 0.0f),
+                                60.0f,
+                                (float)image_width / (float)image_height);*/
+        device->set_perspective(imba::Vec3(-184.244f, 193.221f, -4.445f),
+                                imba::Vec3(-171.081f, 186.426f, -4.96049f),
+                                imba::Vec3(0.0f, 1.0f, 0.0f),
+                                60.0f,
                                 (float)image_width / (float)image_height);
+
         if (!device->render(scene, image_width, image_height, logger))
             std::cerr << "There was a problem when sending the image to the output device." << std::endl;
     }

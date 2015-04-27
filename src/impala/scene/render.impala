@@ -25,7 +25,7 @@ fn render_gbuffer_bvh_scene(scene: &Scene, comp: &CompiledBvhScene, cam: &Camera
             let mut p : Packet;
             let mut hit : Hit = empty_hit(&p, flt_max);
 
-            generate_packet(&p, |i, j| camera_ray(cam, d, x + i, y + j, gbuffer.width, gbuffer.height));
+            generate_packet(&p, |i, j, skip| camera_ray(cam, d, x + i, y + j, gbuffer.width, gbuffer.height));
             perspective_frustum(&p);
             closest_hit_bvh_scene(scene, comp, &p, &hit);
 
@@ -48,6 +48,7 @@ fn render_gbuffer_bvh_scene(scene: &Scene, comp: &CompiledBvhScene, cam: &Camera
 
 fn render_texture_bvh_scene(mut scene: &Scene, comp: &CompiledBvhScene, cam: &Camera, texture: &Texture) -> () @{
     let d = vec3_sub(cam.center, cam.eye);
+    let max_transparency = 8;
 
     for yb in parallel(0, 0, texture.height / 8) @{
         let y = yb * 8;
@@ -56,20 +57,66 @@ fn render_texture_bvh_scene(mut scene: &Scene, comp: &CompiledBvhScene, cam: &Ca
 
         for x in range_step(0, texture.width, 8) @{
             let mut p : Packet;
-            let mut hit : Hit = empty_hit(&p, flt_max);
-            let mut color : [Vec3 * 64];
+            let mut h : Hit = empty_hit(&p, flt_max);
 
-            generate_packet(&p, |i, j| camera_ray(cam, d, x + i, y + j, texture.width, texture.height));
+            // Generate primary rays
+            generate_packet(&p, |i, j, skip| camera_ray(cam, d, x + i, y + j, texture.width, texture.height));
             perspective_frustum(&p);
-            closest_hit_bvh_scene(scene, comp, &p, &hit);
+            closest_hit_bvh_scene(scene, comp, &p, &h);
 
-            for i in range(0, packet_size(&p)) {
-                color(i) = vec3(0.0f, 0.0f, 0.0f);
+            // Initialize the image to zero
+            for i in range(0, packet_height(&p)) @{
+                for j in range(0, packet_width(&p)) @{
+                    write_texture(x + j, y + i, 0, texture, TexturePixel{ r: 0.0f, g : 0.0f, b : 0.0f, a : 1.0f });
+                }
             }
 
-            evaluate_material_bvh(&p, &hit, scene, comp, |i, c| @{
-                color(i) = vec3_add(color(i), c)
-            }, || { random_float(&rnd_state) });
+            // Compute the pixel color
+            let mut needs_retrace = true;
+            let mut n = 0;
+            while needs_retrace @{
+                let mut normals : [Vec3 * 64];
+                let mut face_normals : [Vec3 * 64];
+                let mut du : [Vec2 * 64];
+                let mut dv : [Vec2 * 64];
+                compute_normals_dudv(&p, &h, scene, &normals, &face_normals, &du, &dv);
+
+                let mut retrace = [false, ..64];
+                evaluate_material_bvh(&p, &h, scene, comp, &normals, &face_normals, &du, &dv,
+                |i, c| {
+                    let py = i / packet_width(&p);
+                    let px = i % packet_width(&p);
+                    let mut pixel = read_texture(x + px, y + py, 0, texture);
+
+                    retrace(i) = h.tri_id(i) >= 0 & c.values(3) < 0.99f;
+                    pixel.r += pixel.a * c.values(3) * c.values(0);
+                    pixel.g += pixel.a * c.values(3) * c.values(1);
+                    pixel.b += pixel.a * c.values(3) * c.values(2);
+                    pixel.a *= 1.0f - c.values(3);
+
+                    /*pixel.r += 0.1f;
+                    pixel.g += 0.1f;
+                    pixel.b += 0.1f;
+                    pixel.a += 0.1f;*/
+
+                    write_texture(x + px, y + py, 0, texture, pixel);
+                }, || {
+                    random_float(&rnd_state)
+                });
+
+                // Test if there is a need to continue rays (for transparency)
+                needs_retrace = false;
+                for i in range(0, packet_size(&p)) {
+                    needs_retrace |= retrace(i);
+                }
+                needs_retrace &= n < max_transparency;
+
+                if needs_retrace {
+                    continue_packet(&p, &h, &face_normals, flt_max, |i| retrace(i));
+                    closest_hit_bvh_scene(scene, comp, &p, &h);
+                    n++;
+                }
+            }
 
             // Add a final touch : background or cube map
             if scene.bg_type > 0 {
@@ -77,9 +124,9 @@ fn render_texture_bvh_scene(mut scene: &Scene, comp: &CompiledBvhScene, cam: &Ca
                     for i in range(0, packet_height(&p)) {
                         for j in range(0, packet_width(&p)) @{
                             let id = packet_ray_id(&p, j, i);
-                            if hit_tri(&hit, id) < 0 @{
+                            if hit_tri(&h, id) < 0 @{
                                 let pix = sample_cubemap(scene.textures, &scene.bg_texid, packet_dir(&p, id));
-                                color(id) = vec3(pix.r, pix.g, pix.b)
+                                write_texture(x + j, y + i, 0, texture, pix)
                             }
                         }
                     }
@@ -87,28 +134,16 @@ fn render_texture_bvh_scene(mut scene: &Scene, comp: &CompiledBvhScene, cam: &Ca
                     for i in range(0, packet_height(&p)) {
                         for j in range(0, packet_width(&p)) @{
                             let id = packet_ray_id(&p, j, i);
-                            if hit_tri(&hit, id) < 0 {
+                            if hit_tri(&h, id) < 0 {
                                 let u = (x + j) as float / (texture.width  as float);
                                 let v = 1.0f - (y + i) as float / (texture.height as float);
                                 let pix = bilinear_interpolation(&scene.textures(scene.bg_texid(0)), 0, vec2(u, v), bh_clamp);
-                                color(id) = vec3(pix.r, pix.g, pix.b)
+                                write_texture(x + j, y + i, 0, texture, pix)
                             }
                         }
                     }
                 } else {
                     assert(||{ false }, "render_texture_bvh_scene : invalid background type");
-                }
-            }
-
-            for i in range(0, packet_height(&p)) @{
-                for j in range(0, packet_width(&p)) @{
-                    let c = color(packet_ray_id(&p, j, i));
-                    write_texture(x + j, y + i, 0, texture, TexturePixel {
-                        r: c.values(0),
-                        g: c.values(1),
-                        b: c.values(2),
-                        a: 1.0f
-                    });
                 }
             }
         }

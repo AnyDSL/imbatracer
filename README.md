@@ -66,12 +66,17 @@ int main(int argc, char** argv) {
 On the scene side, the following objects are supported :
 
 * Triangle meshes
-* Lights (positional and directional)
-* Basic materials
+* Lights (spots, point lights and spherical area lights)
+* Basic materials (Phong shading)
+* Textures (TGA and PNG formats)
 
 On the rendering side, the following algorithms work :
 
 * GBuffer rendering
 * Render to texture
+* Whitted style raytracing
+* Distributed raytracing
 * Shadows
+* Mipmaps
+* Cube maps
 

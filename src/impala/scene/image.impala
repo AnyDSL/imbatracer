@@ -176,3 +176,17 @@ fn sample_cubemap(mut textures: &[Texture], cube: &[int * 6], dir: Vec3) -> Text
     bilinear_interpolation(&textures(tex_id), 0, vec2(u, v), bh_clamp)
 }
 
+/// Samples a texture with bilinear interpolation or mipmapping, if available.
+fn sample_texture(tex: &Texture, st: Vec2, dstdx: Vec2, dstdy: Vec2, bh: BoundaryHandling) -> TexturePixel @{
+    if tex.levels > 1 @{
+        // Trilinear interpolation between mipmap levels
+        let size = (tex.width * tex.height) as float;
+        let dmax = size * maxf(vec2_lensq(dstdx), vec2_lensq(dstdy));
+        let bias = 0.025f;
+        let d = minf(1.0f, maxf(0.0f, bias + 0.5f * log2f(dmax) / (tex.levels as float)));
+        sample_mipmap(tex, d, st, bh)
+    } else @{
+        bilinear_interpolation(tex, 0, st, bh)
+    }
+}
+

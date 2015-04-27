@@ -72,6 +72,7 @@ private:
         std::string map_kd;
         std::string map_ks;
         std::string map_bump;
+        std::string map_d;
     };
 
     bool parse_obj_stream(std::istream& stream, ObjFile& file, Logger* logger);

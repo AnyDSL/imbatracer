@@ -7,6 +7,7 @@
 #include <cassert>
 #include <cstdlib>
 #include <algorithm>
+#include <cstring>
 
 namespace imba {
 
@@ -20,7 +21,14 @@ struct OptionReader {
 template <>
 struct OptionReader<bool> {
     static bool read(const char* arg, bool& value) {
-        value = true;
+        if (!std::strcmp(arg, "true") || (arg[0] == '1' && arg[1] == '\0')) {
+            value = true;
+        } else if (!std::strcmp(arg, "false") || (arg[0] == '0' && arg[1] == '\0')) {
+            value = false;
+        } else {
+            value = false;
+            return false;
+        }
         return true;
     }
 };

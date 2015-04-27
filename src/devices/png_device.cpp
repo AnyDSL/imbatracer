@@ -16,21 +16,35 @@ void flush_stream(png_structp png_ptr) {
 PngDevice::PngDevice() {
     register_option("path", path_, std::string("."));
     register_option("prefix", prefix_);
+    register_option("gbuffer", gbuffer_, false);
 }
 
 bool PngDevice::render(const Scene& scene, int width, int height, Logger& logger) {
-    GBuffer gbuffer(width, height);
-
     // Ensure scene is ready so that render time measurements do not include scene update
     scene.compile();
 
-    auto t0 = std::chrono::high_resolution_clock::now();
-    imba::Render::render_gbuffer(scene, cam_, gbuffer);
-    auto t1 = std::chrono::high_resolution_clock::now();
+    std::string file_name(path_ + "/" + prefix_);
+    const int render_width  = (width  % 8 == 0) ? width  : width  + 8 - width  % 8;
+    const int render_height = (height % 8 == 0) ? height : height + 8 - height % 8;
+    GBuffer gbuffer;
+    Texture texture;
+    if (gbuffer_) {
+        file_name += "gbuffer.png";
+        gbuffer.resize(render_width, render_height);
+        auto t0 = std::chrono::high_resolution_clock::now();
+        imba::Render::render_gbuffer(scene, cam_, gbuffer);
+        auto t1 = std::chrono::high_resolution_clock::now();
+        logger.log("G-Buffer rendered in ", std::chrono::duration_cast<std::chrono::milliseconds>(t1 - t0).count(), " ms");
+    } else {
+        file_name += "render.png";
+        texture.resize(render_width, render_height);
+        auto t0 = std::chrono::high_resolution_clock::now();
+        imba::Render::render_texture(scene, cam_, texture);
+        auto t1 = std::chrono::high_resolution_clock::now();
+        logger.log("Image rendered in ", std::chrono::duration_cast<std::chrono::milliseconds>(t1 - t0).count(), " ms");
+    }
 
-    logger.log("G-Buffer rendered in ", std::chrono::duration_cast<std::chrono::milliseconds>(t1 - t0).count(), " ms");
-
-    std::ofstream file(path_ + "/" + prefix_ + "gbuffer.png");
+    std::ofstream file(file_name, std::ofstream::binary);
     if (!file)
         return false;
 
@@ -54,27 +68,36 @@ bool PngDevice::render(const Scene& scene, int width, int height, Logger& logger
 
     png_set_write_fn(png_ptr, &file, write_to_stream, flush_stream);
 
-    png_set_IHDR(png_ptr, info_ptr, gbuffer.width(), gbuffer.height(),
+    png_set_IHDR(png_ptr, info_ptr, width, height,
                  8, PNG_COLOR_TYPE_RGBA, PNG_INTERLACE_NONE,
                  PNG_COMPRESSION_TYPE_BASE, PNG_FILTER_TYPE_BASE);
 
     png_write_info(png_ptr, info_ptr);
     
-    row = new png_byte[4 * gbuffer.width()];
+    row = new png_byte[4 * width];
 
-    for (int y = 0; y < gbuffer.height(); y++) {
-        const GBufferPixel* buf_row = gbuffer.row(y);
-        for (int x = 0; x < gbuffer.width(); x++) {
-            // r is t/tmax
-            // g is u
-            // b is v
-            // a is mat_id != 0
-            row[x * 4 + 0] = (png_byte)(255 * buf_row[x].t);
-            row[x * 4 + 1] = (png_byte)(255 * buf_row[x].u);
-            row[x * 4 + 2] = (png_byte)(255 * buf_row[x].v);
-            row[x * 4 + 3] = (png_byte)(buf_row[x].inst_id >= 0 ? 255 : 0);
+    if (gbuffer_) {
+        for (int y = 0; y < height; y++) {
+            const GBufferPixel* buf_row = gbuffer.row(y);
+            for (int x = 0; x < width; x++) {
+                row[x * 4 + 0] = (png_byte)(255 * buf_row[x].t);
+                row[x * 4 + 1] = (png_byte)(255 * buf_row[x].u);
+                row[x * 4 + 2] = (png_byte)(255 * buf_row[x].v);
+                row[x * 4 + 3] = (png_byte)(buf_row[x].inst_id >= 0 ? 255 : 0);
+            }
+            png_write_row(png_ptr, row);
         }
-        png_write_row(png_ptr, row);
+    } else {
+        for (int y = 0; y < height; y++) {
+            const TexturePixel* tex_row = texture.row(y);
+            for (int x = 0; x < width; x++) {
+                row[x * 4 + 0] = (png_byte)(255 * clamp(tex_row[x].r, 0.0f, 1.0f));
+                row[x * 4 + 1] = (png_byte)(255 * clamp(tex_row[x].g, 0.0f, 1.0f));
+                row[x * 4 + 2] = (png_byte)(255 * clamp(tex_row[x].b, 0.0f, 1.0f));
+                row[x * 4 + 3] = (png_byte)(255 * clamp(tex_row[x].a, 0.0f, 1.0f));
+            }
+            png_write_row(png_ptr, row);
+        }
     }
 
     png_write_end(png_ptr, info_ptr);

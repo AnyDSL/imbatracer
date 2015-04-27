@@ -36,14 +36,14 @@ bool ObjLoader::load_file(const Path& path, Scene& scene, Logger* logger) {
 
     // Add all the other materials
     std::unordered_map<std::string, TextureId> tex_map;
-    auto load_map = [this, &tex_map, &logger, &scene, path] (const std::string& name) {
+    auto load_map = [this, &tex_map, &logger, &scene, path] (const std::string& name, bool gs) {
         TextureId tex_id;
         if (name.empty()) return tex_id;
 
         if (tex_map.find(name) == tex_map.end()) {
             Texture tex;
             if (load_texture(Path(path.base_name() + "/" + name), tex, logger)) {
-                tex_id = scene.new_texture(std::move(tex));
+                tex_id = scene.new_texture(std::move(gs ? grayscale(tex) : std::move(tex)));
                 auto tex = scene.texture(tex_id);
                 if (is_pow2(tex->width()) && is_pow2(tex->height())) {
                     generate_mipmaps(*tex.get());
@@ -80,9 +80,10 @@ bool ObjLoader::load_file(const Path& path, Scene& scene, Logger* logger) {
                                          Vec3(mat.kd[0], mat.kd[1], mat.kd[2]),
                                          Vec3(mat.ks[0], mat.ks[1], mat.ks[2]),
                                          mat.ns,
-                                         load_map(mat.map_ka),
-                                         load_map(mat.map_kd),
-                                         load_map(mat.map_ks));
+                                         load_map(mat.map_ka, false),
+                                         load_map(mat.map_kd, false),
+                                         load_map(mat.map_ks, false),
+                                         load_map(mat.map_d, true));
         }
     }
 
@@ -187,7 +188,7 @@ bool ObjLoader::load_file(const Path& path, Scene& scene, Logger* logger) {
         for (int j = 0; j < 2 && !failed; j++) {
             std::string dir = dir_names[j];
             imba::Texture tex;
-            if (load_texture(Path(path.base_name() + "/powerlines." + dir + axis + ".png"), tex, logger)) {
+            if (load_texture(Path(path.base_name() + "/grimmnight." + dir + axis + ".tga"), tex, logger)) {
                 cubemap[i * 2 + j] = scene.new_texture(std::move(tex));
             } else {
                 failed = true;
@@ -202,8 +203,9 @@ bool ObjLoader::load_file(const Path& path, Scene& scene, Logger* logger) {
         scene.set_background(scene.new_texture(std::move(tex)));
     }*/
 
-    scene.new_light(Vec3(0.0f, 50.0f, 0.0f), Vec3(2000.0f, 2000.0f, 2000.0f));//, imba::normalize(Vec3(0.0f, 1.0f, 0.0f)), 15.0f, 1.0f);
-
+    scene.new_light(Vec3(226.276f, 50.9499f, -7.54361f), 50.0f * Vec3(1000.0f, 1000.0f, 1000.0f));
+    //scene.new_light(Vec3(212.818f, 130.086f, -6.59552f), Vec3(2000.0f, 2000.0f, 2000.0f), 10.0f);//, imba::normalize(Vec3(0.0f, 1.0f, 0.0f)), 15.0f, 1.0f);
+    //scene.new_light(Vec3(-51.4413f, 400.712f, 300.18168f), Vec3(20000.0f, 20000.0f, 22000.0f));
     return true;
 }
 
@@ -243,6 +245,7 @@ bool ObjLoader::parse_obj_stream(std::istream& stream, ObjFile& file, Logger* lo
     file.normals.emplace_back();
     file.texcoords.emplace_back();
 
+    int smooth = 0;
     const int max_line = 1024;
     char line[max_line];
     while (stream.getline(line, max_line)) {
@@ -367,11 +370,13 @@ bool ObjLoader::parse_obj_stream(std::istream& stream, ObjFile& file, Logger* lo
 
             file.mtl_libs.push_back(lib_name);
         } else if (*ptr == 's' && std::isspace(ptr[1])) {
-            if (logger) logger->log("smooth command ignored '", err_line, "'");
+            smooth++;
         } else {
             if (logger) logger->log("unknown command '", err_line, "'");
         }
     }
+
+    if (smooth && logger) logger->log(smooth, " smooth command(s) ignored");
 
     return true;
 }
@@ -446,6 +451,12 @@ bool ObjLoader::parse_mtl_stream(std::istream& stream, std::unordered_map<std::s
         } else if (!std::strncmp(ptr, "map_bump", 8) && std::isspace(ptr[8])) {
             Material& mat = current_material();
             mat.map_bump = std::string(strip_spaces(ptr + 9));
+        } else if (!std::strncmp(ptr, "bump", 4) && std::isspace(ptr[4])) {
+            Material& mat = current_material();
+            mat.map_bump = std::string(strip_spaces(ptr + 5));
+        } else if (!std::strncmp(ptr, "map_d", 5) && std::isspace(ptr[5])) {
+            Material& mat = current_material();
+            mat.map_d = std::string(strip_spaces(ptr + 6));
         } else {
             if (logger) logger->log("unknown material command '", err_line, "'");
         }

@@ -15,6 +15,7 @@ public:
     void set_perspective(const Vec3& eye, const Vec3& center, const Vec3& up, float fov, float ratio);
 
 private:
+    bool gbuffer_;
     Camera cam_;
     std::string path_;
     std::string prefix_;

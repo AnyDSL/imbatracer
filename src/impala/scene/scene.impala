@@ -215,9 +215,9 @@ fn first_hit_bvh_mesh(mesh: Mesh, mesh_bvh: Bvh, inst_id: int, p: &Packet, hit: 
                     (inst_id != hit_inst(prev_hit, i))
                 });
             }
-    
+
             compute_alive(p, hit);
-    
+
             if !packet_alive(p) { exit() }
         }
     }

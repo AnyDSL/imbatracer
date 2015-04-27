@@ -18,6 +18,7 @@ Scene::Scene()
     sync_.scene_data->num_lights   = 0;
     sync_.scene_data->materials    = nullptr;
     sync_.scene_data->materials    = 0;
+    sync_.scene_data->bg_type      = 0;
 }
 
 Scene::~Scene() {

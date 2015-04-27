@@ -14,7 +14,7 @@ struct Light {
 }
 
 fn light_samples(light: &Light) -> int {
-    let samples = [1, 1, 8];
+    let samples = [1, 1, 32];
     assert(|| {light.light_type >= 0 && light.light_type <= 2}, "light_samples : invalid light type");
     samples(light.light_type)
 }
@@ -42,7 +42,7 @@ fn light_packet(light: &Light,
                 rnd: fn() -> float) -> () @{
     *sh = empty_hit(sp, 0.99f);
 
-    generate_packet(sp, |x, y, ret| @{
+    generate_packet(sp, |x, y, skip, ret| @{
         let id = packet_ray_id(p, x, y);
 
         if hit_tri(h, id) >= 0 {
@@ -54,14 +54,14 @@ fn light_packet(light: &Light,
             });
         }
 
-        ret(ray(vec3(0.0f, 0.0f, 0.0f), vec3(0.0f, 0.0f, 0.0f)))
+        skip()
     });
 
     if light.light_type == point_light ||
        light.light_type == spot_light @{
-        shadow_frustum(sp, light.pos, |i| hit_tri(h, i) >= 0);
+        shadow_frustum(sp, light.pos);
     } else {
-        bounding_frustum(sp, sh, |i| hit_tri(h, i) >= 0);
+        bounding_frustum(sp, sh);
     }
 }
 
