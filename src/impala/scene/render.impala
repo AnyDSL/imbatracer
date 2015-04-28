@@ -63,6 +63,7 @@ fn render_texture_bvh_scene(mut scene: &Scene, comp: &CompiledBvhScene, cam: &Ca
             generate_packet(&p, |i, j, skip| camera_ray(cam, d, x + i, y + j, texture.width, texture.height));
             perspective_frustum(&p);
             closest_hit_bvh_scene(scene, comp, &p, &h);
+            packet_set_mask(&p, |i, m| hit_tri(&h, i) >= 0);
 
             // Initialize the image to zero
             for i in range(0, packet_height(&p)) @{
@@ -72,8 +73,10 @@ fn render_texture_bvh_scene(mut scene: &Scene, comp: &CompiledBvhScene, cam: &Ca
             }
 
             // Compute the pixel color
+            let mut retrace : [bool * 64];
             let mut needs_retrace = true;
             let mut n = 0;
+
             while needs_retrace @{
                 let mut normals : [Vec3 * 64];
                 let mut face_normals : [Vec3 * 64];
@@ -81,23 +84,21 @@ fn render_texture_bvh_scene(mut scene: &Scene, comp: &CompiledBvhScene, cam: &Ca
                 let mut dv : [Vec2 * 64];
                 compute_normals_dudv(&p, &h, scene, &normals, &face_normals, &du, &dv);
 
-                let mut retrace = [false, ..64];
-                evaluate_material_bvh(&p, &h, scene, comp, &normals, &face_normals, &du, &dv,
+                for i in range(0, 64) {
+                    retrace(i) = false;
+                }
+
+                $evaluate_material_bvh(&p, &h, scene, comp, &normals, &face_normals, &du, &dv,
                 |i, c| {
                     let py = i / packet_width(&p);
                     let px = i % packet_width(&p);
                     let mut pixel = read_texture(x + px, y + py, 0, texture);
 
-                    retrace(i) = h.tri_id(i) >= 0 & c.values(3) < 0.99f;
+                    retrace(i) = c.values(3) < 0.99f;
                     pixel.r += pixel.a * c.values(3) * c.values(0);
                     pixel.g += pixel.a * c.values(3) * c.values(1);
                     pixel.b += pixel.a * c.values(3) * c.values(2);
                     pixel.a *= 1.0f - c.values(3);
-
-                    /*pixel.r += 0.1f;
-                    pixel.g += 0.1f;
-                    pixel.b += 0.1f;
-                    pixel.a += 0.1f;*/
 
                     write_texture(x + px, y + py, 0, texture, pixel);
                 }, || {
@@ -107,13 +108,14 @@ fn render_texture_bvh_scene(mut scene: &Scene, comp: &CompiledBvhScene, cam: &Ca
                 // Test if there is a need to continue rays (for transparency)
                 needs_retrace = false;
                 for i in range(0, packet_size(&p)) {
-                    needs_retrace |= retrace(i);
+                    needs_retrace |= (p.mask(i) & retrace(i));
                 }
                 needs_retrace &= n < max_transparency;
 
                 if needs_retrace {
                     continue_packet(&p, &h, &face_normals, flt_max, |i| retrace(i));
                     closest_hit_bvh_scene(scene, comp, &p, &h);
+                    packet_set_mask(&p, |i, m| { m & (hit_tri(&h, i) >= 0) });
                     n++;
                 }
             }

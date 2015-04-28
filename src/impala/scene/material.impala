@@ -14,7 +14,7 @@ fn pixel_to_color(pix: TexturePixel) -> Vec3 {
 }
 
 fn compute_normals_dudv(p: &Packet, h: &Hit, mut scene: &Scene, mut normals: &[Vec3], mut face_normals: &[Vec3], mut du: &[Vec2], mut dv: &[Vec2]) -> () {
-    for i in packet_range_alive(p) @{
+    for i in packet_range_alive(p) {
         let tri_id = hit_tri(h, i);
         if tri_id >= 0 @{
             let inst_id = hit_inst(h, i);
@@ -170,25 +170,23 @@ fn evaluate_material_bvh(p: &Packet, h: &Hit,
         for s in range(0, light_samples(&scene.lights(j))) {
             light_packet(&scene.lights(j), p, h, &sp, &sh, frontfacing, rnd);
             first_hit_bvh_scene(scene, comp, &sp, &sh, h);
+            packet_set_mask(&sp, |i, m| { m & (hit_tri(&sh, i) < 0) });
 
             // Loop over pixels that need to be lit
             for i in packet_range_alive(&sp) @{
-                let tri_id = hit_tri(h, i);
                 frontfacing(i, packet_dir(&sp, i), || {
-                    if tri_id >= 0 && hit_tri(&sh, i) < 0 @{
-                        let t = hit_t(h, i);
-                        let intr   = vec3_add(vec3_mulf(packet_dir(p, i), t), packet_org(p, i));
-                        let intr_s = vec3_add(packet_dir(&sp, i), packet_org(&sp, i));
-                        let intensity = evaluate_light(&scene.lights(j), intr_s, intr, normals(i));
+                    let t = hit_t(h, i);
+                    let intr   = vec3_add(vec3_mulf(packet_dir(p, i), t), packet_org(p, i));
+                    let intr_s = vec3_add(packet_dir(&sp, i), packet_org(&sp, i));
+                    let intensity = evaluate_light(&scene.lights(j), intr_s, intr, normals(i));
 
-                        let view = vec3_norm(packet_dir(p, i));
-                        let reflect = vec3_reflect(vec3_norm(packet_dir(&sp, i)), normals(i));
-                        let cos_view = -vec3_dot(view, reflect);
-                        let ks = powf(maxf(0.0f, cos_view), shiny(i));
+                    let view = vec3_norm(packet_dir(p, i));
+                    let reflect = vec3_reflect(vec3_norm(packet_dir(&sp, i)), normals(i));
+                    let cos_view = -vec3_dot(view, reflect);
+                    let ks = powf(maxf(0.0f, cos_view), shiny(i));
+                    let brdf = vec3_add(diff(i), vec3_mulf(spec(i), ks));
 
-                        let brdf = vec3_add(diff(i), vec3_mulf(spec(i), ks));
-                        color(i) = vec3_add(color(i), vec3_mul(intensity, vec3_mulf(brdf, f)));
-                    }
+                    color(i) = vec3_add(color(i), vec3_mul(intensity, vec3_mulf(brdf, f)));
                     continue()
                 });
             }

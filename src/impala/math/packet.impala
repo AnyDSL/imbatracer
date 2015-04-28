@@ -140,12 +140,18 @@ fn packet_reset_mask(mut p: &Packet) -> () {
     }
 }
 
+fn packet_set_mask(mut p: &Packet, mask: fn (int, bool) -> bool) -> () {
+    for i in range(0, packet_size(p)) {
+        p.mask(i) = mask(i, p.mask(i));
+    }
+}
+
 fn compute_alive(mut p: &Packet, h: &Hit) -> () {
-    while p.first_alive <= p.last_alive && hit_tri(h, p.first_alive) > 0 {
+    while p.first_alive <= p.last_alive && hit_tri(h, p.first_alive) >= 0 {
         p.first_alive++;
     }
 
-    while p.last_alive >= p.first_alive && hit_tri(h, p.last_alive) > 0 {
+    while p.last_alive >= p.first_alive && hit_tri(h, p.last_alive) >= 0 {
         p.last_alive--;
     }
 }
@@ -233,25 +239,9 @@ fn continue_packet(mut p: &Packet, mut h: &Hit, normals: &[Vec3], tmax: float, m
         p.mask(i) = true;
     }
 
-    fn skip_ray(i: int) -> () {
-        p.org_x(i) = 0.0f;
-        p.org_y(i) = 0.0f;
-        p.org_z(i) = 0.0f;
-
-        p.dir_x(i) = 0.0f;
-        p.dir_y(i) = 0.0f;
-        p.dir_z(i) = 0.0f;
-
-        p.inv_x(i) = 0.0f;
-        p.inv_y(i) = 0.0f;
-        p.inv_z(i) = 0.0f;
-
-        p.mask(i) = false;
-    }
-
-    packet_range(p, continue_ray, continue_ray);/* |i| {
-        if mask(i) { continue_ray(i) } else { skip_ray(i) }
-    }, |i| { skip_ray(i) });*/
+    packet_range(p, |i| {
+        if mask(i) { continue_ray(i) } else { p.mask(i) = false }
+    }, |i| {});
 
     p.first_alive = first;
     p.last_alive = last;

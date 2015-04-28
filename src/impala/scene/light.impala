@@ -14,7 +14,7 @@ struct Light {
 }
 
 fn light_samples(light: &Light) -> int {
-    let samples = [1, 1, 32];
+    let samples = [1, 1, 8];
     assert(|| {light.light_type >= 0 && light.light_type <= 2}, "light_samples : invalid light type");
     samples(light.light_type)
 }
@@ -45,7 +45,7 @@ fn light_packet(light: &Light,
     generate_packet(sp, |x, y, skip, ret| @{
         let id = packet_ray_id(p, x, y);
 
-        if hit_tri(h, id) >= 0 {
+        if p.mask(id) & hit_tri(h, id) >= 0 {
             let t = hit_t(h, id);
             let p = vec3_add(vec3_mulf(packet_dir(p, id), t), packet_org(p, id));
             let d = vec3_sub(generate_sample(light, p, rnd), p);

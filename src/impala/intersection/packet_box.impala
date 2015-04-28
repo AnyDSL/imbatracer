@@ -2,7 +2,11 @@ fn intersect_packet_box(p: &Packet, h: &Hit, b: Box, intr: fn () -> ()) -> () @{
     // Bounding frustum test
     intersect_frustum_box(p.frustum, b, || {
         // Individual ray test
-        for i in range_step(0, packet_size(p), 4) @{
+        let upper_bound = p.last_alive + 1;
+        let lower_bound = p.first_alive;
+        let first = if lower_bound % 4 == 0 {lower_bound} else { lower_bound - lower_bound % 4 };
+        let last  = if upper_bound % 4 == 0 {upper_bound} else { upper_bound + 4 - upper_bound % 4 };
+        for i in range_step(first, last, 4) @{
             let mut hit = [false, ..4];
 
             for j in vrange4(0, 4) @{
@@ -12,6 +16,11 @@ fn intersect_packet_box(p: &Packet, h: &Hit, b: Box, intr: fn () -> ()) -> () @{
                     }
                 })
             }
+
+            hit(0) &= p.mask(i + 0);
+            hit(1) &= p.mask(i + 1);
+            hit(2) &= p.mask(i + 2);
+            hit(3) &= p.mask(i + 3);
 
             if hit(0) || hit(1) || hit(2) || hit(3) @{
                 intr();

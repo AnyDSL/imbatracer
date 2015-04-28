@@ -179,7 +179,7 @@ bool ObjLoader::load_file(const Path& path, Scene& scene, Logger* logger) {
         scene.new_instance(mesh_id);
     }
 
-    /*std::array<imba::TextureId, 6> cubemap;
+    std::array<imba::TextureId, 6> cubemap;
     const char* axis_names[3] = {"x", "y", "z"};
     const char* dir_names[2] = {"neg", "pos"};
     bool failed = false;
@@ -196,16 +196,17 @@ bool ObjLoader::load_file(const Path& path, Scene& scene, Logger* logger) {
         }
     }
     if (!failed)
-        scene.set_background(cubemap);*/
+        scene.set_background(cubemap);
 
     /*imba::Texture tex;
     if (load_texture(Path(path.base_name() + "/nicolas.png"), tex, logger)) {
         scene.set_background(scene.new_texture(std::move(tex)));
-    }*/
+    }
+    scene.set_background();*/
 
-    scene.new_light(Vec3(226.276f, 50.9499f, -7.54361f), 50.0f * Vec3(1000.0f, 1000.0f, 1000.0f));
-    //scene.new_light(Vec3(212.818f, 130.086f, -6.59552f), Vec3(2000.0f, 2000.0f, 2000.0f), 10.0f);//, imba::normalize(Vec3(0.0f, 1.0f, 0.0f)), 15.0f, 1.0f);
-    //scene.new_light(Vec3(-51.4413f, 400.712f, 300.18168f), Vec3(20000.0f, 20000.0f, 22000.0f));
+    scene.new_light(Vec3(226.276f, 50.9499f, -7.54361f), Vec3(1000.0f, 1000.0f, 1000.0f));
+    scene.new_light(Vec3(212.818f, 130.086f, -6.59552f), Vec3(2000.0f, 2000.0f, 2000.0f));//, imba::normalize(Vec3(0.0f, 1.0f, 0.0f)), 15.0f, 1.0f);
+    scene.new_light(Vec3(-51.4413f, 400.712f, 300.18168f), 10.0f * Vec3(20000.0f, 20000.0f, 22000.0f));
     return true;
 }
 

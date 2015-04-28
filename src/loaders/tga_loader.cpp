@@ -156,8 +156,8 @@ bool TgaLoader::load_file(const Path& path, Texture& texture, Logger* logger) {
     file.read((char*)&header, sizeof(TgaHeader));
     if (!file) return false;
 
-    if(header.width <= 0 || header.height <= 0 ||
-       (header.bpp != 24 && header.bpp !=32)) {
+    if (header.width <= 0 || header.height <= 0 ||
+        (header.bpp != 24 && header.bpp !=32)) {
         return false;
     }
 

@@ -10,7 +10,7 @@ public:
     Material(const Vec3& a = Vec3(0.0f),
              const Vec3& d = Vec3(0.0f),
              const Vec3& s = Vec3(0.0f),
-             float exp = 0.0f,
+             float exp = 1.0f,
              TextureId tex_a = TextureId(),
              TextureId tex_d = TextureId(),
              TextureId tex_s = TextureId(),
