@@ -204,9 +204,9 @@ bool ObjLoader::load_file(const Path& path, Scene& scene, Logger* logger) {
     }
     scene.set_background();*/
 
-    scene.new_light(Vec3(226.276f, 50.9499f, -7.54361f), Vec3(1000.0f, 1000.0f, 1000.0f));
-    scene.new_light(Vec3(212.818f, 130.086f, -6.59552f), Vec3(2000.0f, 2000.0f, 2000.0f));//, imba::normalize(Vec3(0.0f, 1.0f, 0.0f)), 15.0f, 1.0f);
-    scene.new_light(Vec3(-51.4413f, 400.712f, 300.18168f), 10.0f * Vec3(20000.0f, 20000.0f, 22000.0f));
+    scene.new_light(Light::POINT_LIGHT, Vec3(226.276f, 50.9499f, -7.54361f), Vec3(1000.0f, 1000.0f, 1000.0f));
+    scene.new_light(Light::POINT_LIGHT, Vec3(212.818f, 130.086f, -6.59552f), Vec3(2000.0f, 2000.0f, 2000.0f));//, imba::normalize(Vec3(0.0f, 1.0f, 0.0f)), 15.0f, 1.0f);
+    scene.new_light(Light::POINT_LIGHT, Vec3(-51.4413f, 400.712f, 300.18168f), 10.0f * Vec3(20000.0f, 20000.0f, 22000.0f));
     return true;
 }
 

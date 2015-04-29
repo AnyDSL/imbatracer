@@ -2,21 +2,22 @@
 #define IMBA_LIGHT_HPP
 
 #include "../common/math.hpp"
+#include <cassert>
 
 namespace imba {
 
 /// Light definition. May be replaced completely by shaders in the not-so-distant future.
 class Light {
-private:
+public:
     enum Type {
         POINT_LIGHT = 0,
         SPOT_LIGHT = 1,
         SPHERE_LIGHT = 2
     };
 
-public:
     /// Creates a point light.
-    Light(const Vec3& pos, const Vec3& intensity) {
+    Light(Type type, const Vec3& pos, const Vec3& intensity) {
+        assert(type == POINT_LIGHT);
         light_.light_type = POINT_LIGHT;
         set_position(pos);
         set_intensity(intensity);
@@ -28,7 +29,8 @@ public:
     }
 
     /// Creates a spot light.
-    Light(const Vec3& pos, const Vec3& intensity, const Vec3& dir, float cutoff, float penumbra) {
+    Light(Type type, const Vec3& pos, const Vec3& intensity, const Vec3& dir, float cutoff, float penumbra) {
+        assert(type == SPOT_LIGHT);
         light_.light_type = SPOT_LIGHT;
         set_position(pos);
         set_intensity(intensity);
@@ -40,7 +42,8 @@ public:
     }
 
     /// Creates a spherical area light.
-    Light(const Vec3& pos, const Vec3& intensity, float radius) {
+    Light(Type type, const Vec3& pos, const Vec3& intensity, float radius) {
+        assert(type == SPHERE_LIGHT);
         light_.light_type = SPHERE_LIGHT;
         set_position(pos);
         set_intensity(intensity);
@@ -49,6 +52,10 @@ public:
         light_.max_cutoff = 0.0f;
         light_.min_cutoff = 0.0f;
         light_.penumbra = 0.0f;
+    }
+
+    Type type() const {
+        return Type(light_.light_type);
     }
 
     Vec3 position() const {
