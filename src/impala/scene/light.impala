@@ -10,7 +10,8 @@ struct Light {
     max_cutoff: float, // Spot light only
     min_cutoff: float, // Spot light only
     penumbra: float,   // Spot light only
-    radius: float      // Sphere light only
+    radius: float,     // Sphere light only
+    accum_alpha: int   // Accumulates alpha (1: enabled, 0: disabled)
 }
 
 fn light_samples(light: &Light) -> int {

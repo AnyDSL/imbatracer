@@ -26,6 +26,7 @@ public:
         light_.max_cutoff = 0.0f;
         light_.min_cutoff = 0.0f;
         light_.penumbra = 0.0f;
+        light_.accum_alpha = false;
     }
 
     /// Creates a spot light.
@@ -39,6 +40,7 @@ public:
         light_.min_cutoff = cosf(to_radians(cutoff + penumbra));
         light_.max_cutoff = cosf(to_radians(cutoff));
         light_.penumbra = penumbra;
+        light_.accum_alpha = false;
     }
 
     /// Creates a spherical area light.
@@ -52,6 +54,7 @@ public:
         light_.max_cutoff = 0.0f;
         light_.min_cutoff = 0.0f;
         light_.penumbra = 0.0f;
+        light_.accum_alpha = false;
     }
 
     Type type() const {
@@ -92,6 +95,10 @@ public:
         light_.intensity.values[0] = i[0];
         light_.intensity.values[1] = i[1];
         light_.intensity.values[2] = i[2];
+    }
+
+    void set_accum_alpha(bool accum) {
+        light_.accum_alpha = accum ? 1 : 0;
     }
 
 private:

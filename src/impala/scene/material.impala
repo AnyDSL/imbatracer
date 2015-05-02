@@ -16,44 +16,37 @@ fn pixel_to_color(pix: TexturePixel) -> Vec3 {
 fn compute_normals_dudv(p: &Packet, h: &Hit, mut scene: &Scene, mut normals: &[Vec3], mut face_normals: &[Vec3], mut du: &[Vec2], mut dv: &[Vec2]) -> () {
     for i in packet_range_alive(p) {
         let tri_id = hit_tri(h, i);
-        if tri_id >= 0 @{
-            let inst_id = hit_inst(h, i);
-            let mesh_id = scene.instances(inst_id).mesh_id;
-            let mesh = scene.meshes(mesh_id);
+        let inst_id = hit_inst(h, i);
+        let mesh_id = scene.instances(inst_id).mesh_id;
+        let mesh = scene.meshes(mesh_id);
 
-            let mut tinv = mat4_transpose(&scene.instances(inst_id).inv_mat);
+        let mut tinv = mat4_transpose(&scene.instances(inst_id).inv_mat);
 
-            let u = hit_u(h, i);
-            let v = hit_v(h, i);
-            let w = 1.0f - u - v;
-            let t = hit_t(h, i);
+        let u = hit_u(h, i);
+        let v = hit_v(h, i);
+        let w = 1.0f - u - v;
+        let t = hit_t(h, i);
 
-            // Compute interpolated normal
-            let n0 = vec3_mulf(mesh.normals(mesh.indices(tri_id * 3 + 0)), w);
-            let n1 = vec3_mulf(mesh.normals(mesh.indices(tri_id * 3 + 1)), u);
-            let n2 = vec3_mulf(mesh.normals(mesh.indices(tri_id * 3 + 2)), v);
-            let n = vec3_add(n0, vec3_add(n1, n2));
+        // Compute interpolated normal
+        let n0 = vec3_mulf(mesh.normals(mesh.indices(tri_id * 3 + 0)), w);
+        let n1 = vec3_mulf(mesh.normals(mesh.indices(tri_id * 3 + 1)), u);
+        let n2 = vec3_mulf(mesh.normals(mesh.indices(tri_id * 3 + 2)), v);
+        let n = vec3_add(n0, vec3_add(n1, n2));
 
-            normals(i) = vec3_norm(mat4_mul_vec3(&tinv, n, 0.0f));
+        normals(i) = vec3_norm(mat4_mul_vec3(&tinv, n, 0.0f));
 
-            // Compute face normal
-            let v0 = mesh.vertices(mesh.indices(tri_id * 3 + 0));
-            let v1 = mesh.vertices(mesh.indices(tri_id * 3 + 1));
-            let v2 = mesh.vertices(mesh.indices(tri_id * 3 + 2));
-            let e0 = vec3_sub(v1, v0);
-            let e1 = vec3_sub(v2, v0);
-            let tn = mat4_mul_vec3(&tinv, vec3_cross(e0, e1), 0.0f);
-            face_normals(i) = vec3_norm(if vec3_dot(tn, packet_dir(p, i)) > 0.0f { vec3_map(tn, |x| -x) } else { tn });
+        // Compute face normal
+        let v0 = mesh.vertices(mesh.indices(tri_id * 3 + 0));
+        let v1 = mesh.vertices(mesh.indices(tri_id * 3 + 1));
+        let v2 = mesh.vertices(mesh.indices(tri_id * 3 + 2));
+        let e0 = vec3_sub(v1, v0);
+        let e1 = vec3_sub(v2, v0);
+        let tn = mat4_mul_vec3(&tinv, vec3_cross(e0, e1), 0.0f);
+        face_normals(i) = vec3_norm(if vec3_dot(tn, packet_dir(p, i)) > 0.0f { vec3_map(tn, |x| -x) } else { tn });
 
-            // Compute differentials (for mipmapping)
-            let p_intr = vec3_add(packet_org(p, i), vec3_mulf(packet_dir(p, i), t));
-            compute_differentials(p, i, p_intr, face_normals(i), e0, e1, &du(i), &dv(i));
-        } else @{
-            normals(i) = vec3(0.0f, 0.0f, 0.0f);
-            face_normals(i) = vec3(0.0f, 0.0f, 0.0f);
-            du(i) = vec2(0.0f, 0.0f);
-            dv(i) = vec2(0.0f, 0.0f);
-        }
+        // Compute differentials (for mipmapping)
+        let p_intr = vec3_add(packet_org(p, i), vec3_mulf(packet_dir(p, i), t));
+        compute_differentials(p, i, p_intr, face_normals(i), e0, e1, &du(i), &dv(i));
     }
 }
 
@@ -76,6 +69,49 @@ fn compute_uvs(h: &Hit, mesh: &Mesh, du: &[Vec2], dv: &[Vec2], i: int, mut st: &
     let dvdy = dv(i).values(1);
     *dstdx = vec2_add(vec2_mulf(dstdu, dudx), vec2_mulf(dstdv, dvdx));
     *dstdy = vec2_add(vec2_mulf(dstdu, dudy), vec2_mulf(dstdv, dvdy));
+}
+
+fn accumulate_alpha(sp: &Packet, sh: &Hit, mut scene: &Scene, comp: &CompiledBvhScene, mut alpha: &[float]) -> () {
+    let mut retrace : [bool * 64];
+    let mut needs_retrace = true;
+
+    let mut normals : [Vec3 * 64];
+    let mut face_normals : [Vec3 * 64];
+    let mut du : [Vec2 * 64];
+    let mut dv : [Vec2 * 64];
+
+    while needs_retrace {
+        closest_hit_bvh_scene(scene, comp, sp, sh);
+        packet_set_mask(sp, |i, m| { m & (hit_tri(sh, i) >= 0) });
+
+        compute_normals_dudv(sp, sh, scene, &normals, &face_normals, &du, &dv);
+
+        needs_retrace = false;
+        for i in packet_range_alive(sp) {
+            let tri_id = hit_tri(sh, i);
+            let mesh_id = scene.instances(hit_inst(sh, i)).mesh_id;
+            let mesh = scene.meshes(mesh_id);
+            let mat_id = mesh.materials(tri_id);
+            let mat = scene.materials(mat_id);
+
+            if mat.tex_t >= 0 {
+                let mut dstdx : Vec2;
+                let mut dstdy : Vec2;
+                let mut st : Vec2;
+                compute_uvs(sh, &scene.meshes(mesh_id), &du, &dv, i, &st, &dstdx, &dstdy);
+
+                alpha(i) *= 1.0f - sample_texture(&scene.textures(mat.tex_t), st, dstdx, dstdy, bh_repeat).a;
+                retrace(i) = alpha(i) > 0.0f;
+                needs_retrace |= retrace(i);
+            } else {
+                alpha(i) = 0.0f
+            }
+        }
+
+        if needs_retrace {
+            continue_packet(sp, sh, &face_normals, flt_max, |i| retrace(i));
+        }
+    }
 }
 
 // TODO : replace materials by shader system in the future
@@ -103,60 +139,58 @@ fn evaluate_material_bvh(p: &Packet, h: &Hit,
     // Ambient light contribution & diffuse/spec param. computation
     for i in packet_range_alive(p) @{
         let tri_id = hit_tri(h, i);
-        if tri_id >= 0 @{
-            let mesh_id = scene.instances(hit_inst(h, i)).mesh_id;
-            let mesh = scene.meshes(mesh_id);
-            let mat_id = mesh.materials(tri_id);
-            let mat = scene.materials(mat_id);
+        let mesh_id = scene.instances(hit_inst(h, i)).mesh_id;
+        let mesh = scene.meshes(mesh_id);
+        let mat_id = mesh.materials(tri_id);
+        let mat = scene.materials(mat_id);
 
-            shiny(i) = mat.exp;
+        shiny(i) = mat.exp;
 
-            if mat.tex_a >= 0 | mat.tex_d >= 0 | mat.tex_s >= 0 | mat.tex_t >= 0 {
-                let mut dstdx : Vec2;
-                let mut dstdy : Vec2;
-                let mut st : Vec2;
-                compute_uvs(h, &scene.meshes(mesh_id), du, dv, i, &st, &dstdx, &dstdy);
+        if mat.tex_a >= 0 | mat.tex_d >= 0 | mat.tex_s >= 0 | mat.tex_t >= 0 {
+            let mut dstdx : Vec2;
+            let mut dstdy : Vec2;
+            let mut st : Vec2;
+            compute_uvs(h, &scene.meshes(mesh_id), du, dv, i, &st, &dstdx, &dstdy);
 
-                // Sample textures (reuse previous results if possible)
-                let ambient = if mat.tex_a >= 0 @{
-                    pixel_to_color(sample_texture(&scene.textures(mat.tex_a), st, dstdx, dstdy, bh_repeat))
-                } else {
-                    vec3(1.0f, 1.0f, 1.0f)
-                };
-
-                diff(i) = if mat.tex_d == mat.tex_a @{
-                    ambient
-                } else if mat.tex_d >= 0 @{
-                    pixel_to_color(sample_texture(&scene.textures(mat.tex_d), st, dstdx, dstdy, bh_repeat))
-                } else {
-                    vec3(1.0f, 1.0f, 1.0f)
-                };
-
-                spec(i) = if mat.tex_s == mat.tex_a @{
-                    ambient
-                } else if mat.tex_s == mat.tex_d @{
-                    diff(i)
-                } else if mat.tex_s >= 0 @{
-                    pixel_to_color(sample_texture(&scene.textures(mat.tex_s), st, dstdx, dstdy, bh_repeat))
-                } else {
-                    vec3(1.0f, 1.0f, 1.0f)
-                };
-
-                alpha(i) = if mat.tex_t >= 0 {
-                    sample_texture(&scene.textures(mat.tex_t), st, dstdx, dstdy, bh_repeat).a
-                } else {
-                    1.0f
-                };
-
-                color(i) = vec3_mul(ambient, mat.ka);
-                diff(i) = vec3_mul(diff(i), mat.kd);
-                spec(i) = vec3_mul(spec(i), mat.ks);
+            // Sample textures (reuse previous results if possible)
+            let ambient = if mat.tex_a >= 0 @{
+                pixel_to_color(sample_texture(&scene.textures(mat.tex_a), st, dstdx, dstdy, bh_repeat))
             } else {
-                color(i) = mat.ka;
-                alpha(i) = 1.0f;
-                diff(i) = mat.kd;
-                spec(i) = mat.ks;
-            }
+                vec3(1.0f, 1.0f, 1.0f)
+            };
+
+            diff(i) = if mat.tex_d == mat.tex_a @{
+                ambient
+            } else if mat.tex_d >= 0 @{
+                pixel_to_color(sample_texture(&scene.textures(mat.tex_d), st, dstdx, dstdy, bh_repeat))
+            } else {
+                vec3(1.0f, 1.0f, 1.0f)
+            };
+
+            spec(i) = if mat.tex_s == mat.tex_a @{
+                ambient
+            } else if mat.tex_s == mat.tex_d @{
+                diff(i)
+            } else if mat.tex_s >= 0 @{
+                pixel_to_color(sample_texture(&scene.textures(mat.tex_s), st, dstdx, dstdy, bh_repeat))
+            } else {
+                vec3(1.0f, 1.0f, 1.0f)
+            };
+
+            alpha(i) = if mat.tex_t >= 0 {
+                sample_texture(&scene.textures(mat.tex_t), st, dstdx, dstdy, bh_repeat).a
+            } else {
+                1.0f
+            };
+
+            color(i) = vec3_mul(ambient, mat.ka);
+            diff(i) = vec3_mul(diff(i), mat.kd);
+            spec(i) = vec3_mul(spec(i), mat.ks);
+        } else {
+            alpha(i) = 1.0f;
+            color(i) = mat.ka;
+            diff(i) = mat.kd;
+            spec(i) = mat.ks;
         }
     }
 
@@ -166,29 +200,42 @@ fn evaluate_material_bvh(p: &Packet, h: &Hit,
 
     for j in range(0, scene.num_lights) @{
         let f = 1.0f / (light_samples(&scene.lights(j)) as float);
+        let mut visibility : [float * 64];
 
         for s in range(0, light_samples(&scene.lights(j))) {
             light_packet(&scene.lights(j), p, h, &sp, &sh, frontfacing, rnd);
-            first_hit_bvh_scene(scene, comp, &sp, &sh, h);
-            packet_set_mask(&sp, |i, m| { m & (hit_tri(&sh, i) < 0) });
+
+            if scene.lights(j).accum_alpha != 0 {
+                for i in range(0, packet_size(&sp)) {
+                    visibility(i) = if p.mask(i) { 1.0f } else { 0.0f }
+                }
+                accumulate_alpha(&sp, &sh, scene, comp, &visibility);
+            } else {
+                first_hit_bvh_scene(scene, comp, &sp, &sh);
+                for i in range(0, packet_size(&sp)) {
+                    visibility(i) = if hit_tri(&sh, i) < 0 & p.mask(i) { 1.0f } else { 0.0f }
+                }
+            }
 
             // Loop over pixels that need to be lit
-            for i in packet_range_alive(&sp) @{
-                frontfacing(i, packet_dir(&sp, i), || {
-                    let t = hit_t(h, i);
-                    let intr   = vec3_add(vec3_mulf(packet_dir(p, i), t), packet_org(p, i));
-                    let intr_s = vec3_add(packet_dir(&sp, i), packet_org(&sp, i));
-                    let intensity = evaluate_light(&scene.lights(j), intr_s, intr, normals(i));
+            for i in range(0, packet_size(&sp)) @{
+                if visibility(i) > 0.0f {
+                    frontfacing(i, packet_dir(&sp, i), || {
+                        let t = hit_t(h, i);
+                        let intr   = vec3_add(vec3_mulf(packet_dir(p, i), t), packet_org(p, i));
+                        let intr_s = vec3_add(packet_dir(&sp, i), packet_org(&sp, i));
+                        let intensity = evaluate_light(&scene.lights(j), intr_s, intr, normals(i));
 
-                    let view = vec3_norm(packet_dir(p, i));
-                    let reflect = vec3_reflect(vec3_norm(packet_dir(&sp, i)), normals(i));
-                    let cos_view = -vec3_dot(view, reflect);
-                    let ks = powf(maxf(0.0f, cos_view), shiny(i));
-                    let brdf = vec3_add(diff(i), vec3_mulf(spec(i), ks));
+                        let view = vec3_norm(packet_dir(p, i));
+                        let reflect = vec3_reflect(vec3_norm(packet_dir(&sp, i)), normals(i));
+                        let cos_view = -vec3_dot(view, reflect);
+                        let ks = powf(maxf(0.0f, cos_view), shiny(i));
+                        let brdf = vec3_add(diff(i), vec3_mulf(spec(i), ks));
 
-                    color(i) = vec3_add(color(i), vec3_mul(intensity, vec3_mulf(brdf, f)));
-                    continue()
-                });
+                        color(i) = vec3_add(color(i), vec3_mul(intensity, vec3_mulf(brdf, visibility(i) * f)));
+                        continue()
+                    });
+                }
             }
         }
     }
