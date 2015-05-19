@@ -21,7 +21,7 @@ struct OptionReader {
 template <>
 struct OptionReader<bool> {
     static bool read(const char* arg, bool& value) {
-        if (!std::strcmp(arg, "true") || (arg[0] == '1' && arg[1] == '\0')) {
+        if (!std::strcmp(arg, "true") || (arg[0] == '1' && arg[1] == '\0') || arg[0] == '\0') {
             value = true;
         } else if (!std::strcmp(arg, "false") || (arg[0] == '0' && arg[1] == '\0')) {
             value = false;
@@ -216,7 +216,7 @@ public:
                             return false;
                         }
 
-                        bool ok = (*it)->read_value(opt_name.c_str());
+                        bool ok = (*it)->read_value(opt_arg.c_str());
                         assert(ok && "read_value returns false for an option without args");
                     }
                 } else {
@@ -243,8 +243,8 @@ public:
 
                         i++;
                     } else {
-                        if(!(*it)->read_value(argv_[i] + 1)) {
-                            std::cerr << "Invalid value given to option \'" << argv_[i] + 1 << "\' : " << argv_[i + 1] << std::endl;
+                        if(!(*it)->read_value("")) {
+                            std::cerr << "Invalid value given to option \'" << argv_[i] + 1 << std::endl;
                             return false;
                         }
                     }
