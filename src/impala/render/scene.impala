@@ -1,0 +1,70 @@
+struct Scene {
+    models:      &[Models],        // Array of 3D models
+    model_count: i32               // Number of 3D models
+    textures:    &[Texture],       // Array of textures
+    tex_count:   i32               // Number of textures
+    buffers:     &[Buffer],        // Array of buffers
+    buf_count:   i32               // Number of buffers
+    lights:      &[Light],         // Array of lights
+    light_count: i32
+}
+
+type BufferRef = i32;      // Buffer binding
+type TextureRef = i32;     // Texture binding
+type ShaderRef = i32;      // Shader binding
+
+struct Model {
+    tex_ref:    &[TextureRef], // Texture bindings
+    tex_count:  i32,           // Number of texture bindings
+    vertex_buf: BufferRef,     // Vertex buffer binding
+    index_buf:  BufferRef,     // Index buffer binding
+    buf_refs:   &[BufferRef],  // Additional buffer bindings
+    buf_count:  i32,           // Number of additional buffer bindings
+    shader:     ShaderRef      // Surface shader binding
+}
+
+type BufferFormat = i32;
+static BUFFER_I16 = 0;
+static BUFFER_I32 = 1;
+static BUFFER_I64 = 2;
+static BUFFER_F32 = 3;
+static BUFFER_F64 = 4;
+
+struct Buffer {
+    format: BufferFormat, // Buffer format
+    data:   &[u8],        // Buffer data
+    size:   i32           // Buffer size, in bytes
+}
+
+type Pixel = [f32 * 4];
+
+struct Texture {
+    pixels: &[Pixel],  // Texture pixels, each row stored contiguously
+    width:  i32,       // Texture width, in pixels
+    height: i32        // Texture height, in pixels
+}
+
+struct HemiLight {
+    pos: [f32 * 3],  // Position in 3D space
+    dir: [f32 * 3]   // Direction (normal) of the hemisphere
+    cutoff: f32      // Cutoff angle
+}
+
+struct AreaLight {
+    vertex_buf: BufferRef, // Vertex buffer binding
+    index_buf: BufferRef,  // Index buffer binding
+    area: f32              // Total area of the mesh
+}
+
+type LightType = i32;
+static LIGHT_AREA = 0;
+static LIGHT_HEMI = 1;
+
+struct Light {
+    light_type: LightType,  // Type of light
+    intensity:  [f32 * 3],  // Light intensity
+    shader:     ShaderRef,  // Light shader binding
+    hemi_light: HemiLight,  // Hemispherical light
+    area_light: AreaLight   // Area light
+}
+
