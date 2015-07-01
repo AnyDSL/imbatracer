@@ -1,0 +1,3 @@
+fn invoke_lightshader(shader_ref : ShaderRef, intensity : [f32 * 3], pos : [f32 * 3], dir : [f32 * 3]) -> f32 {
+    (1.0f)
+}

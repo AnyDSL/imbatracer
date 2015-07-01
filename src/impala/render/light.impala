@@ -1,4 +1,4 @@
-fn sample_hemilight(hemi: HemiLight) -> (Vec3, Vec3, f32) {
+fn sample_hemilight(hemi: HemiLight, rnd: fn() -> f32) -> (Vec3, Vec3, f32) {
     // TODO : Sample an hemispherical light
     
     let pos;
@@ -7,11 +7,66 @@ fn sample_hemilight(hemi: HemiLight) -> (Vec3, Vec3, f32) {
     (pos, dir, invoke_lightshader(light.shader, light.intensity, pos, dir))
 }
 
-fn sample_arealight(area: AreaLight) -> (Vec3, Vec3, f32) {
+fn sample_arealight(area: AreaLight, rnd: fn() -> f32) -> (Vec3, Vec3, f32) {
     // TODO : Sample an area light
     
-    let pos;
-    let dir;
+    // Obtain the index and vertex buffers
+    let index_buffer = buffers(area.index_buf);
+    let vertex_buffer = buffers(area.vertex_buf);
+    
+    // Randomly choose which triangle to sample
+    let mut index_size : i32;   // size of a single index in byte;
+    if index_buffer.format == BUFFER_I16 {
+        index_size = 2;
+    } else if index_buffer.format == BUFFER_I32 {
+        index_size = 4;
+    } else /* if index_buffer.format == BUFFER_I64 */ {
+        index_size = 8;
+    }    
+    
+    let index_count = index_buffer.size / index_size;
+    let tri_count = index_count / 3;
+    
+    let rnd_tri = (rnd() * tri_count) as i32;
+    let first_index = rnd_tri * 3;
+    
+    let mut v1_index : i64;
+    let mut v2_index : i64;
+    let mut v3_index : i64;
+    
+    if index_buffer.format == BUFFER_I16 {
+        v1_index = *((index_buffer.data as &[i16]) + first_index)
+        v2_index = *((index_buffer.data as &[i16]) + first_index + 1)
+        v3_index = *((index_buffer.data as &[i16]) + first_index + 2)
+    } else if index_buffer.format == BUFFER_I32 {
+        v1_index = *((index_buffer.data as &[i32]) + first_index)
+        v2_index = *((index_buffer.data as &[i32]) + first_index + 1)
+        v3_index = *((index_buffer.data as &[i32]) + first_index + 2)
+    } else /* if index_buffer.format == BUFFER_I64 */ {
+        v1_index = *((index_buffer.data as &[i64]) + first_index)
+        v2_index = *((index_buffer.data as &[i64]) + first_index + 1)
+        v3_index = *((index_buffer.data as &[i64]) + first_index + 2)
+    }
+    
+    // Assuming vertex buffer consisting of 3 f32 coordinates per vertex.
+    let v1 = *((vertex_buffer.data as &[Vec3]) + v1_index);
+    let v2 = *((vertex_buffer.data as &[Vec3]) + v2_index);
+    let v3 = *((vertex_buffer.data as &[Vec3]) + v3_index);
+    
+    // Rejection sample the triangle
+    let edge_1 = vec3_sub(v3, v1);
+    let edge_2 = vec3_sub(v2, v1);
+    
+    let u1 = rnd();
+    let u2 = rnd();
+    
+    let mut pos;
+    while (true) {
+        pos = vec3_add(vec3_add(v1, vec3_mul(edge_1, u1)), vec3_add(v1, vec3_mul(edge_2, u2)));
+        if (inside_triangle(v1, v2, v3, pos)) break;
+    }
+    
+    let dir = vec3_norm(vec3_cross(edge_1, edge_2)); // TODO how to sample directions?
 
     (pos, dir, invoke_lightshader(light.shader, light.intensity, pos, dir))
 }
