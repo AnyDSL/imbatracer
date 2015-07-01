@@ -1,0 +1,12 @@
+struct Ray {
+    origin: [f32 * 3],
+    dir:    [f32 * 3],
+    t:      f32,
+    u:      f32,
+    v:      f32
+}
+
+struct RayQueue {
+    data:   &[Ray],
+    count:  i32
+}
