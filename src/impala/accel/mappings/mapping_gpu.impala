@@ -1,0 +1,85 @@
+// Mapping for GPU raytracing
+static postpone_count = 0;
+static block_size = 64;
+
+struct RayData {
+    org: Vec3,
+    dir: Vec3,
+    inv: Vec3,
+    tri: i32,
+    tmin: f32,
+    tmax: f32,
+    u: f32,
+    v: f32
+}
+
+fn iterate_rays(rays: Rays, i: i32, j: i32, body: fn(&RayData) -> ()) -> () {
+    assert(|| {(j - i) / block_size == 1}, "iterate_rays : invalid number of rays");
+
+    let dev = acc_dev();
+    let grid = (j - i, 1, 1);
+    let block = (block_size, 1, 1);
+
+    let org_x = rays.org_x;
+    let org_y = rays.org_y;
+    let org_z = rays.org_z;
+    let dir_x = rays.dir_x;
+    let dir_y = rays.dir_y;
+    let dir_z = rays.dir_z;
+
+    let mut tri = rays.tri;
+    let tmin = rays.tmin;
+    let mut tmax = rays.tmax;
+    let mut u = rays.u;
+    let mut v = rays.v;
+
+    acc(dev, grid, block, || @{
+        let id = acc_gidx();
+
+        let mut ray = RayData {
+            org: Vec3 { x: org_x(id), y: org_y(id), z: org_z(id) },
+            dir: Vec3 { x: dir_x(id), y: dir_y(id), z: dir_z(id) },
+            inv: Vec3 { x: 1.0f / dir_x(id),
+                        y: 1.0f / dir_y(id),
+                        z: 1.0f / dir_z(id) },
+            tri: tri(id),
+            tmin: tmin(id),
+            tmax: tmax(id),
+            u: u(id),
+            v: v(id)
+        };
+
+        @body(&ray);
+
+        tri(id) = ray.tri;
+        tmax(id) = ray.tmax;
+        u(id) = ray.u;
+        v(id) = ray.v;
+    })
+}
+
+fn intersect_leaf(mut ray: &RayData, accel: Accel, node: i32) -> () @{
+    for tri, v0, v1, v2 in iterate_triangles(accel, node) @{
+        intersect_ray_tri(ray.org, ray.dir, v0, v1, v2, |t, u, v, mask| @{
+            if any(mask & t < ray.tmax & t > ray.tmin) @{
+                ray.tri = tri;
+                ray.tmax = t;
+                ray.u = u;
+                ray.v = v;
+            }
+            continue()
+        })
+    }
+}
+
+fn intersect_node(ray: &RayData, accel: Accel, node: i32, stack: &Stack) -> () @{
+    for min, max, push in iterate_children(accel, node, stack) @{
+        intersect_ray_box(ray.org, ray.inv, min, max, |t_entry, t_exit, mask| @{
+            if any(mask & ray.tmin < t_exit & ray.tmax > t_entry) @{
+                push(t_entry)
+            }
+            continue()
+        })
+    }
+}
+
