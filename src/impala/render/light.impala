@@ -1,15 +1,13 @@
 fn sample_hemilight(hemi: HemiLight, rnd: fn() -> f32) -> (Vec3, Vec3, f32) {
     // TODO : Sample an hemispherical light
     
-    let pos;
-    let dir;
+    let pos = hemi.pos;
+    let dir = hemi.dir;
 
     (pos, dir, invoke_lightshader(light.shader, light.intensity, pos, dir))
 }
 
-fn sample_arealight(area: AreaLight, rnd: fn() -> f32) -> (Vec3, Vec3, f32) {
-    // TODO : Sample an area light
-    
+fn sample_arealight(area: AreaLight, rnd: fn() -> f32) -> (Vec3, Vec3, f32) {   
     // Obtain the index and vertex buffers
     let index_buffer = buffers(area.index_buf);
     let vertex_buffer = buffers(area.vertex_buf);
