@@ -1,12 +1,48 @@
 struct Ray {
-    origin: [f32 * 3],
-    dir:    [f32 * 3],
-    t:      f32,
-    u:      f32,
-    v:      f32
+    org : Vec3,
+    dir : Vec3,
+    inv : Vec3,
+    tri : i32,
+    tmin : f32,
+    tmax : f32,
+    u : f32,
+    v : f32
+}
+
+struct Rays {
+    org_x: &[f32],
+    org_y: &[f32],
+    org_z: &[f32],
+
+    dir_x: &[f32],
+    dir_y: &[f32],
+    dir_z: &[f32],
+
+    tri: &[i32],
+    tmin: &[f32],
+    tmax: &[f32],
+    u: &[f32],
+    v: &[f32]
 }
 
 struct RayQueue {
-    data:   &[Ray],
+    data:   &Rays,
     count:  i32
+}
+
+fn extract_ray(queue : RayQueue, i : i32) -> Ray {
+    let mut ray = Ray {
+        org: Vec3 { x: org_x(id), y: org_y(id), z: org_z(id) },
+        dir: Vec3 { x: dir_x(id), y: dir_y(id), z: dir_z(id) },
+        inv: Vec3 { x: 1.0f / dir_x(id),
+                    y: 1.0f / dir_y(id),
+                    z: 1.0f / dir_z(id) },
+        tri: tri(id),
+        tmin: tmin(id),
+        tmax: tmax(id),
+        u: u(id),
+        v: v(id)
+    };
+    
+    (ray)
 }

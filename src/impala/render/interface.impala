@@ -1,0 +1,1 @@
+extern "C" fn traverse_accel(accel_ptr: &Accel, rays_ptr: &Rays, ray_count: i32) -> ();
