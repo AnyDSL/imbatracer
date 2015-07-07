@@ -1,4 +1,5 @@
 #include <string>
+#include <vector>
 #include <rapidjson/rapidjson.h>
 #include <rapidjson/document.h>
 #include "compiler.h"
@@ -18,6 +19,8 @@ public:
     }
 
 private:
+    typedef std::vector<std::string> MemberList;
+
     template <typename T, typename... Args>
     void error(T t, Args... args) { err_ << t; error(args...); }
     template <typename T>
@@ -91,6 +94,8 @@ private:
             if (expect_string(type)) {
                 if (!strcmp(type.GetString(), "FunctionDeclaration"))
                     compile_function_decl(decl);
+                else if (!strcmp(type.GetString(), "VariableDeclaration"))
+                    compile_variable_decl(decl);
                 else
                     error("unsupported declaration");
             }
@@ -121,6 +126,30 @@ private:
 
         if (expect_member(fn_decl, "body"))
             compile_block_stmt(fn_decl["body"]);
+    }
+
+    void compile_variable_decl(const js::Value& var_decl) {
+        if (expect_member(var_decl, "declaration")) {
+            expect_array(var_decl["declarations"], [&] () { new_line(); }, [&] (const js::Value& var) {
+                compile_var(var);
+            });
+        }
+    }
+
+    void compile_var(const js::Value& var) {
+        if (expect_object(var)) {
+            write("let ");
+            if (expect_member(var, "id"))
+                compile_id(var["id"]);
+            write(": ");
+            if (expect_member(var, "extra"))
+                compile_type(var["extra"]);
+            if (var.HasMember("init")) {
+                write(" = ");
+                compile_expr(var["init"]);
+            }
+            write(";");
+        }
     }
 
     void compile_param(const js::Value& param) {
@@ -184,7 +213,9 @@ private:
                 else if (!strcmp(type.GetString(), "CallExpression"))
                     compile_call(expr);
                 else if (!strcmp(type.GetString(), "BinaryExpression"))
-                    compile_binop(expr);               
+                    compile_binop(expr);
+                else if (!strcmp(type.GetString(), "NewExpression"))
+                    compile_new(expr);
                 else
                     error("unsupported expression");
             }
@@ -200,68 +231,72 @@ private:
     }
 
     void compile_binop(const js::Value& binop) {
-        if (expect_object(binop)) {
-            if (expect_member(binop, "extra")) {
-                const js::Value& extra = binop["extra"];
+        if (expect_object(binop) &&
+            expect_member(binop, "extra")) {
+            const js::Value& extra = binop["extra"];
 
-                if (is_builtin_type(extra)) {
-                    // For built-in types, expression can be translated as-is
-                    if (expect_member(binop, "left")) compile_expr(binop["left"]);
-                    if (expect_member(binop, "operator")) {
-                        const js::Value& op = binop["operator"];
-                        if (expect_string(op)) write(" ", op.GetString(), " ");
-                    }
-                    if (expect_member(binop, "right")) compile_expr(binop["right"]);
-                } else {
-                    // For other types, we need to create function calls
-                    std::string prefix;
-                    if (expect_member(extra, "kind")) {
-                        const js::Value& kind = extra["kind"];
-                        if (expect_string(kind)) {
-                            if (!strcmp(kind.GetString(), "float2"))
-                                prefix = "vec2";
-                            else if (!strcmp(kind.GetString(), "float3"))
-                                prefix = "vec3";
-                            else if (!strcmp(kind.GetString(), "float4"))
-                                prefix = "vec4";
-                            else
-                                error("unsupported kind for binop");
-                        }
-                    }
-
-                    std::string suffix;
-                    if (expect_member(binop, "operator")) {
-                        const js::Value& op = binop["operator"];
-                        if (expect_string(op)) {
-                            if (!strcmp(op.GetString(), "+"))
-                                suffix = "add";
-                            else if (!strcmp(op.GetString(), "-"))
-                                suffix = "sub";
-                            else if (!strcmp(op.GetString(), "*"))
-                                suffix = "mul";
-                            else if (!strcmp(op.GetString(), "/"))
-                                suffix = "div";
-                            else
-                                error("unsupported operator for binop");
-                        }
-                    }
-
-                    write(prefix, " ", suffix, "(");
-                    if (expect_member(binop, "left")) compile_expr(binop["left"]);
-                    write(", ");
-                    if (expect_member(binop, "right")) compile_expr(binop["right"]);
-                    write(")");
+            if (is_builtin_type(extra)) {
+                // For built-in types, expression can be translated as-is
+                if (expect_member(binop, "left")) compile_expr(binop["left"]);
+                if (expect_member(binop, "operator")) {
+                    const js::Value& op = binop["operator"];
+                    if (expect_string(op)) write(" ", op.GetString(), " ");
                 }
+                if (expect_member(binop, "right")) compile_expr(binop["right"]);
+            } else {
+                // For other types, we need to create function calls
+                std::string prefix;
+                if (expect_member(extra, "kind")) {
+                    const js::Value& kind = extra["kind"];
+                    if (expect_string(kind)) {
+                        if (!strcmp(kind.GetString(), "float2"))
+                            prefix = "vec2";
+                        else if (!strcmp(kind.GetString(), "float3"))
+                            prefix = "vec3";
+                        else if (!strcmp(kind.GetString(), "float4"))
+                            prefix = "vec4";
+                        else
+                            error("unsupported kind for binop");
+                    }
+                }
+
+                std::string suffix;
+                if (expect_member(binop, "operator")) {
+                    const js::Value& op = binop["operator"];
+                    if (expect_string(op)) {
+                        if (!strcmp(op.GetString(), "+"))
+                            suffix = "add";
+                        else if (!strcmp(op.GetString(), "-"))
+                            suffix = "sub";
+                        else if (!strcmp(op.GetString(), "*"))
+                            suffix = "mul";
+                        else if (!strcmp(op.GetString(), "/"))
+                            suffix = "div";
+                        else
+                            error("unsupported operator for binop");
+                    }
+                }
+
+                write(prefix, " ", suffix, "(");
+                if (expect_member(binop, "left")) compile_expr(binop["left"]);
+                write(", ");
+                if (expect_member(binop, "right")) compile_expr(binop["right"]);
+                write(")");
             }
         }
     }
 
     void compile_literal(const js::Value& lit) {
-        if (expect_member(lit, "value")) {
+        if (expect_member(lit, "value") && expect_member(lit, "extra")) {
             const js::Value& value = lit["value"];
-            if (value.IsInt()) write(value.GetInt());
-            else if (value.IsBool()) write(value.GetBool() ? "true" : "false");
+            if (value.IsInt()) {
+                if (is_floating_point(lit["extra"]))
+                    write(value.GetInt(), ".0f");
+                else
+                    write(value.GetInt());
+            } else if (value.IsBool()) write(value.GetBool() ? "true" : "false");
             else if (value.IsDouble()) write(value.GetDouble(), "f");
+            else error("unsupported literal");
         }
     }
 
@@ -274,6 +309,22 @@ private:
             });
         }
         write(")");
+    }
+
+    void compile_new(const js::Value& call) {
+        if (expect_member(call, "callee"))
+            compile_expr(call["callee"]);
+        write("{");
+        if (expect_member(call, "arguments") &&
+            expect_member(call, "extra")) {
+            const MemberList& members = member_list(call["extra"]);
+            int m = 0;
+            expect_array(call["arguments"], [&] () { write(", "); }, [&] (const js::Value& arg) {
+                write(members[m++], ": ");
+                compile_expr(arg);
+            });
+        }
+        write("}");
     }
 
     void compile_type(const js::Value& extra) {
@@ -319,10 +370,42 @@ private:
                 else if (!strcmp(type.GetString(), "boolean"))
                     return true;
                 else
-                    write("unsupported type");
+                    error("unsupported type");
             }
         }
         return false;
+    }
+
+    bool is_floating_point(const js::Value& extra) {
+        if (expect_object_member(extra, "type")) {
+            const js::Value& type = extra["type"];
+            if (expect_string(type) && !strcmp(type.GetString(), "number"))
+                return true;
+        }
+        return false;
+    }
+
+    MemberList member_list(const js::Value& extra) {
+        if (expect_object_member(extra, "type")) {
+            const js::Value& type = extra["type"];
+            if (expect_string(type) &&
+                !strcmp(type.GetString(), "object") &&
+                expect_member(extra, "kind")) {
+                const js::Value& kind = extra["kind"];
+                if (expect_string(kind)) {
+                    if (!strcmp(kind.GetString(), "float2"))
+                        return MemberList({"x", "y"});
+                    else if (!strcmp(kind.GetString(), "float3"))
+                        return MemberList({"x", "y", "z"});
+                    else if (!strcmp(kind.GetString(), "float4"))
+                        return MemberList({"x", "y", "z", "w"});
+                    else
+                        error("unsupported kind");
+                }
+            }
+            error("unsupported type");
+        }
+        return MemberList();
     }
 
     template <typename T, typename... Args>
@@ -331,8 +414,8 @@ private:
     void write(T t) { out_ << t; }
     void indent() { indent_++; }
     void unindent() { indent_--; }
-    void new_line() { out_ << "\n"; alinea(); }
-    void alinea() { for (int i = 0; i < indent_; i++) out_ << tab_; }
+    void new_line() { out_ << "\n"; tabulation(); }
+    void tabulation () { for (int i = 0; i < indent_; i++) out_ << tab_; }
 
     int indent_;
     const std::string tab_;
