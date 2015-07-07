@@ -95,7 +95,7 @@ private:
                 if (!strcmp(type.GetString(), "FunctionDeclaration"))
                     compile_function_decl(decl);
                 else if (!strcmp(type.GetString(), "VariableDeclaration"))
-                    compile_variable_decl(decl);
+                    compile_variable_decl(decl, true);
                 else
                     error("unsupported declaration");
             }
@@ -125,22 +125,24 @@ private:
         write(" ");
 
         if (expect_member(fn_decl, "body"))
-            compile_block_stmt(fn_decl["body"]);
+            compile_block(fn_decl["body"]);
     }
 
-    void compile_variable_decl(const js::Value& var_decl) {
-        if (expect_member(var_decl, "declaration")) {
+    void compile_variable_decl(const js::Value& var_decl, bool top_level = false) {
+        if (expect_member(var_decl, "declarations")) {
             expect_array(var_decl["declarations"], [&] () { new_line(); }, [&] (const js::Value& var) {
-                compile_var(var);
+                compile_var(var, top_level);
             });
         }
     }
 
-    void compile_var(const js::Value& var) {
+    void compile_var(const js::Value& var, bool top_level = false) {
         if (expect_object(var)) {
-            write("let ");
+            write(top_level ? "static" : "let", " ");
+
             if (expect_member(var, "id"))
                 compile_id(var["id"]);
+
             write(": ");
             if (expect_member(var, "extra"))
                 compile_type(var["extra"]);
@@ -167,21 +169,39 @@ private:
         }
     }
 
-    void compile_stmt(const js::Value& stmt) {
+    void compile_stmt(const js::Value& stmt, bool with_block = false) {
         if (expect_object_member(stmt, "type")) {
             const js::Value& type = stmt["type"];
             if (expect_string(type)) {
                 if (!strcmp(type.GetString(), "BlockStatement"))
-                    compile_block_stmt(stmt);
-                else if (!strcmp(type.GetString(), "ReturnStatement"))
-                    compile_return_stmt(stmt);
-                else
-                    error("unsupported statement");
+                    compile_block(stmt);
+                else {
+                    if (with_block) {
+                        write("{");
+                        indent();
+                        new_line();
+                    }
+
+                    if (!strcmp(type.GetString(), "ReturnStatement"))
+                        compile_return(stmt);
+                    else if (!strcmp(type.GetString(), "IfStatement"))
+                        compile_if(stmt);
+                    else if (!strcmp(type.GetString(), "VariableDeclaration"))
+                        compile_variable_decl(stmt);
+                    else
+                        error("unsupported statement");
+
+                    if (with_block) {
+                        unindent();
+                        new_line();
+                        write("}");
+                    }
+                }
             }
         }
     } 
 
-    void compile_block_stmt(const js::Value& block) {
+    void compile_block(const js::Value& block) {
         write("{");
         indent();
         new_line();
@@ -195,11 +215,26 @@ private:
         write("}");
     }
 
-    void compile_return_stmt(const js::Value& ret) {
+    void compile_return(const js::Value& ret) {
         write("return(");
         if (expect_member(ret, "argument"))
             compile_expr(ret["argument"]);
         write(");");
+    }
+
+    void compile_if(const js::Value& if_) {
+        write("if ");
+        if (expect_member(if_, "test"))
+            compile_expr(if_["test"]);
+        write(" ");
+
+        if (expect_member(if_, "consequent"))
+            compile_stmt(if_["consequent"], true);
+
+        if (if_.HasMember("alternate")) {
+            write(" else ");
+            compile_stmt(if_["alternate"], true);
+        }
     }
 
     void compile_expr(const js::Value& expr) {
@@ -341,8 +376,8 @@ private:
                                 write("Vec3");
                             else if (!strcmp(kind.GetString(), "float4"))
                                 write("Vec4");
-                            else
-                                error("unsupported kind");
+                            else if (!strcmp(kind.GetString(), "any"))
+                                write("Env");
                         }
                     }
                 } else if (!strcmp(type.GetString(), "number"))
