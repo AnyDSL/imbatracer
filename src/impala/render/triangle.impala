@@ -12,10 +12,10 @@ fn inside_triangle(a : Vec3, b : Vec3, c : Vec3, p: Vec3) -> bool {
     let dot12 = vec3_dot(v1, v2);
 
     // Compute barycentric coordinates
-    let inv_denom = 1.0f / (dot00 * dot11 - dot01 * dot01)
-    let u = (dot11 * dot02 - dot01 * dot12) * invDenom
-    let v = (dot00 * dot12 - dot01 * dot02) * invDenom
+    let inv_denom = 1.0f / (dot00 * dot11 - dot01 * dot01);
+    let u = (dot11 * dot02 - dot01 * dot12) * inv_denom;
+    let v = (dot00 * dot12 - dot01 * dot02) * inv_denom;
 
     // Check if point is in triangle
-    return (u >= 0.0f) && (v >= 0.0f) && (u + v < 1.0f)
+    return ((u >= 0.0f) && (v >= 0.0f) && (u + v < 1.0f))
 }

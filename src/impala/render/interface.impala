@@ -1,1 +1,17 @@
-extern "C" fn traverse_accel(accel_ptr: &Accel, rays_ptr: &Rays, ray_count: i32) -> ();
+struct Accel {
+    nodes: &[BvhNode],
+    indices: &[i32],
+    vertices: &[float],
+    root: i32
+}
+
+struct BvhNode {
+    min: [f32 * 3],
+    child_tri: i32,
+    max: [f32 * 3],
+    prim_count: i32
+}
+
+extern "C" {
+    fn traverse_accel(accel_ptr: &Accel, rays_ptr: &Rays, ray_count: i32) -> ();
+}

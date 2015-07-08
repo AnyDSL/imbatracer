@@ -1,5 +1,5 @@
 struct Scene {
-    models:           &[Models],        // Array of 3D models
+    models:           &[Model],        // Array of 3D models
     model_count:      i32,              // Number of 3D models
     textures:         &[Texture],       // Array of textures
     tex_count:        i32,              // Number of textures
@@ -50,9 +50,9 @@ struct HemiLight {
     intensity:  [f32 * 3],  // Light intensity
     shader:     ShaderRef,  // Light shader binding
     
-    pos: [f32 * 3],  // Position in 3D space
-    dir: [f32 * 3]   // Direction (normal) of the hemisphere
-    cutoff: f32      // Cutoff angle
+    pos: [f32 * 3],   // Position in 3D space
+    dir: [f32 * 3],   // Direction (normal) of the hemisphere
+    cutoff: f32       // Cutoff angle
 }
 
 struct AreaLight {

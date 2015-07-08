@@ -7,9 +7,9 @@ extern fn render_scene(scene : Scene, accel_ptr : &Accel, output_tex : Texture, 
         generate_rays(&rays_1, output_tex.width, output_tex.height, 0);
         
         // Traverse
-        traverse_accel(accel, rays_1.data, rays_1.count);
+        traverse_accel(accel_ptr, rays_1.data, rays_1.count);
         
         // Shade
-        call_shader(&rays_1, &rays_2, 0, output_tex.pixels);
+        call_shader(&rays_1, &rays_2, 0, output_tex.pixels as &[f32]);
     } 
 }
