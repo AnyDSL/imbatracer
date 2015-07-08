@@ -33,23 +33,35 @@ fn sample_arealight(area: AreaLight, rnd: fn() -> f32) -> (Vec3, Vec3, f32) {
     let mut v3_index : i64;
     
     if index_buffer.format == BUFFER_I16 {
-        v1_index = *((index_buffer.data as &[i16]) + first_index) as i64;
-        v2_index = *((index_buffer.data as &[i16]) + first_index + 1) as i64;
-        v3_index = *((index_buffer.data as &[i16]) + first_index + 2) as i64;
+        let v1_tmp : i16 = (index_buffer.data as &[i16])(first_index);
+        let v2_tmp : i16 = (index_buffer.data as &[i16])(first_index + 1);
+        let v3_tmp : i16 = (index_buffer.data as &[i16])(first_index + 2);
+        
+        v1_index = v1_tmp as i64;
+        v2_index = v2_tmp as i64;
+        v3_index = v3_tmp as i64;
     } else if index_buffer.format == BUFFER_I32 {
-        v1_index = *((index_buffer.data as &[i32]) + first_index) as i64;
-        v2_index = *((index_buffer.data as &[i32]) + first_index + 1) as i64;
-        v3_index = *((index_buffer.data as &[i32]) + first_index + 2) as i64;
+        let v1_tmp : i32 = (index_buffer.data as &[i32])(first_index);
+        let v2_tmp : i32 = (index_buffer.data as &[i32])(first_index + 1);
+        let v3_tmp : i32 = (index_buffer.data as &[i32])(first_index + 2);
+        
+        v1_index = v1_tmp as i64;
+        v2_index = v2_tmp as i64;
+        v3_index = v3_tmp as i64;
     } else /* if index_buffer.format == BUFFER_I64 */ {
-        v1_index = *((index_buffer.data as &[i64]) + first_index) as i64;
-        v2_index = *((index_buffer.data as &[i64]) + first_index + 1) as i64;
-        v3_index = *((index_buffer.data as &[i64]) + first_index + 2) as i64;
+        let v1_tmp : i64 = (index_buffer.data as &[i64])(first_index);
+        let v2_tmp : i64 = (index_buffer.data as &[i64])(first_index + 1);
+        let v3_tmp : i64 = (index_buffer.data as &[i64])(first_index + 2);
+        
+        v1_index = v1_tmp as i64;
+        v2_index = v2_tmp as i64;
+        v3_index = v3_tmp as i64;
     }
     
     // Assuming vertex buffer consisting of 3 f32 coordinates per vertex.
-    let v1 = ((vertex_buffer.data as &[Vec3]) + v1_index)(0);
-    let v2 = ((vertex_buffer.data as &[Vec3]) + v2_index)(0);
-    let v3 = ((vertex_buffer.data as &[Vec3]) + v3_index)(0);
+    let v1 : Vec3 = (vertex_buffer.data as &[Vec3])(v1_index);
+    let v2 : Vec3 = (vertex_buffer.data as &[Vec3])(v2_index);
+    let v3 : Vec3 = (vertex_buffer.data as &[Vec3])(v3_index);
     
     // Rejection sample the triangle
     let edge_1 = vec3_sub(v3, v1);
@@ -58,7 +70,7 @@ fn sample_arealight(area: AreaLight, rnd: fn() -> f32) -> (Vec3, Vec3, f32) {
     let u1 = rnd();
     let u2 = rnd();
     
-    let mut pos;
+    let mut pos : Vec3;
     while (true) {
         pos = vec3_add(vec3_add(v1, vec3_mulf(edge_1, u1)), vec3_add(v1, vec3_mulf(edge_2, u2)));
         if inside_triangle(v1, v2, v3, pos) {

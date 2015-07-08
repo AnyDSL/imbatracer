@@ -15,7 +15,7 @@ fn basic_ray_gen(x : i32, y : i32, width : i32, height : i32) -> Ray {
     r.dir = Vec3 { values : [0.0f, 0.0f, 1.0f] };
     
     r.tmin = 0.0f;
-    r.tmax = FLT_MAX;
+    r.tmax = 99999999999999.9f;// TODO how to get FLT_MAX;
     
     (r)
 }
