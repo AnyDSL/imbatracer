@@ -1,4 +1,4 @@
-fn sample_hemilight(hemi: HemiLight, rnd: fn() -> f32) -> (Vec3, Vec3, f32) {
+fn sample_hemilight(scene : Scene, hemi: HemiLight, rnd: fn() -> f32) -> (Vec3, Vec3, f32) {
     // TODO : Sample an hemispherical light
     
     let pos = hemi.pos;
@@ -7,10 +7,10 @@ fn sample_hemilight(hemi: HemiLight, rnd: fn() -> f32) -> (Vec3, Vec3, f32) {
     (Vec3 { values : pos }, Vec3 { values : dir }, invoke_lightshader(hemi.shader, hemi.intensity, pos, dir))
 }
 
-fn sample_arealight(area: AreaLight, rnd: fn() -> f32) -> (Vec3, Vec3, f32) {   
+fn sample_arealight(scene : Scene, area: AreaLight, rnd: fn() -> f32) -> (Vec3, Vec3, f32) {   
     // Obtain the index and vertex buffers
-    let index_buffer : Buffer = get_buffer(area.index_buf);
-    let vertex_buffer : Buffer = get_buffer(area.vertex_buf);
+    let index_buffer : Buffer = scene.buffers(area.index_buf);
+    let vertex_buffer : Buffer = scene.buffers(area.vertex_buf);
     
     // Randomly choose which triangle to sample
     let mut index_size : i32;   // size of a single index in byte;
