@@ -1,14 +1,20 @@
 fn basic_shader(r_in : Ray, queue_out : &RayQueue) -> [f32 * 4] {
-    ([1.0f, 0.0f, 0.0f, 0.0f])
-    //([r_in.tmin, r_in.tmin, r_in.tmin, 1.0f])
+    //([1.0f, 0.0f, 0.0f, 0.0f])
+    let mut t: f32 = r_in.tmax;
+    
+    if t == flt_max {
+        t = 0.0f;
+    }
+    
+    ([(r_in.tri + 1) as f32, 0.0f, t, 1.0f])
 }
 
 fn basic_ray_gen(x : i32, y : i32, width : i32, height : i32) -> Ray {
     let mut rel_x = (x as f32) / (width as f32);
-    let mut rel_y = (y as f32) / (height as f32);
+    let mut rel_y = -(y as f32) / (height as f32);
     
     rel_x = rel_x * 2.0f - 1.0f;
-    rel_y = rel_y * 2.0f - 1.0f;
+    rel_y = rel_y * 2.0f + 1.0f;
     
     Ray {
         org: Vec3 { values : [rel_x, rel_y, 0.0f] },

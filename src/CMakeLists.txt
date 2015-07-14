@@ -6,17 +6,18 @@ set(FRONTEND_SRCS
     frontend/test_scene.h)
 
 set(RENDER_SRCS
-    render/basic_shader.impala
-    render/interface.impala
-    render/float.impala
-    render/light.impala
-    render/range.impala
+    render/shader/basic_shader.impala
+    render/common/traversal_interface.impala
+    render/math/float.impala
+    render/scene/light.impala
+    render/common/range.impala
+    render/common/debug.impala
     render/ray.impala
     render/render.impala
-    render/scene.impala
-    render/shader.impala
-    render/triangle.impala
-    render/vector.impala)
+    render/scene/scene.impala
+    render/shader/shader.impala
+    render/math/triangle.impala
+    render/math/vector.impala)
 
 add_custom_command(OUTPUT ${CMAKE_CURRENT_SOURCE_DIR}/frontend/render.h
                    COMMAND impala -emit-c-interface ${RENDER_SRCS}
