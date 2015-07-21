@@ -1,5 +1,5 @@
 struct Scene {
-    models:           &[Model],        // Array of 3D models
+    models:           &[Model],         // Array of 3D models
     model_count:      i32,              // Number of 3D models
     textures:         &[Texture],       // Array of textures
     tex_count:        i32,              // Number of textures
@@ -38,7 +38,7 @@ struct Buffer {
     size:   i32           // Buffer size, in bytes
 }
 
-type Pixel = [f32 * 4];
+type Pixel = Vec4;
 
 struct Texture {
     pixels: &[Pixel],  // Texture pixels, each row stored contiguously
@@ -47,20 +47,20 @@ struct Texture {
 }
 
 struct HemiLight {
-    intensity:  [f32 * 3],  // Light intensity
+    intensity:  Vec3,       // Light intensity
     shader:     ShaderRef,  // Light shader binding
     
-    pos: [f32 * 3],   // Position in 3D space
-    dir: [f32 * 3],   // Direction (normal) of the hemisphere
-    cutoff: f32       // Cutoff angle
+    pos: Vec3,      // Position in 3D space
+    dir: Vec3,      // Direction (normal) of the hemisphere
+    cutoff: f32     // Cutoff angle
 }
 
 struct AreaLight {
-    intensity:  [f32 * 3],  // Light intensity
+    intensity:  Vec3,       // Light intensity
     shader:     ShaderRef,  // Light shader binding
     
-    vertex_buf: BufferRef, // Vertex buffer binding
-    index_buf: BufferRef,  // Index buffer binding
-    area: f32              // Total area of the mesh
+    vertex_buf: BufferRef,  // Vertex buffer binding
+    index_buf: BufferRef,   // Index buffer binding
+    area: f32               // Total area of the mesh
 }
 

@@ -3,7 +3,7 @@ extern "C" {
 }
 
 fn is_debug() -> bool {
-    false
+    true
 }
 
 fn assert(cond: fn () -> bool, msg: &[u8]) -> () {

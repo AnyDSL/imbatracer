@@ -1,10 +1,7 @@
 fn sample_hemilight(scene : Scene, hemi: HemiLight, rnd: fn() -> f32) -> (Vec3, Vec3, f32) {
-    // TODO : Sample an hemispherical light
-    
-    let pos = hemi.pos;
-    let dir = hemi.dir;
+    let dir = sample_hemisphere(hemi.dir, rnd(), rnd());
 
-    (Vec3 { values : pos }, Vec3 { values : dir }, invoke_lightshader(hemi.shader, hemi.intensity, pos, dir))
+    (hemi.pos, dir, invoke_lightshader(hemi.shader, hemi.intensity, hemi.pos, dir))
 }
 
 fn sample_arealight(scene : Scene, area: AreaLight, rnd: fn() -> f32) -> (Vec3, Vec3, f32) {   
@@ -78,8 +75,9 @@ fn sample_arealight(scene : Scene, area: AreaLight, rnd: fn() -> f32) -> (Vec3, 
         }
     }
     
-    let dir = vec3_norm(vec3_cross(edge_1, edge_2)); // TODO how to sample directions?
+    let n = vec3_norm(vec3_cross(edge_1, edge_2));
+    let dir = sample_hemisphere(n, rnd(), rnd());
 
-    (pos, dir, invoke_lightshader(area.shader, area.intensity, pos.values, dir.values))
+    (pos, dir, invoke_lightshader(area.shader, area.intensity, pos, dir))
 }
 

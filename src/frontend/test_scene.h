@@ -2,6 +2,8 @@
 #include "thorin_runtime.h"
 #include <cstring>
 
+#include <cmath>
+
 enum {
     BUFFER_I32 = 1,
     BUFFER_F32 = 3
@@ -47,10 +49,26 @@ namespace imba {
         
         s_out.buf_count = 2;
         
-        s_out.hemi_lights = nullptr;
+        s_out.hemi_lights = thorin_new<HemiLight>(1);
         s_out.area_lights = nullptr;
-        s_out.hemi_light_count = 0;
+        s_out.hemi_light_count = 1;
         s_out.area_light_count = 0;
+        
+        s_out.hemi_lights[0].intensity.values[0] = 1.f * 10.0f;
+        s_out.hemi_lights[0].intensity.values[1] = 0.6f * 10.0f;
+        s_out.hemi_lights[0].intensity.values[2] = 0.f * 10.0f;
+        
+        s_out.hemi_lights[0].shader = 0;
+        
+        s_out.hemi_lights[0].pos.values[0] = 0.0f;
+        s_out.hemi_lights[0].pos.values[1] = 10.0f;
+        s_out.hemi_lights[0].pos.values[2] = 0.0f;
+                
+        s_out.hemi_lights[0].cutoff = 2.0f * 3.14159f;
+        
+        s_out.hemi_lights[0].dir.values[0] = 0.0f;
+        s_out.hemi_lights[0].dir.values[1] = 0.0f;
+        s_out.hemi_lights[0].dir.values[2] = 1.0f;
     }
 
     void buildTestSceneAccel(const Scene& scene, Accel& a_out) {

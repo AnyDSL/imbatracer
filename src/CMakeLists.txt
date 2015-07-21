@@ -12,12 +12,14 @@ set(RENDER_SRCS
     render/scene/light.impala
     render/common/range.impala
     render/common/debug.impala
-    render/ray.impala
+    render/rays/ray.impala
+    render/rays/camera.impala
     render/render.impala
     render/scene/scene.impala
     render/shader/shader.impala
     render/math/triangle.impala
-    render/math/vector.impala)
+    render/math/vector.impala
+    render/math/random.impala)
 
 add_custom_command(OUTPUT ${CMAKE_CURRENT_SOURCE_DIR}/frontend/render.h
                    COMMAND impala -emit-c-interface ${RENDER_SRCS}

@@ -1,12 +1,16 @@
 extern fn render_scene(scene: &Scene, accel_ptr: &Accel, output_tex: &Texture, pixel_sample_count: i32, mut ray_queue_in: &RayQueue, mut ray_queue_out: &RayQueue) -> () {
+    let mut rnd_state : RandomState;
+    random_state(&rnd_state, 0u); // TODO what seed to use?
+    fn rnd() -> f32 { random_float(&rnd_state) };
+        
     for i in range(0, pixel_sample_count) {
         // Generate rays
-        generate_rays(ray_queue_in, output_tex.width, output_tex.height, 0);
+        generate_rays(ray_queue_in, output_tex.width, output_tex.height, 0, rnd);
         
         // Traverse
         traverse_accel(accel_ptr, &(ray_queue_in.data), ray_queue_in.count);
         
         // Shade
-        call_shader(ray_queue_in, ray_queue_out, 0, output_tex);
+        call_shader(ray_queue_in, ray_queue_out, 0, output_tex, scene, rnd);
     } 
 }

@@ -7,7 +7,7 @@ imba::SDLDevice::SDLDevice(int img_width, int img_height)
 {
     tex_.width = image_width_;
     tex_.height = image_height_;
-    tex_.pixels = thorin_new<float>(4 * image_width_ * image_height_);
+    tex_.pixels = thorin_new<Vec4>(image_width_ * image_height_);
     
     prim_queue_.count = image_width_ * image_height_;
     prim_queue_.data.org_x = thorin_new<float>(prim_queue_.count);
@@ -58,13 +58,29 @@ void imba::SDLDevice::render(Scene& scene, Accel& accel) {
     bool done = false;
     int frames = 0;
     long ticks = SDL_GetTicks();
+    long t = ticks;
+    long old_t;
+    float dir = -1.0f;
     while (!done) {
-        long t = SDL_GetTicks();
+        old_t = t;
+        t = SDL_GetTicks();
+        float ftime = (t - old_t) / 1000.0f;
         if (t - ticks > 5000) {
             std::cout << 1000 * frames / (t - ticks) << " frames per second" << std::endl;
             frames = 0;
             ticks = t;
         }
+        
+        // TEST CODE
+        scene.hemi_lights[0].pos.values[1] += dir * ftime * 3.0f;
+        if (scene.hemi_lights[0].pos.values[1] < -5.0f){
+            scene.hemi_lights[0].pos.values[1] = -5.0f;
+            dir = 1.0f;
+        } else if (scene.hemi_lights[0].pos.values[1] > 5.0f) {
+            scene.hemi_lights[0].pos.values[1] = 5.0f;
+            dir = -1.0f;
+        }
+        // END TEST CODE
         
         render_surface(scene, accel);
 
@@ -93,12 +109,12 @@ void imba::SDLDevice::render_surface(Scene& scene, Accel& accel) {
 #pragma omp parallel for
     for (int y = 0; y < screen_->h; y++) {
         unsigned char* row = (unsigned char*)screen_->pixels + screen_->pitch * y;
-        const float* buf_row = tex_.pixels + y * image_width_ * 4;
+        const Vec4* buf_row = tex_.pixels + y * image_width_;
         
         for (int x = 0; x < screen_->w; x++) {
-            row[x * 4 + r] = 255.0f * clamp(buf_row[x * 4], 0.0f, 1.0f);
-            row[x * 4 + g] = 255.0f * clamp(buf_row[x * 4 + 1], 0.0f, 1.0f);
-            row[x * 4 + b] = 255.0f * clamp(buf_row[x * 4 + 2], 0.0f, 1.0f);
+            row[x * 4 + r] = 255.0f * clamp(buf_row[x].values[0], 0.0f, 1.0f);
+            row[x * 4 + g] = 255.0f * clamp(buf_row[x].values[1], 0.0f, 1.0f);
+            row[x * 4 + b] = 255.0f * clamp(buf_row[x].values[2], 0.0f, 1.0f);
         }
     }
     SDL_UnlockSurface(screen_);

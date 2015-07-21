@@ -6,6 +6,33 @@
 extern "C" {
 #endif
 
+struct BvhNode {
+    float min[3];
+    int child_tri;
+    float max[3];
+    int prim_count;
+};
+
+struct Vec3 {
+    float values[3];
+};
+
+struct HemiLight {
+    struct Vec3 intensity;
+    int shader;
+    struct Vec3 pos;
+    struct Vec3 dir;
+    float cutoff;
+};
+
+struct AreaLight {
+    struct Vec3 intensity;
+    int shader;
+    int vertex_buf;
+    int index_buf;
+    float area;
+};
+
 struct Model {
     int* tex_ref;
     int tex_count;
@@ -16,8 +43,12 @@ struct Model {
     int shader;
 };
 
+struct Vec4 {
+    float values[4];
+};
+
 struct Texture {
-    float* pixels;
+    struct Vec4* pixels;
     int width;
     int height;
 };
@@ -26,22 +57,6 @@ struct Buffer {
     int format;
     unsigned char* data;
     int size;
-};
-
-struct HemiLight {
-    float intensity[3];
-    int shader;
-    float pos[3];
-    float dir[3];
-    float cutoff;
-};
-
-struct AreaLight {
-    float intensity[3];
-    int shader;
-    int vertex_buf;
-    int index_buf;
-    float area;
 };
 
 struct Scene {
@@ -55,13 +70,6 @@ struct Scene {
     struct AreaLight* area_lights;
     int hemi_light_count;
     int area_light_count;
-};
-
-struct BvhNode {
-    float min[3];
-    int child_tri;
-    float max[3];
-    int prim_count;
 };
 
 struct Accel {
