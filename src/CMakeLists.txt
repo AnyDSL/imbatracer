@@ -1,10 +1,12 @@
+add_subdirectory(js2impala)
+
 set(FRONTEND_SRCS
     frontend/main.cpp
     frontend/SDL_device.h
     frontend/SDL_device.cpp
     frontend/render.h
     frontend/test_scene.h)
-
+    
 set(RENDER_SRCS
     render/shader/basic_shader.impala
     render/common/traversal_interface.impala
