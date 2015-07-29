@@ -107,9 +107,6 @@ int main(int argc, char** argv) {
                   << std::endl;
     }
 
-    // print total timing on accelerator devices
-    thorin_print_total_timing();
-
     return EXIT_SUCCESS;
 }
 
