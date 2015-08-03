@@ -30,6 +30,9 @@ include_directories(${PNG_INCLUDE_DIRS})
 find_package(SDL REQUIRED)
 include_directories(${SDL_INCLUDE_DIR})
 
+# Traversal
+find_package(Traversal REQUIRED)
+
 # Add the project files
 add_subdirectory(src)
 

@@ -1,12 +1,14 @@
 struct Scene {
-    models:      &[Models],        // Array of 3D models
-    model_count: i32               // Number of 3D models
-    textures:    &[Texture],       // Array of textures
-    tex_count:   i32               // Number of textures
-    buffers:     &[Buffer],        // Array of buffers
-    buf_count:   i32               // Number of buffers
-    lights:      &[Light],         // Array of lights
-    light_count: i32
+    models:           &[Model],         // Array of 3D models
+    model_count:      i32,              // Number of 3D models
+    textures:         &[Texture],       // Array of textures
+    tex_count:        i32,              // Number of textures
+    buffers:          &[Buffer],        // Array of buffers
+    buf_count:        i32,              // Number of buffers
+    hemi_lights:      &[HemiLight],     // Array of lights (hemispherical and area)
+    area_lights:      &[AreaLight],
+    hemi_light_count: i32,
+    area_light_count: i32,
 }
 
 type BufferRef = i32;      // Buffer binding
@@ -36,7 +38,7 @@ struct Buffer {
     size:   i32           // Buffer size, in bytes
 }
 
-type Pixel = [f32 * 4];
+type Pixel = Vec4;
 
 struct Texture {
     pixels: &[Pixel],  // Texture pixels, each row stored contiguously
@@ -45,26 +47,20 @@ struct Texture {
 }
 
 struct HemiLight {
-    pos: [f32 * 3],  // Position in 3D space
-    dir: [f32 * 3]   // Direction (normal) of the hemisphere
-    cutoff: f32      // Cutoff angle
+    intensity:  Vec3,       // Light intensity
+    shader:     ShaderRef,  // Light shader binding
+    
+    pos: Vec3,      // Position in 3D space
+    dir: Vec3,      // Direction (normal) of the hemisphere
+    cutoff: f32     // Cutoff angle
 }
 
 struct AreaLight {
-    vertex_buf: BufferRef, // Vertex buffer binding
-    index_buf: BufferRef,  // Index buffer binding
-    area: f32              // Total area of the mesh
-}
-
-type LightType = i32;
-static LIGHT_AREA = 0;
-static LIGHT_HEMI = 1;
-
-struct Light {
-    light_type: LightType,  // Type of light
-    intensity:  [f32 * 3],  // Light intensity
+    intensity:  Vec3,       // Light intensity
     shader:     ShaderRef,  // Light shader binding
-    hemi_light: HemiLight,  // Hemispherical light
-    area_light: AreaLight   // Area light
+    
+    vertex_buf: BufferRef,  // Vertex buffer binding
+    index_buf: BufferRef,   // Index buffer binding
+    area: f32               // Total area of the mesh
 }
 

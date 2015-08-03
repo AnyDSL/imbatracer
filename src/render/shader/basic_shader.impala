@@ -1,0 +1,37 @@
+fn basic_shader(r_in: Ray, queue_out: &RayQueue, scene: &Scene, rnd: fn() -> f32) -> Vec4 {
+    //([1.0f, 0.0f, 0.0f, 0.0f])
+    let mut t: f32 = r_in.tmax;
+    
+    if t == flt_max {
+        t = 0.0f;
+    }
+    
+    vec4((r_in.tri + 1) as f32, 0.0f, t, 1.0f)
+}
+
+fn const_lambertian(w_in: Ray, queue_out: &RayQueue, scene: &Scene, rnd: fn() -> f32) -> Vec4 {
+    let mut color = vec4(0.0f, 0.0f, 0.0f, 0.0f);
+    
+    let t: f32 = w_in.tmax;
+    if t != flt_max{
+        let isect_pos = vec3_add(w_in.org, vec3_mulf(w_in.dir, t));
+    
+        fn lambert_brdf(w_out: Vec3) -> Vec4 {
+            let c = 1.0f / flt_pi * fabsf(vec3_dot(w_in.dir, w_out));
+            vec4(c, c, c, c)
+        }
+        
+        //color.values(0) = 1.0f;
+
+        for i in range(0, scene.hemi_light_count) {
+            let ls = sample_hemilight(*scene, scene.hemi_lights(i), rnd);
+            let w_out = vec3_norm(vec3_sub(ls(0), isect_pos));
+
+            let li = vec4_mulf(vec4_from_vec3(scene.hemi_lights(i).intensity, 0.0f), ls(2));
+            
+            color = vec4_add(vec4_mul(lambert_brdf(w_out), li), color);
+        }
+    }
+    
+    color
+}
