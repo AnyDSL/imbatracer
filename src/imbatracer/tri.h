@@ -1,5 +1,5 @@
-#ifndef TRI_H
-#define TRI_H
+#ifndef IMBA_TRI_H
+#define IMBA_TRI_H
 
 #include "float3.h"
 #include "bbox.h"
@@ -22,4 +22,4 @@ inline BBox bounding_box(const Tri& tri) {
 
 } // namespace imba
 
-#endif // TRI_H
+#endif // IMBA_TRI_H

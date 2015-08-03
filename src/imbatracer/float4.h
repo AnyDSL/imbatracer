@@ -1,5 +1,5 @@
-#ifndef FLOAT4_H
-#define FLOAT4_H
+#ifndef IMBA_FLOAT4_H
+#define IMBA_FLOAT4_H
 
 #include <cmath>
 
@@ -69,4 +69,4 @@ inline float4 normalize(const float4& a) {
 
 } // namespace imba
 
-#endif // FLOAT4_H
+#endif // IMBA_FLOAT4_H

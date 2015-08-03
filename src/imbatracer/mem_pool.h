@@ -1,5 +1,5 @@
-#ifndef MEM_POOL_H
-#define MEM_POOL_H
+#ifndef IMBA_MEM_POOL_H
+#define IMBA_MEM_POOL_H
 
 #include <cstdint>
 #include <vector>
@@ -10,7 +10,7 @@ class MemoryPool {
 public:
     MemoryPool(size_t init = 1 << 16) {
         chunks_.emplace_back(new uint8_t[init], init);
-        cur = 0;
+        cur_ = 0;
     }
 
     ~MemoryPool() {
@@ -24,19 +24,19 @@ public:
     }
 
 private:
-    typedef std::pair<uint8_t, size_t> Chunk;
+    typedef std::pair<uint8_t*, size_t> Chunk;
 
     uint8_t* find_chunk(size_t size) {
-        if (chunks.back().second - cur_ < size) {
+        if (chunks_.back().second - cur_ < size) {
             // Allocate new chunk
-            size_t new_size = chunks.back().second;
+            size_t new_size = chunks_.back().second;
             while (new_size < size) new_size = new_size * 2 + 1;
-            chunks.emplace_back(new uint8_t[new_size], new_size);
-            cur = 0;
+            chunks_.emplace_back(new uint8_t[new_size], new_size);
+            cur_ = 0;
         }
 
-        uint8_t* ptr = chunks.back().first + cur;
-        cur += size;
+        uint8_t* ptr = chunks_.back().first + cur_;
+        cur_ += size;
         return ptr;
     }
 
@@ -46,4 +46,4 @@ private:
 
 } // namespace imba
 
-#endif
+#endif // IMBA_MEM_POOL_H

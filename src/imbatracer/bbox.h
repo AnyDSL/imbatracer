@@ -1,5 +1,5 @@
-#ifndef BBOX_H
-#define BBOX_H
+#ifndef IMBA_BBOX_H
+#define IMBA_BBOX_H
 
 #include <cfloat>
 #include <algorithm>
@@ -19,19 +19,19 @@ struct BBox {
 };
 
 inline BBox extend(const BBox& bb, const float3& f) {
-    return bbox(min(bb.min, f), max(bb.max, f));
+    return BBox(min(bb.min, f), max(bb.max, f));
 }
 
 inline BBox extend(const BBox& a, const BBox& b) {
-    return bbox(min(a.min, b.min), max(a.max, b.max));
+    return BBox(min(a.min, b.min), max(a.max, b.max));
 }
 
 inline BBox overlap(const BBox& a, const BBox& b) {
-    return bbox(max(a.min, b.min), min(a.max, b.max));
+    return BBox(max(a.min, b.min), min(a.max, b.max));
 }
 
 inline float half_area(const BBox& bb) {
-    const float3 len = max - min;
+    const float3 len = bb.max - bb.min;
     return std::max(len.x * (len.y + len.z) + len.y * len.z, 0.0f);
 }
 
@@ -46,4 +46,4 @@ inline bool is_inside(const BBox& bb, const float3& f) {
 
 } // namespace imba
 
-#endif // BBOX_H
+#endif // IMBA_BBOX_H

@@ -1,5 +1,5 @@
-#ifndef COMMON_H
-#define COMMON_H
+#ifndef IMBA_COMMON_H
+#define IMBA_COMMON_H
 
 namespace imba {
 
@@ -15,4 +15,4 @@ inline float degrees(float x) {
 
 } // namespace imba
 
-#endif // COMMON_H
+#endif // IMBA_COMMON_H
