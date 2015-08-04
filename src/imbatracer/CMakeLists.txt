@@ -15,3 +15,6 @@ add_library(imba-core
             core/split.h
             core/tri.cpp
             core/tri.h)
+
+#add_library(imba-render
+#            render/image.h)
