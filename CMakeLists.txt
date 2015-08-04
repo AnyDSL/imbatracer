@@ -32,6 +32,7 @@ include_directories(${SDL_INCLUDE_DIR})
 
 # Traversal
 find_package(Traversal REQUIRED)
+include_directories(${TRAVERSAL_INCLUDE_DIR})
 
 # Add the project files
 add_subdirectory(src)

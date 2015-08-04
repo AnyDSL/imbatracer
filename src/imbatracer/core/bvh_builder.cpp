@@ -1,39 +1,22 @@
 #include <algorithm>
-#include "sbvh.h"
+#include "bvh_builder.h"
 #include "split.h"
 #include "mem_pool.h"
 #include "mesh.h"
+#include "stack.h"
 
 namespace imba {
 
-struct Stack {
-    static constexpr int size = 64;
-    struct Elem {
-        uint32_t* refs;
-        int ref_count;
-    } elems[size];
-    int top;
-
-    Stack()
-        : top(-1)
+struct StackElem {
+    uint32_t* refs;
+    int ref_count;
+    StackElem() {}
+    StackElem(uint32_t* refs, int ref_count)
+        : refs(refs), ref_count(ref_count)
     {}
-
-    void push(uint32_t* refs, int ref_count) {
-        top++;
-        elems[top].refs = refs;
-        elems[top].ref_count = ref_count;
-    }
-
-    Elem pop() {
-        return elems[top--];
-    }
-
-    bool empty() const {
-        return top >= 0;
-    }
 };
 
-void build_sbvh(const Mesh& mesh, NodeWriter write_node, LeafWriter write_leaf, float alpha) {
+void BvhBuilder::build(const Mesh& mesh, float alpha) {
     // A memory pool ensures that allocation is fast (for spatial splits)
     const size_t tri_count = mesh.triangle_count();
     StdMemoryPool mem_pool(sizeof(uint32_t) * tri_count * 4 +
@@ -50,11 +33,11 @@ void build_sbvh(const Mesh& mesh, NodeWriter write_node, LeafWriter write_leaf, 
         initial_refs[i] = i;
     }
 
-    Stack stack;
+    Stack<StackElem> stack;
     stack.push(initial_refs, tri_count);
 
     while (!stack.empty()) {
-        const Stack::Elem& elem = stack.pop();
+        const StackElem& elem = stack.pop();
         uint32_t* refs = elem.refs;
         int ref_count = elem.ref_count;
 
@@ -89,9 +72,9 @@ void build_sbvh(const Mesh& mesh, NodeWriter write_node, LeafWriter write_leaf, 
 
         if (best.empty() || best.cost >= elem.ref_count * half_area(parent_bb)) {
             // The node cannot be split
-            write_leaf(parent_bb, refs, ref_count);
+            write_leaf_(parent_bb, refs, ref_count);
         } else {
-            write_node(parent_bb, best.left_bb, best.right_bb);
+            write_node_(parent_bb, best.left_bb, best.right_bb);
 
             if (best.spatial) {
                 uint32_t* left_refs = mem_pool.alloc<uint32_t>(best.left_count);

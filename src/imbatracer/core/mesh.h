@@ -2,8 +2,8 @@
 #define IMBA_MESH_H
 
 #include <cstdint>
-
 #include "allocator.h"
+#include "tri.h"
 
 namespace imba {
 

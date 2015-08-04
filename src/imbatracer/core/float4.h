@@ -2,7 +2,6 @@
 #define IMBA_FLOAT4_H
 
 #include <cmath>
-
 #include "float3.h"
 #include "float2.h"
 

@@ -1,10 +1,9 @@
-#ifndef IMBA_ALLOCATOR_HPP
-#define IMBA_ALLOCATOR_HPP
+#ifndef IMBA_ALLOCATOR_H
+#define IMBA_ALLOCATOR_H
 
 #include <memory>
 #include <vector>
 #include <cstdint>
-
 #include <thorin_runtime.h>
 
 namespace imba {
@@ -68,5 +67,4 @@ using ThorinVector = std::vector<T, ThorinAllocator<T> >;
 
 } // namespace imba
 
-#endif // IMBA_ALLOCATOR_HPP
-
+#endif // IMBA_ALLOCATOR_H

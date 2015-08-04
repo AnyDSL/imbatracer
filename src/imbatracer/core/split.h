@@ -2,7 +2,6 @@
 #define IMBA_SPLIT_H
 
 #include <cstdint>
-
 #include "float3.h"
 #include "bbox.h"
 #include "tri.h"
