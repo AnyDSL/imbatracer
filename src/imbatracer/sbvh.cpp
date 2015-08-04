@@ -2,6 +2,7 @@
 #include "sbvh.h"
 #include "split.h"
 #include "mem_pool.h"
+#include "mesh.h"
 
 namespace imba {
 
@@ -32,18 +33,19 @@ struct Stack {
     }
 };
 
-void build_sbvh(const Tri* tris, int tri_count, NodeWriter write_node, LeafWriter write_leaf, float alpha) {
+void build_sbvh(const Mesh& mesh, NodeWriter write_node, LeafWriter write_leaf, float alpha) {
     // A memory pool ensures that allocation is fast (for spatial splits)
-    MemoryPool mem_pool(sizeof(uint32_t) * tri_count * 4 +
-                        sizeof(BBox) * tri_count +
-                        sizeof(float3) * tri_count);
+    const size_t tri_count = mesh.triangle_count();
+    StdMemoryPool mem_pool(sizeof(uint32_t) * tri_count * 4 +
+                           sizeof(BBox) * tri_count +
+                           sizeof(float3) * tri_count);
 
     uint32_t* initial_refs = mem_pool.alloc<uint32_t>(tri_count);
     BBox* bboxes = mem_pool.alloc<BBox>(tri_count);
     float3* centroids = mem_pool.alloc<float3>(tri_count);
-    for (int i = 0; i < tri_count; i++) {
-        const Tri& tri = tris[i];
-        bboxes[i] = bounding_box(tri);
+    for (size_t i = 0; i < tri_count; i++) {
+        const Tri& tri = mesh.triangle(i);
+        bboxes[i] = tri.bbox();
         centroids[i] = (tri.v0 + tri.v1 + tri.v2) * (1.0f / 3.0f);
         initial_refs[i] = i;
     }
@@ -66,7 +68,7 @@ void build_sbvh(const Tri* tris, int tri_count, NodeWriter write_node, LeafWrite
         for (int axis = 0; axis < 3; axis++) {
             SplitCandidate candidate = object_split(axis, center_bb.min[axis], center_bb.max[axis],
                                                     refs, ref_count, centroids, bboxes);
-            if (!candidate.empty() && best.cost > candidate.cost)
+            if (candidate < best)
                 best = candidate;
         }
 
@@ -79,8 +81,8 @@ void build_sbvh(const Tri* tris, int tri_count, NodeWriter write_node, LeafWrite
             // Try spatial splits
             for (int axis = 0; axis < 3; axis++) {
                 SplitCandidate candidate = spatial_split(axis, parent_bb.min[axis], parent_bb.max[axis],
-                                                         refs, ref_count, tris, bboxes);
-                if (!candidate.empty() && best.cost > candidate.cost)
+                                                         refs, ref_count, mesh, bboxes);
+                if (candidate < best)
                     best = candidate;
             }
         }

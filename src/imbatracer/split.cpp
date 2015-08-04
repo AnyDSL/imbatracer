@@ -1,6 +1,7 @@
 #include <algorithm>
 #include <cassert>
 #include "split.h"
+#include "mesh.h"
 
 namespace imba {
 
@@ -75,58 +76,6 @@ static SplitCandidate best_split(const Bin* bins, int bin_count) {
     return candidate;
 }
 
-inline float3 clip_line(int axis, float plane, const float3& a, const float3& b) {
-    const float t = (plane - a[axis]) / (b[axis] - a[axis]);
-    return a + t * (b - a);
-}
-
-static BBox clip_triangle(const Tri& tri, int axis, float min, float max) {
-    float3 points[10];
-    float3* cur_poly = &points[0];
-    float3* next_poly = &points[5];
-    int cur_count = 3;
-    int next_count = 0;
-
-    cur_poly[0] = tri.v0;
-    cur_poly[1] = tri.v1;
-    cur_poly[2] = tri.v2;
-
-    // Clip against min
-    for (int i = 0, j = cur_count - 1; i < cur_count; j = i, i++) {
-        const float3& prev = cur_poly[j];
-        const float3& next = cur_poly[i];
-        if (next[axis] > min) {
-            if (prev[axis] < min) {
-                next_poly[next_count++] = clip_line(axis, min, prev, next);
-            }
-            next_poly[next_count++] = next;
-        }
-    }
-
-    std::swap(cur_poly, next_poly);
-    cur_count = next_count;
-    next_count = 0;
-
-    // Clip against max
-    for (int i = 0, j = cur_count - 1; i < cur_count; j = i, i++) {
-        const float3& prev = cur_poly[j];
-        const float3& next = cur_poly[i];
-        if (next[axis] < max) {
-            if (prev[axis] > max) {
-                next_poly[next_count++] = clip_line(axis, max, prev, next);
-            }
-            next_poly[next_count++] = next;
-        }
-    }
-
-    // Find the bounding box
-    BBox bb(next_poly[0], next_poly[0]);
-    for (int i = 1; i < next_count; i++)
-        bb = extend(bb, next_poly[i]);
-
-    return bb;
-}
-
 SplitCandidate object_split(int axis, float min, float max,
                             const uint32_t* refs, int ref_count,
                             const float3* centroids, const BBox* bboxes) {
@@ -153,7 +102,7 @@ SplitCandidate object_split(int axis, float min, float max,
 
 SplitCandidate spatial_split(int32_t axis, float min, float max,
                              const uint32_t* refs, uint32_t ref_count,
-                             const Tri* tris, const BBox* bboxes) {
+                             const Mesh& mesh, const BBox* bboxes) {
     constexpr int bin_count = 256;
     Bin bins[bin_count];
     initialize_bins(bins, bin_count, min, max);
@@ -167,7 +116,7 @@ SplitCandidate spatial_split(int32_t axis, float min, float max,
         assert(first_bin < bin_count && last_bin < bin_count);
 
         for (uint32_t j = first_bin; j <= last_bin; j++) {
-            const BBox& bbox = clip_triangle(tris[refs[i]], axis, bins[j].lower, bins[j].upper);
+            const BBox& bbox = mesh.triangle(refs[i]).clipped_bbox(axis, bins[j].lower, bins[j].upper);
             bins[j].bbox = extend(bins[j].bbox, bbox);
             bins[j].count++;
         }

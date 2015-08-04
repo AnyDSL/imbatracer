@@ -62,9 +62,12 @@ inline float dot(const float4& a, const float4& b) {
     return a.x * b.x + a.y * b.y + a.z * b.z + a.w * b.w;
 }
 
+inline float length(const float4& a) {
+    return sqrtf(dot(a, a));
+}
+
 inline float4 normalize(const float4& a) {
-    float lensq = dot(a, a);
-    return a * (1.0f / sqrtf(lensq));
+    return a * (1.0f / length(a));
 }
 
 } // namespace imba

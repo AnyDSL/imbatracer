@@ -9,6 +9,8 @@
 
 namespace imba {
 
+class Mesh;
+
 struct SplitCandidate {
     bool spatial;                 ///< Set to true if the split is spatial
     int axis;                     ///< Split axis (0: x, 1: y, 2: z)
@@ -24,6 +26,8 @@ struct SplitCandidate {
     {}
 
     bool empty() const { return left_count == 0 || right_count == 0; }
+
+    bool operator < (const SplitCandidate& other) const { return !empty() && cost < other.cost; }
 };
 
 /// Finds the best object split along an axis (min and max are the _centroids_ bounds)
@@ -34,7 +38,7 @@ SplitCandidate object_split(int axis, float min, float max,
 /// Finds the best spatial split along an axis (min and max are the _triangles_ bounds)
 SplitCandidate spatial_split(int axis, float min, float max,
                              const uint32_t* refs, int ref_count,
-                             const Tri* tris, const BBox* bboxes);
+                             const Mesh& mesh, const BBox* bboxes);
 
 /// Partitions the sets of objects based on the given split candidate
 void object_partition(const SplitCandidate& candidate,
