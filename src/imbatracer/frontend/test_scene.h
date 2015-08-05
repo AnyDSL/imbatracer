@@ -1,16 +1,12 @@
-#include "render.h"
+#include "../render/render.h"
 #include "thorin_runtime.h"
 #include <cstring>
-
 #include <cmath>
-
-enum {
-    BUFFER_I32 = 1,
-    BUFFER_F32 = 3
-};
+#include "../core/mesh.h"
+#include "../core/adapter.h"
 
 namespace imba {
-
+/*
     void createTestScene(Scene& s_out) {
         // creates a very basic test scene (single triangle)
 
@@ -69,34 +65,67 @@ namespace imba {
         s_out.hemi_lights[0].dir.values[0] = 0.0f;
         s_out.hemi_lights[0].dir.values[1] = 0.0f;
         s_out.hemi_lights[0].dir.values[2] = 1.0f;
-    }
+    }*/
 
-    void buildTestSceneAccel(const Scene& scene, Accel& a_out) {
-        // builds the acceleration structure for our basic test scene
+    void buildTestScene(ThorinVector<Node>& nodes, ThorinVector<Vec4>& tris) {
+        Mesh m;
+        m.set_vertex_count(9 * 4);
+        m.set_index_count(3 * 3);
         
-        a_out.nodes = thorin_new<BvhNode>(1);
-        a_out.indices = reinterpret_cast<int*>(scene.buffers[1].data);
-        a_out.vertices = reinterpret_cast<float*>(scene.buffers[0].data);
-        a_out.root = 0;
+        m.vertices()[0 * 4 + 0] = -5.0f;
+        m.vertices()[0 * 4 + 1] = -5.0f;
+        m.vertices()[0 * 4 + 2] = 5.0f;
         
-        a_out.nodes->min[0] = -1.f;
-        a_out.nodes->min[0] = -1.f;
-        a_out.nodes->min[0] = 1.f;
+        m.vertices()[1 * 4 + 0] = 0.0f;
+        m.vertices()[1 * 4 + 1] = -5.0f;
+        m.vertices()[1 * 4 + 2] = 5.0f;
         
-        a_out.nodes->max[0] = 1.f;
-        a_out.nodes->max[0] = 1.f;
-        a_out.nodes->max[0] = 1.f;
+        m.vertices()[2 * 4 + 0] = -2.5f;
+        m.vertices()[2 * 4 + 1] = 5.0f;
+        m.vertices()[2 * 4 + 2] = 5.0f;
         
-        a_out.nodes->child_tri = 0;
-        a_out.nodes->prim_count = 1;
-    }
-    
-    void freeTestScene(const Scene& scene, const Accel& accel) {
-        thorin_free(accel.nodes);
-        thorin_free(scene.models);
-        thorin_free(scene.buffers[0].data);
-        thorin_free(scene.buffers[1].data);
-        thorin_free(scene.buffers);
+        ////////////////////////////////
+        
+        m.vertices()[3 * 4 + 0] = 0.0f;
+        m.vertices()[3 * 4 + 1] = -5.0f;
+        m.vertices()[3 * 4 + 2] = 5.0f;
+        
+        m.vertices()[4 * 4 + 0] = 5.0f;
+        m.vertices()[4 * 4 + 1] = -5.0f;
+        m.vertices()[4 * 4 + 2] = 5.0f;
+        
+        m.vertices()[5 * 4 + 0] = 2.5f;
+        m.vertices()[5 * 4 + 1] = 5.0f;
+        m.vertices()[5 * 4 + 2] = 5.0f;
+        
+        //////////////////////////////
+        
+        m.vertices()[6 * 4 + 0] = -1.0f;
+        m.vertices()[6 * 4 + 1] = -1.0f;
+        m.vertices()[6 * 4 + 2] = 1.0f;
+        
+        m.vertices()[7 * 4 + 0] = 1.0f;
+        m.vertices()[7 * 4 + 1] = -1.0f;
+        m.vertices()[7 * 4 + 2] = 1.0f;
+        
+        m.vertices()[8 * 4 + 0] = 0.0f;
+        m.vertices()[8 * 4 + 1] = 1.0f;
+        m.vertices()[8 * 4 + 2] = 1.0f;
+        
+        /////////////////////////////////////////////
+        
+        m.indices()[0] = 0;
+        m.indices()[1] = 1;
+        m.indices()[2] = 2;
+        m.indices()[3] = 3;
+        m.indices()[4] = 4;
+        m.indices()[5] = 5;
+        m.indices()[6] = 6;
+        m.indices()[7] = 7;
+        m.indices()[8] = 8; 
+        
+        std::unique_ptr<Adapter> adapter = new_adapter(nodes, tris);
+        adapter->build_accel(m);
     }
 
 } // namespace imba
