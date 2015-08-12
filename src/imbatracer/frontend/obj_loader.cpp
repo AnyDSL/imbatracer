@@ -159,12 +159,12 @@ bool ObjLoader::load_file(const Path& path, Mesh& scene, Logger* logger) {
             scene.indices()[offset + (i++)] = t.v2 + vert_offset;
         }
 
-        scene.set_vertex_count(vert_offset + cur_idx * 4);
+        scene.set_vertex_count(vert_offset + cur_idx);
         for (auto& p : mapping) {
             const Vertex& v = obj_file.vertices[p.first.v];
-            scene.vertices()[vert_offset + (p.second * 4)] = v.x;
-            scene.vertices()[vert_offset + (p.second * 4 + 1)] = v.y;
-            scene.vertices()[vert_offset + (p.second * 4 + 2)] = v.z;
+            scene.vertices()[vert_offset + p.second].x = v.x;
+            scene.vertices()[vert_offset + p.second].y = v.y;
+            scene.vertices()[vert_offset + p.second].z = v.z;
         }
 
        /* if (has_texcoords) {

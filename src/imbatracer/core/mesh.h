@@ -3,6 +3,7 @@
 
 #include <cstdint>
 #include "allocator.h"
+#include "float4.h"
 #include "tri.h"
 
 namespace imba {
@@ -23,9 +24,9 @@ public:
     };
 
     const uint32_t* indices() const { return tris_.data(); }
-    const float* vertices() const { return verts_.data(); }
+    const float4* vertices() const { return verts_.data(); }
     uint32_t* indices() { return tris_.data(); }
-    float* vertices() { return verts_.data(); }
+    float4* vertices() { return verts_.data(); }
 
     size_t index_count() const { return tris_.size(); }
     void set_index_count(size_t count) { tris_.resize(count); }
@@ -48,9 +49,9 @@ public:
         int i0 = tris_[i * 3 + 0];
         int i1 = tris_[i * 3 + 1];
         int i2 = tris_[i * 3 + 2];
-        return Tri(float3(verts_[i0 * 4 + 0], verts_[i0 * 4 + 1], verts_[i0 * 4 + 2]),
-                   float3(verts_[i1 * 4 + 0], verts_[i1 * 4 + 1], verts_[i1 * 4 + 2]),
-                   float3(verts_[i2 * 4 + 0], verts_[i2 * 4 + 1], verts_[i2 * 4 + 2]));
+        return Tri(float3(verts_[i0].x, verts_[i0].y, verts_[i0].z),
+                   float3(verts_[i1].x, verts_[i1].y, verts_[i1].z),
+                   float3(verts_[i2].x, verts_[i2].y, verts_[i2].z));
     }
 
     size_t triangle_count() const {
@@ -84,7 +85,7 @@ private:
     };
 
     ThorinVector<uint32_t> tris_;
-    ThorinVector<float> verts_;
+    ThorinVector<float4> verts_;
     std::vector<Attribute> attrs_;
 };
 

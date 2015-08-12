@@ -71,7 +71,6 @@ private:
             StackElem elem = stack.pop();
             *(&nodes[elem.parent].left + elem.child) = ~tris.size();
 
-            const float* verts = mesh->vertices();
             const uint32_t* indices = mesh->indices();
             for (int i = 0; i < ref_count; i++) {
                 const Tri& tri = mesh->triangle(refs[i]);

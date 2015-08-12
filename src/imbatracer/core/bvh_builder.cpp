@@ -7,7 +7,7 @@
 
 namespace imba {
 
-void BvhBuilder::build(const Mesh& mesh, float alpha) {
+void BvhBuilder::build(const Mesh& mesh, float alpha) {alpha = 2.0f;
     // A memory pool ensures that allocation is fast (for spatial splits)
     assert(mesh.triangle_count() > 1);
     const size_t tri_count = mesh.triangle_count();

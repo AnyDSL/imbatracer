@@ -23,20 +23,20 @@ namespace imba {
         assert(tris.size() && "No tris");
     }
     
-    void buildTestSceneSimple(ThorinVector<Node>& nodes, ThorinVector<Vec4>& tris) {
+    /*void buildTestSceneSimple(ThorinVector<Node>& nodes, ThorinVector<Vec4>& tris) {
         Mesh m;
-        m.set_vertex_count(21 * 4);
+        m.set_vertex_count(21);
         m.set_index_count(51);
         
         //////////////////////////////////////////
         // 3 triangles
         //////////////////////////////////////////
-        m.vertices()[0 * 4 + 0] = -2.5f;
-        m.vertices()[0 * 4 + 1] = -1.0f;
-        m.vertices()[0 * 4 + 2] = 5.0f;
+        m.vertices()[0].x = -2.5f;
+        m.vertices()[0].y = -1.0f;
+        m.vertices()[0].z = 5.0f;
         
-        m.vertices()[1 * 4 + 0] = -1.5f;
-        m.vertices()[1 * 4 + 1] = 1.0f;
+        m.vertices()[1].x = -1.5f;
+        m.vertices()[1].y = 1.0f;
         m.vertices()[1 * 4 + 2] = 5.0f;
         
         m.vertices()[2 * 4 + 0] = -0.5f;
@@ -195,7 +195,7 @@ namespace imba {
         
         assert(nodes.size() && "Nodes are empty");
         assert(tris.size() && "No tris");
-    }
+    }*/
     
     void buildTestScene(ThorinVector<Node>& nodes, ThorinVector<Vec4>& tris) {
         buildTestSceneObj(nodes, tris);
