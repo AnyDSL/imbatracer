@@ -27,6 +27,15 @@ public:
     void build(const Mesh& mesh, float alpha = 1e-5f);
 
 private:
+    struct StackElem {
+        uint32_t* refs;
+        int ref_count;
+        StackElem() {}
+        StackElem(uint32_t* refs, int ref_count)
+            : refs(refs), ref_count(ref_count)
+        {}
+    };
+
     NodeWriter write_node_;
     LeafWriter write_leaf_;
 };

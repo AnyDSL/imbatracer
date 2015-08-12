@@ -17,8 +17,8 @@ void imba::SDLDevice::render() {
 
     SDL_EnableKeyRepeat(SDL_DEFAULT_REPEAT_DELAY, SDL_DEFAULT_REPEAT_INTERVAL);
 
-    SDL_WM_GrabInput(SDL_GRAB_ON);
-    SDL_ShowCursor(SDL_DISABLE);
+    //SDL_WM_GrabInput(SDL_GRAB_ON);
+    //SDL_ShowCursor(SDL_DISABLE);
 
     screen_ = SDL_SetVideoMode(image_width_, image_height_, 32, SDL_DOUBLEBUF);
 
@@ -49,7 +49,7 @@ void imba::SDLDevice::render() {
         frames++;
     }
 
-    SDL_WM_GrabInput(SDL_GRAB_OFF);
+    //SDL_WM_GrabInput(SDL_GRAB_OFF);
 }
 
 inline float clamp(float x, float a, float b)

@@ -25,13 +25,16 @@ add_library(imba-render
             render/shader.h
             render/shader.cpp)
             
-find_package(CUDA REQUIRED)
-target_link_libraries(imba-render ${TRAVERSAL_LIBRARY} ${CUDA_LIBRARIES})
-target_link_libraries(imba-core ${TRAVERSAL_LIBRARY} ${CUDA_LIBRARIES})
-            
+target_link_libraries(imba-render ${TRAVERSAL_LIBRARIES})
+target_link_libraries(imba-core ${TRAVERSAL_LIBRARIES})
+
 add_executable(imbatracer
                frontend/main.cpp
                frontend/SDL_device.h
                frontend/SDL_device.cpp
-               frontend/test_scene.h)
-target_link_libraries(imbatracer ${SDL_LIBRARY} imba-render imba-core ${CUDA_LIBRARIES})
+               frontend/test_scene.h
+               frontend/obj_loader.h
+               frontend/obj_loader.cpp
+               frontend/path.h
+               frontend/logger.h)
+target_link_libraries(imbatracer ${SDL_LIBRARY} imba-render imba-core ${TRAVERSAL_LIBRARIES})

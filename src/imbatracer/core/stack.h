@@ -14,6 +14,8 @@ struct Stack {
 
     template <typename... Args>
     void push(Args... args) {
+        if (full())
+            int i = 0;
         assert(!full());
         elems[++top] = T(args...);
     }
@@ -23,7 +25,7 @@ struct Stack {
         return elems[top--];
     }
 
-    bool empty() const { return top >= 0; }
+    bool empty() const { return top < 0; }
     bool full() const { return top >= N - 1; }
 };
 

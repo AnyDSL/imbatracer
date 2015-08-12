@@ -18,7 +18,7 @@ protected:
 };
 
 class OrthographicCamera : public Camera {
-public: 
+public:
     OrthographicCamera(int w, int h) : Camera(w, h) {}
 
     virtual void operator()(Ray* rays, int ray_count) override;

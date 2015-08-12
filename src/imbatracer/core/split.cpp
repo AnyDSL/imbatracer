@@ -101,7 +101,7 @@ SplitCandidate object_split(int axis, float min, float max,
 }
 
 SplitCandidate spatial_split(int32_t axis, float min, float max,
-                             const uint32_t* refs, uint32_t ref_count,
+                             const uint32_t* refs, int ref_count,
                              const Mesh& mesh, const BBox* bboxes) {
     constexpr int bin_count = 256;
     Bin bins[bin_count];
@@ -109,7 +109,7 @@ SplitCandidate spatial_split(int32_t axis, float min, float max,
 
     // Put the primitives in each bin
     const float factor = bin_factor(bin_count, min, max);
-    for (uint32_t i = 0; i < ref_count; i++) {
+    for (int i = 0; i < ref_count; i++) {
         const BBox& bbox = bboxes[refs[i]];
         const uint32_t first_bin = factor * (bbox.min[axis] - min);
         const uint32_t last_bin = factor * (bbox.max[axis] - min);

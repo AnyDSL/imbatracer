@@ -7,17 +7,9 @@
 
 namespace imba {
 
-struct StackElem {
-    uint32_t* refs;
-    int ref_count;
-    StackElem() {}
-    StackElem(uint32_t* refs, int ref_count)
-        : refs(refs), ref_count(ref_count)
-    {}
-};
-
 void BvhBuilder::build(const Mesh& mesh, float alpha) {
     // A memory pool ensures that allocation is fast (for spatial splits)
+    assert(mesh.triangle_count() > 1);
     const size_t tri_count = mesh.triangle_count();
     StdMemoryPool mem_pool(sizeof(uint32_t) * tri_count * 4 +
                            sizeof(BBox) * tri_count +
@@ -36,6 +28,7 @@ void BvhBuilder::build(const Mesh& mesh, float alpha) {
     Stack<StackElem> stack;
     stack.push(initial_refs, tri_count);
 
+    int node_count = 0;
     while (!stack.empty()) {
         const StackElem& elem = stack.pop();
         uint32_t* refs = elem.refs;
@@ -70,11 +63,12 @@ void BvhBuilder::build(const Mesh& mesh, float alpha) {
             }
         }
 
-        if (best.empty() || best.cost >= elem.ref_count * half_area(parent_bb)) {
+        if (best.empty() || (best.cost >= elem.ref_count * half_area(parent_bb) && node_count > 1)) {
             // The node cannot be split
             write_leaf_(parent_bb, refs, ref_count);
         } else {
             write_node_(parent_bb, best.left_bb, best.right_bb);
+            node_count++;
 
             if (best.spatial) {
                 uint32_t* left_refs = mem_pool.alloc<uint32_t>(best.left_count);
@@ -87,8 +81,8 @@ void BvhBuilder::build(const Mesh& mesh, float alpha) {
                 // Partitioning can be done in-place
                 object_partition(best, refs, ref_count, centroids);
 
-                stack.push(refs, best.left_count);
                 stack.push(refs + best.left_count, ref_count - best.left_count);
+                stack.push(refs, best.left_count);
             }
         }
     }

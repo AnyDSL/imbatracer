@@ -6,8 +6,8 @@
 #include "thorin_runtime.h"
 
 void render_test_scene() {    
-    const int width = 1024;
-    const int height = 768;
+    const int width = 512;
+    const int height = 512;
     
     imba::OrthographicCamera cam(width, height);
     imba::BasicPathTracer shader;
@@ -23,6 +23,8 @@ void render_test_scene() {
 }
 
 int main(int argc, char** argv) {
+    thorin_init();
+    
     render_test_scene();   
     
     return 0;

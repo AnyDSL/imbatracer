@@ -5,12 +5,6 @@
 
 namespace imba {
 
-struct StackElem {
-    int parent, child;
-    StackElem() {}
-    StackElem(int parent, int child) : parent(parent), child(child) {}
-};
-
 class GpuAdapter : public Adapter {
 public:
     GpuAdapter(ThorinVector<Node>& nodes, ThorinVector<Vec4>& tris)
@@ -37,8 +31,10 @@ private:
             int i = nodes.size();
             nodes.emplace_back();
 
-            StackElem elem = stack.pop();
-            *(&nodes[elem.parent].left + elem.child) = i;
+            if (!stack.empty()) {
+                StackElem elem = stack.pop();
+                *(&nodes[elem.parent].left + elem.child) = i;
+            }
 
             nodes[i].left_bb.lo_x = left_bb.min.x;
             nodes[i].left_bb.lo_y = left_bb.min.y;
@@ -73,7 +69,7 @@ private:
             auto  mesh = adapter->mesh_;
 
             StackElem elem = stack.pop();
-            *(&nodes[elem.parent].left + elem.child) = tris.size();
+            *(&nodes[elem.parent].left + elem.child) = ~tris.size();
 
             const float* verts = mesh->vertices();
             const uint32_t* indices = mesh->indices();
@@ -90,6 +86,12 @@ private:
             // Add sentinel
             tris.back().w = -0.0f;
         }
+    };
+    
+    struct StackElem {
+        int parent, child;
+        StackElem() {}
+        StackElem(int parent, int child) : parent(parent), child(child) {}
     };
 
     Stack<StackElem> stack_;
