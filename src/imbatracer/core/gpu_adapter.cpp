@@ -68,10 +68,9 @@ private:
             auto& tris = adapter->tris_;
             auto  mesh = adapter->mesh_;
 
-            StackElem elem = stack.pop();
+            const StackElem& elem = stack.pop();
             *(&nodes[elem.parent].left + elem.child) = ~tris.size();
 
-            const uint32_t* indices = mesh->indices();
             for (int i = 0; i < ref_count; i++) {
                 const Tri& tri = mesh->triangle(refs[i]);
                 Vec4 v0 = { tri.v0.x, tri.v0.y, tri.v0.z, 0.0f };

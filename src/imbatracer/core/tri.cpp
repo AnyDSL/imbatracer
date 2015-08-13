@@ -48,7 +48,7 @@ BBox Tri::clipped_bbox(int axis, float min, float max) const {
     }
 
     // Find the bounding box
-    BBox bb(next_poly[0], next_poly[0]);
+    BBox bb(next_poly[0]);
     for (int i = 1; i < next_count; i++)
         bb = extend(bb, next_poly[i]);
 

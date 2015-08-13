@@ -6,8 +6,10 @@
 namespace imba {
 
 struct Bin {
-    int count;
+    int entry_count;
+    int exit_count;
     float lower, upper;
+    float accum_cost;
     BBox bbox;
 };
 
@@ -17,7 +19,8 @@ inline void initialize_bins(Bin* bins, int bin_count, float min, float max) {
 
     for (int i = 0; i < bin_count; i++) {
         bins[i].bbox = BBox::empty();
-        bins[i].count = 0;
+        bins[i].entry_count = 0;
+        bins[i].exit_count = 0;
         bins[i].lower = lower;
         bins[i].upper = lower + step;
         lower = bins[i].upper;
@@ -29,31 +32,29 @@ inline float bin_factor(int bin_count, float min, float max) {
     return bin_count * (1.0f - bin_offset) / (max - min + bin_offset);
 }
 
-static SplitCandidate best_split(const Bin* bins, int bin_count) {
+static SplitCandidate best_split(Bin* bins, int bin_count) {
     // Sweep from the left: accumulate SAH cost
-    float accum_cost[bin_count];
-
     BBox cur_bb = bins[0].bbox;
-    int cur_count = bins[0].count;
-    accum_cost[0] = 0;
+    int cur_count = bins[0].entry_count;
+    bins[0].accum_cost = 0;
     for (int i = 1; i < bin_count; i++) {
-        accum_cost[i] = accum_cost[i - 1] + half_area(cur_bb) * cur_count;
+        bins[i].accum_cost = bins[i - 1].accum_cost + half_area(cur_bb) * cur_count;
         cur_bb = extend(cur_bb, bins[i].bbox);
-        cur_count += bins[i].count;
+        cur_count += bins[i].entry_count;
     }
 
     // Sweep from the right: find best partition
     SplitCandidate candidate;
-    candidate.cost = half_area(cur_bb) * cur_count + accum_cost[bin_count - 1];
+    candidate.cost = half_area(cur_bb) * cur_count + bins[bin_count - 1].accum_cost;
     candidate.right_bb = cur_bb;
 
     int best_split = bin_count - 1;
     cur_bb = bins[bin_count - 1].bbox;
-    cur_count = bins[bin_count - 1].count;
+    cur_count = bins[bin_count - 1].exit_count;
     for (int i = bin_count - 2; i > 0; i--) {
         cur_bb = extend(cur_bb, bins[i].bbox);
-        cur_count += bins[i].count;
-        float cost = half_area(cur_bb) * cur_count + accum_cost[i];        
+        cur_count += bins[i].exit_count;
+        float cost = half_area(cur_bb) * cur_count + bins[i].accum_cost;
 
         if (cost < candidate.cost) {
             candidate.right_bb = cur_bb;
@@ -67,10 +68,10 @@ static SplitCandidate best_split(const Bin* bins, int bin_count) {
 
     // Find the bounding box and primitive count of the left child
     candidate.left_bb = bins[0].bbox;
-    candidate.left_count = bins[0].count;
+    candidate.left_count = bins[0].entry_count;
     for (int i = 1; i < best_split; i++) {
         candidate.left_bb = extend(candidate.left_bb, bins[i].bbox);
-        candidate.left_count += bins[i].count;
+        candidate.left_count += bins[i].entry_count;
     }
 
     return candidate;
@@ -79,7 +80,9 @@ static SplitCandidate best_split(const Bin* bins, int bin_count) {
 SplitCandidate object_split(int axis, float min, float max,
                             const uint32_t* refs, int ref_count,
                             const float3* centroids, const BBox* bboxes) {
-    constexpr int bin_count = 64;
+    assert(max > min);
+
+    constexpr int bin_count = 32;
     Bin bins[bin_count];
     initialize_bins(bins, bin_count, min, max);
 
@@ -91,7 +94,11 @@ SplitCandidate object_split(int axis, float min, float max,
         assert(bin_id < bin_count);
 
         bins[bin_id].bbox = extend(bins[bin_id].bbox, bboxes[refs[i]]);
-        bins[bin_id].count++;
+        bins[bin_id].entry_count++;
+    }
+
+    for (int i = 0; i < bin_count; i++) {
+        bins[i].exit_count = bins[i].entry_count;
     }
 
     SplitCandidate candidate = best_split(bins, bin_count);
@@ -103,6 +110,8 @@ SplitCandidate object_split(int axis, float min, float max,
 SplitCandidate spatial_split(int32_t axis, float min, float max,
                              const uint32_t* refs, int ref_count,
                              const Mesh& mesh, const BBox* bboxes) {
+    assert(max > min);
+
     constexpr int bin_count = 256;
     Bin bins[bin_count];
     initialize_bins(bins, bin_count, min, max);
@@ -111,15 +120,17 @@ SplitCandidate spatial_split(int32_t axis, float min, float max,
     const float factor = bin_factor(bin_count, min, max);
     for (int i = 0; i < ref_count; i++) {
         const BBox& bbox = bboxes[refs[i]];
-        const uint32_t first_bin = factor * (bbox.min[axis] - min);
-        const uint32_t last_bin = factor * (bbox.max[axis] - min);
-        assert(first_bin < bin_count && last_bin < bin_count);
+        const int first_bin = std::max((int)(factor * (bbox.min[axis] - min)), 0);
+        const int last_bin  = std::min((int)(factor * (bbox.max[axis] - min)), bin_count - 1);
+        assert(first_bin < bin_count && last_bin >= 0);
 
-        for (uint32_t j = first_bin; j <= last_bin; j++) {
+        for (int j = first_bin; j <= last_bin; j++) {
             const BBox& bbox = mesh.triangle(refs[i]).clipped_bbox(axis, bins[j].lower, bins[j].upper);
             bins[j].bbox = extend(bins[j].bbox, bbox);
-            bins[j].count++;
         }
+
+        bins[first_bin].entry_count++;
+        bins[last_bin].exit_count++;
     }
 
     SplitCandidate candidate = best_split(bins, bin_count);
@@ -145,10 +156,16 @@ void spatial_partition(const SplitCandidate& candidate,
     int left_count = 0, right_count = 0;
     for (int i = 0; i < ref_count; i++) {
         uint32_t ref = refs[i];
-        if (bboxes[ref].max[candidate.axis] > candidate.position)
+
+        if (bboxes[ref].max[candidate.axis] > candidate.position) {
+            assert(right_count < candidate.right_count);
             right_refs[right_count++] = ref;
-        if (bboxes[ref].min[candidate.axis] < candidate.position)
+        }
+
+        if (bboxes[ref].min[candidate.axis] < candidate.position) {
+            assert(left_count < candidate.left_count);
             left_refs[left_count++] = ref;
+        }
     }
 }
 

@@ -24,15 +24,17 @@ public:
         : write_node_(node), write_leaf_(leaf)
     {}
 
-    void build(const Mesh& mesh, float alpha = 1e-5f);
+    void build(const Mesh& mesh, int leaf_threshold = 2, float alpha = 1e-5f);
 
 private:
     struct StackElem {
         uint32_t* refs;
         int ref_count;
+        BBox bbox;
+
         StackElem() {}
-        StackElem(uint32_t* refs, int ref_count)
-            : refs(refs), ref_count(ref_count)
+        StackElem(uint32_t* refs, int ref_count, const BBox& bbox)
+            : refs(refs), ref_count(ref_count), bbox(bbox)
         {}
     };
 
