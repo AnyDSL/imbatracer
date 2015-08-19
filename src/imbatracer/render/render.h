@@ -26,6 +26,9 @@ private:
     Hit* hits_;
     Ray* rays_;
     int ray_count_;
+    
+    int state_len_;
+    unsigned char* shader_mem_;
 };
 
 } // namespace imba

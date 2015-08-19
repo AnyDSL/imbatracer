@@ -13,7 +13,7 @@ public:
 
     void build_accel(const Mesh& mesh) override {
         mesh_ = &mesh;
-        builder_.build(mesh);
+        builder_.build(mesh, 2, 2.0f);
     }
 
 private:

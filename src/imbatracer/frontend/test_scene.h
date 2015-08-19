@@ -7,14 +7,20 @@
 #include "../core/adapter.h"
 #include "obj_loader.h"
 
+#include <iostream>
+
 namespace imba {
     
+    void testSceneLights(std::vector<AreaLight>& lights) {
+        AreaLight l(float3(-0.24f, 1.98f, -0.22f), float3(0.47f, 0.0f, 0.0f), float3(0.0f, 0.0f, 0.38f), float4(1000.0f));
+
+        lights.push_back(l);
+    }
     
     void buildTestSceneObj(ThorinVector<Node>& nodes, ThorinVector<Vec4>& tris) {
         ObjLoader l;
         Mesh m;
-        //l.load_file(Path("../test/CornellBox-Original.obj"), m);
-        l.load_file(Path("../test/CornellBox-Original.obj"), m);
+        l.load_file(Path("../test/cornell.obj"), m);
         
         std::unique_ptr<Adapter> adapter = new_adapter(nodes, tris);
         adapter->build_accel(m);
@@ -23,15 +29,15 @@ namespace imba {
         assert(tris.size() && "No tris");
     }
     
-    /*void buildTestSceneSimple(ThorinVector<Node>& nodes, ThorinVector<Vec4>& tris) {
+    void buildTestSceneSimple(ThorinVector<Node>& nodes, ThorinVector<Vec4>& tris) {
         Mesh m;
-        m.set_vertex_count(21);
-        m.set_index_count(51);
+        m.set_vertex_count(4);
+        m.set_index_count(6);
         
         //////////////////////////////////////////
         // 3 triangles
         //////////////////////////////////////////
-        m.vertices()[0].x = -2.5f;
+        /*m.vertices()[0].x = -2.5f;
         m.vertices()[0].y = -1.0f;
         m.vertices()[0].z = 5.0f;
         
@@ -81,38 +87,38 @@ namespace imba {
         m.indices()[5] = 5;
         m.indices()[6] = 6;
         m.indices()[7] = 7;
-        m.indices()[8] = 8;
+        m.indices()[8] = 8;*/
         
         //////////////////////////////////////////
         // back plane
         //////////////////////////////////////////
-        m.vertices()[9 * 4 + 0] = -3.0f;
-        m.vertices()[9 * 4 + 1] = -3.0f;
-        m.vertices()[9 * 4 + 2] = 20.0f;
+        m.vertices()[0].x = -3.0f;
+        m.vertices()[0].y = -3.0f;
+        m.vertices()[0].z = 20.0f;
         
-        m.vertices()[10 * 4 + 0] = -3.0f;
-        m.vertices()[10 * 4 + 1] = 3.0f;
-        m.vertices()[10 * 4 + 2] = 20.0f;
+        m.vertices()[1].x = -3.0f;
+        m.vertices()[1].y = 3.0f;
+        m.vertices()[1].z = 20.0f;
         
-        m.vertices()[11 * 4 + 0] = 3.0f;
-        m.vertices()[11 * 4 + 1] = -3.0f;
-        m.vertices()[11 * 4 + 2] = 20.0f;
+        m.vertices()[2].x = 3.0f;
+        m.vertices()[2].y = -3.0f;
+        m.vertices()[2].z = 20.0f;
         
-        m.vertices()[12 * 4 + 0] = 3.0f;
-        m.vertices()[12 * 4 + 1] = 3.0f;
-        m.vertices()[12 * 4 + 2] = 20.0f;
+        m.vertices()[3].x = 3.0f;
+        m.vertices()[3].y = 3.0f;
+        m.vertices()[3].z = 20.0f;
         
-        m.indices()[ 9] = 9;
-        m.indices()[10] = 10;
-        m.indices()[11] = 11;
-        m.indices()[12] = 10;
-        m.indices()[13] = 11;
-        m.indices()[14] = 12;
+        m.indices()[0] = 0;
+        m.indices()[1] = 1;
+        m.indices()[2] = 2;
+        m.indices()[3] = 1;
+        m.indices()[4] = 2;
+        m.indices()[5] = 3;
         
         //////////////////////////////////////////
         // box
         //////////////////////////////////////////
-        m.vertices()[13 * 4 + 0] = 0.0f;
+        /*m.vertices()[13 * 4 + 0] = 0.0f;
         m.vertices()[13 * 4 + 1] = 1.5f;
         m.vertices()[13 * 4 + 2] = 5.0f;
         
@@ -188,14 +194,14 @@ namespace imba {
         m.indices()[47] = 13;
         m.indices()[48] = 20;
         m.indices()[49] = 13;
-        m.indices()[50] = 17;
+        m.indices()[50] = 17;*/
         
         std::unique_ptr<Adapter> adapter = new_adapter(nodes, tris);
         adapter->build_accel(m);
         
         assert(nodes.size() && "Nodes are empty");
         assert(tris.size() && "No tris");
-    }*/
+    }
     
     void buildTestScene(ThorinVector<Node>& nodes, ThorinVector<Vec4>& tris) {
         buildTestSceneObj(nodes, tris);
