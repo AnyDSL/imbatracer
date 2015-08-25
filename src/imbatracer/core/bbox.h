@@ -13,35 +13,60 @@ struct BBox {
     BBox(const float3& f) : min(f), max(f) {}
     BBox(const float3& min, const float3& max) : min(min), max(max) {}
 
+    BBox& extend(const float3& f) {
+        min = imba::min(min, f);
+        max = imba::max(max, f);
+        return *this;
+    }
+
+    BBox& extend(const BBox& bb) {
+        min = imba::min(min, bb.min);
+        max = imba::max(max, bb.max);
+        return *this;
+    }
+
+    BBox& overlap(const BBox& bb) {
+        min = imba::max(min, bb.min);
+        max = imba::min(max, bb.max);
+        return *this;
+    }
+
+    float half_area() const {
+        const float3 len = max - min;
+        return std::max(len.x * (len.y + len.z) + len.y * len.z, 0.0f);
+    }
+
+    bool is_empty() const {
+        return min.x > max.x || min.y > max.y || min.z > max.z;
+    }
+
+    bool is_inside(const float3& f) const {
+        return f.x >= min.x && f.y >= min.y && f.z >= min.z &&
+               f.x <= max.x && f.y <= max.y && f.z <= max.z;
+    }
+
+    bool is_overlapping(const BBox& bb) const {
+        return min.x <= bb.max.x && max.x >= bb.min.x &&
+               min.y <= bb.max.y && max.y >= bb.min.y &&
+               min.z <= bb.max.z && max.z >= bb.min.z;
+    }
+
+    bool is_included(const BBox& bb) const {
+        return min.x >= bb.min.x && max.x <= bb.max.x &&
+               min.y >= bb.min.y && max.y <= bb.max.y &&
+               min.z >= bb.min.z && max.z <= bb.max.z;
+    }
+
+    bool is_strictly_included(const BBox& bb) const {
+        return is_included(bb) &&
+               (min.x > bb.min.x || max.x < bb.max.x ||
+                min.y > bb.min.y || max.y < bb.max.y ||
+                min.z > bb.min.z || max.z < bb.max.z);
+    }
+
     static BBox empty() { return BBox(float3(FLT_MAX), float3(-FLT_MAX)); }
     static BBox full() { return BBox(float3(-FLT_MAX), float3(FLT_MAX)); }
 };
-
-inline BBox extend(const BBox& bb, const float3& f) {
-    return BBox(min(bb.min, f), max(bb.max, f));
-}
-
-inline BBox extend(const BBox& a, const BBox& b) {
-    return BBox(min(a.min, b.min), max(a.max, b.max));
-}
-
-inline BBox overlap(const BBox& a, const BBox& b) {
-    return BBox(max(a.min, b.min), min(a.max, b.max));
-}
-
-inline float half_area(const BBox& bb) {
-    const float3 len = bb.max - bb.min;
-    return std::max(len.x * (len.y + len.z) + len.y * len.z, 0.0f);
-}
-
-inline bool is_empty(const BBox& bb) {
-    return bb.min.x > bb.max.x || bb.min.y > bb.max.y || bb.min.z > bb.max.z;
-}
-
-inline bool is_inside(const BBox& bb, const float3& f) {
-    return f.x >= bb.min.x && f.y >= bb.min.y && f.z >= bb.min.z &&
-           f.x <= bb.max.x && f.y <= bb.max.y && f.z <= bb.max.z;
-}
 
 } // namespace imba
 

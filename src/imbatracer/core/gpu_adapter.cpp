@@ -2,6 +2,7 @@
 #include "bvh_builder.h"
 #include "mesh.h"
 #include "stack.h"
+#include "common.h"
 
 namespace imba {
 
@@ -14,6 +15,9 @@ public:
     void build_accel(const Mesh& mesh) override {
         mesh_ = &mesh;
         builder_.build(mesh);
+#ifdef STATISTICS
+        builder_.print_stats();
+#endif
     }
 
 private:
@@ -82,7 +86,7 @@ private:
             }
 
             // Add sentinel
-            tris.back().w = -0.0f;
+            tris.back().w = int_as_float(0x80000000);
         }
     };
     
@@ -94,7 +98,7 @@ private:
 
     Stack<StackElem> stack_;
     const Mesh* mesh_;
-    BvhBuilder builder_;
+    BvhBuilder<2, NodeWriter, LeafWriter> builder_;
 };
 
 std::unique_ptr<Adapter> new_adapter(ThorinVector<Node>& nodes, ThorinVector<Vec4>& tris) {
