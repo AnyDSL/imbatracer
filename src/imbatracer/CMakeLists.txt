@@ -12,7 +12,6 @@ add_library(imba-core
             core/bvh_builder.h
             core/split.cpp
             core/split.h
-            core/tri.cpp
             core/tri.h
             core/constants.h)
 
