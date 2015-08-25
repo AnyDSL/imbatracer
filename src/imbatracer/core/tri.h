@@ -3,7 +3,6 @@
 
 #include "float3.h"
 #include "bbox.h"
-#include "common.h"
 
 namespace imba {
 

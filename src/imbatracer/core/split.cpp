@@ -1,6 +1,5 @@
 #include <algorithm>
 #include <cassert>
-#include <cmath>
 #include "split.h"
 #include "mesh.h"
 #include "common.h"
@@ -22,7 +21,7 @@ inline void initialize_bins(Bin* bins, int bin_count, float min, float max) {
         bins[i].bbox = BBox::empty();
         bins[i].entry_count = 0;
         bins[i].exit_count = 0;
-        bins[i].lower = fmaf(i, step, min);
+        bins[i].lower = i * step + min;
         bins[i].upper = bins[i].lower + step;
     }
 

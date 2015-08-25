@@ -23,16 +23,16 @@ public:
         ATTR_INT4
     };
 
-    const uint32_t* indices() const { return tris_.data(); }
-    const float4* vertices() const { return verts_.data(); }
-    uint32_t* indices() { return tris_.data(); }
-    float4* vertices() { return verts_.data(); }
+    const uint32_t* indices() const { return indices_.data(); }
+    const float4* vertices() const { return vertices_.data(); }
+    uint32_t* indices() { return indices_.data(); }
+    float4* vertices() { return vertices_.data(); }
 
-    size_t index_count() const { return tris_.size(); }
-    void set_index_count(size_t count) { tris_.resize(count); }
-    size_t vertex_count() const { return verts_.size(); }
+    size_t index_count() const { return indices_.size(); }
+    void set_index_count(size_t count) { indices_.resize(count); }
+    size_t vertex_count() const { return vertices_.size(); }
     void set_vertex_count(size_t count) {
-        verts_.resize(count);
+        vertices_.resize(count);
         for (auto attr: attrs_)
             attr.data.resize(attr.stride * count);
     }
@@ -46,16 +46,16 @@ public:
     size_t attribute_stride(int i) const { return attrs_[i].stride; }
 
     Tri triangle(int i) const {
-        int i0 = tris_[i * 3 + 0];
-        int i1 = tris_[i * 3 + 1];
-        int i2 = tris_[i * 3 + 2];
-        return Tri(float3(verts_[i0].x, verts_[i0].y, verts_[i0].z),
-                   float3(verts_[i1].x, verts_[i1].y, verts_[i1].z),
-                   float3(verts_[i2].x, verts_[i2].y, verts_[i2].z));
+        int i0 = indices_[i * 3 + 0];
+        int i1 = indices_[i * 3 + 1];
+        int i2 = indices_[i * 3 + 2];
+        return Tri(float3(vertices_[i0].x, vertices_[i0].y, vertices_[i0].z),
+                   float3(vertices_[i1].x, vertices_[i1].y, vertices_[i1].z),
+                   float3(vertices_[i2].x, vertices_[i2].y, vertices_[i2].z));
     }
 
     size_t triangle_count() const {
-        return tris_.size() / 3;    
+        return indices_.size() / 3;
     }
 
 private:
@@ -84,8 +84,8 @@ private:
         }
     };
 
-    ThorinVector<uint32_t> tris_;
-    ThorinVector<float4> verts_;
+    ThorinVector<uint32_t> indices_;
+    ThorinVector<float4> vertices_;
     std::vector<Attribute> attrs_;
 };
 

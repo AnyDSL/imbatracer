@@ -31,7 +31,7 @@ public:
         static_assert(N >= 2, "Incorrect number of children specified");
     }
 
-    void build(const Mesh& mesh, int leaf_threshold = 2, float alpha = 1e-5f) {
+    void build(const Mesh& mesh, int leaf_threshold = 2, float alpha = 1e-4f) {
         assert(leaf_threshold >= 1);
 
 #ifdef STATISTICS
@@ -40,9 +40,7 @@ public:
 #endif
 
         const size_t tri_count = mesh.triangle_count();
-        StdMemoryPool mem_pool(sizeof(uint32_t) * tri_count * 4 +
-                               sizeof(BBox) * tri_count +
-                               sizeof(float3) * tri_count);
+        MemoryPool<> mem_pool;
 
         uint32_t* initial_refs = mem_pool.alloc<uint32_t>(tri_count);
         BBox* bboxes = mem_pool.alloc<BBox>(tri_count);
@@ -101,7 +99,7 @@ public:
                 }
             }
 
-            if (split.is_empty() || split.cost + 1 >= ref_count * parent_bb.half_area() ||
+            if (split.is_empty() || split.cost >= (ref_count - 1) * parent_bb.half_area() ||
                 split.left_bb.is_empty() || split.right_bb.is_empty()) {
                 // The node cannot be split
                 make_leaf(node_count == 0, parent_bb, refs, ref_count);
