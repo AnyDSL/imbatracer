@@ -9,11 +9,8 @@ add_library(imba-core
             core/gpu_adapter.cpp
             core/mem_pool.h
             core/mesh.h
-            core/bvh_builder.h
-            core/split.cpp
-            core/split.h
-            core/tri.h
-            core/constants.h)
+            core/sbvh_builder.h
+            core/tri.h)
 
 add_library(imba-render
             render/image.h

@@ -33,7 +33,10 @@ struct BBox {
 
     float half_area() const {
         const float3 len = max - min;
-        return std::max(len.x * (len.y + len.z) + len.y * len.z, 0.0f);
+        const float kx = std::max(len.x, 0.0f);
+        const float ky = std::max(len.y, 0.0f);
+        const float kz = std::max(len.z, 0.0f);
+        return kx * (ky + kz) + ky * kz;
     }
 
     bool is_empty() const {

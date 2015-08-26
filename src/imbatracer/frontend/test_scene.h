@@ -56,12 +56,13 @@ namespace imba {
     void buildTestSceneObj(ThorinVector<Node>& nodes, ThorinVector<Vec4>& tris) {
         ObjLoader l;
         Mesh m;
-        l.load_file(Path("../test/cornell.obj"), m);
+        l.load_file(Path("../test/sibenik.obj"), m);
         
         std::unique_ptr<Adapter> adapter = new_adapter(nodes, tris);
         adapter->build_accel(m);
 
-        printf("SAH: %lf\n", evaluate_sah(0, 1, 1, nodes.data(), tris.data()));
+        printf("Mesh tri. count : %d\nBVH tri. count : %d\nSAH: %lf\n",
+            m.triangle_count(), tris.size() / 3, evaluate_sah(0, 1, 1, nodes.data(), tris.data()));
         
         assert(nodes.size() && "Nodes are empty");
         assert(tris.size() && "No tris");

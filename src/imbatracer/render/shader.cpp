@@ -1,7 +1,7 @@
 #include "shader.h"
 #include <float.h>
 #include "../core/float4.h"
-#include "../core/constants.h"
+#include "../core/common.h"
 
 bool imba::BasicPathTracer::operator()(Ray* rays, Hit* hits, void* state, int ray_count, Image& out, Ray* ray_out, void* state_out) {
     bool retrace = false;

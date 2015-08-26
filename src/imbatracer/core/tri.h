@@ -22,33 +22,42 @@ struct Tri {
         bb.max = max(v0, max(v1, v2));
     }
 
-    /// Clips the triangle along one axis and returns the resulting bounding box.
-    void compute_clipped_bbox(BBox& bb, int axis, float min, float max) const {
-        bb = BBox::empty();
+    /// Splits the triangle along one axis and returns the resulting two bounding boxes.
+    void compute_split(BBox& left_bb, BBox& right_bb, int axis, float split) {
+        left_bb = BBox::empty();
+        right_bb = BBox::empty();
 
         const float3& e0 = v1 - v0;
         const float3& e1 = v2 - v1;
         const float3& e2 = v0 - v2;
 
-        const bool min0 = v0[axis] < min;
-        const bool min1 = v1[axis] < min;
-        const bool min2 = v2[axis] < min;
+        const bool left0 = v0[axis] <= split;
+        const bool left1 = v1[axis] <= split;
+        const bool left2 = v2[axis] <= split;
 
-        const bool max0 = v0[axis] > max;
-        const bool max1 = v1[axis] > max;
-        const bool max2 = v2[axis] > max;
+        if (left0) left_bb.extend(v0);
+        if (left1) left_bb.extend(v1);
+        if (left2) left_bb.extend(v2);
 
-        if (!min0 & !max0) bb.extend(v0);
-        if (!min1 & !max1) bb.extend(v1);
-        if (!min2 & !max2) bb.extend(v2);
+        if (!left0) right_bb.extend(v0);
+        if (!left1) right_bb.extend(v1);
+        if (!left2) right_bb.extend(v2);
 
-        if (min0 ^ min1) bb.extend(clip_edge(axis, min, v0, e0));
-        if (min0 ^ min2) bb.extend(clip_edge(axis, min, v2, e2));
-        if (min1 ^ min2) bb.extend(clip_edge(axis, min, v1, e1));
-
-        if (max0 ^ max1) bb.extend(clip_edge(axis, max, v0, e0));
-        if (max0 ^ max2) bb.extend(clip_edge(axis, max, v2, e2));
-        if (max1 ^ max2) bb.extend(clip_edge(axis, max, v1, e1));
+        if (left0 ^ left1) {
+            const float3& p = clip_edge(axis, split, v0, e0);
+            left_bb.extend(p);
+            right_bb.extend(p);
+        }
+        if (left1 ^ left2) {
+            const float3& p = clip_edge(axis, split, v1, e1);
+            left_bb.extend(p);
+            right_bb.extend(p);
+        }
+        if (left2 ^ left0) {
+            const float3& p = clip_edge(axis, split, v2, e2);
+            left_bb.extend(p);
+            right_bb.extend(p);
+        }
     }
 
 private:
