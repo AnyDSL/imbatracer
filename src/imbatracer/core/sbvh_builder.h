@@ -160,7 +160,7 @@ public:
                   << total_leaves_ << " leaves, "
                   << object_splits_ << " object splits, "
                   << spatial_splits_ << " spatial splits, "
-                  << "+" << (total_refs_ - total_tris_) * 100  / total_tris_ << "% references"
+                  << "+" << (total_refs_ - total_tris_) * 100  / total_tris_ << "% references)"
                   << std::endl;
     }
 #endif
@@ -235,6 +235,7 @@ private:
     void find_spatial_split(SpatialSplit& split, const BBox& parent_bb, const Mesh& mesh, int axis, Ref* refs, int ref_count) {
         const float min = parent_bb.min[axis];
         const float max = parent_bb.max[axis];
+        assert(max > min);
         constexpr int bin_count = 256;
         Bin bins[bin_count];
 
@@ -260,10 +261,8 @@ private:
             for (int j = first_bin; j < last_bin; j++) {
                 BBox left_bb, right_bb;
                 mesh.triangle(ref.id).compute_split(left_bb, right_bb, axis, min + (j + 1) * bin_size);
-                left_bb.overlap(cur_bb);
-                right_bb.overlap(cur_bb);
-                bins[j].bb.extend(left_bb);
-                cur_bb = right_bb;
+                bins[j].bb.extend(left_bb.overlap(cur_bb));
+                cur_bb.overlap(right_bb);
             }
 
             bins[last_bin].bb.extend(cur_bb);
@@ -366,7 +365,7 @@ private:
                 left_bb = left_dup_bb;
                 right_bb = right_dup_bb;
                 refs[left_count].bb = left_split_bb;
-                dup_refs.push_back(Ref(refs[left_count].id, right_split_bb));
+                dup_refs.emplace_back(refs[left_count].id, right_split_bb);
                 left_count++;
                 right_count++;
             }
