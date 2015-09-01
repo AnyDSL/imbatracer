@@ -1,5 +1,5 @@
-#ifndef IMBA_BVH_BUILDER_H
-#define IMBA_BVH_BUILDER_H
+#ifndef IMBA_SBVH_BUILDER_H
+#define IMBA_SBVH_BUILDER_H
 
 #include <cstdint>
 #include <functional>
@@ -445,4 +445,4 @@ private:
 
 } // namespace imba
 
-#endif // IMBA_BVH_BUILDER_H
+#endif // IMBA_SBVH_BUILDER_H
