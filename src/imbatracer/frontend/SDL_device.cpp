@@ -6,19 +6,19 @@
 imba::SDLDevice::SDLDevice(int img_width, int img_height, Render& r) 
     : image_width_(img_width), image_height_(img_height), render_(r), n_samples_(0), img_(img_width, img_height)
 {
+    SDL_Init(SDL_INIT_VIDEO);
     srand(452361532);
+    
 #pragma omp parallel for
-    for (int y = 0; y < screen_->h; y++) {
+    for (int y = 0; y < image_height_; y++) {
         float* buf_row_all = img_.pixels() + y * image_width_ * 4;
-        for (int x = 0; x < screen_->w; x++) {
+        for (int x = 0; x < image_width_; x++) {
             buf_row_all[x * 4] = 0.0f;
             buf_row_all[x * 4 + 1] = 0.0f;
             buf_row_all[x * 4 + 2] = 0.0f;
             buf_row_all[x * 4 + 3] = 0.0f;
         }
     }   
-
-    SDL_Init(SDL_INIT_VIDEO);
 }
 
 imba::SDLDevice::~SDLDevice() {

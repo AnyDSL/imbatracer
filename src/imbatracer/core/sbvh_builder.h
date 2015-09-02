@@ -48,12 +48,12 @@ public:
         auto time_start = std::chrono::high_resolution_clock::now();
 #endif
 
-        const size_t tri_count = mesh.triangle_count();
+        const int tri_count = mesh.triangle_count();
 
         mem_pool_.cleanup();
 
         Ref* initial_refs = mem_pool_.alloc<Ref>(tri_count);
-        right_bbs_ = mem_pool_.alloc<BBox>(tri_count);
+        right_bbs_ = mem_pool_.alloc<BBox>(std::max((int)BIN_COUNT, tri_count));
         BBox mesh_bb = BBox::empty();
         for (size_t i = 0; i < tri_count; i++) {
             const Tri& tri = mesh.triangle(i);
@@ -166,6 +166,10 @@ public:
 #endif
 
 private:
+    enum {
+        BIN_COUNT = 256
+    };
+
     struct Bin {
         BBox bb;
         int entry;
@@ -236,26 +240,25 @@ private:
         const float min = parent_bb.min[axis];
         const float max = parent_bb.max[axis];
         assert(max > min);
-        constexpr int bin_count = 256;
-        Bin bins[bin_count];
+        Bin bins[BIN_COUNT];
 
         // Initialize bins
-        for (int i = 0; i < bin_count; i++) {
+        for (int i = 0; i < BIN_COUNT; i++) {
             bins[i].entry = 0;
             bins[i].exit = 0;
             bins[i].bb = BBox::empty();
         }
 
         // Put the primitives in the bins
-        const float bin_size = (max - min) / bin_count;
+        const float bin_size = (max - min) / BIN_COUNT;
         const float inv_size = 1.0f / bin_size;
         for (int i = 0; i < ref_count; i++) {
             const Ref& ref = refs[i];
 
             assert(ref.bb.is_included(parent_bb));
 
-            const int first_bin = clamp((int)(inv_size * (ref.bb.min[axis] - min)), 0, bin_count - 1);
-            const int last_bin  = clamp((int)(inv_size * (ref.bb.max[axis] - min)), 0, bin_count - 1);
+            const int first_bin = clamp((int)(inv_size * (ref.bb.min[axis] - min)), 0, BIN_COUNT - 1);
+            const int last_bin  = clamp((int)(inv_size * (ref.bb.max[axis] - min)), 0, BIN_COUNT - 1);
 
             BBox cur_bb = ref.bb;
             for (int j = first_bin; j < last_bin; j++) {
@@ -272,7 +275,7 @@ private:
 
         // Sweep from the right and accumulate the bounding boxes
         BBox cur_bb = BBox::empty();
-        for (int i = bin_count - 1; i > 0; i--) {
+        for (int i = BIN_COUNT - 1; i > 0; i--) {
             cur_bb.extend(bins[i].bb);
             right_bbs_[i - 1] = cur_bb;
         }
@@ -281,7 +284,7 @@ private:
         int left_count = 0, right_count = ref_count;
         cur_bb = BBox::empty();
 
-        for (int i = 0; i < bin_count - 1; i++) {
+        for (int i = 0; i < BIN_COUNT - 1; i++) {
             left_count += bins[i].entry;
             right_count -= bins[i].exit;
             cur_bb.extend(bins[i].bb);
