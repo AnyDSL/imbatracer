@@ -15,9 +15,11 @@ namespace imba {
     private:    
         int image_width_;
         int image_height_;
-        Image tex_;
+        Image img_;
         SDL_Surface* screen_;
         Render& render_;
+        
+        int n_samples_;
     };
 
 } // namespace imba

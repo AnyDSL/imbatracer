@@ -24,7 +24,7 @@ class BasicPathTracer : public Shader {
         float4 factor;
     };
 public:
-    BasicPathTracer(std::vector<AreaLight>& light_sources) : lights_(light_sources) { }
+    BasicPathTracer(std::vector<AreaLight>& light_sources, ThorinVector<Vec4>& tris, std::vector<float3>& normals) : lights_(light_sources), tris_(tris), normals_(normals) { }
     
     virtual bool operator()(Ray* rays, Hit* hits, void* state, int ray_count, Image& out, Ray* ray_out, void* state_out) override;
     
@@ -34,6 +34,8 @@ public:
     
 private:
     std::vector<AreaLight>& lights_;
+    ThorinVector<Vec4>& tris_;
+    std::vector<float3>& normals_;
 };
 
 }

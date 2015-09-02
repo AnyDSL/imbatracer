@@ -3,6 +3,8 @@
 #include "../core/float4.h"
 #include "../core/constants.h"
 
+#include <assert.h>
+
 bool imba::BasicPathTracer::operator()(Ray* rays, Hit* hits, void* state, int ray_count, Image& out, Ray* ray_out, void* state_out) {
     bool retrace = false;
     
@@ -17,14 +19,16 @@ bool imba::BasicPathTracer::operator()(Ray* rays, Hit* hits, void* state, int ra
             if (hits[i].tri_id != -1) {
                 float3 pos = float3(rays[i].org.x, rays[i].org.y, rays[i].org.z);
                 float3 rd = float3(rays[i].dir.x, rays[i].dir.y, rays[i].dir.z);
+
+                float3 normal = normals_[hits[i].tri_id / 3];
                 
-                float epsilon = -0.01f;
-                pos = pos + (hits[i].tmax + epsilon) * rd;
+                float epsilon = 0.001f;
+                pos = pos + (hits[i].tmax) * rd + normal * epsilon;
                 
                 // calculate shadow ray direction (sample one point on one lightsource)
                 auto ls = lights_[rng()];
-                auto sample = ls.sample(rng(), rng());
-                float3 sh_dir = sample.pos - pos;
+                auto sample = ls.sample(pos, rng(), rng());
+                float3 sh_dir = sample.dir * sample.distance;
                 
                 auto& org = ray_out[i].org;
                 org.x = pos.x;
@@ -38,10 +42,10 @@ bool imba::BasicPathTracer::operator()(Ray* rays, Hit* hits, void* state, int ra
                 dir.z = sh_dir.z;
                 dir.w = FLT_MAX;
                 
-                float cos_term = fabsf(dot(sh_dir, rd));
+                float cos_term = fabsf(dot(sample.dir, normal));
                 
                 s_out[i].alive = true;
-                s_out[i].factor = sample.pdf * cos_term * 1.0f / pi * sample.intensity;
+                s_out[i].factor = cos_term * 1.0f / pi * sample.intensity;
             } else {
                 s_out[i].alive = false;
                 
@@ -71,13 +75,13 @@ bool imba::BasicPathTracer::operator()(Ray* rays, Hit* hits, void* state, int ra
             
                 out.pixels()[i * 4] = color.x;
                 out.pixels()[i * 4 + 1] = color.y;
-                out.pixels()[i * 4 + 2] = color.y;
+                out.pixels()[i * 4 + 2] = color.z;
             }
             else {
                 float4 color(0.5f, 0.0f, 0.0f, 0.0f);
                 out.pixels()[i * 4] = color.x;
                 out.pixels()[i * 4 + 1] = color.y;
-                out.pixels()[i * 4 + 2] = color.y;
+                out.pixels()[i * 4 + 2] = color.z;
             }
         }
         
