@@ -1,7 +1,7 @@
 #include "camera.h"
 #include <float.h>
 #include "../core/float4.h"
-#include "../core/constants.h"
+#include "../core/common.h"
 
 void imba::OrthographicCamera::operator()(Ray* rays, int ray_count) {
     float world_width = 6.0f;
@@ -37,7 +37,7 @@ imba::PerspectiveCamera::PerspectiveCamera(int w, int h, float3 pos, float3 dir,
     right_ = normalize(cross(dir_, up));
     up_ = cross(right_, dir_);
     
-    float f = tanf(to_radians(fov / 2.0f));
+    float f = tanf(radians(fov / 2.0f));
     
     right_ = right_ * f * aspect_;
     up_ = up_ * f;

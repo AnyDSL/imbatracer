@@ -1,7 +1,7 @@
 #include "shader.h"
 #include <float.h>
 #include "../core/float4.h"
-#include "../core/constants.h"
+#include "../core/common.h"
 
 #include <assert.h>
 

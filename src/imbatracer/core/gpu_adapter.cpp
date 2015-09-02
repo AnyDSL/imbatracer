@@ -1,7 +1,8 @@
 #include "adapter.h"
-#include "bvh_builder.h"
+#include "sbvh_builder.h"
 #include "mesh.h"
 #include "stack.h"
+#include "common.h"
 
 namespace imba {
 
@@ -13,7 +14,10 @@ public:
 
     void build_accel(const Mesh& mesh) override {
         mesh_ = &mesh;
-        builder_.build(mesh, 2, 2.0f);
+        builder_.build(mesh);
+#ifdef STATISTICS
+        builder_.print_stats();
+#endif
     }
 
 private:
@@ -56,13 +60,15 @@ private:
     };
 
     struct LeafWriter {
+        typedef SplitBvhBuilder::Ref Ref;
+
         GpuAdapter* adapter;
 
         LeafWriter(GpuAdapter* adapter)
             : adapter(adapter)
         {}
 
-        void operator() (const BBox& leaf_bb, const uint32_t* refs, int ref_count) {
+        void operator() (const BBox& leaf_bb, const Ref* refs, int ref_count) {
             auto& nodes = adapter->nodes_;
             auto& stack = adapter->stack_;
             auto& tris = adapter->tris_;
@@ -72,7 +78,7 @@ private:
             *(&nodes[elem.parent].left + elem.child) = ~tris.size();
 
             for (int i = 0; i < ref_count; i++) {
-                const Tri& tri = mesh->triangle(refs[i]);
+                const Tri& tri = mesh->triangle(refs[i].id);
                 Vec4 v0 = { tri.v0.x, tri.v0.y, tri.v0.z, 0.0f };
                 Vec4 v1 = { tri.v1.x, tri.v1.y, tri.v1.z, 0.0f };
                 Vec4 v2 = { tri.v2.x, tri.v2.y, tri.v2.z, 0.0f };
@@ -82,7 +88,7 @@ private:
             }
 
             // Add sentinel
-            tris.back().w = -0.0f;
+            tris.back().w = int_as_float(0x80000000);
         }
     };
     
@@ -94,7 +100,7 @@ private:
 
     Stack<StackElem> stack_;
     const Mesh* mesh_;
-    BvhBuilder builder_;
+    SplitBvhBuilder builder_;
 };
 
 std::unique_ptr<Adapter> new_adapter(ThorinVector<Node>& nodes, ThorinVector<Vec4>& tris) {
