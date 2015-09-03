@@ -10,7 +10,7 @@ class Image {
 public:
     Image() {}
     Image(int w, int h)
-        : pixels_(w * h * 4)
+        : pixels_(w * h * 4), width_(w), height_(h)
     {}
 
     const float* pixels() const { return pixels_.data(); }

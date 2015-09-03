@@ -5,17 +5,14 @@
 
 #include <assert.h>
 
-bool imba::BasicPathTracer::operator()(Ray* rays, Hit* hits, void* state, int ray_count, Image& out, Ray* ray_out, void* state_out) {
-    bool retrace = false;
-    
-    State* s_in = reinterpret_cast<State*>(state);
-    State* s_out = reinterpret_cast<State*>(state_out);
+void imba::BasicPathTracer::operator()(Ray* rays, Hit* hits, void* state, int* pixel_indices, int ray_count, Image& out, RayQueue& ray_out) {
+    State* shader_state = reinterpret_cast<State*>(state);
     
     auto rng = []() -> float { return static_cast<float>(rand()) / static_cast<float>(RAND_MAX); };
     
-    if (!s_in) { // first iteration
-        // Generate shadow rays
-        for (int i = 0; i < ray_count; ++i) {
+    for (int i = 0; i < ray_count; ++i) {
+        switch (shader_state[i].kind) {
+        case State::PRIMARY:
             if (hits[i].tri_id != -1) {
                 float3 pos = float3(rays[i].org.x, rays[i].org.y, rays[i].org.z);
                 float3 rd = float3(rays[i].dir.x, rays[i].dir.y, rays[i].dir.z);
@@ -28,65 +25,44 @@ bool imba::BasicPathTracer::operator()(Ray* rays, Hit* hits, void* state, int ra
                 // calculate shadow ray direction (sample one point on one lightsource)
                 auto ls = lights_[rng()];
                 auto sample = ls.sample(pos, rng(), rng());
-                float3 sh_dir = sample.dir * sample.distance;
+                float3 sh_dir = sample.dir;
                 
-                auto& org = ray_out[i].org;
+                Ray ray;
+                auto& org = ray.org;
                 org.x = pos.x;
                 org.y = pos.y;
                 org.z = pos.z;
                 org.w = 0.0f;
                 
-                auto& dir = ray_out[i].dir;
+                auto& dir = ray.dir;
                 dir.x = sh_dir.x;
                 dir.y = sh_dir.y;
                 dir.z = sh_dir.z;
-                dir.w = FLT_MAX;
+                dir.w = sample.distance;
                 
                 float cos_term = fabsf(dot(sample.dir, normal));
                 
-                s_out[i].alive = true;
-                s_out[i].factor = cos_term * 1.0f / pi * sample.intensity;
-            } else {
-                s_out[i].alive = false;
+                State s;
+                s.kind = State::SHADOW;
+                s.factor = cos_term * 1.0f / pi * sample.intensity;
                 
-                // create ray that will not intersect anything
-                auto& org = ray_out[i].org;
-                org.x = 0.0f;
-                org.y = 0.0f;
-                org.z = 0.0f;
-                org.w = FLT_MAX; // tmin
-                
-                auto& dir = ray_out[i].dir;
-                dir.x = 1.0f;
-                dir.y = 0.0f;
-                dir.z = 0.0f;
-                dir.w = 0.0f; // tmax
+                ray_out.push(ray, &s, pixel_indices[i]);
             }
-        }
-        
-        retrace = true;
-    } else {
-        for (int i = 0; i < ray_count; ++i) {
-            if (s_in[i].alive) {
-                float4 color = float4(0.0f);
-                
-                if (hits[i].tri_id == -1 || hits[i].tmax >= 1.0f)
-                    color = s_in[i].factor;
+            break;
             
-                out.pixels()[i * 4] = color.x;
-                out.pixels()[i * 4 + 1] = color.y;
-                out.pixels()[i * 4 + 2] = color.z;
-            }
-            else {
-                float4 color(0.5f, 0.0f, 0.0f, 0.0f);
-                out.pixels()[i * 4] = color.x;
-                out.pixels()[i * 4 + 1] = color.y;
-                out.pixels()[i * 4 + 2] = color.z;
-            }
-        }
+        case State::SECONDARY:
+            break;
+            
+        case State::SHADOW:
+            float4 color = float4(0.0f);
+            
+            if (hits[i].tri_id == -1 || hits[i].tmax >= 1.0f)
+                color = shader_state[i].factor;
         
-        retrace = false;
+            out.pixels()[pixel_indices[i] * 4] = color.x;
+            out.pixels()[pixel_indices[i] * 4 + 1] = color.y;
+            out.pixels()[pixel_indices[i] * 4 + 2] = color.z;
+            break;
+        }
     }
-    
-    return retrace;
 }

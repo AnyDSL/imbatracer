@@ -3,6 +3,8 @@
 #include "thorin_runtime.h"
 #include <assert.h>
 
+#include <unistd.h>
+
 imba::SDLDevice::SDLDevice(int img_width, int img_height, Render& r) 
     : image_width_(img_width), image_height_(img_height), render_(r), n_samples_(0), img_(img_width, img_height)
 {

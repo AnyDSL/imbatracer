@@ -19,7 +19,8 @@ add_library(imba-render
             render/render.h
             render/render.cpp
             render/shader.h
-            render/shader.cpp)
+            render/shader.cpp
+            render/ray_queue.h)
             
 target_link_libraries(imba-render ${TRAVERSAL_LIBRARIES})
 target_link_libraries(imba-core ${TRAVERSAL_LIBRARIES})

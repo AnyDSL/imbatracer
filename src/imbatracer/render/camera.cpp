@@ -3,7 +3,7 @@
 #include "../core/float4.h"
 #include "../core/common.h"
 
-void imba::OrthographicCamera::operator()(Ray* rays, int ray_count) {
+void imba::OrthographicCamera::operator()(RayQueue& out) {
     float world_width = 6.0f;
     float world_height = world_width / aspect_;
     float3 world_pos = float3(0.0f);
@@ -17,15 +17,18 @@ void imba::OrthographicCamera::operator()(Ray* rays, int ray_count) {
             float3 offset = float3(relx * world_width * 0.5f, rely * world_height * 0.5f, 0.0f);
             float3 pos = world_pos + offset;
             
-            rays[y * width_ + x].org.x = pos.x;
-            rays[y * width_ + x].org.y = pos.y;
-            rays[y * width_ + x].org.z = pos.z;
-            rays[y * width_ + x].org.w = 0.0f;
+            Ray r;
+            r.org.x = pos.x;
+            r.org.y = pos.y;
+            r.org.z = pos.z;
+            r.org.w = 0.0f;
             
-            rays[y * width_ + x].dir.x = dir.x;
-            rays[y * width_ + x].dir.y = dir.y;
-            rays[y * width_ + x].dir.z = dir.z;
-            rays[y * width_ + x].dir.w = FLT_MAX;
+            r.dir.x = dir.x;
+            r.dir.y = dir.y;
+            r.dir.z = dir.z;
+            r.dir.w = FLT_MAX;
+            
+            out.push(r, nullptr, y * width_ + x);
         }
     }
 }
@@ -43,7 +46,7 @@ imba::PerspectiveCamera::PerspectiveCamera(int w, int h, float3 pos, float3 dir,
     up_ = up_ * f;
 }
 
-void imba::PerspectiveCamera::operator()(Ray* rays, int ray_count) {
+void imba::PerspectiveCamera::operator()(RayQueue& out) {
 #pragma omp parallel for
     for (int y = 0; y < height_; ++y) {
         float rely = 1.0f - (static_cast<float>(y) / static_cast<float>(height_ - 1)) * 2.0f;
@@ -51,15 +54,18 @@ void imba::PerspectiveCamera::operator()(Ray* rays, int ray_count) {
             float relx = (static_cast<float>(x) / static_cast<float>(width_ - 1)) * 2.0f - 1.0f;
             float3 dir = dir_ + right_ * relx + up_ * rely;
             
-            rays[y * width_ + x].org.x = pos_.x;
-            rays[y * width_ + x].org.y = pos_.y;
-            rays[y * width_ + x].org.z = pos_.z;
-            rays[y * width_ + x].org.w = 0.0f;
+            Ray r;
+            r.org.x = pos_.x;
+            r.org.y = pos_.y;
+            r.org.z = pos_.z;
+            r.org.w = 0.0f;
             
-            rays[y * width_ + x].dir.x = dir.x;
-            rays[y * width_ + x].dir.y = dir.y;
-            rays[y * width_ + x].dir.z = dir.z;
-            rays[y * width_ + x].dir.w = FLT_MAX;
+            r.dir.x = dir.x;
+            r.dir.y = dir.y;
+            r.dir.z = dir.z;
+            r.dir.w = FLT_MAX;
+            
+            out.push(r, nullptr, y * width_ + x);
         }
     }
 }

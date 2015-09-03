@@ -9,7 +9,7 @@ namespace imba {
 
 class Render {
 public:
-    Render(Camera& c, ThorinVector<Node>& nodes, ThorinVector<Vec4>& tris, Shader& s, int width, int height, int ray_count = 0);
+    Render(Camera& c, ThorinVector<Node>& nodes, ThorinVector<Vec4>& tris, Shader& s, int width, int height);
 
     // renders the scene
     Image& operator() ();
@@ -24,7 +24,7 @@ private:
     Image tex_;
     
     Hit* hits_;
-    Ray* rays_;
+    RayQueue rays_;
     int ray_count_;
     
     int state_len_;
