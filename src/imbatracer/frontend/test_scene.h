@@ -48,7 +48,7 @@ namespace imba {
     }
 
     void testSceneLights(std::vector<AreaLight>& lights) {
-        AreaLight l(float3(-0.24f, 1.90f, -0.22f), float3(0.47f, 0.0f, 0.0f), float3(0.0f, 0.0f, 0.38f), float4(100.0f));
+        AreaLight l(float3(-0.24f, 1.90f, -0.22f), float3(0.47f, 0.0f, 0.0f), float3(0.0f, 0.0f, 0.38f), float4(50.0f));
 
         lights.push_back(l);
     }

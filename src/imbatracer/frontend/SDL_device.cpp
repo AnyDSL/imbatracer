@@ -42,6 +42,7 @@ void imba::SDLDevice::render() {
 
     bool done = false;
     int frames = 0;
+    int samples = 0;
     long ticks = SDL_GetTicks();
     long t = ticks;
     long old_t;
@@ -52,6 +53,7 @@ void imba::SDLDevice::render() {
         float ftime = (t - old_t) / 1000.0f;
         if (t - ticks > 5000) {
             std::cout << 1000 * frames / (t - ticks) << " frames per second" << std::endl;
+            std::cout << samples << " samples" << std::endl;
             frames = 0;
             ticks = t;
         }
@@ -61,7 +63,7 @@ void imba::SDLDevice::render() {
         SDL_Flip(screen_);
         done = handle_events(false);
 
-        frames++;
+        frames++; samples++;
     }
 
     //SDL_WM_GrabInput(SDL_GRAB_OFF);

@@ -3,26 +3,29 @@
 #include "thorin_runtime.h"
 
 imba::Render::Render(Camera& c, ThorinVector<Node>& nodes, ThorinVector<Vec4>& tris, Shader& s, int width, int height)
-    : ray_gen_(c), nodes_(nodes), tris_(tris), shader_(s), tex_(width, height), rays_(width * height * 2, s.state_len(), s.initial_state()), ray_count_(width * height)
+    : ray_gen_(c), nodes_(nodes), tris_(tris), shader_(s), tex_(width, height), ray_count_(width * height * 2)
 {            
     // allocate memory for intersection data, written by traversal
     hits_ = thorin_new<Hit>(ray_count_);
+    
+    queues_[0].resize(ray_count_, s.state_len(), s.initial_state());
+    queues_[1].resize(ray_count_, s.state_len(), s.initial_state());
 }
 
 imba::Image& imba::Render::operator() () {
-    //RayQueue rays_ = RayQueue(tex_.width() * tex_.height() * 2, shader_.state_len());
     // generate the camera rays
-    ray_gen_(rays_);
+    cur_queue_ = 0;
+    ray_gen_(queues_[0]);
 
-    bool retrace = true;
-    int i = 0;
-    while (rays_.size()) {
-        // traverse the acceleration structure
-        RayQueue::Entry ray_data = rays_.pop();
+    while (queues_[cur_queue_].size()) {
+        RayQueue::Entry ray_data = queues_[cur_queue_].pop();
+        if (ray_data.ray_count < 64)
+            break;
+            
         traverse_accel(nodes_.data(), ray_data.rays, tris_.data(), hits_, ray_data.ray_count);
+        shader_(ray_data.rays, hits_, ray_data.state_data, ray_data.pixel_indices, ray_data.ray_count, tex_, queues_[!cur_queue_]);
         
-        // shade the rays
-        shader_(ray_data.rays, hits_, ray_data.state_data, ray_data.pixel_indices, ray_data.ray_count, tex_, rays_);
+        cur_queue_ = !cur_queue_;
     }
     
     return tex_;

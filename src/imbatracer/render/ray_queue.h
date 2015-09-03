@@ -12,9 +12,19 @@ namespace imba {
 
 class RayQueue {
 public:
+    RayQueue() {}
     RayQueue(int capacity, int state_size, void* initial_state) 
         : ray_buffer_(capacity), last_(-1), state_size_(state_size), state_buffer_(state_size * capacity), pixel_indices_(capacity), initial_state_(initial_state)
     { 
+    }
+    
+    void resize(int capacity, int state_size, void* initial_state) {
+        ray_buffer_.resize(capacity);
+        last_ = -1;
+        state_size_ = state_size;
+        state_buffer_.resize(state_size * capacity);
+        pixel_indices_.resize(capacity);
+        initial_state_ = initial_state;
     }
 
     int size() const { return last_ + 1; }

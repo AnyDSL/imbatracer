@@ -24,7 +24,8 @@ private:
     Image tex_;
     
     Hit* hits_;
-    RayQueue rays_;
+    RayQueue queues_[2];
+    int cur_queue_;
     int ray_count_;
     
     int state_len_;
