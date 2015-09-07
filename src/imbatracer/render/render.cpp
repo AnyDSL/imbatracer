@@ -10,17 +10,20 @@ imba::Render::Render(Camera& c, ThorinVector<Node>& nodes, ThorinVector<Vec4>& t
     
     queues_[0].resize(ray_count_, s.state_len(), s.initial_state());
     queues_[1].resize(ray_count_, s.state_len(), s.initial_state());
+    
+    cur_queue_ = 0;
 }
 
 imba::Image& imba::Render::operator() () {
-    // generate the camera rays
-    cur_queue_ = 0;
-    ray_gen_(queues_[0]);
+    const int min_rays = std::min(tex_.width() * tex_.height(), 100000);
 
-    while (queues_[cur_queue_].size()) {
+    clear_buffer();
+    
+    // generate the camera rays
+    ray_gen_(queues_[cur_queue_]);
+
+    while (queues_[cur_queue_].size() > min_rays) {
         RayQueue::Entry ray_data = queues_[cur_queue_].pop();
-        if (ray_data.ray_count < 64)
-            break;
             
         traverse_accel(nodes_.data(), ray_data.rays, tris_.data(), hits_, ray_data.ray_count);
         shader_(ray_data.rays, hits_, ray_data.state_data, ray_data.pixel_indices, ray_data.ray_count, tex_, queues_[!cur_queue_]);
@@ -29,4 +32,11 @@ imba::Image& imba::Render::operator() () {
     }
     
     return tex_;
+}
+
+void imba::Render::clear_buffer() {
+    const int size = tex_.width() * tex_.height() * 4;
+    for (int i = 0; i < size; i++) {
+        tex_.pixels()[i] = 0.0f;
+    }
 }

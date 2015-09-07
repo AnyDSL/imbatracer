@@ -3,15 +3,21 @@
 #include "../core/common.h"
 #include "random.h"
 
-#include <float.h>
-#include <assert.h>
+#include <cfloat>
+#include <cassert>
+#include <random>
 
 #include <iostream>
 
 void imba::BasicPathTracer::operator()(Ray* rays, Hit* hits, void* state, int* pixel_indices, int ray_count, Image& out, RayQueue& ray_out) {
-    State* shader_state = reinterpret_cast<State*>(state);
+    static const float4 diffuse_color(0.6f, 0.6f, 0.6f, 1.0f);
+    static const float4 diffuse_brdf = diffuse_color * (1.0f / pi);
     
-    auto rng = []() -> float { return static_cast<float>(rand()) / static_cast<float>(RAND_MAX); };
+    State* shader_state = reinterpret_cast<State*>(state);
+
+    std::random_device rd;
+    std::mt19937 rng (rd());
+    std::uniform_real_distribution<float> uniform(0.0f, 1.0f);
     
     for (int i = 0; i < ray_count; ++i) {
         switch (shader_state[i].kind) {
@@ -25,8 +31,8 @@ void imba::BasicPathTracer::operator()(Ray* rays, Hit* hits, void* state, int* p
                 pos = pos + (hits[i].tmax) * rd;
                 
                 // calculate shadow ray direction (sample one point on one lightsource)
-                auto ls = lights_[rng()];
-                auto sample = ls.sample(pos, rng(), rng());
+                auto ls = lights_[uniform(rng)];
+                auto sample = ls.sample(pos, uniform(rng), uniform(rng));
                 float3 sh_dir = sample.dir;
                 
                 Ray ray;
@@ -46,23 +52,23 @@ void imba::BasicPathTracer::operator()(Ray* rays, Hit* hits, void* state, int* p
                 
                 State s;
                 s.kind = State::SHADOW;
-                s.factor = shader_state[i].factor * (cos_term * 1.0f / pi * sample.intensity);
+                s.factor = shader_state[i].factor * diffuse_brdf * cos_term * sample.intensity;
                 
                 ray_out.push(ray, &s, pixel_indices[i]);
                 
                 // continue path using russian roulette
-                float rrprob = 0.7f;
-                float u_rr = rng();
+                float rrprob = 0.5f;
+                float u_rr = uniform(rng);
                 if (u_rr < rrprob) {
                     // sample hemisphere
-                    float3 dir = normalize(sample_hemisphere(normal, rng(), rng()));
-                    float sample_pdf = 1.f / pi;
+                    DirectionSample hemi_sample = sample_hemisphere(normal, uniform(rng), uniform(rng));
+                    float3 dir = hemi_sample.dir;
                     
                     float cos_term = fabsf(dot(normal, dir));
                     
                     State s;
                     s.kind = State::SECONDARY;
-                    s.factor = shader_state[i].factor * (cos_term * (1.0f / pi) / (rrprob * sample_pdf));
+                    s.factor = shader_state[i].factor * diffuse_brdf * (cos_term / (rrprob * hemi_sample.pdf));
                     
                     Ray ray;
                     ray.org.x = pos.x;
@@ -82,12 +88,13 @@ void imba::BasicPathTracer::operator()(Ray* rays, Hit* hits, void* state, int* p
         case State::SHADOW:
             float4 color = float4(0.0f);
             
-            if (hits[i].tri_id == -1)
+            if (hits[i].tri_id == -1) {
                 color = shader_state[i].factor;
+            }
         
-            out.pixels()[pixel_indices[i] * 4] = color.x;
-            out.pixels()[pixel_indices[i] * 4 + 1] = color.y;
-            out.pixels()[pixel_indices[i] * 4 + 2] = color.z;
+            out.pixels()[pixel_indices[i] * 4] += color.x;
+            out.pixels()[pixel_indices[i] * 4 + 1] += color.y;
+            out.pixels()[pixel_indices[i] * 4 + 2] += color.z;
             break;
         }
     }

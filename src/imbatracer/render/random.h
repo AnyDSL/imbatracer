@@ -6,28 +6,45 @@
 
 namespace imba {
 
-float3 sample_hemisphere(const float3& n, float u1, float u2) {
-    float theta = acosf(sqrtf(1.0f - u1));
-    float phi = 2.0f * pi * u2;
+//computes orthogonal local coordinate system
+inline void local_coordinates(const float3& normal, float3& tangent_out, float3& binormal_out) {
+    const int id0  = (fabsf(normal.x) > fabsf(normal.y)) ? 0 : 1;
+    const int id1  = (fabsf(normal.x) > fabsf(normal.y)) ? 1 : 0;
+    const float sig = (fabsf(normal.x) > fabsf(normal.y)) ? -1.f : 1.f;
 
-    float xs = sinf(theta) * cosf(phi);
-    float ys = cosf(theta);
-    float zs = sinf(theta) * sinf(phi);
+    const float inv_len = 1.f / (normal[id0] * normal[id0] + normal.z * normal.z);
 
-    float3 y = n;
-    float3 h = y;
-    if (fabsf(h.x) <= fabsf(h.y) && fabsf(h.x) <= fabsf(h.z)) {
-        h.x = 1.0f;
-    } else if (fabsf(h.y) <= fabsf(h.x) && fabsf(h.y) <= fabsf(h.z)) {
-        h.y = 1.0f;
-    } else {
-        h.z = 1.0f;
-    }
+    tangent_out[id0] = normal.z * sig * inv_len;
+    tangent_out[id1] = 0.f;
+    tangent_out.z   = normal[id0] * -1.f * sig * inv_len;
 
-    float3 x = normalize(cross(h, y));
-    float3 z = cross(x, y);
+    binormal_out = cross(normal, tangent_out);
+}
 
-    return x * xs + y * ys + z * zs;
+struct DirectionSample {
+    float3 dir;
+    float pdf;
+    
+    DirectionSample(float3 dir, float pdf) : dir(dir), pdf(pdf) {}
+};
+
+inline DirectionSample generate_cosine_weighted_direction(const float3& up, const float3& left, const float3& forward, const float u1, const float u2) {
+    float3 dir(
+        cosf(2.f * pi * u1) * sqrtf(1 - u2),
+		sinf(2.f * pi * u1) * sqrtf(1 - u2),
+		sqrtf(u2));
+
+    dir = dir.x * left + dir.y * forward + dir.z * up;
+
+    return DirectionSample(dir, 1.f / pi);
+}
+
+inline DirectionSample sample_hemisphere(const float3& n, float u1, float u2) {
+    float3 tangent;
+    float3 binormal;
+    local_coordinates(n, tangent, binormal);
+    
+    return generate_cosine_weighted_direction(n, tangent, binormal, u1, u2);
 }
 
 }

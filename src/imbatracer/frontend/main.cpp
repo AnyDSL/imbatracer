@@ -8,8 +8,8 @@
 void render_test_scene() {    
     using imba::float3;    
     
-    const int width = 512;
-    const int height = 512;
+    const int width = 1024;
+    const int height = 1024;
     
     //imba::OrthographicCamera cam(width, height);
     imba::PerspectiveCamera cam(width, height, float3(0.0f, 0.5f, 2.5f), float3(0.0f, 0.0f, -1.0f), float3(0.0f, 1.0f, 0.0f), 60.0f);

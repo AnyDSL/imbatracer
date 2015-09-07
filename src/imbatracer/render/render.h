@@ -15,6 +15,8 @@ public:
     Image& operator() ();
     
 private:
+    void clear_buffer();
+
     Shader& shader_;
     Camera& ray_gen_;
     
