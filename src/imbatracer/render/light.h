@@ -7,8 +7,8 @@ namespace imba {
 
 class AreaLight {
 public:
-    AreaLight(const float3& s0, const float3& v0, const float3& v1, const float4& intensity) 
-        : s0_(s0), v0_(v0), v1_(v1), area_(length(v0) * length(v1)), intensity_(intensity), normal_(normalize(cross(v0, v1)))
+    AreaLight(const float3& point0, const float3& edge0, const float3& edge1, const float3& normal, const float4& intensity) 
+        : point0_(point0), edge0_(edge0), edge1_(edge1), area_(length(cross(edge0, edge1))), intensity_(intensity), normal_(normal)
     {}
 
     float area() { return area_; }
@@ -22,19 +22,30 @@ public:
     // samples the light source, returns the pdf
     LightSample sample(const float3& from, float u1, float u2) { 
         LightSample s;
-        float3 pos = s0_ + u1 * v0_ + u2 * v1_;
+        // sample a point on the light source
+        float3 pos = point0_ + u1 * edge0_ + u2 * edge1_;
+        
+        // compute distance and shadow ray direction
         s.dir = pos - from;
         float distsq = dot(s.dir, s.dir);
         s.distance = sqrtf(distsq);
         s.dir = s.dir * (1.0f / s.distance);
-        s.intensity = intensity_ * dot(-1.0f * s.dir, normal_) * (area() / distsq);
+        
+        float cos_normal_dir = dot(normal_, -1.0f * s.dir);
+        
+        // directions form the opposite side of the light have zero intensity
+        if (cos_normal_dir > 0.0f && cos_normal_dir < 1.0f)
+            s.intensity = intensity_ * cos_normal_dir * (area() / distsq);
+        else
+            s.intensity = float4(0.0f);
+            
         return s;
     }
     
 private:
-    float3 s0_;
-    float3 v0_;
-    float3 v1_;
+    float3 point0_;
+    float3 edge0_;
+    float3 edge1_;
     float area_;
     float3 normal_;
     float4 intensity_;

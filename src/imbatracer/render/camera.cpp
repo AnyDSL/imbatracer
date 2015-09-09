@@ -9,7 +9,6 @@ void imba::OrthographicCamera::operator()(RayQueue& out) {
     float3 world_pos = float3(0.0f);
     float3 dir = float3(0.0f, 0.0f, 1.0f);
 
-#pragma omp parallel for
     for (int y = 0; y < height_; ++y) {
         float rely = -(static_cast<float>(y) / static_cast<float>(height_) - 0.5f) * 2.0f;
         for (int x = 0; x < width_; ++x) {
@@ -47,7 +46,6 @@ imba::PerspectiveCamera::PerspectiveCamera(int w, int h, float3 pos, float3 dir,
 }
 
 void imba::PerspectiveCamera::operator()(RayQueue& out) {
-#pragma omp parallel for
     for (int y = 0; y < height_; ++y) {
         float rely = 1.0f - (static_cast<float>(y) / static_cast<float>(height_ - 1)) * 2.0f;
         for (int x = 0; x < width_; ++x) {

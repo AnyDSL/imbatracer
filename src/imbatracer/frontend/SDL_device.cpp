@@ -94,9 +94,15 @@ void imba::SDLDevice::render_surface() {
             buf_row_all[x * 4 + 1] += buf_row_cur[x * 4 + 1];
             buf_row_all[x * 4 + 2] += buf_row_cur[x * 4 + 2];
         
+            //if (n_samples_ % 2 == 0) {
             row[x * 4 + r] = 255.0f * clamp(buf_row_all[x * 4] / n_samples_, 0.0f, 1.0f);
             row[x * 4 + g] = 255.0f * clamp(buf_row_all[x * 4 + 1] / n_samples_, 0.0f, 1.0f);
             row[x * 4 + b] = 255.0f * clamp(buf_row_all[x * 4 + 2] / n_samples_, 0.0f, 1.0f);
+            /*} else {
+                row[x * 4 + r] = 255.0f * clamp(buf_row_cur[x * 4], 0.0f, 1.0f);
+                row[x * 4 + g] = 255.0f * clamp(buf_row_cur[x * 4 + 1], 0.0f, 1.0f);
+                row[x * 4 + b] = 255.0f * clamp(buf_row_cur[x * 4 + 2], 0.0f, 1.0f);
+            } */       
         }
     }
     SDL_UnlockSurface(screen_);

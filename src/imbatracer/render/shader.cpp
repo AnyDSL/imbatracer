@@ -20,6 +20,10 @@ void imba::BasicPathTracer::operator()(Ray* rays, Hit* hits, void* state, int* p
     std::uniform_real_distribution<float> uniform(0.0f, 1.0f);
     
     for (int i = 0; i < ray_count; ++i) {
+       /* out.pixels()[pixel_indices[i] * 4] += hits[i].tmax / 10.0f;
+        out.pixels()[pixel_indices[i] * 4 + 1] += hits[i].tmax / 10.0f;
+        out.pixels()[pixel_indices[i] * 4 + 2] += hits[i].tmax / 10.0f;
+        continue;*/
         switch (shader_state[i].kind) {
         case State::PRIMARY:
         case State::SECONDARY:
@@ -89,6 +93,8 @@ void imba::BasicPathTracer::operator()(Ray* rays, Hit* hits, void* state, int* p
             float4 color = float4(0.0f);
             
             if (hits[i].tri_id == -1) {
+                /*if (shader_state[i].factor.x < 0.0f)
+                    std::cout << "!! : " << shader_state[i].factor.x << std::endl;*/
                 color = shader_state[i].factor;
             }
         
