@@ -6,7 +6,7 @@
 #include <unistd.h>
 
 imba::SDLDevice::SDLDevice(int img_width, int img_height, Render& r) 
-    : image_width_(img_width), image_height_(img_height), render_(r), n_samples_(10), img_(img_width, img_height)
+    : image_width_(img_width), image_height_(img_height), render_(r), n_samples_(16), img_(img_width, img_height)
 {
     SDL_Init(SDL_INIT_VIDEO);
     

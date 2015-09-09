@@ -53,7 +53,7 @@ void imba::BasicPathTracer::operator()(Ray* rays, Hit* hits, void* state, int* p
                 ray_out.push(ray, &s, pixel_indices[i]);
                 
                 // continue path using russian roulette
-                float rrprob = 0.0f;
+                float rrprob = 0.7f;
                 float u_rr = rng.random01();
                 if (u_rr < rrprob) {
                     // sample hemisphere

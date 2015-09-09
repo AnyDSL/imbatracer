@@ -21,11 +21,15 @@ imba::Render::Render(Camera& c, ThorinVector<Node>& nodes, ThorinVector<Vec4>& t
 imba::Image& imba::Render::operator() (int n_samples) {
     assert(n_samples >= 2 && "number of samples must be at least 2");
     const int min_rays = std::min(tex_.width() * tex_.height(), 1000000);
+    const int concurrent_samples = 8;
+    n_samples /= concurrent_samples;
+    
+    clear_buffer();
     
     // generate and traverse the first set of rays
     int cur_q = 0; // next queue used as input for the shader
     int cur_hit = 0;
-    ray_gen_(queues_[cur_q], rng_, 1);
+    ray_gen_(queues_[cur_q], rng_, concurrent_samples);
     RayQueue::Entry ray_data = queues_[cur_q].peek();
     traverse_accel(nodes_.data(), ray_data.rays, tris_.data(), hits_[cur_hit], ray_data.ray_count);
     
@@ -35,7 +39,7 @@ imba::Image& imba::Render::operator() (int n_samples) {
         // if there are not enough rays in the queue yet, fill up with new samples from the camera
         int traversal_q = (cur_q + 1) % 3; 
         if (queues_[traversal_q].size() < min_rays) {
-            ray_gen_(queues_[traversal_q], rng_, 1);
+            ray_gen_(queues_[traversal_q], rng_, concurrent_samples);
             created_samples++;
         }
         
