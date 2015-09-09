@@ -9,21 +9,13 @@
 
 #include <iostream>
 
-void imba::BasicPathTracer::operator()(Ray* rays, Hit* hits, void* state, int* pixel_indices, int ray_count, Image& out, RayQueue& ray_out) {
-    static const float4 diffuse_color(0.6f, 0.6f, 0.6f, 1.0f);
+void imba::BasicPathTracer::operator()(Ray* rays, Hit* hits, void* state, int* pixel_indices, int ray_count, Image& out, RayQueue& ray_out, RNG& rng) {
+    static const float4 diffuse_color(0.8f, 0.8f, 0.8f, 1.0f);
     static const float4 diffuse_brdf = diffuse_color * (1.0f / pi);
     
     State* shader_state = reinterpret_cast<State*>(state);
-
-    std::random_device rd;
-    std::mt19937 rng (rd());
-    std::uniform_real_distribution<float> uniform(0.0f, 1.0f);
     
     for (int i = 0; i < ray_count; ++i) {
-       /* out.pixels()[pixel_indices[i] * 4] += hits[i].tmax / 10.0f;
-        out.pixels()[pixel_indices[i] * 4 + 1] += hits[i].tmax / 10.0f;
-        out.pixels()[pixel_indices[i] * 4 + 2] += hits[i].tmax / 10.0f;
-        continue;*/
         switch (shader_state[i].kind) {
         case State::PRIMARY:
         case State::SECONDARY:
@@ -35,8 +27,8 @@ void imba::BasicPathTracer::operator()(Ray* rays, Hit* hits, void* state, int* p
                 pos = pos + (hits[i].tmax) * rd;
                 
                 // calculate shadow ray direction (sample one point on one lightsource)
-                auto ls = lights_[uniform(rng)];
-                auto sample = ls.sample(pos, uniform(rng), uniform(rng));
+                auto ls = lights_[rng.random01()];
+                auto sample = ls.sample(pos, rng.random01(), rng.random01());
                 float3 sh_dir = sample.dir;
                 
                 Ray ray;
@@ -61,11 +53,11 @@ void imba::BasicPathTracer::operator()(Ray* rays, Hit* hits, void* state, int* p
                 ray_out.push(ray, &s, pixel_indices[i]);
                 
                 // continue path using russian roulette
-                float rrprob = 0.5f;
-                float u_rr = uniform(rng);
+                float rrprob = 0.7f;
+                float u_rr = rng.random01();
                 if (u_rr < rrprob) {
                     // sample hemisphere
-                    DirectionSample hemi_sample = sample_hemisphere(normal, uniform(rng), uniform(rng));
+                    DirectionSample hemi_sample = sample_hemisphere(normal, rng.random01(), rng.random01());
                     float3 dir = hemi_sample.dir;
                     
                     float cos_term = fabsf(dot(normal, dir));
@@ -93,8 +85,6 @@ void imba::BasicPathTracer::operator()(Ray* rays, Hit* hits, void* state, int* p
             float4 color = float4(0.0f);
             
             if (hits[i].tri_id == -1) {
-                /*if (shader_state[i].factor.x < 0.0f)
-                    std::cout << "!! : " << shader_state[i].factor.x << std::endl;*/
                 color = shader_state[i].factor;
             }
         

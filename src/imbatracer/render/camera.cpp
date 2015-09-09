@@ -1,9 +1,10 @@
 #include "camera.h"
-#include <float.h>
+#include <cfloat>
+#include <random>
 #include "../core/float4.h"
 #include "../core/common.h"
 
-void imba::OrthographicCamera::operator()(RayQueue& out) {
+void imba::OrthographicCamera::operator()(RayQueue& out, RNG& rng) {
     float world_width = 6.0f;
     float world_height = world_width / aspect_;
     float3 world_pos = float3(0.0f);
@@ -43,13 +44,19 @@ imba::PerspectiveCamera::PerspectiveCamera(int w, int h, float3 pos, float3 dir,
     
     right_ = right_ * f * aspect_;
     up_ = up_ * f;
+    
+    pixel_width_ = length(right_) / static_cast<float>(w);
+    pixel_height_ = length(up_) / static_cast<float>(h);
 }
 
-void imba::PerspectiveCamera::operator()(RayQueue& out) {
+void imba::PerspectiveCamera::operator()(RayQueue& out, RNG& rng) {
     for (int y = 0; y < height_; ++y) {
         float rely = 1.0f - (static_cast<float>(y) / static_cast<float>(height_ - 1)) * 2.0f;
         for (int x = 0; x < width_; ++x) {
             float relx = (static_cast<float>(x) / static_cast<float>(width_ - 1)) * 2.0f - 1.0f;
+            
+            sample_pixel(relx, rely, rng);
+            
             float3 dir = dir_ + right_ * relx + up_ * rely;
             
             Ray r;
@@ -66,4 +73,9 @@ void imba::PerspectiveCamera::operator()(RayQueue& out) {
             out.push(r, nullptr, y * width_ + x);
         }
     }
+}
+
+void imba::Camera::sample_pixel(float& relx, float& rely, RNG& rng) {
+    relx += pixel_width_ * rng.random(-0.5, 0.5);
+    rely += pixel_height_ * rng.random(-0.5, 0.5);
 }

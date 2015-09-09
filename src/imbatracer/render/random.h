@@ -3,8 +3,27 @@
 
 #include "../core/float3.h"
 #include "../core/common.h"
+#include <random>
 
 namespace imba {
+
+class RNG {
+public:
+    RNG() {
+        std::random_device rd;
+        rng_ = std::mt19937(rd());
+    }
+    
+    float random(float min, float max) {
+        std::uniform_real_distribution<float> uniform(min, max);
+        return uniform(rng_);
+    }
+    
+    float random01() { return random(0.0f, 1.0f); }
+    
+private:
+    std::mt19937 rng_;
+};
 
 //computes orthogonal local coordinate system
 inline void local_coordinates(const float3& normal, float3& tangent_out, float3& binormal_out) {

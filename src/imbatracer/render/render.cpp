@@ -22,7 +22,7 @@ imba::Image& imba::Render::operator() () {
     clear_buffer();
     
     // generate the camera rays
-    ray_gen_(queues_[cur_queue_]);
+    ray_gen_(queues_[cur_queue_], rng_);
 
     while (queues_[cur_queue_].size() > min_rays) {
         RayQueue::Entry ray_data = queues_[cur_queue_].pop();
@@ -30,7 +30,7 @@ imba::Image& imba::Render::operator() () {
         //std::cout << "processing " << ray_data.ray_count << " rays..." << std::endl;
             
         traverse_accel(nodes_.data(), ray_data.rays, tris_.data(), hits_, ray_data.ray_count);
-        shader_(ray_data.rays, hits_, ray_data.state_data, ray_data.pixel_indices, ray_data.ray_count, tex_, queues_[!cur_queue_]);
+        shader_(ray_data.rays, hits_, ray_data.state_data, ray_data.pixel_indices, ray_data.ray_count, tex_, queues_[!cur_queue_], rng_);
         
         cur_queue_ = !cur_queue_;
     }

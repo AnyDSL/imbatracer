@@ -32,6 +32,8 @@ private:
     
     int state_len_;
     unsigned char* shader_mem_;
+    
+    RNG rng_;
 };
 
 } // namespace imba
