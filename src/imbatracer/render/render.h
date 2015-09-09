@@ -12,7 +12,7 @@ public:
     Render(Camera& c, ThorinVector<Node>& nodes, ThorinVector<Vec4>& tris, Shader& s, int width, int height);
 
     // renders the scene
-    Image& operator() ();
+    Image& operator() (int n_samples);
     
 private:
     void clear_buffer();
@@ -25,9 +25,8 @@ private:
     
     Image tex_;
     
-    Hit* hits_;
-    RayQueue queues_[2];
-    int cur_queue_;
+    Hit* hits_[2];
+    RayQueue queues_[3];
     int ray_count_;
     
     int state_len_;

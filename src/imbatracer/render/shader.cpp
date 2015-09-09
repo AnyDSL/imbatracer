@@ -13,13 +13,13 @@ void imba::BasicPathTracer::operator()(Ray* rays, Hit* hits, void* state, int* p
     static const float4 diffuse_color(0.8f, 0.8f, 0.8f, 1.0f);
     static const float4 diffuse_brdf = diffuse_color * (1.0f / pi);
     
-    State* shader_state = reinterpret_cast<State*>(state);
-    
     for (int i = 0; i < ray_count; ++i) {
+        State* shader_state = reinterpret_cast<State*>(state);
+        
         switch (shader_state[i].kind) {
         case State::PRIMARY:
         case State::SECONDARY:
-            if (hits[i].tri_id != -1) {
+            if (hits[i].tri_id != -1) {            
                 float3 pos = float3(rays[i].org.x, rays[i].org.y, rays[i].org.z);
                 float3 rd = float3(rays[i].dir.x, rays[i].dir.y, rays[i].dir.z);
 
@@ -53,7 +53,7 @@ void imba::BasicPathTracer::operator()(Ray* rays, Hit* hits, void* state, int* p
                 ray_out.push(ray, &s, pixel_indices[i]);
                 
                 // continue path using russian roulette
-                float rrprob = 0.7f;
+                float rrprob = 0.0f;
                 float u_rr = rng.random01();
                 if (u_rr < rrprob) {
                     // sample hemisphere
@@ -76,6 +76,7 @@ void imba::BasicPathTracer::operator()(Ray* rays, Hit* hits, void* state, int* p
                     ray.dir.y = dir.y;
                     ray.dir.z = dir.z;
                     ray.dir.w = FLT_MAX;
+                    
                     ray_out.push(ray, &s, pixel_indices[i]);
                 }
             }
@@ -87,7 +88,7 @@ void imba::BasicPathTracer::operator()(Ray* rays, Hit* hits, void* state, int* p
             if (hits[i].tri_id == -1) {
                 color = shader_state[i].factor;
             }
-        
+            
             out.pixels()[pixel_indices[i] * 4] += color.x;
             out.pixels()[pixel_indices[i] * 4 + 1] += color.y;
             out.pixels()[pixel_indices[i] * 4 + 2] += color.z;

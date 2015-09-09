@@ -48,7 +48,7 @@ namespace imba {
     }
 
     void testSceneLights(std::vector<AreaLight>& lights) {
-        AreaLight l(float3(-0.24f, 1.90f, -0.22f), float3(0.47f, 0.0f, 0.0f), float3(0.0f, 0.0f, 0.38f), float3(0.0f, -1.0f, 0.0f), float4(50.0f));
+        AreaLight l(float3(-10.24f, 400.90f, -10.22f), float3(10.47f, 0.0f, 0.0f), float3(0.0f, 0.0f, 10.38f), float3(0.0f, -1.0f, 0.0f), float4(5000.0f));
 
         lights.push_back(l);
     }
@@ -57,7 +57,7 @@ namespace imba {
         ObjLoader l;
         Mesh m;
         
-        l.load_file(Path("../test/cornell_no_light.obj"), m);
+        l.load_file(Path("../test/sponza.obj"), m);
 
         //l.load_file(Path("../test/sibenik.obj"), m);
         

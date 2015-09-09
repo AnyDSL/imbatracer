@@ -6,7 +6,7 @@
 #include <unistd.h>
 
 imba::SDLDevice::SDLDevice(int img_width, int img_height, Render& r) 
-    : image_width_(img_width), image_height_(img_height), render_(r), n_samples_(0), img_(img_width, img_height)
+    : image_width_(img_width), image_height_(img_height), render_(r), n_samples_(10), img_(img_width, img_height)
 {
     SDL_Init(SDL_INIT_VIDEO);
     
@@ -51,8 +51,8 @@ void imba::SDLDevice::render() {
         t = SDL_GetTicks();
         float ftime = (t - old_t) / 1000.0f;
         if (t - ticks > 5000) {
-            std::cout << 1000 * frames / (t - ticks) << " frames per second" << std::endl;
-            std::cout << samples << " samples" << std::endl;
+            std::cout << 1000 * frames / (t - ticks) << " frames per second" << ", " << n_samples_ << " samples per pixel, " << 
+                (t-ticks) / frames << "ms per frame" << std::endl;
             frames = 0;
             ticks = t;
         }
@@ -62,7 +62,7 @@ void imba::SDLDevice::render() {
         SDL_Flip(screen_);
         done = handle_events(false);
 
-        frames++; samples++;
+        frames++;
     }
 
     //SDL_WM_GrabInput(SDL_GRAB_OFF);
@@ -74,35 +74,22 @@ inline float clamp(float x, float a, float b)
 }
 
 void imba::SDLDevice::render_surface() {
-    Image& tex = render_();
+    Image& tex = render_(n_samples_);
         
     SDL_LockSurface(screen_);
     const int r = screen_->format->Rshift / 8;
     const int g = screen_->format->Gshift / 8;
     const int b = screen_->format->Bshift / 8;
-
-    ++n_samples_;
     
 #pragma omp parallel for
     for (int y = 0; y < screen_->h; y++) {
         unsigned char* row = (unsigned char*)screen_->pixels + screen_->pitch * y;
-        const float* buf_row_cur = tex.pixels() + y * image_width_ * 4;
-        float* buf_row_all = img_.pixels() + y * image_width_ * 4;
+        const float* rendered_row = tex.pixels() + y * image_width_ * 4;
         
-        for (int x = 0; x < screen_->w; x++) {
-            buf_row_all[x * 4]     += buf_row_cur[x * 4];
-            buf_row_all[x * 4 + 1] += buf_row_cur[x * 4 + 1];
-            buf_row_all[x * 4 + 2] += buf_row_cur[x * 4 + 2];
-        
-            //if (n_samples_ % 2 == 0) {
-            row[x * 4 + r] = 255.0f * clamp(buf_row_all[x * 4] / n_samples_, 0.0f, 1.0f);
-            row[x * 4 + g] = 255.0f * clamp(buf_row_all[x * 4 + 1] / n_samples_, 0.0f, 1.0f);
-            row[x * 4 + b] = 255.0f * clamp(buf_row_all[x * 4 + 2] / n_samples_, 0.0f, 1.0f);
-            /*} else {
-                row[x * 4 + r] = 255.0f * clamp(buf_row_cur[x * 4], 0.0f, 1.0f);
-                row[x * 4 + g] = 255.0f * clamp(buf_row_cur[x * 4 + 1], 0.0f, 1.0f);
-                row[x * 4 + b] = 255.0f * clamp(buf_row_cur[x * 4 + 2], 0.0f, 1.0f);
-            } */       
+        for (int x = 0; x < screen_->w; x++) {        
+            row[x * 4 + r] = 255.0f * clamp(rendered_row[x * 4] / n_samples_, 0.0f, 1.0f);
+            row[x * 4 + g] = 255.0f * clamp(rendered_row[x * 4 + 1] / n_samples_, 0.0f, 1.0f);
+            row[x * 4 + b] = 255.0f * clamp(rendered_row[x * 4 + 2] / n_samples_, 0.0f, 1.0f);
         }
     }
     SDL_UnlockSurface(screen_);

@@ -44,17 +44,24 @@ public:
         return Entry(ray_buffer_.data(), state_buffer_.data(), pixel_indices_.data(), count);
     }
     
+    Entry peek() {
+        unsigned int count = size();
+        return Entry(ray_buffer_.data(), state_buffer_.data(), pixel_indices_.data(), count);
+    }
+    
     void push(const Ray& ray, void* state, int pixel_idx) {
         assert(last_ + 1 < ray_buffer_.size() && "ray queue full");
      
-        ray_buffer_[++last_] = ray;
+        int id = ++last_;
+        
+        ray_buffer_[id] = ray;
         
         if (state)
-            std::memcpy(state_buffer_.data() + last_ * state_size_, state, state_size_);
+            std::memcpy(state_buffer_.data() + id * state_size_, state, state_size_);
         else
-            std::memcpy(state_buffer_.data() + last_ * state_size_, initial_state_, state_size_);
+            std::memcpy(state_buffer_.data() + id * state_size_, initial_state_, state_size_);
             
-        pixel_indices_[last_] = pixel_idx;
+        pixel_indices_[id] = pixel_idx;
     }
     
 private:
