@@ -7,12 +7,10 @@
 #include <cassert>
 #include <random>
 
-#include <iostream>
-
 void imba::BasicPathTracer::operator()(Ray* rays, Hit* hits, void* state, int* pixel_indices, int ray_count, Image& out, RayQueue& ray_out, RNG& rng) {
     static const float4 diffuse_color(0.8f, 0.8f, 0.8f, 1.0f);
     static const float4 diffuse_brdf = diffuse_color * (1.0f / pi);
-    
+ 
     for (int i = 0; i < ray_count; ++i) {
         State* shader_state = reinterpret_cast<State*>(state);
         
@@ -88,7 +86,7 @@ void imba::BasicPathTracer::operator()(Ray* rays, Hit* hits, void* state, int* p
             if (hits[i].tri_id == -1) {
                 color = shader_state[i].factor;
             }
-            
+
             out.pixels()[pixel_indices[i] * 4] += color.x;
             out.pixels()[pixel_indices[i] * 4 + 1] += color.y;
             out.pixels()[pixel_indices[i] * 4 + 2] += color.z;

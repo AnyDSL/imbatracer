@@ -56,6 +56,7 @@ void imba::SDLDevice::render() {
             frames = 0;
             ticks = t;
         }
+        std::cout << t - old_t << "ms" << std::endl;
         
         render_surface();
 

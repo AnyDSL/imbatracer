@@ -17,7 +17,7 @@ public:
     // returns the length (in bytes) of the state data stored per ray / intersection
     virtual int state_len() = 0;
     
-    virtual void* initial_state() = 0;
+    virtual const char* initial_state() = 0;
 };
 
 class BasicPathTracer : public Shader {    
@@ -44,8 +44,8 @@ public:
         return sizeof(State);
     }
     
-    virtual void* initial_state() {
-        return &initial_state_;
+    virtual const char* initial_state() {
+        return reinterpret_cast<const char*>(&initial_state_);
     }
     
 private:

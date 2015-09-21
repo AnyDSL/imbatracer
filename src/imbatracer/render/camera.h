@@ -42,6 +42,9 @@ private:
     float3 dir_;
     float3 up_;
     float3 right_;
+    
+    std::vector<::Ray> rays_;
+    std::vector<int> pixels_;
 };
 
 }

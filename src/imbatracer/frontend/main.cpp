@@ -5,9 +5,6 @@
 
 #include "thorin_runtime.h"
 
-#include <ctime>
-#include <omp.h>
-
 void render_test_scene() {    
     using imba::float3;    
     
