@@ -23,7 +23,7 @@ namespace imba {
 /// that controls when to do a spatial split. The tree is built in depth-first order.
 /// See  Stich et al., "Spatial Splits in Bounding Volume Hierarchies", 2009
 /// http://www.nvidia.com/docs/IO/77714/sbvh.pdf
-template <typename CostFn>
+template <int N, typename CostFn>
 class SplitBvhBuilder {
 public:
     struct Ref {
@@ -35,7 +35,7 @@ public:
     };
 
     /// Builds a SBVH with arity N
-    template <int N, typename NodeWriter, typename LeafWriter>
+    template <typename NodeWriter, typename LeafWriter>
     void build(const Mesh& mesh, NodeWriter write_node, LeafWriter write_leaf, int leaf_threshold, float alpha) {
         assert(leaf_threshold >= 1);
 
@@ -80,7 +80,7 @@ public:
         stack.push(initial_refs, tri_count, mesh_bb);
 
         while (!stack.empty()) {
-            MultiNode<N> multi_node(stack.pop());
+            MultiNode multi_node(stack.pop());
 
             // Iterate over the available split candidates in the multi-node
             do {
@@ -174,12 +174,12 @@ public:
                     return multi_node.candidates[i].bbox;
                 });
 
-                for (int i = 0; i < multi_node.count; i++) {
-                    stack.push(multi_node.candidates[i]);
-                }
-                for (int i = multi_node.count; i < N; i++) {
+                for (int i = N - 1; i >= multi_node.count; i--) {
                     // Push empty leaves
                     stack.push(nullptr, 0, BBox::empty());
+                }
+                for (int i = multi_node.count - 1; i >= 0; i--) {
+                    stack.push(multi_node.candidates[i]);
                 }
 #ifdef STATISTICS
                 total_nodes_++;
@@ -244,7 +244,6 @@ private:
         {}
     };
 
-    template <int N>
     struct MultiNode {
         SplitCandidate candidates[N];
         BBox bbox;
@@ -252,7 +251,6 @@ private:
         int count;
         int nodes;
 
-        MultiNode() : nodes(0), count(0), bbox(BBox::empty()) {}
         MultiNode(const SplitCandidate& split) {
             candidates[0] = split;
             tested[0] = false;

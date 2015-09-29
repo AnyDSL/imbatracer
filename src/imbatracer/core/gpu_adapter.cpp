@@ -14,7 +14,7 @@ public:
 
     void build_accel(const Mesh& mesh) override {
         mesh_ = &mesh;
-        builder_.build<2>(mesh, NodeWriter(this), LeafWriter(this), 2, 1.0f);
+        builder_.build(mesh, NodeWriter(this), LeafWriter(this), 2, 1e-5f);
 #ifdef STATISTICS
         builder_.print_stats();
 #endif
@@ -61,15 +61,13 @@ private:
             nodes[i].left_bb.hi_y = left_bb.max.y;
             nodes[i].left_bb.hi_z = left_bb.max.z;
 
-            if (count == 2) {
-                const BBox& right_bb = bbox(1);
-                nodes[i].right_bb.lo_x = right_bb.min.x;
-                nodes[i].right_bb.lo_y = right_bb.min.y;
-                nodes[i].right_bb.lo_z = right_bb.min.z;
-                nodes[i].right_bb.hi_x = right_bb.max.x;
-                nodes[i].right_bb.hi_y = right_bb.max.y;
-                nodes[i].right_bb.hi_z = right_bb.max.z;
-            }
+            const BBox& right_bb = bbox(1);
+            nodes[i].right_bb.lo_x = right_bb.min.x;
+            nodes[i].right_bb.lo_y = right_bb.min.y;
+            nodes[i].right_bb.lo_z = right_bb.min.z;
+            nodes[i].right_bb.hi_x = right_bb.max.x;
+            nodes[i].right_bb.hi_y = right_bb.max.y;
+            nodes[i].right_bb.hi_z = right_bb.max.z;
 
             stack.push(i, 1);
             stack.push(i, 0);
@@ -77,7 +75,7 @@ private:
     };
 
     struct LeafWriter {
-        typedef SplitBvhBuilder<CostFn>::Ref Ref;
+        typedef SplitBvhBuilder<2, CostFn>::Ref Ref;
 
         GpuAdapter* adapter;
 
@@ -117,7 +115,7 @@ private:
 
     Stack<StackElem> stack_;
     const Mesh* mesh_;
-    SplitBvhBuilder<CostFn> builder_;
+    SplitBvhBuilder<2, CostFn> builder_;
 };
 
 std::unique_ptr<Adapter> new_adapter(ThorinVector<Node>& nodes, ThorinVector<Vec4>& tris) {
