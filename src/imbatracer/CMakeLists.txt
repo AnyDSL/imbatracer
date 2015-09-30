@@ -15,6 +15,7 @@ add_library(imba-core
             core/float3.h
             core/float4.h
             core/gpu_adapter.cpp
+            #core/cpu_adapter.cpp
             core/mem_pool.h
             core/mesh.h
             core/sbvh_builder.h
