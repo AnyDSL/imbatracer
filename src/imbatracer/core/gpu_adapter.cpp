@@ -53,6 +53,8 @@ private:
                 *(&nodes[elem.parent].left + elem.child) = i;
             }
 
+            assert(count == 2);
+
             const BBox& left_bb = bbox(0);
             nodes[i].left_bb.lo_x = left_bb.min.x;
             nodes[i].left_bb.lo_y = left_bb.min.y;

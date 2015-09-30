@@ -34,7 +34,6 @@ public:
         Ref(uint32_t id, const BBox& bb) : id(id), bb(bb) {}
     };
 
-    /// Builds a SBVH with arity N
     template <typename NodeWriter, typename LeafWriter>
     void build(const Mesh& mesh, NodeWriter write_node, LeafWriter write_leaf, int leaf_threshold, float alpha) {
         assert(leaf_threshold >= 1);
@@ -58,42 +57,26 @@ public:
             initial_refs[i].id = i;
         }
 
-        // Create a one-leaf SBVH
-        if (tri_count <= leaf_threshold) {
-            write_node(mesh_bb, 1, [&] (int) {
-                return mesh_bb;
-            });
-            for (int i = 1; i < N; i++)
-                write_leaf(BBox::empty(), nullptr, 0);
-            write_leaf(mesh_bb, initial_refs, tri_count);
-#ifdef STATISTICS
-            total_nodes_++;
-            total_leaves_ += N;
-            total_refs_ += tri_count;
-#endif
-            return;
-        }
-
         const float spatial_threshold = mesh_bb.half_area() * alpha;
 
-        Stack<SplitCandidate> stack;
+        Stack<Node> stack;
         stack.push(initial_refs, tri_count, mesh_bb);
 
         while (!stack.empty()) {
             MultiNode multi_node(stack.pop());
 
             // Iterate over the available split candidates in the multi-node
-            do {
-                int candidate_id = multi_node.next_candidate();
-                SplitCandidate candidate = multi_node.candidates[candidate_id];
-                Ref* refs = candidate.refs;
-                int ref_count = candidate.ref_count;
-                const BBox& parent_bb = candidate.bbox;
-                assert(N > 2 || ref_count != 0);
+            while (!multi_node.full() && multi_node.node_available()) {
+                int node_id = multi_node.next_node();
+                Node node = multi_node.nodes[node_id];
+                Ref* refs = node.refs;
+                int ref_count = node.ref_count;
+                const BBox& parent_bb = node.bbox;
+                assert(ref_count != 0);
 
                 if (ref_count <= leaf_threshold) {
                     // This candidate does not have enough triangles
-                    multi_node.mark_candidate(candidate_id);
+                    multi_node.nodes[node_id].tested = true;
                     continue;
                 }
 
@@ -115,9 +98,9 @@ public:
                 bool spatial = spatial_split.cost < object_split.cost;
                 const float split_cost = spatial ? spatial_split.cost : object_split.cost;
 
-                if (split_cost + CostFn::traversal_cost(candidate.bbox.half_area()) >= candidate.cost) {
+                if (split_cost + CostFn::traversal_cost(parent_bb.half_area()) >= node.cost) {
                     // Split is not beneficial
-                    multi_node.mark_candidate(candidate_id);
+                    multi_node.nodes[node_id].tested = true;
                     continue;
                 }
 
@@ -130,9 +113,9 @@ public:
                                         left_refs, left_count, left_bb,
                                         right_refs, right_count, right_bb);
 
-                    multi_node.split_candidate(candidate_id,
-                                               SplitCandidate(left_refs,  left_count,  left_bb),
-                                               SplitCandidate(right_refs, right_count, right_bb));
+                    multi_node.split_node(node_id,
+                                          Node(left_refs,  left_count,  left_bb),
+                                          Node(right_refs, right_count, right_bb));
 
 #ifdef STATISTICS
                     spatial_splits_++;
@@ -147,39 +130,37 @@ public:
                     Ref *right_refs = refs + object_split.left_count;
                     Ref* left_refs = refs;
 
-                    multi_node.split_candidate(candidate_id,
-                                               SplitCandidate(left_refs,  left_count,  object_split.left_bb),
-                                               SplitCandidate(right_refs, right_count, object_split.right_bb));
+                    multi_node.split_node(node_id,
+                                          Node(left_refs,  left_count,  object_split.left_bb),
+                                          Node(right_refs, right_count, object_split.right_bb));
 #ifdef STATISTICS
                     object_splits_++;
 #endif
                 }
-            } while (!multi_node.full() && multi_node.candidate_available());
+            }
 
             assert(multi_node.count > 0);
 
             // The multi-node is ready to be stored
             if (multi_node.is_leaf()) {
                 // Store a leaf if it could not be split
-                assert(multi_node.tested[0]);
-                const SplitCandidate& c = multi_node.candidates[0];
-                write_leaf(c.bbox, c.refs, c.ref_count);
+                const Node& node = multi_node.nodes[0];
+                assert(node.tested);
+                write_leaf(node.bbox, node.refs, node.ref_count);
 #ifdef STATISTICS
                 total_leaves_++;
-                total_refs_ += c.ref_count;
+                total_refs_ += node.ref_count;
 #endif
             } else {
                 // Store a multi-node
                 write_node(multi_node.bbox, multi_node.count, [&] (int i) {
-                    return multi_node.candidates[i].bbox;
+                    return multi_node.nodes[i].bbox;
                 });
 
-                for (int i = N - 1; i >= multi_node.count; i--) {
-                    // Push empty leaves
-                    stack.push(nullptr, 0, BBox::empty());
-                }
+                assert(N > 2 || multi_node.count == 2);
+
                 for (int i = multi_node.count - 1; i >= 0; i--) {
-                    stack.push(multi_node.candidates[i]);
+                    stack.push(multi_node.nodes[i]);
                 }
 #ifdef STATISTICS
                 total_nodes_++;
@@ -231,72 +212,63 @@ private:
         SpatialSplit() : cost (FLT_MAX) {}
     };
 
-    struct SplitCandidate {
+    struct Node {
         Ref* refs;
         int ref_count;
         BBox bbox;
         float cost;
+        bool tested;
 
-        SplitCandidate() {}
-        SplitCandidate(Ref* refs, int ref_count, const BBox& bbox)
+        Node() {}
+        Node(Ref* refs, int ref_count, const BBox& bbox)
             : refs(refs), ref_count(ref_count), bbox(bbox),
-              cost(CostFn::leaf_cost(ref_count, bbox.half_area()))
+              cost(CostFn::leaf_cost(ref_count, bbox.half_area())),
+              tested(false)
         {}
     };
 
     struct MultiNode {
-        SplitCandidate candidates[N];
+        Node nodes[N];
         BBox bbox;
-        bool tested[N];
         int count;
-        int nodes;
 
-        MultiNode(const SplitCandidate& split) {
-            candidates[0] = split;
-            tested[0] = false;
-            bbox = split.bbox;
+        MultiNode(const Node& node) {
+            nodes[0] = node;
+            bbox = node.bbox;
             count = 1;
-            nodes = 0;
         }
 
         bool full() const { return count == N; }
         bool is_leaf() const { return count == 1; }
 
-        int next_candidate() const {
-            assert(candidate_available());
+        int next_node() const {
+            assert(node_available());
             if (N == 2)
                 return 0;
             else {
                 float min_cost = FLT_MAX;
                 int min_idx = 0;
                 for (int i = 0; i < count; i++) {
-                    if (!tested && min_cost > candidates[i].cost) {
+                    if (!nodes[i].tested && min_cost > nodes[i].cost) {
                         min_idx = i;
-                        min_cost = candidates[i].cost;
+                        min_cost = nodes[i].cost;
                     }
                 }
                 return min_idx;
             }
         }
 
-        bool candidate_available() const {
+        bool node_available() const {
             for (int i = 0; i < count; i++) {
-                if (!tested[i]) return true;
+                if (!nodes[i].tested) return true;
             }
             return false;
         }
 
-        void split_candidate(int i, const SplitCandidate& left, const SplitCandidate& right) {
+        void split_node(int i, const Node& left, const Node& right) {
             assert(count < N);
-            candidates[i] = left;
-            tested[i] = false;
-            candidates[count] = right;
-            tested[count++] = false;
-        }
-
-        void mark_candidate(int i) {
-            tested[i] = true;
-            nodes++;
+            nodes[i] = left;
+            nodes[count++] = right;
         }
     };
 
