@@ -11,7 +11,7 @@
 #include <iostream>
 
 namespace imba {
-    int count_tris(int i, const Vec4* tris) {
+    /*int count_tris(int i, const Vec4* tris) {
         int c = 1;
         while (float_as_int(tris[i + 2].w) != 0x80000000) {
             i += 3;
@@ -45,7 +45,7 @@ namespace imba {
         const BBox& parent_bb = BBox(left_bb).extend(right_bb);
 
         return ct + (left_bb.half_area() * left_cost + right_bb.half_area() * right_cost) / parent_bb.half_area();
-    }
+    }*/
 
     void testSceneLights(std::vector<AreaLight>& lights) {
         AreaLight l(float3(-10.24f, 400.90f, -10.22f), float3(10.47f, 0.0f, 0.0f), float3(0.0f, 0.0f, 10.38f), float3(0.0f, -1.0f, 0.0f), float4(5000.0f));
@@ -64,8 +64,8 @@ namespace imba {
         std::unique_ptr<Adapter> adapter = new_adapter(nodes, tris);
         adapter->build_accel(m);
 
-        printf("Mesh tri. count : %d\nBVH tri. count : %d\nSAH: %lf\n",
-            m.triangle_count(), tris.size() / 3, evaluate_sah(0, 1, 1, nodes.data(), tris.data()));
+        //printf("Mesh tri. count : %d\nBVH tri. count : %d\nSAH: %lf\n",
+        //    m.triangle_count(), tris.size() / 3, evaluate_sah(0, 1, 1, nodes.data(), tris.data()));
         
         assert(nodes.size() && "Nodes are empty");
         assert(tris.size() && "No tris");

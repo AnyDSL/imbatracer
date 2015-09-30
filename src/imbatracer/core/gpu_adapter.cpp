@@ -41,7 +41,7 @@ private:
         {}
 
         template <typename BBoxFn>
-        void operator() (const BBox& parent_bb, int count, BBoxFn bbox) {
+        void operator() (const BBox& parent_bb, int count, BBoxFn bboxes) {
             auto& nodes = adapter->nodes_;
             auto& stack = adapter->stack_;
 
@@ -55,7 +55,7 @@ private:
 
             assert(count == 2);
 
-            const BBox& left_bb = bbox(0);
+            const BBox& left_bb = bboxes(0);
             nodes[i].left_bb.lo_x = left_bb.min.x;
             nodes[i].left_bb.lo_y = left_bb.min.y;
             nodes[i].left_bb.lo_z = left_bb.min.z;
@@ -63,7 +63,7 @@ private:
             nodes[i].left_bb.hi_y = left_bb.max.y;
             nodes[i].left_bb.hi_z = left_bb.max.z;
 
-            const BBox& right_bb = bbox(1);
+            const BBox& right_bb = bboxes(1);
             nodes[i].right_bb.lo_x = right_bb.min.x;
             nodes[i].right_bb.lo_y = right_bb.min.y;
             nodes[i].right_bb.lo_z = right_bb.min.z;
