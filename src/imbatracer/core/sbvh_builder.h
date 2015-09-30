@@ -23,6 +23,7 @@ namespace imba {
 /// that controls when to do a spatial split. The tree is built in depth-first order.
 /// See  Stich et al., "Spatial Splits in Bounding Volume Hierarchies", 2009
 /// http://www.nvidia.com/docs/IO/77714/sbvh.pdf
+template <int N, typename CostFn>
 class SplitBvhBuilder {
 public:
     struct Ref {
@@ -33,14 +34,8 @@ public:
         Ref(uint32_t id, const BBox& bb) : id(id), bb(bb) {}
     };
 
-    typedef std::function<void (const BBox&, const BBox&, const BBox&)> NodeWriter;
-    typedef std::function<void (const BBox&, const Ref*, int)> LeafWriter;
-
-    SplitBvhBuilder(NodeWriter write_node, LeafWriter write_leaf)
-        : write_node_(write_node), write_leaf_(write_leaf)
-    {}
-
-    void build(const Mesh& mesh, int leaf_threshold = 2, float alpha = 1e-5f) {
+    template <typename NodeWriter, typename LeafWriter>
+    void build(const Mesh& mesh, NodeWriter write_node, LeafWriter write_leaf, int leaf_threshold, float alpha) {
         assert(leaf_threshold >= 1);
 
 #ifdef STATISTICS
@@ -53,7 +48,7 @@ public:
         mem_pool_.cleanup();
 
         Ref* initial_refs = mem_pool_.alloc<Ref>(tri_count);
-        right_bbs_ = mem_pool_.alloc<BBox>(std::max((int)BIN_COUNT, tri_count));
+        right_bbs_ = mem_pool_.alloc<BBox>(std::max((int)spatial_bins, tri_count));
         BBox mesh_bb = BBox::empty();
         for (size_t i = 0; i < tri_count; i++) {
             const Tri& tri = mesh.triangle(i);
@@ -62,52 +57,53 @@ public:
             initial_refs[i].id = i;
         }
 
-        if (tri_count <= leaf_threshold) {
-            make_empty(mesh_bb, initial_refs, tri_count);
-            return;
-        }
-
         const float spatial_threshold = mesh_bb.half_area() * alpha;
 
-        Stack<StackElem> stack;
+        Stack<Node> stack;
         stack.push(initial_refs, tri_count, mesh_bb);
 
         while (!stack.empty()) {
-            const StackElem& elem = stack.pop();
-            Ref* refs = elem.refs;
-            const int ref_count = elem.ref_count;
-            const BBox& parent_bb = elem.bbox;
+            MultiNode multi_node(stack.pop());
 
-            assert(ref_count != 0);
+            // Iterate over the available split candidates in the multi-node
+            while (!multi_node.full() && multi_node.node_available()) {
+                int node_id = multi_node.next_node();
+                Node node = multi_node.nodes[node_id];
+                Ref* refs = node.refs;
+                int ref_count = node.ref_count;
+                const BBox& parent_bb = node.bbox;
+                assert(ref_count != 0);
 
-            if (ref_count <= leaf_threshold) {
-                // When there are not enough triangles, make a leaf
-                make_leaf(parent_bb, refs, ref_count);
-                continue;
-            }
-
-            // Try object splits
-            ObjectSplit object_split;
-            for (int axis = 0; axis < 3; axis++)
-                find_object_split(object_split, axis, refs, ref_count);
-
-            SpatialSplit spatial_split;
-            if (BBox(object_split.left_bb).overlap(object_split.right_bb).half_area() > spatial_threshold) {
-                // Try spatial splits
-                for (int axis = 0; axis < 3; axis++) {
-                    if (parent_bb.min[axis] == parent_bb.max[axis])
-                        continue;
-                    find_spatial_split(spatial_split, parent_bb, mesh, axis, refs, ref_count);
+                if (ref_count <= leaf_threshold) {
+                    // This candidate does not have enough triangles
+                    multi_node.nodes[node_id].tested = true;
+                    continue;
                 }
-            }
 
-            bool spatial = spatial_split.cost < object_split.cost;
-            const float split_cost = spatial ? spatial_split.cost : object_split.cost;
+                // Try object splits
+                ObjectSplit object_split;
+                for (int axis = 0; axis < 3; axis++)
+                    find_object_split(object_split, axis, refs, ref_count);
 
-            if (split_cost >= (ref_count - 1) * parent_bb.half_area()) {
-                // The node cannot be split
-                make_leaf(parent_bb, refs, ref_count);
-            } else {
+                SpatialSplit spatial_split;
+                if (BBox(object_split.left_bb).overlap(object_split.right_bb).half_area() > spatial_threshold) {
+                    // Try spatial splits
+                    for (int axis = 0; axis < 3; axis++) {
+                        if (parent_bb.min[axis] == parent_bb.max[axis])
+                            continue;
+                        find_spatial_split(spatial_split, parent_bb, mesh, axis, refs, ref_count);
+                    }
+                }
+
+                bool spatial = spatial_split.cost < object_split.cost;
+                const float split_cost = spatial ? spatial_split.cost : object_split.cost;
+
+                if (split_cost + CostFn::traversal_cost(parent_bb.half_area()) >= node.cost) {
+                    // Split is not beneficial
+                    multi_node.nodes[node_id].tested = true;
+                    continue;
+                }
+
                 if (spatial) {
                     Ref* left_refs, *right_refs;
                     BBox left_bb, right_bb;
@@ -117,10 +113,9 @@ public:
                                         left_refs, left_count, left_bb,
                                         right_refs, right_count, right_bb);
 
-                    make_node(parent_bb, left_bb, right_bb);
-
-                    stack.push(right_refs, right_count, right_bb);
-                    stack.push(left_refs, left_count, left_bb);
+                    multi_node.split_node(node_id,
+                                          Node(left_refs,  left_count,  left_bb),
+                                          Node(right_refs, right_count, right_bb));
 
 #ifdef STATISTICS
                     spatial_splits_++;
@@ -129,21 +124,47 @@ public:
                     // Partitioning can be done in-place
                     apply_object_split(object_split, refs, ref_count);
 
-                    make_node(parent_bb, object_split.left_bb, object_split.right_bb);
-
                     const int right_count = ref_count - object_split.left_count;
                     const int left_count = object_split.left_count;
 
                     Ref *right_refs = refs + object_split.left_count;
                     Ref* left_refs = refs;
 
-                    stack.push(right_refs, right_count, object_split.right_bb);
-                    stack.push(left_refs,  left_count,  object_split.left_bb);
-
+                    multi_node.split_node(node_id,
+                                          Node(left_refs,  left_count,  object_split.left_bb),
+                                          Node(right_refs, right_count, object_split.right_bb));
 #ifdef STATISTICS
                     object_splits_++;
 #endif
                 }
+            }
+
+            assert(multi_node.count > 0);
+
+            // The multi-node is ready to be stored
+            if (multi_node.is_leaf()) {
+                // Store a leaf if it could not be split
+                const Node& node = multi_node.nodes[0];
+                assert(node.tested);
+                write_leaf(node.bbox, node.refs, node.ref_count);
+#ifdef STATISTICS
+                total_leaves_++;
+                total_refs_ += node.ref_count;
+#endif
+            } else {
+                // Store a multi-node
+                write_node(multi_node.bbox, multi_node.count, [&] (int i) {
+                    return multi_node.nodes[i].bbox;
+                });
+
+                assert(N > 2 || multi_node.count == 2);
+
+                for (int i = multi_node.count - 1; i >= 0; i--) {
+                    stack.push(multi_node.nodes[i]);
+                }
+#ifdef STATISTICS
+                total_nodes_++;
+#endif
             }
         }
 
@@ -166,9 +187,7 @@ public:
 #endif
 
 private:
-    enum {
-        BIN_COUNT = 256
-    };
+    static constexpr int spatial_bins = 256;
 
     struct Bin {
         BBox bb;
@@ -191,6 +210,66 @@ private:
         float position;
 
         SpatialSplit() : cost (FLT_MAX) {}
+    };
+
+    struct Node {
+        Ref* refs;
+        int ref_count;
+        BBox bbox;
+        float cost;
+        bool tested;
+
+        Node() {}
+        Node(Ref* refs, int ref_count, const BBox& bbox)
+            : refs(refs), ref_count(ref_count), bbox(bbox),
+              cost(CostFn::leaf_cost(ref_count, bbox.half_area())),
+              tested(false)
+        {}
+    };
+
+    struct MultiNode {
+        Node nodes[N];
+        BBox bbox;
+        int count;
+
+        MultiNode(const Node& node) {
+            nodes[0] = node;
+            bbox = node.bbox;
+            count = 1;
+        }
+
+        bool full() const { return count == N; }
+        bool is_leaf() const { return count == 1; }
+
+        int next_node() const {
+            assert(node_available());
+            if (N == 2)
+                return 0;
+            else {
+                float min_cost = FLT_MAX;
+                int min_idx = 0;
+                for (int i = 0; i < count; i++) {
+                    if (!nodes[i].tested && min_cost > nodes[i].cost) {
+                        min_idx = i;
+                        min_cost = nodes[i].cost;
+                    }
+                }
+                return min_idx;
+            }
+        }
+
+        bool node_available() const {
+            for (int i = 0; i < count; i++) {
+                if (!nodes[i].tested) return true;
+            }
+            return false;
+        }
+
+        void split_node(int i, const Node& left, const Node& right) {
+            assert(count < N);
+            nodes[i] = left;
+            nodes[count++] = right;
+        }
     };
 
     void sort_refs(int axis, Ref* refs, int ref_count) {
@@ -218,8 +297,7 @@ private:
         cur_bb = BBox::empty();
         for (int i = 0; i < ref_count - 1; i++) {
             cur_bb.extend(refs[i].bb);
-            const float cost = (i + 1) * cur_bb.half_area() +
-                               (ref_count - i - 1) * right_bbs_[i].half_area();
+            const float cost = CostFn::split_cost(i + 1, cur_bb.half_area(), ref_count - i - 1, right_bbs_[i].half_area());
             if (cost < split.cost) {
                 split.axis = axis;
                 split.cost = cost;
@@ -236,29 +314,31 @@ private:
         sort_refs(split.axis, refs, ref_count);
     }
 
-    void find_spatial_split(SpatialSplit& split, const BBox& parent_bb, const Mesh& mesh, int axis, Ref* refs, int ref_count) {
+    void find_spatial_split(SpatialSplit& split, const BBox& parent_bb,
+                            const Mesh& mesh, int axis,
+                            Ref* refs, int ref_count) {
         const float min = parent_bb.min[axis];
         const float max = parent_bb.max[axis];
         assert(max > min);
-        Bin bins[BIN_COUNT];
+        Bin bins[spatial_bins];
 
         // Initialize bins
-        for (int i = 0; i < BIN_COUNT; i++) {
+        for (int i = 0; i < spatial_bins; i++) {
             bins[i].entry = 0;
             bins[i].exit = 0;
             bins[i].bb = BBox::empty();
         }
 
         // Put the primitives in the bins
-        const float bin_size = (max - min) / BIN_COUNT;
+        const float bin_size = (max - min) / spatial_bins;
         const float inv_size = 1.0f / bin_size;
         for (int i = 0; i < ref_count; i++) {
             const Ref& ref = refs[i];
 
             assert(ref.bb.is_included(parent_bb));
 
-            const int first_bin = clamp((int)(inv_size * (ref.bb.min[axis] - min)), 0, BIN_COUNT - 1);
-            const int last_bin  = clamp((int)(inv_size * (ref.bb.max[axis] - min)), 0, BIN_COUNT - 1);
+            const int first_bin = clamp((int)(inv_size * (ref.bb.min[axis] - min)), 0, spatial_bins - 1);
+            const int last_bin  = clamp((int)(inv_size * (ref.bb.max[axis] - min)), 0, spatial_bins - 1);
 
             BBox cur_bb = ref.bb;
             for (int j = first_bin; j < last_bin; j++) {
@@ -275,7 +355,7 @@ private:
 
         // Sweep from the right and accumulate the bounding boxes
         BBox cur_bb = BBox::empty();
-        for (int i = BIN_COUNT - 1; i > 0; i--) {
+        for (int i = spatial_bins - 1; i > 0; i--) {
             cur_bb.extend(bins[i].bb);
             right_bbs_[i - 1] = cur_bb;
         }
@@ -284,13 +364,12 @@ private:
         int left_count = 0, right_count = ref_count;
         cur_bb = BBox::empty();
 
-        for (int i = 0; i < BIN_COUNT - 1; i++) {
+        for (int i = 0; i < spatial_bins - 1; i++) {
             left_count += bins[i].entry;
             right_count -= bins[i].exit;
             cur_bb.extend(bins[i].bb);
 
-            const float cost = left_count * cur_bb.half_area() +
-                               right_count * right_bbs_[i].half_area();
+            const float cost = CostFn::split_cost(left_count, cur_bb.half_area(), right_count, right_bbs_[i].half_area());
             if (cost < split.cost) {
                 split.axis = axis;
                 split.cost = cost;
@@ -348,9 +427,9 @@ private:
             const float right_dup_area = right_dup_bb.half_area();
 
             // Compute the cost of unsplitting to the left and the right
-            const float unsplit_left_cost  = left_unsplit_area * (left_count + 1) + right_bb.half_area() * right_count;
-            const float unsplit_right_cost = left_bb.half_area() * left_count + right_unsplit_area * (right_count + 1);
-            const float dup_cost = left_dup_area * (left_count + 1) + right_dup_area * (right_count + 1);
+            const float unsplit_left_cost  = CostFn::split_cost(left_count + 1, left_unsplit_area,   right_count,     right_bb.half_area());
+            const float unsplit_right_cost = CostFn::split_cost(left_count,     left_bb.half_area(), right_count + 1, right_unsplit_area);
+            const float dup_cost           = CostFn::split_cost(left_count + 1, left_dup_area,       right_count + 1, right_dup_area);
 
             const float min_cost = std::min(dup_cost, std::min(unsplit_left_cost, unsplit_right_cost));
 
@@ -390,45 +469,6 @@ private:
         assert(!left_bb.is_empty() && !right_bb.is_empty());
     }
 
-    void make_empty(const BBox& parent_bb, const Ref* refs, int ref_count) {
-        write_node_(parent_bb, parent_bb, BBox::empty());
-        write_leaf_(parent_bb, refs, ref_count);
-        write_leaf_(BBox::empty(), refs, 1);
-
-#ifdef STATISTICS
-        total_nodes_++;
-        total_leaves_ += 2;
-        total_refs_ += ref_count;
-#endif
-    }
-
-    void make_node(const BBox& parent_bb, const BBox& left_bb, const BBox& right_bb) {
-        write_node_(parent_bb, left_bb, right_bb);
-
-#ifdef STATISTICS
-        total_nodes_++;
-#endif
-    }
-
-    void make_leaf(const BBox& parent_bb, const Ref* refs, int ref_count) {
-        write_leaf_(parent_bb, refs, ref_count);
-
-#ifdef STATISTICS
-        total_leaves_++;
-        total_refs_ += ref_count;
-#endif
-    }
-
-    struct StackElem {
-        Ref* refs;
-        int ref_count;
-        BBox bbox;
-
-        StackElem() {}
-        StackElem(Ref* refs, int ref_count, const BBox& bbox)
-            : refs(refs), ref_count(ref_count), bbox(bbox)
-        {}
-    };
 
 #ifdef STATISTICS
     long total_time_ = 0;
@@ -442,8 +482,6 @@ private:
 
     BBox* right_bbs_;
     MemoryPool<> mem_pool_;
-    NodeWriter write_node_;
-    LeafWriter write_leaf_;
 };
 
 } // namespace imba

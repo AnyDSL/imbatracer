@@ -14,8 +14,6 @@ struct Stack {
 
     template <typename... Args>
     void push(Args... args) {
-        if (full())
-            int i = 0;
         assert(!full());
         elems[++top] = T(args...);
     }
