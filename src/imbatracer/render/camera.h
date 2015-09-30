@@ -9,33 +9,33 @@ namespace imba {
 
 class Camera {
 public:
-    Camera(int width, int height) : width_(width), height_(height) { aspect_ = width / height; }
+    Camera(int width, int height, int n_samples) : width_(width), height_(height), n_samples_(n_samples) { aspect_ = width / height; }
 
-    virtual void operator()(RayQueue& out, RNG& rng, int n_samples) = 0;
+    virtual void set_target_count(int count) = 0;
+    
+    virtual void start_frame() = 0;
+    virtual void fill_queue(RayQueue& out) = 0;
     
 protected:    
     void sample_pixel(float& relx, float& rely, RNG& rng);
     
     int width_;
     int height_;
+    int n_samples_;
     float aspect_;
     
     float pixel_width_;
     float pixel_height_;
 };
 
-class OrthographicCamera : public Camera {
-public:
-    OrthographicCamera(int w, int h) : Camera(w, h) {}
-
-    virtual void operator()(RayQueue& out, RNG& rng, int n_samples) override;
-};
-
 class PerspectiveCamera : public Camera {
 public:
-    PerspectiveCamera(int w, int h, float3 pos, float3 dir, float3 up, float fov);
+    PerspectiveCamera(int w, int h, int n_samples, float3 pos, float3 dir, float3 up, float fov);
     
-    virtual void operator()(RayQueue& out, RNG& rng, int n_samples) override;
+    virtual void set_target_count(int count) override;
+    
+    virtual void start_frame() override;
+    virtual void fill_queue(RayQueue& out) override;
     
 private:  
     float3 pos_;
@@ -45,6 +45,10 @@ private:
     
     std::vector<::Ray> rays_;
     std::vector<int> pixels_;
+    
+    int next_pixel_;
+    int generated_pixels_;
+    int target_count_;
 };
 
 }

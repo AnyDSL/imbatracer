@@ -12,7 +12,7 @@ class Shader {
 public:
     // runs the shader on a set of rays / hit points
     // state == nullptr for primary rays
-    virtual void operator()(Ray* rays, Hit* hits, void* state, int* pixel_indices, int ray_count, Image& out, RayQueue& ray_out, RNG& rng) = 0;
+    virtual void operator()(RayQueue& rays, Image& out, RayQueue& ray_out) = 0;
     
     // returns the length (in bytes) of the state data stored per ray / intersection
     virtual int state_len() = 0;
@@ -22,6 +22,8 @@ public:
 
 class BasicPathTracer : public Shader {    
     struct State {
+        int pixel_idx;
+        
         enum Kind {
             PRIMARY,
             SHADOW,
@@ -38,7 +40,7 @@ public:
         initial_state_.factor = float4(1.0f);
     }
     
-    virtual void operator()(Ray* rays, Hit* hits, void* state, int* pixel_indices, int ray_count, Image& out, RayQueue& ray_out, RNG& rng) override;
+    virtual void operator()(RayQueue& rays, Image& out, RayQueue& ray_out) override;
     
     virtual int state_len() override { 
         return sizeof(State);

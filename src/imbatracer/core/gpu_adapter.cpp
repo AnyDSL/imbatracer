@@ -14,7 +14,7 @@ public:
 
     void build_accel(const Mesh& mesh) override {
         mesh_ = &mesh;
-        builder_.build(mesh, 2, 2.0f);
+        builder_.build(mesh);
 #ifdef STATISTICS
         builder_.print_stats();
 #endif

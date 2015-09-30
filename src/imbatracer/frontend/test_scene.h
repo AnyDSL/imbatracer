@@ -58,8 +58,8 @@ namespace imba {
         Mesh m;
         
         l.load_file(Path("../test/sponza.obj"), m);
-
         //l.load_file(Path("../test/sibenik.obj"), m);
+        //l.load_file(Path("../test/cornell_no_light.obj"), m);
         
         std::unique_ptr<Adapter> adapter = new_adapter(nodes, tris);
         adapter->build_accel(m);

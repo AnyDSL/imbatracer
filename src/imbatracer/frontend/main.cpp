@@ -11,8 +11,7 @@ void render_test_scene() {
     const int width = 512;
     const int height = 512;
     
-    //imba::OrthographicCamera cam(width, height);
-    imba::PerspectiveCamera cam(width, height, float3(-184.0f, 193.f, -4.5f), normalize(float3(-171.081f, 186.426f, -4.96049f) - float3(-184.244f, 193.221f, -4.445f)), float3(0.0f, 1.0f, 0.0f), 60.0f);
+    imba::PerspectiveCamera cam(width, height, 16, float3(-184.0f, 193.f, -4.5f), normalize(float3(-171.081f, 186.426f, -4.96049f) - float3(-184.244f, 193.221f, -4.445f)), float3(0.0f, 1.0f, 0.0f), 60.0f);
     
     std::vector<imba::AreaLight> lights;
     imba::testSceneLights(lights);

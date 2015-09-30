@@ -7,12 +7,16 @@
 #include <cassert>
 #include <random>
 
-void imba::BasicPathTracer::operator()(Ray* rays, Hit* hits, void* state, int* pixel_indices, int ray_count, Image& out, RayQueue& ray_out, RNG& rng) {
+void imba::BasicPathTracer::operator()(RayQueue& ray_in, Image& out, RayQueue& ray_out) {
+    thread_local RNG rng;
     static const float4 diffuse_color(0.8f, 0.8f, 0.8f, 1.0f);
     static const float4 diffuse_brdf = diffuse_color * (1.0f / pi);
- 
+
+    int ray_count = ray_in.size(); 
     for (int i = 0; i < ray_count; ++i) {
-        State* shader_state = reinterpret_cast<State*>(state);
+        const State* shader_state = reinterpret_cast<const State*>(ray_in.states());
+        const Hit* hits = ray_in.hits(); 
+        const Ray* rays = ray_in.rays();
         
         switch (shader_state[i].kind) {
         case State::PRIMARY:
@@ -45,10 +49,11 @@ void imba::BasicPathTracer::operator()(Ray* rays, Hit* hits, void* state, int* p
                 float cos_term = fabsf(dot(sample.dir, normal));
                 
                 State s;
+                s.pixel_idx = shader_state[i].pixel_idx;
                 s.kind = State::SHADOW;
                 s.factor = shader_state[i].factor * diffuse_brdf * cos_term * sample.intensity;
                 
-                ray_out.push(ray, &s, pixel_indices[i]);
+                ray_out.push(ray, &s);
                 
                 // continue path using russian roulette
                 float rrprob = 0.7f;
@@ -61,6 +66,7 @@ void imba::BasicPathTracer::operator()(Ray* rays, Hit* hits, void* state, int* p
                     float cos_term = fabsf(dot(normal, dir));
                     
                     State s;
+                    s.pixel_idx = shader_state[i].pixel_idx;
                     s.kind = State::SECONDARY;
                     s.factor = shader_state[i].factor * diffuse_brdf * (cos_term / (rrprob * hemi_sample.pdf));
                     
@@ -75,7 +81,7 @@ void imba::BasicPathTracer::operator()(Ray* rays, Hit* hits, void* state, int* p
                     ray.dir.z = dir.z;
                     ray.dir.w = FLT_MAX;
                     
-                    ray_out.push(ray, &s, pixel_indices[i]);
+                    ray_out.push(ray, &s);
                 }
             }
             break;
@@ -87,9 +93,9 @@ void imba::BasicPathTracer::operator()(Ray* rays, Hit* hits, void* state, int* p
                 color = shader_state[i].factor;
             }
 
-            out.pixels()[pixel_indices[i] * 4] += color.x;
-            out.pixels()[pixel_indices[i] * 4 + 1] += color.y;
-            out.pixels()[pixel_indices[i] * 4 + 2] += color.z;
+            out.pixels()[shader_state[i].pixel_idx * 4] += color.x;
+            out.pixels()[shader_state[i].pixel_idx * 4 + 1] += color.y;
+            out.pixels()[shader_state[i].pixel_idx * 4 + 2] += color.z;
             break;
         }
     }
