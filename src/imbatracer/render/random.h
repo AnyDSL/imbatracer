@@ -14,6 +14,9 @@ public:
         rng_ = std::mt19937(rd());
     }
     
+    RNG(const RNG& rhs) = delete;
+    RNG& operator= (const RNG&& rhs) = delete;
+    
     float random(float min, float max) {
         std::uniform_real_distribution<float> uniform(min, max);
         return uniform(rng_);

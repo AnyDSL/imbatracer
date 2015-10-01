@@ -4,37 +4,10 @@
 #include "../core/float4.h"
 #include "../core/common.h"
 
-void imba::OrthographicCamera::operator()(RayQueue& out, RNG& rng, int n_samples) {
-    float world_width = 6.0f;
-    float world_height = world_width / aspect_;
-    float3 world_pos = float3(0.0f);
-    float3 dir = float3(0.0f, 0.0f, 1.0f);
+#include <iostream>
 
-    for (int y = 0; y < height_; ++y) {
-        float rely = -(static_cast<float>(y) / static_cast<float>(height_) - 0.5f) * 2.0f;
-        for (int x = 0; x < width_; ++x) {
-            float relx = (static_cast<float>(x) / static_cast<float>(width_) - 0.5f) * 2.0f;
-            float3 offset = float3(relx * world_width * 0.5f, rely * world_height * 0.5f, 0.0f);
-            float3 pos = world_pos + offset;
-            
-            Ray r;
-            r.org.x = pos.x;
-            r.org.y = pos.y;
-            r.org.z = pos.z;
-            r.org.w = 0.0f;
-            
-            r.dir.x = dir.x;
-            r.dir.y = dir.y;
-            r.dir.z = dir.z;
-            r.dir.w = FLT_MAX;
-            
-            out.push(r, nullptr, y * width_ + x);
-        }
-    }
-}
-
-imba::PerspectiveCamera::PerspectiveCamera(int w, int h, float3 pos, float3 dir, float3 up, float fov)
-    : Camera(w, h), pos_(pos)
+imba::PerspectiveCamera::PerspectiveCamera(int w, int h, int n_samples, float3 pos, float3 dir, float3 up, float fov)
+    : Camera(w, h, n_samples), pos_(pos)
 {
     dir_ = normalize(dir);
     right_ = normalize(cross(dir_, up));
@@ -49,35 +22,66 @@ imba::PerspectiveCamera::PerspectiveCamera(int w, int h, float3 pos, float3 dir,
     pixel_height_ = length(up_) / static_cast<float>(h);
 }
 
-void imba::PerspectiveCamera::operator()(RayQueue& out, RNG& rng, int n_samples) {
-    for (int y = 0; y < height_; ++y) {
-        float rely = 1.0f - (static_cast<float>(y) / static_cast<float>(height_ - 1)) * 2.0f;
-        for (int x = 0; x < width_; ++x) {
-            float relx = (static_cast<float>(x) / static_cast<float>(width_ - 1)) * 2.0f - 1.0f;
-            
-            for (int i = 0; i < n_samples; ++i) {
-                float rx = relx;
-                float ry = rely;
-                
-                sample_pixel(rx, ry, rng);
-                
-                float3 dir = dir_ + right_ * rx + up_ * ry;
-                
-                Ray r;
-                r.org.x = pos_.x;
-                r.org.y = pos_.y;
-                r.org.z = pos_.z;
-                r.org.w = 0.0f;
-                
-                r.dir.x = dir.x;
-                r.dir.y = dir.y;
-                r.dir.z = dir.z;
-                r.dir.w = FLT_MAX;
-                
-                out.push(r, nullptr, y * width_ + x);
-            }
-        }
+void imba::PerspectiveCamera::set_target_count(int count) {
+    pixels_.resize(count);
+    rays_.resize(count);
+    target_count_ = count;
+}
+
+void imba::PerspectiveCamera::start_frame() {
+    next_pixel_ = 0;
+    generated_pixels_ = 0;
+}
+
+void imba::PerspectiveCamera::fill_queue(RayQueue& out) {
+    thread_local RNG rng;
+    
+    // only generate at most n samples per pixel
+    if (generated_pixels_ > n_samples_ * width_ * height_) return;
+    
+    int count = target_count_ - out.size();
+    if (count <= 0) return;
+    
+    if (generated_pixels_ + count > n_samples_ * width_ * height_) {
+        count = n_samples_ * width_ * height_ - generated_pixels_;
     }
+    
+    generated_pixels_ += count;
+    
+    const int last_pixel = (next_pixel_ + count) % (width_ * height_);
+    
+#pragma omp parallel for
+    for (int i = next_pixel_; i < next_pixel_ + count; ++i) {
+        int pixel_idx = i % (width_ * height_);
+        
+        int y = pixel_idx / width_;
+        int x = pixel_idx % width_;
+        
+        float rely = 1.0f - (static_cast<float>(y) / static_cast<float>(height_ - 1)) * 2.0f;
+        float relx = (static_cast<float>(x) / static_cast<float>(width_ - 1)) * 2.0f - 1.0f;
+        sample_pixel(relx, rely, rng);
+        
+        float3 dir = dir_ + right_ * relx + up_ * rely;
+                
+        Ray r;
+        r.org.x = pos_.x;
+        r.org.y = pos_.y;
+        r.org.z = pos_.z;
+        r.org.w = 0.0f;
+        
+        r.dir.x = dir.x;
+        r.dir.y = dir.y;
+        r.dir.z = dir.z;
+        r.dir.w = FLT_MAX;
+
+        pixels_[i - next_pixel_] = pixel_idx;
+        rays_[i - next_pixel_] = r;
+    }
+    
+    // store which pixel has to be sampled next
+    next_pixel_ = last_pixel;
+    
+    out.push(rays_.begin(), rays_.begin() + count, pixels_.begin(), pixels_.begin() + count);
 }
 
 void imba::Camera::sample_pixel(float& relx, float& rely, RNG& rng) {

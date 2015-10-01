@@ -15,7 +15,7 @@ public:
     Image& operator() (int n_samples);
     
 private:
-    void clear_buffer();
+    void clear_texture();
 
     Shader& shader_;
     Camera& ray_gen_;
@@ -27,12 +27,10 @@ private:
     
     Hit* hits_[2];
     RayQueue queues_[3];
-    int ray_count_;
+    int target_ray_count_;
     
     int state_len_;
     unsigned char* shader_mem_;
-    
-    RNG rng_;
 };
 
 } // namespace imba
