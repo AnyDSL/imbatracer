@@ -97,7 +97,7 @@ private:
             for (int i = 0; i < ref_count; i++) {
                 const Tri& tri = mesh->triangle(refs[i].id);
                 Vec4 v0 = { tri.v0.x, tri.v0.y, tri.v0.z, 0.0f };
-                Vec4 v1 = { tri.v1.x, tri.v1.y, tri.v1.z, int_as_float(refs[i]).id };
+                Vec4 v1 = { tri.v1.x, tri.v1.y, tri.v1.z, int_as_float(refs[i].id) };
                 Vec4 v2 = { tri.v2.x, tri.v2.y, tri.v2.z, 0.0f };
                 tris.emplace_back(v0);
                 tris.emplace_back(v1);
