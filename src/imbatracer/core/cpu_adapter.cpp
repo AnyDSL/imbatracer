@@ -108,6 +108,7 @@ private:
                         Vec4 e1_x, e1_y, e1_z;
                         Vec4 e2_x, e2_y, e2_z;
                         Vec4 n_x, n_y, n_z;
+                        Vec4 ids;
                     } tri;
                     float raw[4 * 4 * 3];
                 } data;
@@ -132,6 +133,8 @@ private:
                     data.raw[j + 36] = n.x;
                     data.raw[j + 40] = n.y;
                     data.raw[j + 44] = n.z;
+
+                    data.raw[j + 48] = int_as_float(refs[i].id);
                 }
 
                 for (int j = c; j < 4; j++) {
@@ -147,6 +150,7 @@ private:
                     data.raw[j + 36] = 0.0f;
                     data.raw[j + 40] = 0.0f;
                     data.raw[j + 44] = 0.0f;
+                    data.raw[j + 48] = int_as_float(-1);
                 }
 
                 tris.emplace_back(data.tri.v0_x);
@@ -164,6 +168,8 @@ private:
                 tris.emplace_back(data.tri.n_x);
                 tris.emplace_back(data.tri.n_y);
                 tris.emplace_back(data.tri.n_z);
+
+                tris.emplace_back(data.tri.ids);
             }
 
             // Add sentinel
