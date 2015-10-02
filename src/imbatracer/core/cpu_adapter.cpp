@@ -114,7 +114,8 @@ private:
                 } data;
 
                 for (int j = 0; j < c; j++) {
-                    const Tri& tri = mesh->triangle(refs[i].id);
+                    const int id = refs[i + j].id;
+                    const Tri& tri = mesh->triangle(id);
                     const float3 e1 = tri.v0 - tri.v1;
                     const float3 e2 = tri.v2 - tri.v0;
                     const float3 n = cross(e1, e2);
@@ -134,7 +135,7 @@ private:
                     data.raw[j + 40] = n.y;
                     data.raw[j + 44] = n.z;
 
-                    data.raw[j + 48] = int_as_float(refs[i].id);
+                    data.raw[j + 48] = int_as_float(id);
                 }
 
                 for (int j = c; j < 4; j++) {
@@ -150,7 +151,7 @@ private:
                     data.raw[j + 36] = 0.0f;
                     data.raw[j + 40] = 0.0f;
                     data.raw[j + 44] = 0.0f;
-                    data.raw[j + 48] = int_as_float(-1);
+                    data.raw[j + 48] = int_as_float(0x80000000);
                 }
 
                 tris.emplace_back(data.tri.v0_x);
