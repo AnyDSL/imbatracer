@@ -2,6 +2,7 @@
 #define IMBA_OBJ_LOADER_HPP
 
 #include "../core/mesh.h"
+#include "../render/materials/material.h"
 #include "logger.h"
 #include "path.h"
 
@@ -18,7 +19,7 @@ public:
     {}
 
     bool check_format(const Path& path);
-    bool load_file(const Path& path, Mesh& scene, Logger* logger = nullptr);
+    bool load_file(const Path& path, Mesh& scene, std::vector<Material>& scene_materials, std::vector<int>& triangle_material_ids, Logger* logger = nullptr);
 
 private:
     struct Index {
@@ -51,17 +52,8 @@ private:
     struct Object {
         std::vector<Group> groups;
     };
-
-    struct ObjFile {
-        std::vector<Object>      objects;
-        std::vector<Vertex>      vertices;
-        std::vector<Normal>      normals;
-        std::vector<Texcoord>    texcoords;
-        std::vector<std::string> materials;
-        std::vector<std::string> mtl_libs;
-    };
-
-    struct Material {
+    
+    struct ObjMaterial {
         float3 ka;
         float3 kd;
         float3 ks;
@@ -75,8 +67,17 @@ private:
         std::string map_d;
     };
 
+    struct ObjFile {
+        std::vector<Object>      objects;
+        std::vector<Vertex>      vertices;
+        std::vector<Normal>      normals;
+        std::vector<Texcoord>    texcoords;
+        std::vector<std::string> materials;
+        std::vector<std::string> mtl_libs;
+    };
+
     bool parse_obj_stream(std::istream& stream, ObjFile& file, Logger* logger);
-    bool parse_mtl_stream(std::istream& stream, std::unordered_map<std::string, Material>& materials, Logger* logger);
+    bool parse_mtl_stream(std::istream& stream, std::unordered_map<std::string, ObjMaterial>& materials, Logger* logger);
     bool read_index(char** ptr, Index& idx);
 };
 

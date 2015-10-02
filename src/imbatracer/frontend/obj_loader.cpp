@@ -17,7 +17,7 @@ bool ObjLoader::check_format(const Path& path) {
     return path.extension() == "obj";
 }
 
-bool ObjLoader::load_file(const Path& path, Mesh& scene, Logger* logger) {
+bool ObjLoader::load_file(const Path& path, Mesh& scene, std::vector<Material>& scene_materials, std::vector<int>& triangle_material_ids, Logger* logger) {
     ObjFile obj_file;
 
     // Parse the OBJ file
@@ -29,17 +29,19 @@ bool ObjLoader::load_file(const Path& path, Mesh& scene, Logger* logger) {
     }
 
     // Parse the associated MTL files
-    /*std::unordered_map<std::string, Material> materials;
+    std::unordered_map<std::string, ObjMaterial> materials;
     for (auto& lib : obj_file.mtl_libs) {
         std::ifstream stream(path.base_name() + "/" + lib);
         if (!stream || !parse_mtl_stream(stream, materials, logger)) {
             if (logger) logger->log("invalid material library '", lib, "'");
         }
-    }*/
+    }
 
     // Add a dummy material, for objects that have no material
-    //scene.new_material(float3(1.0f, 0.0f, 0.0f));
-
+    Material m;
+    m.diffuse = float3(1.0f, 0.0f, 1.0f);
+    scene_materials.push_back(m);
+    
     // Add all the other materials
     /*std::unordered_map<std::string, TextureId> tex_map;
     auto load_map = [this, &tex_map, &logger, &scene, path] (const std::string& name, bool gs) {
@@ -62,15 +64,17 @@ bool ObjLoader::load_file(const Path& path, Mesh& scene, Logger* logger) {
         return tex_id;
     };*/
 
-   /* for (int i = 1; i < obj_file.materials.size(); i++) {
+    for (int i = 1; i < obj_file.materials.size(); i++) {
         auto& mat_name = obj_file.materials[i];
         auto it = materials.find(mat_name);
         if (it == materials.end()) {
             if (logger) logger->log("material not found '", mat_name, "'");
             // Add a dummy material in this case
-            scene.new_material(float3(0.0f, 0.0f, 1.0f));
+            Material m;
+            m.diffuse = float3(0.0f, 0.0f, 1.0f);
+            scene_materials.push_back(m);
         } else {
-            const Material& mat = it->second;
+            const ObjMaterial& mat = it->second;
 
             // Change the ambient map if needed
             std::string map_ka;
@@ -82,22 +86,16 @@ bool ObjLoader::load_file(const Path& path, Mesh& scene, Logger* logger) {
                 map_ka = mat.map_ka;
             }
 
-            auto id = scene.new_material(float3(mat.ka[0], mat.ka[1], mat.ka[2]),
-                                         float3(mat.kd[0], mat.kd[1], mat.kd[2]),
-                                         float3(mat.ks[0], mat.ks[1], mat.ks[2]),
-                                         mat.ns,
-                                         load_map(mat.map_ka, false),
-                                         load_map(mat.map_kd, false),
-                                         load_map(mat.map_ks, false),
-                                         load_map(mat.map_d, true));
+            Material m;
+            m.diffuse = mat.kd;
+            scene_materials.push_back(m);
         }
-    }*/
+    }
 
     // Create a scene from the OBJ file.
     for (auto& obj: obj_file.objects) {
         // Convert the faces to triangles & build the new list of indices
         std::vector<TriIdx> triangles;
-        //std::vector<int> materials;
 
         auto hash_index = [] (const Index& i) { return i.v ^ (i.t << 7) ^ (i.n << 11); };
         auto pred_index = [] (const Index& a, const Index& b) { return (a.v == b.v) && (a.n == b.n) && (a.t == b.t); };
@@ -126,7 +124,7 @@ bool ObjLoader::load_file(const Path& path, Mesh& scene, Logger* logger) {
                 for (int i = 1; i < face.index_count - 1; i++) {
                     const int next = mapping[face.indices[i + 1]];
                     triangles.push_back(TriIdx(v0, prev, next));
-                    //materials.push_back(face.material);
+                    triangle_material_ids.push_back(face.material);
                     prev = next;
                 }
             }
@@ -134,21 +132,7 @@ bool ObjLoader::load_file(const Path& path, Mesh& scene, Logger* logger) {
 
         if (triangles.size() == 0) continue;
 
-        // Create a mesh for this object
-/*        auto mesh_id = scene.new_triangle_mesh();
-        auto mesh = scene.triangle_mesh(mesh_id);
-
-        // Copy materials & triangles
-        mesh->set_triangles(triangles.data(), triangles.size());
-        mesh->set_materials(materials.data(), materials.size());
-
-        // Set up mesh vertices
-        mesh->set_vertex_count(cur_idx);
-        for (auto& p : mapping) {
-            const Vertex& v = obj_file.vertices[p.first.v];
-            mesh->vertices()[p.second] = float3(v.x, v.y, v.z);
-        }*/
-        
+        // Create a mesh for this object        
         int vert_offset = scene.vertex_count();
         int offset = scene.index_count();
         scene.set_index_count(offset + triangles.size() * 3);
@@ -203,38 +187,7 @@ bool ObjLoader::load_file(const Path& path, Mesh& scene, Logger* logger) {
         }
         scene.new_instance(mesh_id);*/
     }
-/*
-    std::array<imba::TextureId, 6> cubemap;
-    const char* axis_names[3] = {"x", "y", "z"};
-    const char* dir_names[2] = {"neg", "pos"};
-    bool failed = false;
-    for (int i = 0; i < 3 && !failed; i++) {
-        std::string axis = axis_names[i];
-        for (int j = 0; j < 2 && !failed; j++) {
-            std::string dir = dir_names[j];
-            imba::Texture tex;
-            if (load_texture(Path(path.base_name() + "/grimmnight." + dir + axis + ".tga"), tex, logger)) {
-                cubemap[i * 2 + j] = scene.new_texture(std::move(tex));
-            } else {
-                failed = true;
-            }
-        }
-    }
-    if (!failed)
-        scene.set_background(cubemap);
-*/
-    /*imba::Texture tex;
-    if (load_texture(Path(path.base_name() + "/nicolas.png"), tex, logger)) {
-        scene.set_background(scene.new_texture(std::move(tex)));
-    }
-    scene.set_background();*/
 
-    //scene.new_light(Light::POINT_LIGHT, float3(226.276f, 50.9499f, -7.54361f), float3(1000.0f, 1000.0f, 1000.0f));
-    //scene.new_light(Light::POINT_LIGHT, float3(212.818f, 130.086f, -6.59552f), float3(2000.0f, 2000.0f, 2000.0f));//, imba::normalize(float3(0.0f, 1.0f, 0.0f)), 15.0f, 1.0f);
-    //scene.new_light(Light::POINT_LIGHT, float3(-51.4413f, 400.712f, 300.18168f), 10.0f * float3(20000.0f, 20000.0f, 22000.0f));
-
-   /* auto lightId = scene.new_light(Light::POINT_LIGHT, float3(0, 400.712f, 0), 10.0f * float3(20000.0f, 20000.0f, 22000.0f));
-    scene.light(lightId)->set_accum_alpha(true);*/
     return true;
 }
 
@@ -410,13 +363,13 @@ bool ObjLoader::parse_obj_stream(std::istream& stream, ObjFile& file, Logger* lo
     return true;
 }
 
-bool ObjLoader::parse_mtl_stream(std::istream& stream, std::unordered_map<std::string, Material>& materials, Logger* logger) {
+bool ObjLoader::parse_mtl_stream(std::istream& stream, std::unordered_map<std::string, ObjMaterial>& materials, Logger* logger) {
     const int max_line = 1024;
     char line[max_line];
     char* err_line = line;
 
     std::string mtl_name;
-    auto current_material = [&] () -> Material& {
+    auto current_material = [&] () -> ObjMaterial& {
         if (!mtl_name.length() && logger)
             logger->log("invalid material command '", err_line, "'");
         return materials[mtl_name];
@@ -444,47 +397,47 @@ bool ObjLoader::parse_mtl_stream(std::istream& stream, std::unordered_map<std::s
             }
         } else if (ptr[0] == 'K') {
             if (ptr[1] == 'a' && std::isspace(ptr[2])) {
-                Material& mat = current_material();
+                ObjMaterial& mat = current_material();
                 mat.ka[0] = std::strtof(ptr + 3, &ptr);
                 mat.ka[1] = std::strtof(ptr, &ptr);
                 mat.ka[2] = std::strtof(ptr, &ptr);
             } else if (ptr[1] == 'd' && std::isspace(ptr[2])) {
-                Material& mat = current_material();
+                ObjMaterial& mat = current_material();
                 mat.kd[0] = std::strtof(ptr + 3, &ptr);
                 mat.kd[1] = std::strtof(ptr, &ptr);
                 mat.kd[2] = std::strtof(ptr, &ptr);
             } else if (ptr[1] == 's' && std::isspace(ptr[2])) {
-                Material& mat = current_material();
+                ObjMaterial& mat = current_material();
                 mat.ks[0] = std::strtof(ptr + 3, &ptr);
                 mat.ks[1] = std::strtof(ptr, &ptr);
                 mat.ks[2] = std::strtof(ptr, &ptr);
             }
         } else if (ptr[0] == 'N' && ptr[1] == 's' && std::isspace(ptr[2])) {
-            Material& mat = current_material();
+            ObjMaterial& mat = current_material();
             mat.ns = std::strtof(ptr + 3, &ptr);
         } else if (ptr[0] == 'd' && std::isspace(ptr[1])) {
-            Material& mat = current_material();
+            ObjMaterial& mat = current_material();
             mat.d = std::strtof(ptr + 2, &ptr);
         } else if (!std::strncmp(ptr, "illum", 5) && std::isspace(ptr[5])) {
-            Material& mat = current_material();
+            ObjMaterial& mat = current_material();
             mat.illum = std::strtol(ptr + 6, &ptr, 10);
         } else if (!std::strncmp(ptr, "map_Ka", 6) && std::isspace(ptr[6])) {
-            Material& mat = current_material();
+            ObjMaterial& mat = current_material();
             mat.map_ka = std::string(strip_spaces(ptr + 7));
         } else if (!std::strncmp(ptr, "map_Kd", 6) && std::isspace(ptr[6])) {
-            Material& mat = current_material();
+            ObjMaterial& mat = current_material();
             mat.map_kd = std::string(strip_spaces(ptr + 7));
         } else if (!std::strncmp(ptr, "map_Ks", 6) && std::isspace(ptr[6])) {
-            Material& mat = current_material();
+            ObjMaterial& mat = current_material();
             mat.map_ks = std::string(strip_spaces(ptr + 7));
         } else if (!std::strncmp(ptr, "map_bump", 8) && std::isspace(ptr[8])) {
-            Material& mat = current_material();
+            ObjMaterial& mat = current_material();
             mat.map_bump = std::string(strip_spaces(ptr + 9));
         } else if (!std::strncmp(ptr, "bump", 4) && std::isspace(ptr[4])) {
-            Material& mat = current_material();
+            ObjMaterial& mat = current_material();
             mat.map_bump = std::string(strip_spaces(ptr + 5));
         } else if (!std::strncmp(ptr, "map_d", 5) && std::isspace(ptr[5])) {
-            Material& mat = current_material();
+            ObjMaterial& mat = current_material();
             mat.map_d = std::string(strip_spaces(ptr + 6));
         } else {
             if (logger) logger->log("unknown material command '", err_line, "'");

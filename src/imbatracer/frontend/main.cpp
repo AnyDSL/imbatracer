@@ -11,7 +11,10 @@ void render_test_scene() {
     const int width = 512;
     const int height = 512;
     
+    // sponza
     imba::PerspectiveCamera cam(width, height, 16, float3(-184.0f, 193.f, -4.5f), normalize(float3(-171.081f, 186.426f, -4.96049f) - float3(-184.244f, 193.221f, -4.445f)), float3(0.0f, 1.0f, 0.0f), 60.0f);
+    // cornell
+    //imba::PerspectiveCamera cam(width, height, 16, float3(0.0f, 0.5f, 2.5f), float3(0.0f, 0.0f, -1.0f), float3(0.0f, 1.0f, 0.0f), 60.0f);
     
     std::vector<imba::AreaLight> lights;
     imba::testSceneLights(lights);
@@ -19,7 +22,9 @@ void render_test_scene() {
     imba::ThorinVector<Node> nodes;
     imba::ThorinVector<Vec4> tris;
     imba::Mesh mesh;
-    imba::buildTestScene(nodes, tris, mesh);
+    std::vector<imba::Material> materials;
+    std::vector<int> material_ids;
+    imba::buildTestScene(nodes, tris, mesh, materials, material_ids);
     
     std::vector<float3> normals;
     normals.reserve(mesh.triangle_count());
@@ -29,7 +34,7 @@ void render_test_scene() {
         normals.push_back(normal);
     }
     
-    imba::BasicPathTracer shader(lights, tris, normals);
+    imba::BasicPathTracer shader(lights, tris, normals, materials, material_ids);
     imba::Render render(cam, nodes, tris, shader, width, height);
     
     imba::SDLDevice device(width, height, render);

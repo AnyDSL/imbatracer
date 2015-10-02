@@ -30,7 +30,7 @@ private:
             return ((count - 1) / 4 + 1) * area;
         }
         static float traversal_cost(float area) {
-            return area * 1.0f;
+            return area * 0.5f;
         }
     };
 

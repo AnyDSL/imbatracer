@@ -13,10 +13,6 @@ else()
     message(STATUS "The compiler ${CMAKE_CXX_COMPILER} has no C++11 support. Please use a different C++ compiler.")
 endif()
 
-if(CMAKE_COMPILER_IS_GNUCXX)
-    string (REPLACE "-pg" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
-endif()
-
 # Thorin setup
 find_package(THORIN REQUIRED)
 

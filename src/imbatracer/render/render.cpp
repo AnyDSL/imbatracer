@@ -32,7 +32,7 @@ imba::Image& imba::Render::operator() (int n_samples) {
     int cur_q = 0; // next queue used as input for the shader
     ray_gen_.fill_queue(queues_[cur_q]);
     traverse_accel(nodes_.data(), queues_[cur_q].rays(), tris_.data(), queues_[cur_q].hits(), queues_[cur_q].size());
- 
+    
     bool keep_rendering = true;  
     while (keep_rendering) {
         // prepare a second queue for traversal

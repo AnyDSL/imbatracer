@@ -9,8 +9,8 @@
 
 void imba::BasicPathTracer::operator()(RayQueue& ray_in, Image& out, RayQueue& ray_out) {
     thread_local RNG rng;
-    static const float4 diffuse_color(0.8f, 0.8f, 0.8f, 1.0f);
-    static const float4 diffuse_brdf = diffuse_color * (1.0f / pi);
+    /*static const float4 diffuse_color(0.8f, 0.8f, 0.8f, 1.0f);
+    static const float4 diffuse_brdf = diffuse_color * (1.0f / pi);*/
 
     int ray_count = ray_in.size(); 
     for (int i = 0; i < ray_count; ++i) {
@@ -21,7 +21,11 @@ void imba::BasicPathTracer::operator()(RayQueue& ray_in, Image& out, RayQueue& r
         switch (shader_state[i].kind) {
         case State::PRIMARY:
         case State::SECONDARY:
-            if (hits[i].tri_id != -1) {            
+            if (hits[i].tri_id != -1) { 
+                auto& mat = materials_[material_ids_[hits[i].tri_id]];
+                const float4 diffuse_color = float4(mat.diffuse, 1.0f);
+                const float4 diffuse_brdf = diffuse_color * (1.0f / pi);
+                       
                 float3 pos = float3(rays[i].org.x, rays[i].org.y, rays[i].org.z);
                 float3 rd = float3(rays[i].dir.x, rays[i].dir.y, rays[i].dir.z);
 
