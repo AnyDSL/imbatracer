@@ -25,7 +25,7 @@ void imba::BasicPathTracer::operator()(RayQueue& ray_in, Image& out, RayQueue& r
                 float3 pos = float3(rays[i].org.x, rays[i].org.y, rays[i].org.z);
                 float3 rd = float3(rays[i].dir.x, rays[i].dir.y, rays[i].dir.z);
 
-                float3 normal = normals_[hits[i].tri_id / 3];
+                float3 normal = normals_[hits[i].tri_id];
                 pos = pos + (hits[i].tmax) * rd;
                 
                 // calculate shadow ray direction (sample one point on one lightsource)

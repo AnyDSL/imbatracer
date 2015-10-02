@@ -18,18 +18,14 @@ void render_test_scene() {
 
     imba::ThorinVector<Node> nodes;
     imba::ThorinVector<Vec4> tris;
-    imba::buildTestScene(nodes, tris);
+    imba::Mesh mesh;
+    imba::buildTestScene(nodes, tris, mesh);
     
     std::vector<float3> normals;
-    normals.reserve(tris.size() / 3);
-    for (int i = 0; i < tris.size() / 3; ++i) {
-        Vec4 v0_v = tris[i * 3];
-        Vec4 v1_v = tris[i * 3 + 1];
-        Vec4 v2_v = tris[i * 3 + 2];
-        float3 v0(v0_v.x, v0_v.y, v0_v.z);
-        float3 v1(v1_v.x, v1_v.y, v1_v.z);
-        float3 v2(v2_v.x, v2_v.y, v2_v.z);
-        float3 normal = normalize(cross(v1 - v0, v2 - v0));
+    normals.reserve(mesh.triangle_count());
+    for (int i = 0; i < mesh.triangle_count(); ++i) {
+        imba::Tri t = mesh.triangle(i);
+        float3 normal = normalize(cross(t.v1 - t.v0, t.v2 - t.v0));
         normals.push_back(normal);
     }
     
