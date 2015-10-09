@@ -64,8 +64,7 @@ void imba::BasicPathTracer::operator()(RayQueue& ray_in, Image& out, RayQueue& r
                     // sample brdf
                     float pdf;
                     float3 sample_dir;
-                    sample_material(mat.get(), out_dir, normal, rng.random01(), rng.random01(), sample_dir, pdf);
-                    float4 diffuse_brdf = evaluate_material(mat.get(), out_dir, normal, sample_dir);
+                    float4 diffuse_brdf = sample_material(mat.get(), out_dir, normal, rng.random01(), rng.random01(), sample_dir, pdf);
                     
                     float cos_term = fabsf(dot(normal, sample_dir));
                     
