@@ -5,7 +5,7 @@
 #include "image.h"
 #include "light.h"
 #include "random.h"
-#include "materials/material.h"
+#include "scene.h"
 
 namespace imba {
 
@@ -35,7 +35,7 @@ class BasicPathTracer : public Shader {
     };
     
 public:
-    BasicPathTracer(std::vector<AreaLight>& light_sources, ThorinVector<Vec4>& tris, std::vector<float3>& normals, std::vector<Material>& materials, std::vector<int>& material_ids) 
+    BasicPathTracer(std::vector<AreaLight>& light_sources, ThorinVector<Vec4>& tris, std::vector<float3>& normals, MaterialContainer& materials, std::vector<int>& material_ids) 
         : lights_(light_sources), tris_(tris), normals_(normals), materials_(materials), material_ids_(material_ids)
     {
         initial_state_.kind = State::PRIMARY;
@@ -56,7 +56,7 @@ private:
     std::vector<AreaLight>& lights_;
     ThorinVector<Vec4>& tris_;
     std::vector<float3>& normals_;
-    std::vector<Material>& materials_;
+    MaterialContainer& materials_;
     std::vector<int>& material_ids_;
     
     State initial_state_;

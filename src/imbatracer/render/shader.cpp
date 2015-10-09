@@ -9,8 +9,6 @@
 
 void imba::BasicPathTracer::operator()(RayQueue& ray_in, Image& out, RayQueue& ray_out) {
     thread_local RNG rng;
-    /*static const float4 diffuse_color(0.8f, 0.8f, 0.8f, 1.0f);
-    static const float4 diffuse_brdf = diffuse_color * (1.0f / pi);*/
 
     int ray_count = ray_in.size(); 
     for (int i = 0; i < ray_count; ++i) {
@@ -23,14 +21,12 @@ void imba::BasicPathTracer::operator()(RayQueue& ray_in, Image& out, RayQueue& r
         case State::SECONDARY:
             if (hits[i].tri_id != -1) { 
                 auto& mat = materials_[material_ids_[hits[i].tri_id]];
-                const float4 diffuse_color = float4(mat.diffuse, 1.0f);
-                const float4 diffuse_brdf = diffuse_color * (1.0f / pi);
                        
                 float3 pos = float3(rays[i].org.x, rays[i].org.y, rays[i].org.z);
-                float3 rd = float3(rays[i].dir.x, rays[i].dir.y, rays[i].dir.z);
+                float3 out_dir = float3(rays[i].dir.x, rays[i].dir.y, rays[i].dir.z);
 
                 float3 normal = normals_[hits[i].tri_id];
-                pos = pos + (hits[i].tmax) * rd;
+                pos = pos + (hits[i].tmax) * out_dir;
                 
                 // calculate shadow ray direction (sample one point on one lightsource)
                 auto ls = lights_[rng.random01()];
@@ -52,10 +48,12 @@ void imba::BasicPathTracer::operator()(RayQueue& ray_in, Image& out, RayQueue& r
                 
                 float cos_term = fabsf(dot(sample.dir, normal));
                 
+                float4 brdf = evaluate_material(mat.get(), out_dir, normal, sample.dir);
+                
                 State s;
                 s.pixel_idx = shader_state[i].pixel_idx;
                 s.kind = State::SHADOW;
-                s.factor = shader_state[i].factor * diffuse_brdf * cos_term * sample.intensity;
+                s.factor = shader_state[i].factor * brdf * cos_term * sample.intensity;
                 
                 ray_out.push(ray, &s);
                 
@@ -63,16 +61,18 @@ void imba::BasicPathTracer::operator()(RayQueue& ray_in, Image& out, RayQueue& r
                 float rrprob = 0.7f;
                 float u_rr = rng.random01();
                 if (u_rr < rrprob) {
-                    // sample hemisphere
-                    DirectionSample hemi_sample = sample_hemisphere(normal, rng.random01(), rng.random01());
-                    float3 dir = hemi_sample.dir;
+                    // sample brdf
+                    float pdf;
+                    float3 sample_dir;
+                    sample_material(mat.get(), out_dir, normal, rng.random01(), rng.random01(), sample_dir, pdf);
+                    float4 diffuse_brdf = evaluate_material(mat.get(), out_dir, normal, sample_dir);
                     
-                    float cos_term = fabsf(dot(normal, dir));
+                    float cos_term = fabsf(dot(normal, sample_dir));
                     
                     State s;
                     s.pixel_idx = shader_state[i].pixel_idx;
                     s.kind = State::SECONDARY;
-                    s.factor = shader_state[i].factor * diffuse_brdf * (cos_term / (rrprob * hemi_sample.pdf));
+                    s.factor = shader_state[i].factor * diffuse_brdf * (cos_term / (rrprob * pdf));
                     
                     Ray ray;
                     ray.org.x = pos.x;
@@ -80,9 +80,9 @@ void imba::BasicPathTracer::operator()(RayQueue& ray_in, Image& out, RayQueue& r
                     ray.org.z = pos.z;
                     ray.org.w = 0.001;
                     
-                    ray.dir.x = dir.x;
-                    ray.dir.y = dir.y;
-                    ray.dir.z = dir.z;
+                    ray.dir.x = sample_dir.x;
+                    ray.dir.y = sample_dir.y;
+                    ray.dir.z = sample_dir.z;
                     ray.dir.w = FLT_MAX;
                     
                     ray_out.push(ray, &s);

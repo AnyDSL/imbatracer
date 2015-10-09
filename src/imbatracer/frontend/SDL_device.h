@@ -5,7 +5,7 @@ namespace imba {
 
     class SDLDevice {
     public:
-        SDLDevice(int img_width, int img_height, Render& r);
+        SDLDevice(int img_width, int img_height, int n_samples, Render& r);
         ~SDLDevice(); 
         
         void render();

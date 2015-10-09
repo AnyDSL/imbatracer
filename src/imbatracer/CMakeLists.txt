@@ -31,7 +31,8 @@ add_library(imba-render
             render/shader.cpp
             render/ray_queue.h
             render/random.h
-            render/materials/material.h)
+            render/material.h
+            render/scene.h)
             
 target_link_libraries(imba-render ${TRAVERSAL_LIBRARIES})
 target_link_libraries(imba-core ${TRAVERSAL_LIBRARIES})

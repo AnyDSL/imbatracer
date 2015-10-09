@@ -2,7 +2,7 @@
 #define IMBA_OBJ_LOADER_HPP
 
 #include "../core/mesh.h"
-#include "../render/materials/material.h"
+#include "../render/scene.h"
 #include "logger.h"
 #include "path.h"
 
@@ -19,7 +19,7 @@ public:
     {}
 
     bool check_format(const Path& path);
-    bool load_file(const Path& path, Mesh& scene, std::vector<Material>& scene_materials, std::vector<int>& triangle_material_ids, Logger* logger = nullptr);
+    bool load_file(const Path& path, Mesh& scene, MaterialContainer& scene_materials, std::vector<int>& triangle_material_ids, Logger* logger = nullptr);
 
 private:
     struct Index {

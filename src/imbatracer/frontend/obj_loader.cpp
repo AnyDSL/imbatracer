@@ -2,6 +2,7 @@
 #include <algorithm>
 #include <cstdlib>
 #include <locale>
+#include <memory>
 #include "obj_loader.h"
 
 namespace imba {
@@ -17,7 +18,7 @@ bool ObjLoader::check_format(const Path& path) {
     return path.extension() == "obj";
 }
 
-bool ObjLoader::load_file(const Path& path, Mesh& scene, std::vector<Material>& scene_materials, std::vector<int>& triangle_material_ids, Logger* logger) {
+bool ObjLoader::load_file(const Path& path, Mesh& scene, MaterialContainer& scene_materials, std::vector<int>& triangle_material_ids, Logger* logger) {
     ObjFile obj_file;
 
     // Parse the OBJ file
@@ -38,9 +39,7 @@ bool ObjLoader::load_file(const Path& path, Mesh& scene, std::vector<Material>& 
     }
 
     // Add a dummy material, for objects that have no material
-    Material m;
-    m.diffuse = float3(1.0f, 0.0f, 1.0f);
-    scene_materials.push_back(m);
+    scene_materials.push_back(std::unique_ptr<LambertMaterial>(new LambertMaterial));
     
     // Add all the other materials
     /*std::unordered_map<std::string, TextureId> tex_map;
@@ -70,9 +69,7 @@ bool ObjLoader::load_file(const Path& path, Mesh& scene, std::vector<Material>& 
         if (it == materials.end()) {
             if (logger) logger->log("material not found '", mat_name, "'");
             // Add a dummy material in this case
-            Material m;
-            m.diffuse = float3(0.0f, 0.0f, 1.0f);
-            scene_materials.push_back(m);
+            scene_materials.push_back(std::unique_ptr<LambertMaterial>(new LambertMaterial));
         } else {
             const ObjMaterial& mat = it->second;
 
@@ -86,9 +83,10 @@ bool ObjLoader::load_file(const Path& path, Mesh& scene, std::vector<Material>& 
                 map_ka = mat.map_ka;
             }
 
-            Material m;
-            m.diffuse = mat.kd;
-            scene_materials.push_back(m);
+            if (mat.illum == 5)
+                scene_materials.push_back(std::unique_ptr<MirrorMaterial>(new MirrorMaterial()));
+            else
+                scene_materials.push_back(std::unique_ptr<LambertMaterial>(new LambertMaterial(float4(mat.kd.x, mat.kd.y, mat.kd.z, 1.0f))));
         }
     }
 

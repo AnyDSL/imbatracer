@@ -2,17 +2,19 @@
 #include "SDL_device.h"
 #include "../render/render.h"
 #include "../core/allocator.h"
+#include "../render/scene.h"
 
 #include "thorin_runtime.h"
 
 void render_test_scene() {    
     using imba::float3;    
     
-    const int width = 512;
-    const int height = 512;
+    constexpr int width = 512;
+    constexpr int height = 512;
+    constexpr int n_samples = 160;
     
     // sponza
-    imba::PerspectiveCamera cam(width, height, 16, float3(-184.0f, 193.f, -4.5f), normalize(float3(-171.081f, 186.426f, -4.96049f) - float3(-184.244f, 193.221f, -4.445f)), float3(0.0f, 1.0f, 0.0f), 60.0f);
+    imba::PerspectiveCamera cam(width, height, n_samples, float3(-184.0f, 193.f, -4.5f), normalize(float3(-171.081f, 186.426f, -4.96049f) - float3(-184.244f, 193.221f, -4.445f)), float3(0.0f, 1.0f, 0.0f), 60.0f);
     // cornell
     //imba::PerspectiveCamera cam(width, height, 16, float3(0.0f, 0.5f, 2.5f), float3(0.0f, 0.0f, -1.0f), float3(0.0f, 1.0f, 0.0f), 60.0f);
     
@@ -22,7 +24,7 @@ void render_test_scene() {
     imba::ThorinVector<Node> nodes;
     imba::ThorinVector<Vec4> tris;
     imba::Mesh mesh;
-    std::vector<imba::Material> materials;
+    imba::MaterialContainer materials;
     std::vector<int> material_ids;
     imba::buildTestScene(nodes, tris, mesh, materials, material_ids);
     
@@ -37,7 +39,7 @@ void render_test_scene() {
     imba::BasicPathTracer shader(lights, tris, normals, materials, material_ids);
     imba::Render render(cam, nodes, tris, shader, width, height);
     
-    imba::SDLDevice device(width, height, render);
+    imba::SDLDevice device(width, height, n_samples, render);
     device.render();
 }
 
