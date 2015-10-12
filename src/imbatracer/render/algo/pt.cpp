@@ -7,7 +7,7 @@
 #include <cassert>
 #include <random>
 
-void imba::BasicPathTracer::operator()(RayQueue& ray_in, Image& out, RayQueue& ray_out) {
+void imba::PTShader::shade(int pass_id, RayQueue& ray_in, Image& out, RayQueue& ray_out) {
     thread_local RNG rng;
 
     int ray_count = ray_in.size(); 

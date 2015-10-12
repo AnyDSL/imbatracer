@@ -10,7 +10,6 @@ namespace imba {
 struct Material {
     enum Kind {
         lambert,
-        phong,
         mirror
     } kind;
     
@@ -39,29 +38,6 @@ private:
     float4 diffuse;
 };
 
-class PhongMaterial : public Material {
-public:
-    PhongMaterial() : Material(phong) { }
-    PhongMaterial(const float4& diffuse, const float4& specular, float shininess) : Material(phong), diffuse(diffuse), specular(specular), shininess(shininess) { }
-    
-    inline float4 sample(const float3& out_dir, const float3& normal, float rnd_1, float rnd_2, float3& in_dir, float& pdf) {
-        // uniform sample the hemisphere
-        DirectionSample hemi_sample = sample_hemisphere(normal, rnd_1, rnd_2);
-        in_dir = hemi_sample.dir;
-        pdf = hemi_sample.pdf;
-        return diffuse * (1.0f / pi);
-    }
-    
-    inline float4 eval(const float3& out_dir, const float3& normal, const float3& in_dir) {
-        return diffuse * (1.0f / pi); 
-    }
-    
-private:
-    float4 diffuse;
-    float4 specular;
-    float shininess;
-};
-
 class MirrorMaterial : public Material {
 public:
     MirrorMaterial() : Material(mirror) { }
@@ -87,8 +63,6 @@ inline float4 sample_material(Material* mat, const float3& out_dir, const float3
         return static_cast<LambertMaterial*>(mat)->sample(out_dir, normal, rnd_1, rnd_2, in_dir, pdf);
     case Material::mirror:
         return static_cast<MirrorMaterial*>(mat)->sample(out_dir, normal, rnd_1, rnd_2, in_dir, pdf);
-    case Material::phong:
-        return static_cast<PhongMaterial*>(mat)->sample(out_dir, normal, rnd_1, rnd_2, in_dir, pdf);
     }
 }
 
@@ -98,8 +72,6 @@ inline float4 evaluate_material(Material* mat, const float3& out_dir, const floa
         return static_cast<LambertMaterial*>(mat)->eval(out_dir, normal, in_dir);
     case Material::mirror:
         return static_cast<MirrorMaterial*>(mat)->eval(out_dir, normal, in_dir);
-    case Material::phong:
-        return static_cast<PhongMaterial*>(mat)->eval(out_dir, normal, in_dir);
     }
 }
 

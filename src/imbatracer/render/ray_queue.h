@@ -14,16 +14,24 @@ namespace imba {
 
 class RayQueue {
 public:
-    RayQueue() {}
-    RayQueue(int capacity, int state_size, const void* const initial_state) 
-        : ray_buffer_(capacity), hit_buffer_(capacity), last_(-1), state_size_(state_size), state_buffer_(state_size * capacity), initial_state_(initial_state)
+    RayQueue() { }
+    
+    RayQueue(int capacity, int state_size, const void* const initial_state, ::Node* nodes, ::Vec4* tris) 
+        : ray_buffer_(capacity), hit_buffer_(capacity), last_(-1), state_size_(state_size), state_buffer_(state_size * capacity), initial_state_(initial_state),
+          nodes_(nodes), tris_(tris)
     { 
-        assert(state_size > sizeof(int) && "state size needs to be at least large enough to store a pixel index");
+        assert(state_size > sizeof(int) && "State size needs to be at least large enough to store a pixel index.");
+        assert(nodes_ && "Pointer to bvh nodes must not be null.");
+        assert(tris_ && "Pointer to bvh geometry must not be null.");
     }
     
-    void resize(int capacity, int state_size, const void* const initial_state) {
-        assert(state_size > sizeof(int) && "state size needs to be at least large enough to store a pixel index");
+    void resize(int capacity, int state_size, const void* const initial_state, ::Node* nodes, ::Vec4* tris) {
+        assert(state_size > sizeof(int) && "State size needs to be at least large enough to store a pixel index");
+        assert(nodes && "Pointer to bvh nodes must not be null.");
+        assert(tris && "Pointer to bvh geometry must not be null.");
         
+        nodes_ = nodes;
+        tris_ = tris;
         ray_buffer_.resize(capacity);
         hit_buffer_.resize(capacity);
         last_ = -1;
@@ -82,7 +90,14 @@ public:
         }
     }
     
+    void traverse() {
+        traverse_accel(nodes_, rays(), tris_, hits(), size());
+    }
+    
 private:
+    ::Node* nodes_;
+    ::Vec4* tris_;
+    
     ThorinVector<::Ray> ray_buffer_;
     ThorinVector<::Hit> hit_buffer_;
     int state_size_;

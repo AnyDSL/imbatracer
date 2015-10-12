@@ -28,7 +28,9 @@ add_library(imba-render
             render/render.h
             render/render.cpp
             render/shader.h
-            render/shader.cpp
+            render/algo/pt.cpp
+            render/algo/bpt.cpp
+            render/algo/vcm.cpp
             render/ray_queue.h
             render/random.h
             render/material.h
