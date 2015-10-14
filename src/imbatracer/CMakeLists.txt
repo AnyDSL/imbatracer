@@ -30,7 +30,7 @@ add_library(imba-render
             render/shader.h
             render/algo/pt.cpp
             render/algo/bpt.cpp
-            render/algo/vcm.cpp
+            #render/algo/vcm.cpp
             render/ray_queue.h
             render/random.h
             render/material.h

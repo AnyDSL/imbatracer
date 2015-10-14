@@ -18,7 +18,8 @@ imba::Render::Render(ThorinVector<::Node>& nodes, ThorinVector<::Vec4>& tris, Sh
     queues_[1].resize(queue_capacity, s.state_len(), s.initial_state(), nodes.data(), tris.data());
     queues_[2].resize(queue_capacity, s.state_len(), s.initial_state(), nodes.data(), tris.data());
     
-    s.set_target_ray_count(target_ray_count_);
+    for (int pass = 0; pass < shader_.num_passes(); ++pass)
+        shader_.get_ray_gen(pass).set_target_count(target_ray_count_);
 }
 
 imba::Image& imba::Render::operator() (int n_samples) {
@@ -26,13 +27,13 @@ imba::Image& imba::Render::operator() (int n_samples) {
     constexpr int min_rays = 100000;
     
     clear_texture();
-    shader_.start_frame();
     
-    int num_passes = shader_.num_passes();
-    for (int pass = 0; pass < num_passes; ++pass) {
+    for (int pass = 0; pass < shader_.num_passes(); ++pass) {
+        shader_.get_ray_gen(pass).start_frame();
+        
         // generate and traverse the first set of rays
         int cur_q = 0; // next queue used as input for the shader
-        shader_.generate(pass, queues_[cur_q]);
+        shader_.get_ray_gen(pass).fill_queue(queues_[cur_q]);
         queues_[cur_q].traverse();
         
         bool keep_rendering = true;  
@@ -40,7 +41,7 @@ imba::Image& imba::Render::operator() (int n_samples) {
             // prepare a second queue for traversal
             // if there are not enough rays in the queue yet, fill up with new samples from the camera
             int traversal_q = (cur_q + 1) % 3; 
-            shader_.generate(pass, queues_[traversal_q]);
+            shader_.get_ray_gen(pass).fill_queue(queues_[traversal_q]);
             
             // if there are not enough rays left, do not traverse but still shade the resulting rays from the last traversal
             keep_rendering = queues_[traversal_q].size() > min_rays;

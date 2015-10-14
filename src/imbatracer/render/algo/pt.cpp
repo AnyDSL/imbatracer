@@ -1,7 +1,7 @@
-#include "shader.h"
-#include "../core/float4.h"
-#include "../core/common.h"
-#include "random.h"
+#include "../shader.h"
+#include "../../core/float4.h"
+#include "../../core/common.h"
+#include "../random.h"
 
 #include <cfloat>
 #include <cassert>

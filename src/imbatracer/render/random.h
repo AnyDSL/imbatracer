@@ -24,6 +24,11 @@ public:
     
     float random01() { return random(0.0f, 1.0f); }
     
+    int random(int min, int max) {
+        std::uniform_int_distribution<int> uniform(min, max);
+        return uniform(rng_);
+    }
+    
 private:
     std::mt19937 rng_;
 };

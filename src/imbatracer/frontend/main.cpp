@@ -36,7 +36,7 @@ void render_test_scene() {
         normals.push_back(normal);
     }
     
-    imba::BasicPathTracer shader(cam, lights, tris, normals, materials, material_ids);
+    imba::PTShader shader(cam, lights, tris, normals, materials, material_ids);
     imba::Render render(nodes, tris, shader, width, height);
     
     imba::SDLDevice device(width, height, n_samples, render);
