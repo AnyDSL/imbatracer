@@ -25,7 +25,7 @@ imba::PerspectiveCamera::PerspectiveCamera(int w, int h, int n_samples, float3 p
 void imba::PerspectiveCamera::sample_pixel(int x, int y, RNG& rng, ::Ray& ray_out) {
     float rely = 1.0f - (static_cast<float>(y) / static_cast<float>(height_ - 1)) * 2.0f;
     float relx = (static_cast<float>(x) / static_cast<float>(width_ - 1)) * 2.0f - 1.0f;
-    //sample_pixel(relx, rely, rng);
+    sample_pixel(relx, rely, rng);
     
     float3 dir = dir_ + right_ * relx + up_ * rely;
     

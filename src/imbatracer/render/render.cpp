@@ -24,7 +24,7 @@ imba::Render::Render(ThorinVector<::Node>& nodes, ThorinVector<::Vec4>& tris, Sh
 
 imba::Image& imba::Render::operator() (int n_samples) {
     // if there are less than this number of rays, the remaining rays are discarded
-    constexpr int min_rays = 100000;
+    constexpr int min_rays = 1000;
     
     clear_texture();
     
