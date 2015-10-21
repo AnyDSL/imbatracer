@@ -28,9 +28,24 @@ void imba::PTShader::shade(int pass_id, RayQueue& ray_in, Image& out, RayQueue& 
                 float3 normal = normals_[hits[i].tri_id];
                 pos = pos + (hits[i].tmax) * out_dir;
                 
-                if (mat.get()->kind != Material::emissive) { 
-                    // Compute direct illumination. Only if the object hit is not a lightsource itself.
+                if (mat.get()->kind == Material::emissive) {
+                    if (shader_state[i].kind == State::PRIMARY || shader_state[i].last_specular) {
+                        // If an emissive object is hit after a specular bounce or as the first intersection along the path, add its contribution. 
+                        
+                        EmissiveMaterial* em = static_cast<EmissiveMaterial*>(mat.get());
+                        float4 color = em->color();
+
+                        // Add contribution to the pixel which this ray belongs to.
+                        out.pixels()[shader_state[i].pixel_idx * 4] += color.x;
+                        out.pixels()[shader_state[i].pixel_idx * 4 + 1] += color.y;
+                        out.pixels()[shader_state[i].pixel_idx * 4 + 2] += color.z;
+                    }
+
+                    // Do not continue the path after hitting a light source.
+                    break;
                     
+                } else if (!mat.get()->is_specular) {
+                    // Compute direct illumination only for materials that are not specular.
                     // Generate the shadow ray (sample one point on one lightsource)
                     auto ls = lights_[rng.random01()].get();
                     auto sample = ls->sample(pos, rng.random01(), rng.random01());
@@ -53,8 +68,7 @@ void imba::PTShader::shade(int pass_id, RayQueue& ray_in, Image& out, RayQueue& 
                     float cos_term = fabsf(dot(sample.dir, normal));
                     float4 brdf = evaluate_material(mat.get(), out_dir, normal, sample.dir);
                     
-                    State s;
-                    s.pixel_idx = shader_state[i].pixel_idx;
+                    State s = shader_state[i];
                     s.kind = State::SHADOW;
                     s.factor = shader_state[i].factor * brdf * cos_term * sample.intensity;
                     
@@ -73,10 +87,11 @@ void imba::PTShader::shade(int pass_id, RayQueue& ray_in, Image& out, RayQueue& 
                     
                     float cos_term = fabsf(dot(normal, sample_dir));
                     
-                    State s;
-                    s.pixel_idx = shader_state[i].pixel_idx;
+                    State s = shader_state[i];
                     s.kind = State::SECONDARY;
                     s.factor = shader_state[i].factor * diffuse_brdf * (cos_term / (rrprob * pdf));
+                    s.bounces++;
+                    s.last_specular = mat.get()->is_specular;
                     
                     Ray ray;
                     ray.org.x = pos.x;

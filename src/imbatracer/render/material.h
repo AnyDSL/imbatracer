@@ -14,14 +14,16 @@ struct Material {
         emissive
     } kind;
     
-    Material(Kind k) : kind(k) { }
+    bool is_specular;
+    
+    Material(Kind k, bool specular) : kind(k), is_specular(specular) { }
     virtual ~Material() { }
 };
 
 class LambertMaterial : public Material {
 public:
-    LambertMaterial() : Material(lambert), diffuse_(1.0f, 0.0f, 1.0f, 1.0f) { }
-    LambertMaterial(const float4& color) : Material(lambert), diffuse_(color) { }    
+    LambertMaterial() : Material(lambert, false), diffuse_(1.0f, 0.0f, 1.0f, 1.0f) { }
+    LambertMaterial(const float4& color) : Material(lambert, false), diffuse_(color) { }    
     
     inline float4 sample(const float3& out_dir, const float3& normal, float rnd_1, float rnd_2, float3& in_dir, float& pdf) {
         // uniform sample the hemisphere
@@ -42,7 +44,7 @@ private:
 // Perfect mirror reflection.
 class MirrorMaterial : public Material {
 public:
-    MirrorMaterial() : Material(mirror) { }
+    MirrorMaterial() : Material(mirror, true) { }
 
     inline float4 sample(const float3& out_dir, const float3& normal, float rnd_1, float rnd_2, float3& in_dir, float& pdf) {
         // calculate the reflected direction
@@ -59,7 +61,7 @@ public:
 // Material for diffuse emissive objects.
 class EmissiveMaterial : public Material {
 public:
-    EmissiveMaterial(const float4& color) : color_(color), Material(emissive) { }
+    EmissiveMaterial(const float4& color) : color_(color), Material(emissive, false) { }
     
     inline float4 sample(const float3& out_dir, const float3& normal, float rnd_1, float rnd_2, float3& in_dir, float& pdf) {
         // uniform sample the hemisphere

@@ -46,6 +46,9 @@ class PTShader : public Shader {
         };
         Kind kind;
         float4 factor;
+        
+        int bounces;
+        bool last_specular;
     };
     
 public:
@@ -54,6 +57,8 @@ public:
     {
         initial_state_.kind = State::PRIMARY;
         initial_state_.factor = float4(1.0f);
+        initial_state_.bounces = 0;
+        initial_state_.last_specular = false;
     }
     
     virtual int num_passes() const override { return 1; }
