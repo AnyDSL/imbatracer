@@ -74,6 +74,12 @@ inline DirectionSample sample_hemisphere(const float3& n, float u1, float u2) {
     return generate_cosine_weighted_direction(n, tangent, binormal, u1, u2);
 }
 
+inline void uniform_sample_triangle(float rnd1, float rnd2, float& u, float& v) {
+    float sqrt_rnd1 = sqrtf(rnd1);
+    u = 1.0f - sqrt_rnd1;
+    v = rnd2 * sqrt_rnd1;
+}
+
 }
 
 #endif

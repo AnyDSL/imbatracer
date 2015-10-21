@@ -20,6 +20,7 @@ namespace imba {
         Render& render_;
         
         int n_samples_;
+        int n_sample_frames_;
     };
 
 } // namespace imba

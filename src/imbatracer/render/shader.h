@@ -12,7 +12,7 @@ namespace imba {
 
 class Shader {
 public:
-    Shader(PixelRayGen& cam, std::vector<AreaLight>& light_sources, ThorinVector<Vec4>& tris, std::vector<float3>& normals, MaterialContainer& materials, std::vector<int>& material_ids)  
+    Shader(PixelRayGen& cam, LightContainer& light_sources, ThorinVector<Vec4>& tris, std::vector<float3>& normals, MaterialContainer& materials, std::vector<int>& material_ids)  
         : lights_(light_sources), tris_(tris), normals_(normals), materials_(materials), material_ids_(material_ids), cam_(cam) 
     {
     }
@@ -27,7 +27,7 @@ public:
     
 protected:
     PixelRayGen& cam_;
-    std::vector<AreaLight>& lights_;
+    LightContainer& lights_;
     ThorinVector<Vec4>& tris_;
     std::vector<float3>& normals_;
     MaterialContainer& materials_;
@@ -49,7 +49,7 @@ class PTShader : public Shader {
     };
     
 public:
-    PTShader(PixelRayGen& cam, std::vector<AreaLight>& light_sources, ThorinVector<Vec4>& tris, std::vector<float3>& normals, MaterialContainer& materials, std::vector<int>& material_ids) 
+    PTShader(PixelRayGen& cam, LightContainer& light_sources, ThorinVector<Vec4>& tris, std::vector<float3>& normals, MaterialContainer& materials, std::vector<int>& material_ids) 
         : Shader(cam, light_sources, tris, normals, materials, material_ids)
     {
         initial_state_.kind = State::PRIMARY;
@@ -71,7 +71,7 @@ public:
 private:
     State initial_state_;
 };
-
+/*
 // bidirectional path tracing
 class BPTShader : public Shader {    
     struct State {
@@ -86,7 +86,7 @@ class BPTShader : public Shader {
     };
     
 public:
-    BPTShader(PixelRayGen& cam, std::vector<AreaLight>& light_sources, ThorinVector<Vec4>& tris, std::vector<float3>& normals, MaterialContainer& materials, std::vector<int>& material_ids) 
+    BPTShader(PixelRayGen& cam, LightContainer& light_sources, ThorinVector<Vec4>& tris, std::vector<float3>& normals, MaterialContainer& materials, std::vector<int>& material_ids) 
         : Shader(cam, light_sources, tris, normals, materials, material_ids), light_sampler_(cam.width(), cam.height(), cam.num_samples(), lights_)
     {
         initial_state_.kind = State::PRIMARY;
@@ -125,7 +125,7 @@ private:
     void sample_lights(RayQueue& out);
     void shade_light_rays(RayQueue& rays, Image& out, RayQueue& ray_out);
     void shade_camera_rays(RayQueue& rays, Image& out, RayQueue& ray_out);
-};
+};*/
 
 }
 

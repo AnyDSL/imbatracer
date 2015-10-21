@@ -3,6 +3,7 @@
 
 #include "../core/mesh.h"
 #include "../render/scene.h"
+#include "../render/light.h"
 #include "logger.h"
 #include "path.h"
 
@@ -19,7 +20,7 @@ public:
     {}
 
     bool check_format(const Path& path);
-    bool load_file(const Path& path, Mesh& scene, MaterialContainer& scene_materials, std::vector<int>& triangle_material_ids, Logger* logger = nullptr);
+    bool load_file(const Path& path, Mesh& scene, MaterialContainer& scene_materials, std::vector<int>& triangle_material_ids, LightContainer& lights, Logger* logger = nullptr);
 
 private:
     struct Index {
@@ -57,12 +58,14 @@ private:
         float3 ka;
         float3 kd;
         float3 ks;
+        float3 ke;
         float ns;
         float d;
         int illum;
         std::string map_ka;
         std::string map_kd;
         std::string map_ks;
+        std::string map_ke;
         std::string map_bump;
         std::string map_d;
     };

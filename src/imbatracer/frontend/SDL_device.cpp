@@ -6,7 +6,7 @@
 #include <unistd.h>
 
 imba::SDLDevice::SDLDevice(int img_width, int img_height, int n_samples, Render& r) 
-    : image_width_(img_width), image_height_(img_height), render_(r), n_samples_(n_samples), img_(img_width, img_height)
+    : image_width_(img_width), image_height_(img_height), render_(r), n_samples_(n_samples), img_(img_width, img_height), n_sample_frames_(0)
 {
     SDL_Init(SDL_INIT_VIDEO);
     
@@ -41,7 +41,6 @@ void imba::SDLDevice::render() {
 
     bool done = false;
     int frames = 0;
-    int samples = 0;
     long ticks = SDL_GetTicks();
     long t = ticks;
     long old_t;
@@ -76,6 +75,7 @@ inline float clamp(float x, float a, float b)
 
 void imba::SDLDevice::render_surface() {
     Image& tex = render_(n_samples_);
+    n_sample_frames_++;
         
     SDL_LockSurface(screen_);
     const int r = screen_->format->Rshift / 8;
@@ -86,11 +86,16 @@ void imba::SDLDevice::render_surface() {
     for (int y = 0; y < screen_->h; y++) {
         unsigned char* row = (unsigned char*)screen_->pixels + screen_->pitch * y;
         const float* rendered_row = tex.pixels() + y * image_width_ * 4;
+        float* buf_row = img_.pixels() + y * image_width_ * 4;
         
         for (int x = 0; x < screen_->w; x++) {        
-            row[x * 4 + r] = 255.0f * clamp(rendered_row[x * 4] / n_samples_, 0.0f, 1.0f);
-            row[x * 4 + g] = 255.0f * clamp(rendered_row[x * 4 + 1] / n_samples_, 0.0f, 1.0f);
-            row[x * 4 + b] = 255.0f * clamp(rendered_row[x * 4 + 2] / n_samples_, 0.0f, 1.0f);
+            buf_row[x * 4] += rendered_row[x * 4];
+            buf_row[x * 4 + 1] += rendered_row[x * 4 + 1];
+            buf_row[x * 4 + 2] += rendered_row[x * 4 + 2];
+        
+            row[x * 4 + r] = 255.0f * clamp(buf_row[x * 4] / (n_samples_ * n_sample_frames_), 0.0f, 1.0f);
+            row[x * 4 + g] = 255.0f * clamp(buf_row[x * 4 + 1] / (n_samples_ * n_sample_frames_), 0.0f, 1.0f);
+            row[x * 4 + b] = 255.0f * clamp(buf_row[x * 4 + 2] / (n_samples_ * n_sample_frames_), 0.0f, 1.0f);
         }
     }
     SDL_UnlockSurface(screen_);

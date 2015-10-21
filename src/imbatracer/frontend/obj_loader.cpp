@@ -18,7 +18,7 @@ bool ObjLoader::check_format(const Path& path) {
     return path.extension() == "obj";
 }
 
-bool ObjLoader::load_file(const Path& path, Mesh& scene, MaterialContainer& scene_materials, std::vector<int>& triangle_material_ids, Logger* logger) {
+bool ObjLoader::load_file(const Path& path, Mesh& scene, MaterialContainer& scene_materials, std::vector<int>& triangle_material_ids, LightContainer& lights, Logger* logger) {
     ObjFile obj_file;
 
     // Parse the OBJ file
@@ -82,10 +82,14 @@ bool ObjLoader::load_file(const Path& path, Mesh& scene, MaterialContainer& scen
             } else {
                 map_ka = mat.map_ka;
             }
+            
+            bool is_emissive = !mat.map_ke.empty() || (mat.ke.x > 0.0f && mat.ke.y > 0.0f && mat.ke.z > 0.0f);
 
             if (mat.illum == 5)
                 scene_materials.push_back(std::unique_ptr<MirrorMaterial>(new MirrorMaterial()));
-            else
+            else if (is_emissive) {
+                scene_materials.push_back(std::unique_ptr<EmissiveMaterial>(new EmissiveMaterial(float4(mat.ke.x, mat.ke.y, mat.ke.z, 1.0f))));
+            } else
                 scene_materials.push_back(std::unique_ptr<LambertMaterial>(new LambertMaterial(float4(mat.kd.x, mat.kd.y, mat.kd.z, 1.0f))));
         }
     }
@@ -123,6 +127,18 @@ bool ObjLoader::load_file(const Path& path, Mesh& scene, MaterialContainer& scen
                     const int next = mapping[face.indices[i + 1]];
                     triangles.push_back(TriIdx(v0, prev, next));
                     triangle_material_ids.push_back(face.material);
+                    
+                    auto mat = scene_materials[face.material].get();
+                    if (mat->kind == Material::emissive) {
+                        Vertex p0 = obj_file.vertices[face.indices[0].v];
+                        Vertex p1 = obj_file.vertices[face.indices[i].v];
+                        Vertex p2 = obj_file.vertices[face.indices[i+1].v];
+                        
+                        // Create a light source for this emissive object.
+                        lights.push_back(std::unique_ptr<TriangleLight>(new TriangleLight(static_cast<EmissiveMaterial*>(mat)->color(), 
+                            float3(p0.x, p0.y, p0.z), float3(p1.x, p1.y, p1.z), float3(p2.x, p2.y, p2.z))));
+                    }
+                    
                     prev = next;
                 }
             }
@@ -409,6 +425,11 @@ bool ObjLoader::parse_mtl_stream(std::istream& stream, std::unordered_map<std::s
                 mat.ks[0] = std::strtof(ptr + 3, &ptr);
                 mat.ks[1] = std::strtof(ptr, &ptr);
                 mat.ks[2] = std::strtof(ptr, &ptr);
+            } else if (ptr[1] == 'e' && std::isspace(ptr[2])) {
+                ObjMaterial& mat = current_material();
+                mat.ke[0] = std::strtof(ptr + 3, &ptr);
+                mat.ke[1] = std::strtof(ptr, &ptr);
+                mat.ke[2] = std::strtof(ptr, &ptr);
             }
         } else if (ptr[0] == 'N' && ptr[1] == 's' && std::isspace(ptr[2])) {
             ObjMaterial& mat = current_material();
@@ -428,6 +449,9 @@ bool ObjLoader::parse_mtl_stream(std::istream& stream, std::unordered_map<std::s
         } else if (!std::strncmp(ptr, "map_Ks", 6) && std::isspace(ptr[6])) {
             ObjMaterial& mat = current_material();
             mat.map_ks = std::string(strip_spaces(ptr + 7));
+        } else if (!std::strncmp(ptr, "map_Ke", 6) && std::isspace(ptr[6])) {
+            ObjMaterial& mat = current_material();
+            mat.map_ke = std::string(strip_spaces(ptr + 7));
         } else if (!std::strncmp(ptr, "map_bump", 8) && std::isspace(ptr[8])) {
             ObjMaterial& mat = current_material();
             mat.map_bump = std::string(strip_spaces(ptr + 9));

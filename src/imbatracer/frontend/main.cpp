@@ -11,22 +11,23 @@ void render_test_scene() {
     
     constexpr int width = 512;
     constexpr int height = 512;
-    constexpr int n_samples = 160;
+    constexpr int n_samples = 16;
     
     // sponza
     //imba::PerspectiveCamera cam(width, height, n_samples, float3(-184.0f, 193.f, -4.5f), normalize(float3(-171.081f, 186.426f, -4.96049f) - float3(-184.244f, 193.221f, -4.445f)), float3(0.0f, 1.0f, 0.0f), 60.0f);
     // cornell
     imba::PerspectiveCamera cam(width, height, n_samples, float3(0.0f, 0.9f, 2.5f), float3(0.0f, 0.0f, -1.0f), float3(0.0f, 1.0f, 0.0f), 60.0f);
     
-    std::vector<imba::AreaLight> lights;
-    imba::testSceneLights(lights);
+    /*std::vector<imba::AreaLight> lights;
+    imba::testSceneLights(lights);*/
 
     imba::ThorinVector<Node> nodes;
     imba::ThorinVector<Vec4> tris;
     imba::Mesh mesh;
     imba::MaterialContainer materials;
     std::vector<int> material_ids;
-    imba::buildTestScene(nodes, tris, mesh, materials, material_ids);
+    imba::LightContainer lights;
+    imba::buildTestScene(nodes, tris, mesh, materials, material_ids, lights);
     
     std::vector<float3> normals;
     normals.reserve(mesh.triangle_count());

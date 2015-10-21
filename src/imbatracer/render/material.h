@@ -10,7 +10,8 @@ namespace imba {
 struct Material {
     enum Kind {
         lambert,
-        mirror
+        mirror,
+        emissive
     } kind;
     
     Material(Kind k) : kind(k) { }
@@ -19,25 +20,26 @@ struct Material {
 
 class LambertMaterial : public Material {
 public:
-    LambertMaterial() : Material(lambert), diffuse(1.0f, 0.0f, 1.0f, 1.0f) { }
-    LambertMaterial(const float4& color) : Material(lambert), diffuse(color) { }    
+    LambertMaterial() : Material(lambert), diffuse_(1.0f, 0.0f, 1.0f, 1.0f) { }
+    LambertMaterial(const float4& color) : Material(lambert), diffuse_(color) { }    
     
     inline float4 sample(const float3& out_dir, const float3& normal, float rnd_1, float rnd_2, float3& in_dir, float& pdf) {
         // uniform sample the hemisphere
         DirectionSample hemi_sample = sample_hemisphere(normal, rnd_1, rnd_2);
         in_dir = hemi_sample.dir;
         pdf = hemi_sample.pdf;
-        return diffuse * (1.0f / pi);
+        return diffuse_ * (1.0f / pi);
     }
     
     inline float4 eval(const float3& out_dir, const float3& normal, const float3& in_dir) {
-        return diffuse * (1.0f / pi); 
+        return diffuse_ * (1.0f / pi); 
     }
     
 private:
-    float4 diffuse;
+    float4 diffuse_;
 };
 
+// Perfect mirror reflection.
 class MirrorMaterial : public Material {
 public:
     MirrorMaterial() : Material(mirror) { }
@@ -52,9 +54,29 @@ public:
     inline float4 eval(const float3& out_dir, const float3& normal, const float3& in_dir) {
         return 0.0f;
     }
+};
+
+// Material for diffuse emissive objects.
+class EmissiveMaterial : public Material {
+public:
+    EmissiveMaterial(const float4& color) : color_(color), Material(emissive) { }
+    
+    inline float4 sample(const float3& out_dir, const float3& normal, float rnd_1, float rnd_2, float3& in_dir, float& pdf) {
+        // uniform sample the hemisphere
+        DirectionSample hemi_sample = sample_hemisphere(normal, rnd_1, rnd_2);
+        in_dir = hemi_sample.dir;
+        pdf = hemi_sample.pdf;
+        return color_ * (1.0f / pi);
+    }
+    
+    inline float4 eval(const float3& out_dir, const float3& normal, const float3& in_dir) {
+        return color_ * (1.0f / pi);
+    }
+    
+    inline float4 color() { return color_; }
     
 private:
-    static constexpr float epsilon = 0.1f;
+    float4 color_;
 };
 
 inline float4 sample_material(Material* mat, const float3& out_dir, const float3& normal, float rnd_1, float rnd_2, float3& in_dir, float& pdf) {
@@ -63,6 +85,8 @@ inline float4 sample_material(Material* mat, const float3& out_dir, const float3
         return static_cast<LambertMaterial*>(mat)->sample(out_dir, normal, rnd_1, rnd_2, in_dir, pdf);
     case Material::mirror:
         return static_cast<MirrorMaterial*>(mat)->sample(out_dir, normal, rnd_1, rnd_2, in_dir, pdf);
+    case Material::emissive:
+        return static_cast<EmissiveMaterial*>(mat)->sample(out_dir, normal, rnd_1, rnd_2, in_dir, pdf);
     }
 }
 
@@ -72,6 +96,8 @@ inline float4 evaluate_material(Material* mat, const float3& out_dir, const floa
         return static_cast<LambertMaterial*>(mat)->eval(out_dir, normal, in_dir);
     case Material::mirror:
         return static_cast<MirrorMaterial*>(mat)->eval(out_dir, normal, in_dir);
+    case Material::emissive:
+        return static_cast<EmissiveMaterial*>(mat)->eval(out_dir, normal, in_dir);
     }
 }
 
