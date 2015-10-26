@@ -61,8 +61,9 @@ namespace imba {
         ObjLoader l;
         
         //l.load_file(Path("../test/sponza.obj"), m, materials, material_ids, lights);
+        l.load_file(Path("../test/sponza_light_large.obj"), m, materials, material_ids, lights);
         //l.load_file(Path("../test/sibenik.obj"), m, materials, material_ids, lights);
-        l.load_file(Path("../test/CornellBox-Original.obj"), m, materials, material_ids, lights);
+        //l.load_file(Path("../test/CornellBox-Original.obj"), m, materials, material_ids, lights);
         
         std::unique_ptr<Adapter> adapter = new_adapter(nodes, tris);
         adapter->build_accel(m);

@@ -6,17 +6,17 @@
 
 #include "thorin_runtime.h"
 
-void render_test_scene() {    
-    using imba::float3;    
+void render_test_scene() {      
+    using namespace imba;
     
     constexpr int width = 512;
     constexpr int height = 512;
     constexpr int n_samples = 16;
     
     // sponza
-    //imba::PerspectiveCamera cam(width, height, n_samples, float3(-184.0f, 193.f, -4.5f), normalize(float3(-171.081f, 186.426f, -4.96049f) - float3(-184.244f, 193.221f, -4.445f)), float3(0.0f, 1.0f, 0.0f), 60.0f);
+    imba::PerspectiveCamera cam(width, height, n_samples, float3(-184.0f, 193.f, -4.5f), normalize(float3(-171.081f, 186.426f, -4.96049f) - float3(-184.244f, 193.221f, -4.445f)), float3(0.0f, 1.0f, 0.0f), 60.0f);
     // cornell
-    imba::PerspectiveCamera cam(width, height, n_samples, float3(0.0f, 0.9f, 2.5f), float3(0.0f, 0.0f, -1.0f), float3(0.0f, 1.0f, 0.0f), 60.0f);
+    //imba::PerspectiveCamera cam(width, height, n_samples, float3(0.0f, 0.9f, 2.5f), float3(0.0f, 0.0f, -1.0f), float3(0.0f, 1.0f, 0.0f), 60.0f);
     
     /*std::vector<imba::AreaLight> lights;
     imba::testSceneLights(lights);*/
@@ -28,6 +28,9 @@ void render_test_scene() {
     std::vector<int> material_ids;
     imba::LightContainer lights;
     imba::buildTestScene(nodes, tris, mesh, materials, material_ids, lights);
+    
+    // light for sponza
+    //lights.push_back(std::unique_ptr<Light>(new AreaLight(float3(-10.24f, 400.90f, -10.22f), float3(10.47f, 0.0f, 0.0f), float3(0.0f, 0.0f, 10.38f), float3(0.0f, -1.0f, 0.0f), float4(5000.0f))));
     
     std::vector<float3> normals;
     normals.reserve(mesh.triangle_count());
