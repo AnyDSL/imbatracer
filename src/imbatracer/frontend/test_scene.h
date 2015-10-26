@@ -46,21 +46,10 @@ namespace imba {
 
         return ct + (left_bb.half_area() * left_cost + right_bb.half_area() * right_cost) / parent_bb.half_area();
     }*/
-
-   /* void testSceneLights(std::vector<AreaLight>& lights) {
-        // sponza
-        //AreaLight l(float3(-10.24f, 400.90f, -10.22f), float3(10.47f, 0.0f, 0.0f), float3(0.0f, 0.0f, 10.38f), float3(0.0f, -1.0f, 0.0f), float4(5000.0f));
-        
-        // cornell
-        AreaLight l(float3(-0.24f, 1.90f, -0.22f), float3(0.47f, 0.0f, 0.0f), float3(0.0f, 0.0f, 0.38f), float3(0.0f, -1.0f, 0.0f), float4(50.0f));
-        
-        lights.push_back(l);
-    }*/
-
+    
     void buildTestScene(ThorinVector<Node>& nodes, ThorinVector<Vec4>& tris, Mesh& m, MaterialContainer& materials, std::vector<int>& material_ids, LightContainer& lights) {
         ObjLoader l;
         
-        //l.load_file(Path("../test/sponza.obj"), m, materials, material_ids, lights);
         l.load_file(Path("../test/sponza_light_large.obj"), m, materials, material_ids, lights);
         //l.load_file(Path("../test/sibenik.obj"), m, materials, material_ids, lights);
         //l.load_file(Path("../test/CornellBox-Original.obj"), m, materials, material_ids, lights);

@@ -4,30 +4,28 @@
 #include "../core/float4.h"
 #include "../core/common.h"
 
-#include <iostream>
-
 imba::PerspectiveCamera::PerspectiveCamera(int w, int h, int n_samples, float3 pos, float3 dir, float3 up, float fov)
     : PixelRayGen(w, h, n_samples), pos_(pos), aspect_(w / h)
 {
     dir_ = normalize(dir);
     right_ = normalize(cross(dir_, up));
-    up_ = cross(right_, dir_);
+    up_ = normalize(cross(dir_, right_));
     
     float f = tanf(radians(fov / 2.0f));
     
-    right_ = right_ * f * aspect_;
-    up_ = up_ * f;
+    right_ = 2.0f * right_ * f * aspect_;
+    up_ = 2.0f * up_ * f;
     
-    pixel_width_ = length(right_) / static_cast<float>(w);
-    pixel_height_ = length(up_) / static_cast<float>(h);
+    top_left_ = dir_ - 0.5f * right_ - 0.5f * up_;
+    step_x_ = right_ * (1.0f / static_cast<float>(w));
+    step_y_ = up_ * (1.0f / static_cast<float>(h));
 }
 
 void imba::PerspectiveCamera::sample_pixel(int x, int y, RNG& rng, ::Ray& ray_out) {
-    float rely = 1.0f - (static_cast<float>(y) / static_cast<float>(height_ - 1)) * 2.0f;
-    float relx = (static_cast<float>(x) / static_cast<float>(width_ - 1)) * 2.0f - 1.0f;
-    sample_pixel(relx, rely, rng);
+    float sample_x = static_cast<float>(x) + rng.random01();
+    float sample_y = static_cast<float>(y) + rng.random01();
     
-    float3 dir = dir_ + right_ * relx + up_ * rely;
+    float3 dir = top_left_ + sample_x * step_x_ + sample_y * step_y_;
     
     ray_out.org.x = pos_.x;
     ray_out.org.y = pos_.y;
@@ -38,9 +36,4 @@ void imba::PerspectiveCamera::sample_pixel(int x, int y, RNG& rng, ::Ray& ray_ou
     ray_out.dir.y = dir.y;
     ray_out.dir.z = dir.z;
     ray_out.dir.w = FLT_MAX;
-}
-
-void imba::PerspectiveCamera::sample_pixel(float& relx, float& rely, RNG& rng) {
-    relx += pixel_width_ * rng.random(-0.5f, 0.49f);
-    rely += pixel_height_ * rng.random(-0.5f, 0.49f);
 }

@@ -45,8 +45,8 @@ public:
         
         const int last_pixel = (next_pixel_ + count) % (width_ * height_);
         
-        thread_local RNG rng;
-#pragma omp parallel for
+        /*thread_local*/ RNG rng;
+//#pragma omp parallel for
         for (int i = next_pixel_; i < next_pixel_ + count; ++i) {
             int pixel_idx = i % (width_ * height_);            
             pixels_[i - next_pixel_] = pixel_idx;

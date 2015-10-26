@@ -20,8 +20,9 @@ private:
     
     float aspect_;
     
-    float pixel_width_;
-    float pixel_height_;
+    float3 top_left_;
+    float3 step_x_;
+    float3 step_y_;
     
     virtual void sample_pixel(int x, int y, RNG& rng, ::Ray& ray_out) override;
     void sample_pixel(float& relx, float& rely, RNG& rng);
