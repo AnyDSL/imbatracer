@@ -1,4 +1,4 @@
-#include "../shader.h"
+#include "../integrator.h"
 #include "../../core/float4.h"
 #include "../../core/common.h"
 #include "../random.h"
@@ -7,18 +7,17 @@
 #include <cassert>
 #include <random>
 
-void imba::PTShader::shade(int pass_id, RayQueue& ray_in, Image& out, RayQueue& ray_out) {
-    thread_local RNG rng;
+void imba::PathTracer::shade(int pass_id, RayQueue<PTState>& ray_in, Image& out, RayQueue<PTState>& ray_out) {
+    static RNG rng;
 
     int ray_count = ray_in.size(); 
-    for (int i = 0; i < ray_count; ++i) {
-        const State* shader_state = reinterpret_cast<const State*>(ray_in.states());
-        const Hit* hits = ray_in.hits(); 
-        const Ray* rays = ray_in.rays();
-        
+    const PTState* shader_state = ray_in.states();
+    const Hit* hits = ray_in.hits(); 
+    const Ray* rays = ray_in.rays();
+    for (int i = 0; i < ray_count; ++i) {        
         switch (shader_state[i].kind) {
-        case State::PRIMARY:
-        case State::SECONDARY:
+        case CAMERA_RAY:
+        case RANDOM_RAY:
             if (hits[i].tri_id != -1) { 
                 auto& mat = materials_[material_ids_[hits[i].tri_id]];
                        
@@ -31,25 +30,25 @@ void imba::PTShader::shade(int pass_id, RayQueue& ray_in, Image& out, RayQueue& 
                 if (mat.get()->kind == Material::emissive) {
                     // If an emissive object is hit after a specular bounce or as the first intersection along the path, add its contribution. 
                     // otherwise the light has to be ignored because it was already sampled as direct illumination.
-                    if (shader_state[i].kind == State::PRIMARY) {                        
+                    if (shader_state[i].kind == CAMERA_RAY) {                        
                         EmissiveMaterial* em = static_cast<EmissiveMaterial*>(mat.get());
                         float4 color = em->color();
 
                         // Add contribution to the pixel which this ray belongs to.
-                        out.pixels()[shader_state[i].pixel_idx * 4] += color.x;
-                        out.pixels()[shader_state[i].pixel_idx * 4 + 1] += color.y;
-                        out.pixels()[shader_state[i].pixel_idx * 4 + 2] += color.z;
+                        out.pixels()[shader_state[i].pixel_id * 4] += color.x;
+                        out.pixels()[shader_state[i].pixel_id * 4 + 1] += color.y;
+                        out.pixels()[shader_state[i].pixel_id * 4 + 2] += color.z;
                     } else if (shader_state[i].last_specular) {
                         EmissiveMaterial* em = static_cast<EmissiveMaterial*>(mat.get());
                         
                         float cos_light = fabsf(dot(normal, -1.0f * out_dir));
                         if (cos_light > 0.0f && cos_light < 1.0f) {  // Only add contribution from the side of the light that the normal is on.
-                            float4 color = shader_state[i].factor * em->color();
+                            float4 color = shader_state[i].throughput * em->color();
                             
                             // Add contribution to the pixel which this ray belongs to.
-                            out.pixels()[shader_state[i].pixel_idx * 4] += color.x;
-                            out.pixels()[shader_state[i].pixel_idx * 4 + 1] += color.y;
-                            out.pixels()[shader_state[i].pixel_idx * 4 + 2] += color.z;
+                            out.pixels()[shader_state[i].pixel_id * 4] += color.x;
+                            out.pixels()[shader_state[i].pixel_id * 4 + 1] += color.y;
+                            out.pixels()[shader_state[i].pixel_id * 4 + 2] += color.z;
                         }
                     }
 
@@ -81,12 +80,13 @@ void imba::PTShader::shade(int pass_id, RayQueue& ray_in, Image& out, RayQueue& 
                     float cos_term = fabsf(dot(sample.dir, normal));
                     float4 brdf = evaluate_material(mat.get(), out_dir, normal, sample.dir);
                     
-                    State s = shader_state[i];
-                    s.kind = State::SHADOW;
-                    s.factor = shader_state[i].factor * brdf * cos_term * sample.intensity * pdf;
+                    // Update the current state of this path.
+                    PTState s = shader_state[i];
+                    s.kind = SHADOW_RAY;
+                    s.throughput = s.throughput * brdf * cos_term * sample.intensity * pdf;
                     
                     // Push the shadow ray into the queue.
-                    ray_out.push(ray, &s);
+                    ray_out.push(ray, s);
                 }
                 
                 // Continue the path using russian roulette.
@@ -100,9 +100,9 @@ void imba::PTShader::shade(int pass_id, RayQueue& ray_in, Image& out, RayQueue& 
                     
                     float cos_term = fabsf(dot(normal, sample_dir));
                     
-                    State s = shader_state[i];
-                    s.kind = State::SECONDARY;
-                    s.factor = shader_state[i].factor * brdf * (cos_term / (rrprob * pdf));
+                    PTState s = shader_state[i];
+                    s.kind = RANDOM_RAY;
+                    s.throughput = s.throughput * brdf * (cos_term / (rrprob * pdf));
                     s.bounces++;
                     s.last_specular = mat.get()->is_specular;
                     
@@ -117,24 +117,24 @@ void imba::PTShader::shade(int pass_id, RayQueue& ray_in, Image& out, RayQueue& 
                     ray.dir.z = sample_dir.z;
                     ray.dir.w = FLT_MAX;
                     
-                    ray_out.push(ray, &s);
+                    ray_out.push(ray, s);
                 }
             }
             break;
             
-        case State::SHADOW:
+        case SHADOW_RAY:
             float4 color = float4(0.0f);
             
             if (hits[i].tri_id == -1) {
                 // The shadow ray hit the light source. Multiply the contribution of the light by the 
                 // current throughput of the path (as stored in the state of the shadow ray)
-                color = shader_state[i].factor;
+                color = shader_state[i].throughput;
             }
 
             // Add contribution to the pixel which this ray belongs to.
-            out.pixels()[shader_state[i].pixel_idx * 4] += color.x;
-            out.pixels()[shader_state[i].pixel_idx * 4 + 1] += color.y;
-            out.pixels()[shader_state[i].pixel_idx * 4 + 2] += color.z;
+            out.pixels()[shader_state[i].pixel_id * 4] += color.x;
+            out.pixels()[shader_state[i].pixel_id * 4 + 1] += color.y;
+            out.pixels()[shader_state[i].pixel_id * 4 + 2] += color.z;
             break;
         }
     }

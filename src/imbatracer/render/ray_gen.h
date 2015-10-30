@@ -8,9 +8,10 @@
 namespace imba {
 
 // base class for all classes that generate rays per pixel (camera, lights)
+template <typename StateType>
 class PixelRayGen {
 public:
-    PixelRayGen(int w, int h, int n) : width_(w), height_(h), n_samples_(n) { }
+    PixelRayGen(int w, int h, int n, RayKind kind) : width_(w), height_(h), n_samples_(n), kind_(kind) { }
 
     int width() { return width_; }
     int height() { return height_; }
@@ -27,7 +28,7 @@ public:
         generated_pixels_ = 0;
     }
     
-    void fill_queue(RayQueue& out) {
+    void fill_queue(RayQueue<StateType>& out) {
         // only generate at most n samples per pixel
         if (generated_pixels_ > n_samples_ * width_ * height_) return;
         
@@ -45,11 +46,16 @@ public:
         
         const int last_pixel = (next_pixel_ + count) % (width_ * height_);
         
-        /*thread_local*/ RNG rng;
-//#pragma omp parallel for
+        static RNG rng;      
+#pragma omp parallel for private(rng)
         for (int i = next_pixel_; i < next_pixel_ + count; ++i) {
-            int pixel_idx = i % (width_ * height_);            
-            pixels_[i - next_pixel_] = pixel_idx;
+            int pixel_idx = i % (width_ * height_);
+            int sample_idx = i / (width_ * height_);
+            
+            RayState& state = pixels_[i - next_pixel_];
+            state.pixel_id = pixel_idx;
+            state.sample_id = sample_idx;
+            state.kind = kind_;
             
             int y = pixel_idx / width_;
             int x = pixel_idx % width_;
@@ -64,7 +70,7 @@ public:
     
 protected:
     std::vector<::Ray> rays_;
-    std::vector<int> pixels_;
+    std::vector<StateType> pixels_;
     
     int next_pixel_;
     int generated_pixels_;
@@ -73,6 +79,7 @@ protected:
     int width_;
     int height_;
     int n_samples_;
+    RayKind kind_;
     
     virtual void sample_pixel(int x, int y, RNG& rng, ::Ray& ray_out) = 0;
 };

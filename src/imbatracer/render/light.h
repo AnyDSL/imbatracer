@@ -159,31 +159,6 @@ private:
 };
 
 using LightContainer = std::vector<std::unique_ptr<Light>>;
-/*
-class LightRayGen : public PixelRayGen {
-public:
-    LightRayGen(int w, int h, int n, std::vector<AreaLight>& lights) : PixelRayGen(w, h, n), lights_(lights) { }
-    
-    virtual void sample_pixel(int x, int y, RNG& rng, ::Ray& ray_out) { 
-        // randomly choose one light source to sample
-        int i = rng.random(0, lights_.size());
-        auto& l = lights_[i];
-        
-        AreaLight::LightRaySample sample = l.sample(rng);
-        ray_out.org.x = sample.pos.x;
-        ray_out.org.y = sample.pos.y;
-        ray_out.org.z = sample.pos.z;
-        ray_out.org.w = 0.0f;
-        
-        ray_out.dir.x = sample.dir.x;
-        ray_out.dir.y = sample.dir.y;
-        ray_out.dir.z = sample.dir.z;
-        ray_out.dir.w = FLT_MAX;
-    }
-    
-private:
-    std::vector<AreaLight>& lights_;
-};*/
 
 } // namespace imba
 

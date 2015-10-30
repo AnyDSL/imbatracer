@@ -12,12 +12,16 @@ public:
     RNG() {
         std::random_device rd;
         rng_ = std::mt19937(rd());
+//        v = 1214;
     }
     
     RNG(const RNG& rhs) = delete;
     RNG& operator= (const RNG&& rhs) = delete;
     
     float random(float min, float max) {
+       /* if (v != 1214)
+            printf("fuck\n");*/
+    
         std::uniform_real_distribution<float> uniform(min, max);
         return uniform(rng_);
     }
@@ -31,6 +35,7 @@ public:
     
 private:
     std::mt19937 rng_;
+//    int v;
 };
 
 //computes orthogonal local coordinate system

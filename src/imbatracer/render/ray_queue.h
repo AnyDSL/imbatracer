@@ -12,21 +12,33 @@
 
 namespace imba {
 
+enum RayKind {
+    CAMERA_RAY,
+    LIGHT_RAY,
+    SHADOW_RAY,
+    RANDOM_RAY
+};
+
+// Base class for storing the current state associated with a ray.
+struct RayState {
+    int pixel_id;
+    int sample_id;
+    RayKind kind;
+};
+
+template <typename StateType>
 class RayQueue {
 public:
     RayQueue() { }
     
-    RayQueue(int capacity, int state_size, const void* const initial_state, ::Node* nodes, ::Vec4* tris) 
-        : ray_buffer_(capacity), hit_buffer_(capacity), last_(-1), state_size_(state_size), state_buffer_(state_size * capacity), initial_state_(initial_state),
-          nodes_(nodes), tris_(tris)
+    RayQueue(int capacity, ::Node* nodes, ::Vec4* tris) 
+        : ray_buffer_(capacity), hit_buffer_(capacity), state_buffer_(capacity), last_(-1), nodes_(nodes), tris_(tris)
     { 
-        assert(state_size > sizeof(int) && "State size needs to be at least large enough to store a pixel index.");
         assert(nodes_ && "Pointer to bvh nodes must not be null.");
         assert(tris_ && "Pointer to bvh geometry must not be null.");
     }
     
-    void resize(int capacity, int state_size, const void* const initial_state, ::Node* nodes, ::Vec4* tris) {
-        assert(state_size > sizeof(int) && "State size needs to be at least large enough to store a pixel index");
+    void resize(int capacity, ::Node* nodes, ::Vec4* tris) {
         assert(nodes && "Pointer to bvh nodes must not be null.");
         assert(tris && "Pointer to bvh geometry must not be null.");
         
@@ -34,10 +46,8 @@ public:
         tris_ = tris;
         ray_buffer_.resize(capacity);
         hit_buffer_.resize(capacity);
+        state_buffer_.resize(capacity);
         last_ = -1;
-        state_size_ = state_size;
-        state_buffer_.resize(state_size * capacity);
-        initial_state_ = initial_state;
     }
 
     int size() const { return last_ + 1; }
@@ -46,7 +56,7 @@ public:
         return ray_buffer_.data();
     }
     
-    void* states() {
+    StateType* states() {
         return state_buffer_.data();
     }
     
@@ -59,37 +69,31 @@ public:
     }
     
     // Adds a single secondary or shadow ray to the queue. Thread-safe
-    void push(const Ray& ray, const void* state) {     
+    void push(const Ray& ray, const StateType& state) {     
         int id = ++last_; // atomic inc. of last_
 
-        assert(id < ray_buffer_.size() && "ray queue full");
-        assert(state && "no state passed to the queue for a secondary / shadow ray");        
+        assert(id < ray_buffer_.size() && "ray queue full");      
         
         ray_buffer_[id] = ray;
-        std::memcpy(state_buffer_.data() + id * state_size_, state, state_size_);
+        state_buffer_[id] = state;
     }
     
     // Adds a set of camera rays to the queue. Thread-safe
-    template<typename RayIter, typename PixelIter> 
-    void push(RayIter rays_begin, RayIter rays_end, PixelIter pixels_begin, PixelIter pixels_end) {
+    template<typename RayIter, typename StateIter> 
+    void push(RayIter rays_begin, RayIter rays_end, StateIter states_begin, StateIter states_end) {
+        // Calculate the position at which the rays will be inserted.
         int count = rays_end - rays_begin;
         int end_idx = last_ += count; // atomic add to last_
+        int start_idx = end_idx - (count - 1);
         
         assert(end_idx < ray_buffer_.size() && "ray queue full");
         
-        int start_idx = end_idx - (count - 1);
-        
+        // Copy ray and state data.
         std::copy(rays_begin, rays_end, ray_buffer_.begin() + start_idx);
-        
-        // copy the initial state for all rays and set the pixel index
-        PixelIter p = pixels_begin;
-        for (int i = 0; i < count; ++i, ++p) {
-            auto location = state_buffer_.data() + (start_idx + i) * state_size_;
-            std::memcpy(location, initial_state_, state_size_);
-            *reinterpret_cast<int*>(location) = *p;
-        }
+        std::copy(states_begin, states_end, state_buffer_.begin() + start_idx);
     }
     
+    // Traverses the acceleration structure with the rays currently inside the queue.
     void traverse() {
         traverse_accel(nodes_, rays(), tris_, hits(), size());
     }
@@ -100,10 +104,9 @@ private:
     
     ThorinVector<::Ray> ray_buffer_;
     ThorinVector<::Hit> hit_buffer_;
-    int state_size_;
-    std::vector<unsigned char> state_buffer_;
+    std::vector<StateType> state_buffer_;
+    
     std::atomic<int> last_;
-    const void* initial_state_;
 };
 
 }

@@ -1,4 +1,4 @@
-#include "../shader.h"
+#include "../integrator.h"
 #include "../../core/float4.h"
 #include "../../core/common.h"
 #include "../random.h"

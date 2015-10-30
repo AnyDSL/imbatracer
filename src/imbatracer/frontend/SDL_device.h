@@ -5,7 +5,7 @@ namespace imba {
 
     class SDLDevice {
     public:
-        SDLDevice(int img_width, int img_height, int n_samples, Render& r);
+        SDLDevice(int img_width, int img_height, int n_samples, Renderer<PTState>& r);
         ~SDLDevice(); 
         
         void render();
@@ -17,7 +17,7 @@ namespace imba {
         int image_height_;
         Image img_;
         SDL_Surface* screen_;
-        Render& render_;
+        Renderer<PTState>& render_;
         
         int n_samples_;
         int n_sample_frames_;
