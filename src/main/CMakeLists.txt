@@ -43,10 +43,10 @@ set(impala_acc_SRC
 )
 
 THORIN_RUNTIME_WRAP(impala_acc_OBJ impala_acc_LIB
-    RTTYPE ${RTTYPE}
+    BACKEND ${BACKEND}
     FILES ${impala_shared_SRC} ${impala_acc_SRC})
 THORIN_RUNTIME_WRAP(impala_loc_OBJ impala_loc_LIB
-    RTTYPE none
+    BACKEND cpu
     FILES ${impala_shared_SRC} ${impala_loc_SRC})
 
 add_library(rt ${cpp_SRC} ${impala_shared_SRC} ${impala_loc_SRC} ${impala_acc_SRC} ${impala_loc_OBJ} ${impala_acc_OBJ})

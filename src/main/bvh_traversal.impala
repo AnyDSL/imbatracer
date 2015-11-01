@@ -93,26 +93,26 @@ fn bvhIntersectGeneric(root: uint, scene : &Scene, ray : Ray, mut maxdist : floa
                     maxdist = @checkIntersect(tri, maxdist); // try and intersect the thing, and do whatever. Called function returns new maxdist to narrow the search.
                 }
                 // done with this node, pop one off the stack
-                @popNode()
+                popNode()
             }
             else {
                 fn descend(fstNode : uint, sndNode : uint) {
-                    @pushNode(sndNode);
+                    pushNode(sndNode);
                     continue(fstNode)
                 }
                 // an inner node, which child do we get to first?
                 if @bvhDirIsNeg(neg, scene.bvhNodes(curNode).axis as uint) {
-                    @descend(sndChildFirstPrim, curNode+1u) // do the left child later
+                    descend(sndChildFirstPrim, curNode+1u) // do the left child later
                 }
                 else {
-                    @descend(curNode+1u, sndChildFirstPrim) // do the right child later
+                    descend(curNode+1u, sndChildFirstPrim) // do the right child later
                 }
             }
         }
         else
         {
             // we missed this node, pop one off the stack
-            @popNode()
+            popNode()
         }
     };
     // FIXME unreachable

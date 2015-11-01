@@ -37,9 +37,9 @@ include(${THORIN_RUNTIME_DIR}/cmake/ThorinRuntime.cmake)
 include_directories(${THORIN_RUNTIME_INCLUDE_DIR})
 
 # which run-time do we use?
-set(RTTYPE "nvvm" CACHE STRING "The runtime-type of the tests")
-message(STATUS "Using runtime-type ${RTTYPE}")
-if(RTTYPE STREQUAL "cpu" OR RTTYPE STREQUAL "avx")
+set(BACKEND "nvvm" CACHE STRING "The runtime-type of the tests")
+message(STATUS "Using runtime-type ${BACKEND}")
+if(BACKEND STREQUAL "cpu" OR BACKEND STREQUAL "avx")
     set(DEVICE "cpu")
 else()
     set(DEVICE "gpu")

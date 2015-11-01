@@ -1,10 +1,10 @@
 
 fn renderIteration(width : int, height : int, measureTime : bool, state : &State, setcolor: SetColorFn, getcolor: GetColorIFn) -> ()
 {
-    let start = thorin_get_micro_time();
+    //let start = thorin_get_micro_time();
     @renderSubsampled(8u, width as uint, height as uint, state, setcolor, getcolor);
-    let stop = thorin_get_micro_time();
-    if measureTime { thorin_print_micro_time(stop-start); };
+    //let stop = thorin_get_micro_time();
+    //if measureTime { thorin_print_micro_time(stop-start); };
 }
 
 fn subsampleDebugView() -> bool
