@@ -34,6 +34,7 @@ public:
         
         // calculate how many rays are needed to fill the queue
         int count = target_count_ - out.size();
+        
         if (count <= 0) return;
         
         // make sure that no pixel is sampled more than n_samples_ times
@@ -41,18 +42,19 @@ public:
             count = n_samples_ * width_ * height_ - generated_pixels_;
         }
         
+        if (count <= 0) return;
+        
         // remember how many pixel samples were generated
         generated_pixels_ += count;
         
         const int last_pixel = (next_pixel_ + count) % (width_ * height_);
         
         static RNG rng;      
-#pragma omp parallel for private(rng)
         for (int i = next_pixel_; i < next_pixel_ + count; ++i) {
             int pixel_idx = i % (width_ * height_);
             int sample_idx = i / (width_ * height_);
             
-            RayState& state = pixels_[i - next_pixel_];
+            auto& state = pixels_[i - next_pixel_];
             state.pixel_id = pixel_idx;
             state.sample_id = sample_idx;
             state.kind = kind_;
@@ -60,7 +62,7 @@ public:
             int y = pixel_idx / width_;
             int x = pixel_idx % width_;
             
-            sample_pixel(x, y, rng, rays_[i - next_pixel_]);
+            sample_pixel(x, y, rng, rays_[i - next_pixel_], state);
         }
         
         // store which pixel has to be sampled next
@@ -81,7 +83,7 @@ protected:
     int n_samples_;
     RayKind kind_;
     
-    virtual void sample_pixel(int x, int y, RNG& rng, ::Ray& ray_out) = 0;
+    virtual void sample_pixel(int x, int y, RNG& rng, ::Ray& ray_out, StateType& state_out) = 0;
 };
 
 } // namespace imba

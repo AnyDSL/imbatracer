@@ -19,6 +19,7 @@ public:
     }
 
     virtual int num_passes() const = 0;
+    virtual void start_pass(int pass_id) { }
     virtual void shade(int pass_id, RayQueue<StateType>& rays, Image& out, RayQueue<StateType>& ray_out) = 0;
     virtual PixelRayGen<StateType>& get_ray_gen(int pass_id) = 0;
     
@@ -51,82 +52,105 @@ public:
     virtual void shade(int pass_id, RayQueue<PTState>& rays, Image& out, RayQueue<PTState>& ray_out) override;
     virtual PixelRayGen<PTState>& get_ray_gen(int pass_id) override { return cam_; }
 };
-/*
-// bidirectional path tracing
-class BidirPathTracer : public Integrator {    
-    struct State {
-        int pixel_id;
-        int sample_id;
-        float4 throughput;
-    };
+
+struct BPTState : RayState {
+    float4 throughput;
+    int bounces;
+    int light_id;
     
-    // Ray generator for light sources. Samples a point and a direction on a lightsource for every pixel sample.
-    class LightRayGen : public PixelRayGen {
-    public:
-        LightRayGen(int w, int h, int n, LightContainer& lights) : PixelRayGen(w, h, n, LIGHT_RAY), lights_(lights) { }
+    BPTState() : bounces(0), throughput(1.0f) { }
+};
+
+// Ray generator for light sources. Samples a point and a direction on a lightsource for every pixel sample.
+class BPTLightRayGen : public PixelRayGen<BPTState> {
+public:
+    BPTLightRayGen(int w, int h, int n, LightContainer& lights) : PixelRayGen<BPTState>(w, h, n, LIGHT_RAY), lights_(lights) { }
+    
+    virtual void sample_pixel(int x, int y, RNG& rng, ::Ray& ray_out, BPTState& state_out) override { 
+        // randomly choose one light source to sample
+        int i = rng.random(0, lights_.size() - 1);
+        auto& l = lights_[i];
         
-        virtual void sample_pixel(int x, int y, RNG& rng, ::Ray& ray_out) override { 
-            // randomly choose one light source to sample
-            int i = rng.random(0, lights_.size() - 1);
-            auto& l = lights_[i];
-            
-            Light::LightRaySample sample = l->sample(rng);
-            ray_out.org.x = sample.pos.x;
-            ray_out.org.y = sample.pos.y;
-            ray_out.org.z = sample.pos.z;
-            ray_out.org.w = 0.0f;
-            
-            ray_out.dir.x = sample.dir.x;
-            ray_out.dir.y = sample.dir.y;
-            ray_out.dir.z = sample.dir.z;
-            ray_out.dir.w = FLT_MAX;
+        Light::LightRaySample sample = l->sample(rng);
+        ray_out.org.x = sample.pos.x;
+        ray_out.org.y = sample.pos.y;
+        ray_out.org.z = sample.pos.z;
+        ray_out.org.w = 0.0f;
+        
+        ray_out.dir.x = sample.dir.x;
+        ray_out.dir.y = sample.dir.y;
+        ray_out.dir.z = sample.dir.z;
+        ray_out.dir.w = FLT_MAX;
+        
+        state_out.light_id = i;
+    }
+    
+private:
+    LightContainer& lights_;
+};
+
+// bidirectional path tracing
+class BidirPathTracer : public Integrator<BPTState> {        
+public:
+    BidirPathTracer(PixelRayGen<BPTState>& cam, LightContainer& light_sources, ThorinVector<Vec4>& tris, std::vector<float3>& normals, MaterialContainer& materials, std::vector<int>& material_ids,
+                    int w, int h, int n_samples) 
+        : Integrator<BPTState>(cam, light_sources, tris, normals, materials, material_ids), light_sampler_(cam.width(), cam.height(), cam.num_samples(), lights_), width_(w), height_(h), n_samples_(n_samples)
+    {
+        light_paths_.resize(w * h);
+        for (auto& p : light_paths_) {
+            p.resize(n_samples);
+            for (auto& s : p) s.resize(max_light_path_length);
         }
         
-    private:
-        LightContainer& lights_;
-    };
-
-public:
-    BPTShader(PixelRayGen& cam, LightContainer& light_sources, ThorinVector<Vec4>& tris, std::vector<float3>& normals, MaterialContainer& materials, std::vector<int>& material_ids) 
-        : Shader(cam, light_sources, tris, normals, materials, material_ids), light_sampler_(cam.width(), cam.height(), cam.num_samples(), lights_)
-    {
-        initial_state_.kind = State::PRIMARY;
-        initial_state_.factor = float4(1.0f);
+        light_path_lengths_.resize(w * h);
+        for (auto& p : light_path_lengths_) {
+            p.resize(n_samples);
+        }
+    }
+    
+    virtual void start_pass(int pass_id) { 
+        if (pass_id == 0) {
+            for (auto& p : light_path_lengths_) {
+                for (auto& s : p) s = 20;
+            }    
+        }
     }
     
     virtual int num_passes() const override { return 2; }
-    virtual void shade(int pass_id, RayQueue& rays, Image& out, RayQueue& ray_out) override {
+    virtual void shade(int pass_id, RayQueue<BPTState>& rays, Image& out, RayQueue<BPTState>& ray_out) override {
         if (pass_id == 0)
             shade_light_rays(rays, out, ray_out);
         else 
             shade_camera_rays(rays, out, ray_out);
     }
     
-    virtual PixelRayGen& get_ray_gen(int pass_id) override { 
+    virtual PixelRayGen<BPTState>& get_ray_gen(int pass_id) override { 
         if (pass_id == 0)
             return light_sampler_;
         else
             return cam_;
     }
     
-    virtual int state_len() override { 
-        return sizeof(State);
-    }
-    
-    virtual const char* initial_state() override {
-        return reinterpret_cast<const char*>(&initial_state_);
-    }
-    
 private:
-    State initial_state_;
-    int target_ray_count;
+    constexpr static int max_light_path_length = 4;
     
-    LightRayGen light_sampler_;
+    int width_, height_;
+    int n_samples_;
     
-    void sample_lights(RayQueue& out);
-    void shade_light_rays(RayQueue& rays, Image& out, RayQueue& ray_out);
-    void shade_camera_rays(RayQueue& rays, Image& out, RayQueue& ray_out);
-};*/
+    BPTLightRayGen light_sampler_;
+    
+    friend class BPTLightRayGen;
+    struct LightPathVertex {
+        float3 pos;
+        int light_id;
+        bool is_specular;
+    };
+    std::vector<std::vector<std::vector<LightPathVertex>>> light_paths_;
+    std::vector<std::vector<int>> light_path_lengths_;
+    
+    void shade_light_rays(RayQueue<BPTState>& ray_in, Image& out, RayQueue<BPTState>& ray_out);
+    void shade_camera_rays(RayQueue<BPTState>& ray_in, Image& out, RayQueue<BPTState>& ray_out);
+};
 
 }
 

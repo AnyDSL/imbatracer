@@ -24,10 +24,8 @@ add_library(imba-core
 add_library(imba-render
             render/image.h
             render/camera.h
-            render/camera.cpp
             render/render.h
-            render/render.cpp
-            render/shader.h
+            render/integrator.h
             render/algo/pt.cpp
             render/algo/bpt.cpp
             #render/algo/vcm.cpp
