@@ -16,8 +16,8 @@ endif()
 # Thorin setup
 find_package(THORIN REQUIRED)
 
-include(${THORIN_RUNTIME_DIR}/cmake/ThorinRuntime.cmake)
-include_directories(${THORIN_RUNTIME_INCLUDE_DIR})
+include(${THORIN_CMAKE_DIR}/ThorinRuntime.cmake)
+include_directories(${THORIN_RUNTIME_DIR})
 
 # pthreads
 find_package(Threads REQUIRED)
@@ -33,6 +33,15 @@ include_directories(${SDL_INCLUDE_DIR})
 # Traversal
 find_package(Traversal REQUIRED)
 include_directories(${TRAVERSAL_INCLUDE_DIR})
+
+# OpenMP
+find_package(OpenMP REQUIRED)
+if (OPENMP_FOUND)
+    message("OpenMP found")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${OpenMP_EXE_LINKER_FLAGS}")
+endif ()
 
 # Add the project files
 add_subdirectory(src)

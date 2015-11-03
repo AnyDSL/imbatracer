@@ -1,12 +1,4 @@
-FIND_PACKAGE( OpenMP REQUIRED)
-if(OPENMP_FOUND)
-    message("OPENMP FOUND")
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
-    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${OpenMP_EXE_LINKER_FLAGS}")
-endif()
-
-add_library(imba-core
+add_library(imba_core
             core/adapter.h
             core/allocator.h
             core/bbox.h
@@ -21,7 +13,7 @@ add_library(imba-core
             core/sbvh_builder.h
             core/tri.h)
 
-add_library(imba-render
+add_library(imba_render
             render/image.h
             render/camera.h
             render/render.h
@@ -33,9 +25,6 @@ add_library(imba-render
             render/random.h
             render/material.h
             render/scene.h)
-            
-target_link_libraries(imba-render ${TRAVERSAL_LIBRARIES})
-target_link_libraries(imba-core ${TRAVERSAL_LIBRARIES})
 
 add_executable(imbatracer
                frontend/main.cpp
@@ -46,4 +35,11 @@ add_executable(imbatracer
                frontend/obj_loader.cpp
                frontend/path.h
                frontend/logger.h)
-target_link_libraries(imbatracer ${SDL_LIBRARY} imba-render imba-core ${TRAVERSAL_LIBRARIES})
+
+target_link_libraries(imbatracer
+                      imba_render
+                      imba_core
+                      ${SDL_LIBRARY}
+                      ${TRAVERSAL_LIBRARY}
+                      ${THORIN_RUNTIME_LIBRARY}
+                      ${THORIN_RUNTIME_LIBRARIES})
