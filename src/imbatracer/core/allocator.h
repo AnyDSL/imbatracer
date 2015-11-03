@@ -31,25 +31,25 @@ public:
     };
 
     pointer allocate(size_type n, const void* hint = nullptr) {
-        return reinterpret_cast<pointer>(thorin_malloc(n * sizeof(T)));
+        return reinterpret_cast<pointer>(thorin_alloc(THORIN_HOST, 0, n * sizeof(T)));
     }
 
     void deallocate(pointer ptr, size_type n) {
-        thorin_free(reinterpret_cast<void*>(ptr));
+        thorin_release(reinterpret_cast<void*>(ptr));
     }
 };
 
 template <typename T>
 struct ThorinDeleter {
     void operator () (T* ptr) {
-        return thorin_free(reinterpret_cast<void*>(ptr));
+        return thorin_release(reinterpret_cast<void*>(ptr));
     }
 };
 
 template <typename T>
 struct ThorinDeleter<T[]> {
     void operator () (T* ptr) {
-        return thorin_free(reinterpret_cast<void*>(ptr));
+        return thorin_release(reinterpret_cast<void*>(ptr));
     }
 };
 
@@ -58,7 +58,7 @@ using ThorinUniquePtr = std::unique_ptr<T, ThorinDeleter<T> >;
 
 template <typename T, typename... Args>
 inline ThorinUniquePtr<T> thorin_make_unique(Args... args) {
-    T* ptr = new (reinterpret_cast<T*>(thorin_malloc(sizeof(T)))) T(args...);
+    T* ptr = new (reinterpret_cast<T*>(thorin_alloc(THORIN_HOST, 0, sizeof(T)))) T(args...);
     return std::unique_ptr<T, ThorinDeleter<T> >(ptr);
 }
 
