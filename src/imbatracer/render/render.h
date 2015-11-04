@@ -10,16 +10,20 @@ namespace imba {
 template <typename StateType>
 class Renderer {
 public:
-    Renderer(ThorinVector<::Node>& nodes, ThorinVector<::Vec4>& tris, Integrator<StateType>& s, int width, int height)
+    Renderer(ThorinArray<::Node>& nodes, ThorinArray<::Vec4>& tris, Integrator<StateType>& s, int width, int height)
         : shader_(s), tex_(width, height)
     {
         target_ray_count_ = 1000000;
         int queue_capacity = target_ray_count_ * 3;
         
+        // Upload nodes and tris.
+        nodes.upload();
+        tris.upload();
+        
         // we need 3 queues in order to do traversal and shading in parallel
-        queues_[0].resize(queue_capacity, nodes.data(), tris.data());
-        queues_[1].resize(queue_capacity, nodes.data(), tris.data());
-        queues_[2].resize(queue_capacity, nodes.data(), tris.data());
+        queues_[0].resize(queue_capacity, &nodes, &tris);
+        queues_[1].resize(queue_capacity, &nodes, &tris);
+        queues_[2].resize(queue_capacity, &nodes, &tris);
         
         for (int pass = 0; pass < shader_.num_passes(); ++pass)
             shader_.get_ray_gen(pass).set_target_count(target_ray_count_);

@@ -4,7 +4,7 @@
 namespace imba {
 
     class SDLDevice {
-        using StateType = BPTState;
+        using StateType = PTState;
     public:
         SDLDevice(int img_width, int img_height, int n_samples, Renderer<StateType>& r);
         ~SDLDevice(); 

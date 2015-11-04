@@ -9,8 +9,8 @@
 void render_test_scene() {      
     using namespace imba;
     
-    using StateType = imba::BPTState;
-    using IntegratorType = imba::BidirPathTracer;
+    using StateType = imba::PTState;
+    using IntegratorType = imba::PathTracer;
     
     constexpr int width = 512;
     constexpr int height = 512;
@@ -37,17 +37,17 @@ void render_test_scene() {
         normals.push_back(normal);
     }
     
-    IntegratorType shader(cam, lights, tris, normals, materials, material_ids, width, height, n_samples);
-    imba::Renderer<StateType> render(nodes, tris, shader, width, height);
+    imba::ThorinArray<Node> node_array(nodes);
+    imba::ThorinArray<Vec4> tri_array(tris);
+    
+    IntegratorType shader(cam, lights, normals, materials, material_ids, width, height, n_samples);
+    imba::Renderer<StateType> render(node_array, tri_array, shader, width, height);
     
     imba::SDLDevice device(width, height, n_samples, render);
     device.render();
 }
 
 int main(int argc, char** argv) {
-    thorin_init();
-    
     render_test_scene();   
-    
     return 0;
 }

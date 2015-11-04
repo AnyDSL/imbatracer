@@ -2,7 +2,7 @@
 #define IMBA_RAY_QUEUE_H
 
 #include "traversal.h"
-#include "../core/allocator.h"
+#include "../core/thorin_mem.h"
 
 #include <vector>
 #include <algorithm>
@@ -31,21 +31,19 @@ class RayQueue {
 public:
     RayQueue() { }
     
-    RayQueue(int capacity, ::Node* nodes, ::Vec4* tris) 
+    RayQueue(int capacity, ThorinArray<::Node>* nodes, ThorinArray<Vec4>* tris) 
         : ray_buffer_(capacity), hit_buffer_(capacity), state_buffer_(capacity), last_(-1), nodes_(nodes), tris_(tris)
-    { 
-        assert(nodes_ && "Pointer to bvh nodes must not be null.");
-        assert(tris_ && "Pointer to bvh geometry must not be null.");
+    {
+        assert(nodes && tris && "No acceleration structure data passed to the RayQueue");
     }
     
-    void resize(int capacity, ::Node* nodes, ::Vec4* tris) {
-        assert(nodes && "Pointer to bvh nodes must not be null.");
-        assert(tris && "Pointer to bvh geometry must not be null.");
-        
+    void resize(int capacity, ThorinArray<::Node>* nodes, ThorinArray<Vec4>* tris) {
+        assert(nodes && tris && "No acceleration structure data passed to the RayQueue");
+           
         nodes_ = nodes;
         tris_ = tris;
-        ray_buffer_.resize(capacity);
-        hit_buffer_.resize(capacity);
+        ray_buffer_ = ThorinArray<::Ray>(capacity);
+        hit_buffer_ = ThorinArray<::Hit>(capacity);
         state_buffer_.resize(capacity);
         last_ = -1;
     }
@@ -53,7 +51,7 @@ public:
     int size() const { return last_ + 1; }
     
     ::Ray* rays() {
-        return ray_buffer_.data();
+        return ray_buffer_.host_data();
     }
     
     StateType* states() {
@@ -61,7 +59,7 @@ public:
     }
     
     ::Hit* hits() {
-        return hit_buffer_.data();
+        return hit_buffer_.host_data();
     }
     
     void clear() {
@@ -84,7 +82,7 @@ public:
         // Calculate the position at which the rays will be inserted.
         int count = rays_end - rays_begin;
         int end_idx = last_ += count; // atomic add to last_
-        int start_idx = end_idx - (count - 1);
+        int start_idx = end_idx - (count - 1);\
         
         assert(end_idx < ray_buffer_.size() && "ray queue full");
         
@@ -95,15 +93,17 @@ public:
     
     // Traverses the acceleration structure with the rays currently inside the queue.
     void traverse() {
-        traverse_accel(nodes_, rays(), tris_, hits(), size());
+        ray_buffer_.upload();
+        traverse_accel(nodes_->device_data(), ray_buffer_.device_data(), tris_->device_data(), hit_buffer_.device_data(), size());
+        hit_buffer_.download();
     }
     
 private:
-    ::Node* nodes_;
-    ::Vec4* tris_;
+    ThorinArray<::Node>* nodes_;
+    ThorinArray<::Vec4>* tris_;
     
-    ThorinVector<::Ray> ray_buffer_;
-    ThorinVector<::Hit> hit_buffer_;
+    ThorinArray<::Ray> ray_buffer_;
+    ThorinArray<::Hit> hit_buffer_;
     std::vector<StateType> state_buffer_;
     
     std::atomic<int> last_;

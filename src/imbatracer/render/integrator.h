@@ -13,8 +13,8 @@ namespace imba {
 template <typename StateType>
 class Integrator {
 public:
-    Integrator(PixelRayGen<StateType>& cam, LightContainer& light_sources, ThorinVector<Vec4>& tris, std::vector<float3>& normals, MaterialContainer& materials, std::vector<int>& material_ids)  
-        : lights_(light_sources), tris_(tris), normals_(normals), materials_(materials), material_ids_(material_ids), cam_(cam) 
+    Integrator(PixelRayGen<StateType>& cam, LightContainer& light_sources, std::vector<float3>& normals, MaterialContainer& materials, std::vector<int>& material_ids)  
+        : lights_(light_sources), normals_(normals), materials_(materials), material_ids_(material_ids), cam_(cam) 
     {
     }
 
@@ -26,7 +26,6 @@ public:
 protected:
     PixelRayGen<StateType>& cam_;
     LightContainer& lights_;
-    ThorinVector<Vec4>& tris_;
     std::vector<float3>& normals_;
     MaterialContainer& materials_;
     std::vector<int>& material_ids_;
@@ -43,8 +42,9 @@ struct PTState : RayState {
 // uses unidirectional path tracing starting from the camera
 class PathTracer : public Integrator<PTState> {    
 public:
-    PathTracer(PixelRayGen<PTState>& cam, LightContainer& light_sources, ThorinVector<Vec4>& tris, std::vector<float3>& normals, MaterialContainer& materials, std::vector<int>& material_ids) 
-        : Integrator<PTState>(cam, light_sources, tris, normals, materials, material_ids)
+    PathTracer(PixelRayGen<PTState>& cam, LightContainer& light_sources, std::vector<float3>& normals, MaterialContainer& materials, std::vector<int>& material_ids,
+               int w, int h, int n_samples) 
+        : Integrator<PTState>(cam, light_sources, normals, materials, material_ids)
     {
     }
     
@@ -92,9 +92,9 @@ private:
 // bidirectional path tracing
 class BidirPathTracer : public Integrator<BPTState> {        
 public:
-    BidirPathTracer(PixelRayGen<BPTState>& cam, LightContainer& light_sources, ThorinVector<Vec4>& tris, std::vector<float3>& normals, MaterialContainer& materials, std::vector<int>& material_ids,
+    BidirPathTracer(PixelRayGen<BPTState>& cam, LightContainer& light_sources, std::vector<float3>& normals, MaterialContainer& materials, std::vector<int>& material_ids,
                     int w, int h, int n_samples) 
-        : Integrator<BPTState>(cam, light_sources, tris, normals, materials, material_ids), light_sampler_(cam.width(), cam.height(), cam.num_samples(), lights_), width_(w), height_(h), n_samples_(n_samples)
+        : Integrator<BPTState>(cam, light_sources, normals, materials, material_ids), light_sampler_(cam.width(), cam.height(), cam.num_samples(), lights_), width_(w), height_(h), n_samples_(n_samples)
     {
         light_paths_.resize(w * h);
         for (auto& p : light_paths_) {

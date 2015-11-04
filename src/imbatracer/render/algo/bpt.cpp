@@ -66,7 +66,7 @@ void imba::BidirPathTracer::shade_camera_rays(RayQueue<BPTState>& ray_in, Image&
     const Hit* hits = ray_in.hits(); 
     const Ray* rays = ray_in.rays();
     for (int i = 0; i < ray_count; ++i) { 
-        switch (shader_state[i].kind) {
+        switch (states[i].kind) {
         case CAMERA_RAY:
         case RANDOM_RAY:
             if (hits[i].tri_id != -1) {
@@ -82,6 +82,8 @@ void imba::BidirPathTracer::shade_camera_rays(RayQueue<BPTState>& ray_in, Image&
                 // Connect the hitpoint to the light path.
                 BPTState s = states[i];
                 s.kind = SHADOW_RAY;
+                
+                float3 connect_dir = sample_path[n_vertices - 1].pos - pos;
                 
                 Ray ray;
                 ray.org.x = pos.x;

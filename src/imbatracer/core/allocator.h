@@ -4,7 +4,7 @@
 #include <memory>
 #include <vector>
 #include <cstdint>
-#include <thorin_runtime.h>
+#include <thorin_runtime.hpp>
 
 namespace imba {
 

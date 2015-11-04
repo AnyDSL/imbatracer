@@ -1,7 +1,7 @@
 #ifndef THORIN_MEM
 #define THORIN_MEM
 
-#include "thorin_runtime.hpp"
+#include "allocator.h"
 #include <vector>
 
 #define TRAVERSAL_DEVICE 	0
@@ -18,6 +18,13 @@ public:
 		: device_array(thorin::Platform::TRAVERSAL_PLATFORM, thorin::Device(TRAVERSAL_DEVICE), size),
 		  host_array(size) 
 	{}
+	
+	ThorinArray(ThorinVector<T>& rhs)
+		: device_array(thorin::Platform::TRAVERSAL_PLATFORM, thorin::Device(TRAVERSAL_DEVICE), rhs.size())
+	{
+		rhs.shrink_to_fit();
+		host_array = std::move(thorin::Array<T>(thorin::Platform::HOST, 0, rhs.data(), rhs.capacity()));
+	}
 	
 	ThorinArray(ThorinArray&& other) = default;
 	ThorinArray& operator = (ThorinArray&& other) = default;
@@ -41,8 +48,11 @@ public:
     T* end() { return host_array.end(); }
     const T* end() const { return host_array.end(); }
 
-    T* data() { return host_array.data(); }
-    const T* data() const { return host_array.data(); }
+    T* host_data() { return host_array.data(); }
+    const T* host_data() const { return host_array.data(); }
+	
+	T* device_data() { return device_array.data(); }
+    const T* device_data() const { return device_array.data(); }
 	
     int64_t size() const { return host_array.size(); }
 
@@ -52,6 +62,7 @@ public:
 private:
 	thorin::Array<T> device_array;
 	thorin::Array<T> host_array;
+	
 };
 
 }

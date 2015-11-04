@@ -1,7 +1,7 @@
 #ifndef IMAGE_H
 #define IMAGE_H
 
-#include "../core/allocator.h"
+#include "../core/thorin_mem.h"
 #include "../core/float4.h"
 
 namespace imba {
@@ -13,8 +13,10 @@ public:
         : pixels_(w * h * 4), width_(w), height_(h)
     {}
 
-    const float* pixels() const { return pixels_.data(); }
-    float* pixels() { return pixels_.data(); }
+    const float* pixels() const { return pixels_.host_data(); }
+    float* pixels() { return pixels_.host_data(); }
+    
+    float* device_pixels() { return pixels_.device_data(); }
     
     const float4 get(int i) const { return float4(pixels_[i * 4], pixels_[i * 4 + 1], pixels_[i * 4 + 2], pixels_[i * 4 + 3]); }
     void set(int i, const float4& value) {
@@ -30,11 +32,11 @@ public:
     void resize(int width, int height) {
         width_ = width;
         height_ = height;
-        pixels_.resize(width_ * height_ * 4);
+        pixels_ = ThorinArray<float>(width_ * height_ * 4);
     }
 
 private:
-    ThorinVector<float> pixels_;
+    ThorinArray<float> pixels_;
     int width_, height_;
 };
 
