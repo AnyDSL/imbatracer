@@ -26,7 +26,7 @@ else()
 endif()
 
 if(NOT BENCH_BACKEND)
-    set(BENCH_BACKEND ${BACKEND} CACHE STRING "bench backend")
+    set(BENCH_BACKEND "nvvm" CACHE STRING "bench backend")
 endif()
 
 # pthreads
