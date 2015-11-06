@@ -5,6 +5,8 @@
 #include "camera.h"
 #include "integrator.h"
 
+//#define RAY_STATS
+
 namespace imba {
 
 template <typename StateType>
@@ -13,7 +15,7 @@ public:
     Renderer(ThorinArray<::Node>& nodes, ThorinArray<::Vec4>& tris, Integrator<StateType>& s, int width, int height)
         : shader_(s), tex_(width, height)
     {
-        target_ray_count_ = 1000000;
+        target_ray_count_ = 64 * 1000;
         int queue_capacity = target_ray_count_ * 3;
         
         // Upload nodes and tris.
@@ -32,9 +34,14 @@ public:
     // renders the scene
     Image& operator() (int n_samples) {
         // if there are less than this number of rays, the remaining rays are discarded
-        constexpr int min_rays = 1000;
+        constexpr int min_rays = 0;
         
         clear_texture();
+ 
+ #ifdef RAY_STATS
+        int traversal_calls = 0;
+        int total_rays = 0;
+ #endif
         
         for (int pass = 0; pass < shader_.num_passes(); ++pass) {
             shader_.get_ray_gen(pass).start_frame();
@@ -42,6 +49,11 @@ public:
             // generate and traverse the first set of rays
             int cur_q = 0; // next queue used as input for the shader
             shader_.get_ray_gen(pass).fill_queue(queues_[cur_q]);
+#ifdef RAY_STATS
+            traversal_calls++;
+            total_rays += queues_[cur_q].size();
+            printf("traverse %d rays...\n", queues_[cur_q].size());
+#endif
             queues_[cur_q].traverse();
             
             bool keep_rendering = true;  
@@ -62,6 +74,11 @@ public:
                         // traverse the queue if there are enough rays in it
                         if (keep_rendering) {
                             auto& q = queues_[traversal_q];
+#ifdef RAY_STATS
+                            printf("traverse %d rays...\n", q.size());
+                            traversal_calls++;
+                            total_rays += q.size();
+#endif
                             q.traverse();
                         }
                     }
@@ -83,6 +100,13 @@ public:
             for (int i = 0; i < 3; ++i)
                 queues_[i].clear();
         }
+        
+#ifdef RAY_STATS
+        printf("Traversal called %d times. Average number of rays: %f, total: %d\n\n", 
+               traversal_calls, 
+               static_cast<float>(total_rays) / static_cast<float>(traversal_calls),
+               total_rays);
+#endif
         
         return tex_;
     }

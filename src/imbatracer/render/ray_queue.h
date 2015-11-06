@@ -2,7 +2,7 @@
 #define IMBA_RAY_QUEUE_H
 
 #include "traversal.h"
-#include "../core/thorin_mem.h"
+#include "thorin_mem.h"
 
 #include <vector>
 #include <algorithm>
@@ -70,8 +70,8 @@ public:
     void push(const Ray& ray, const StateType& state) {     
         int id = ++last_; // atomic inc. of last_
 
-        assert(id < ray_buffer_.size() && "ray queue full");      
-        
+        assert(id < ray_buffer_.size() && "ray queue full");
+
         ray_buffer_[id] = ray;
         state_buffer_[id] = state;
     }
@@ -93,6 +93,7 @@ public:
     
     // Traverses the acceleration structure with the rays currently inside the queue.
     void traverse() {
+        //printf("traverse: %d \n", size());
         ray_buffer_.upload();
         traverse_accel(nodes_->device_data(), ray_buffer_.device_data(), tris_->device_data(), hit_buffer_.device_data(), size());
         hit_buffer_.download();

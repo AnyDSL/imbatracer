@@ -1,7 +1,7 @@
 #ifndef THORIN_MEM
 #define THORIN_MEM
 
-#include "allocator.h"
+#include "../core/allocator.h"
 #include <vector>
 
 #define TRAVERSAL_DEVICE 	0
@@ -20,10 +20,11 @@ public:
 	{}
 	
 	ThorinArray(ThorinVector<T>& rhs)
-		: device_array(thorin::Platform::TRAVERSAL_PLATFORM, thorin::Device(TRAVERSAL_DEVICE), rhs.size())
+		: device_array(thorin::Platform::TRAVERSAL_PLATFORM, thorin::Device(TRAVERSAL_DEVICE), rhs.size()),
+		  host_array(thorin::Platform::HOST, 0, rhs.size())
 	{
 		rhs.shrink_to_fit();
-		host_array = std::move(thorin::Array<T>(thorin::Platform::HOST, 0, rhs.data(), rhs.capacity()));
+		thorin_copy(rhs.data(), host_array.data());
 	}
 	
 	ThorinArray(ThorinArray&& other) = default;

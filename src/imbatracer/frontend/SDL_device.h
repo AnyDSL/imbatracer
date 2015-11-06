@@ -22,6 +22,8 @@ namespace imba {
         
         int n_samples_;
         int n_sample_frames_;
+        
+        bool save_image_file(const char* filename);
     };
 
 } // namespace imba

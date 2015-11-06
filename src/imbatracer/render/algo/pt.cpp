@@ -27,7 +27,7 @@ void imba::PathTracer::shade(int pass_id, RayQueue<PTState>& ray_in, Image& out,
                 float3 normal = normals_[hits[i].tri_id];
                 pos = pos + (hits[i].tmax) * out_dir;
                 
-                if (mat.get()->kind == Material::emissive) {
+                if (mat->kind == Material::emissive) {
                     // If an emissive object is hit after a specular bounce or as the first intersection along the path, add its contribution. 
                     // otherwise the light has to be ignored because it was already sampled as direct illumination.
                     if (shader_state[i].kind == CAMERA_RAY) {                        

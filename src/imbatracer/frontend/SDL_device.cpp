@@ -1,9 +1,12 @@
 #include <iostream>
-#include "SDL_device.h"
-#include "thorin_runtime.h"
-#include <assert.h>
+#include <cassert>
+#include <fstream>
+#include <sstream>
 
 #include <unistd.h>
+#include <png.h>
+
+#include "SDL_device.h"
 
 imba::SDLDevice::SDLDevice(int img_width, int img_height, int n_samples, Renderer<StateType>& r) 
     : image_width_(img_width), image_height_(img_height), render_(r), n_samples_(n_samples), img_(img_width, img_height), n_sample_frames_(0)
@@ -64,6 +67,10 @@ void imba::SDLDevice::render() {
 
         frames++;
     }
+    
+    std::stringstream file_name;
+    file_name << "render_" << n_samples_ * n_sample_frames_ << "_samples.png";
+    save_image_file(file_name.str().c_str());
 
     //SDL_WM_GrabInput(SDL_GRAB_OFF);
 }
@@ -122,4 +129,64 @@ bool imba::SDLDevice::handle_events(bool flush) {
     }
 
     return false;
+}
+
+static void write_to_stream(png_structp png_ptr, png_bytep data, png_size_t length) {
+    png_voidp a = png_get_io_ptr(png_ptr);
+    ((std::ostream*)a)->write((const char*)data, length);
+}
+
+void flush_stream(png_structp png_ptr) {
+    // Nothing to do
+}
+
+bool imba::SDLDevice::save_image_file(const char* file_name) {
+    std::ofstream file(file_name, std::ofstream::binary);
+    if (!file)
+        return false;
+
+    png_structp png_ptr = png_create_write_struct(PNG_LIBPNG_VER_STRING, nullptr, nullptr, nullptr);
+    if (!png_ptr) {
+        return false;
+    }
+
+    png_infop info_ptr = png_create_info_struct(png_ptr);
+    if (!info_ptr) {
+        png_destroy_read_struct(&png_ptr, nullptr, nullptr);
+        return false;
+    }
+
+    png_bytep row = nullptr;
+    if (setjmp(png_jmpbuf(png_ptr))) {
+        png_destroy_write_struct(&png_ptr, &info_ptr);
+        delete[] row;
+        return false;
+    }
+
+    png_set_write_fn(png_ptr, &file, write_to_stream, flush_stream);
+
+    png_set_IHDR(png_ptr, info_ptr, image_width_, image_height_,
+                 8, PNG_COLOR_TYPE_RGBA, PNG_INTERLACE_NONE,
+                 PNG_COMPRESSION_TYPE_BASE, PNG_FILTER_TYPE_BASE);
+
+    png_write_info(png_ptr, info_ptr);
+    
+    row = new png_byte[4 * image_width_];
+
+    for (int y = 0; y < image_height_; y++) {
+        float* buf_row = img_.pixels() + y * image_width_ * 4;
+        for (int x = 0; x < image_width_; x++) {
+            row[x * 4 + 0] = (png_byte)(255.0f * clamp(buf_row[x * 4] / (n_samples_ * n_sample_frames_), 0.0f, 1.0f));
+            row[x * 4 + 1] = (png_byte)(255.0f * clamp(buf_row[x * 4 + 1] / (n_samples_ * n_sample_frames_), 0.0f, 1.0f));
+            row[x * 4 + 2] = (png_byte)(255.0f * clamp(buf_row[x * 4 + 2] / (n_samples_ * n_sample_frames_), 0.0f, 1.0f));
+            row[x * 4 + 3] = (png_byte)(255.0f);
+        }
+        png_write_row(png_ptr, row);
+    }
+    
+    png_write_end(png_ptr, info_ptr);
+    png_destroy_write_struct(&png_ptr, &info_ptr);
+    delete[] row;
+    
+    return true;
 }

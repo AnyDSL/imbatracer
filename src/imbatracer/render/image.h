@@ -1,7 +1,7 @@
 #ifndef IMAGE_H
 #define IMAGE_H
 
-#include "../core/thorin_mem.h"
+#include "thorin_mem.h"
 #include "../core/float4.h"
 
 namespace imba {

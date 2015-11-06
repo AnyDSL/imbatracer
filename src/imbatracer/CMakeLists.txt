@@ -24,7 +24,8 @@ add_library(imba_render
             render/ray_queue.h
             render/random.h
             render/material.h
-            render/scene.h)
+            render/scene.h
+            render/thorin_mem.h)
 
 add_executable(imbatracer
                frontend/main.cpp
@@ -40,6 +41,7 @@ target_link_libraries(imbatracer
                       imba_render
                       imba_core
                       ${SDL_LIBRARY}
+                      ${PNG_LIBRARIES}
                       ${TRAVERSAL_LIBRARY}
                       ${THORIN_RUNTIME_LIBRARY}
                       ${THORIN_RUNTIME_LIBRARIES})

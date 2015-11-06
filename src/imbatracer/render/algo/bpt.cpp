@@ -83,7 +83,7 @@ void imba::BidirPathTracer::shade_camera_rays(RayQueue<BPTState>& ray_in, Image&
                 BPTState s = states[i];
                 s.kind = SHADOW_RAY;
                 
-                float3 connect_dir = sample_path[n_vertices - 1].pos - pos;
+                float3 connect_dir = sample_path[0].pos - pos;
                 
                 Ray ray;
                 ray.org.x = pos.x;
