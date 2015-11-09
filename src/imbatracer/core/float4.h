@@ -21,6 +21,21 @@ struct float4 {
 
     float operator [] (int axis) const { return *(&x + axis); }
     float& operator [] (int axis) { return *(&x + axis); }
+    
+    float4& operator += (const float4& a) { 
+        x += a.x; y += a.y; z += a.z; w += a.w;
+        return *this;    
+    }
+    
+    float4& operator *= (float a) { 
+        x *= a; y *= a; z *= a; w *= a;
+        return *this;    
+    }
+    
+    float4& operator *= (const float4& a) { 
+        x *= a.x; y *= a.y; z *= a.z; w *= a.w;
+        return *this;    
+    }
 };
 
 inline float4 operator * (float a, const float4& b) {
@@ -31,8 +46,16 @@ inline float4 operator * (const float4& a, float b) {
     return float4(a.x * b, a.y * b, a.z * b, a.w * b);
 }
 
+inline float4 operator / (const float4& a, float b) {
+    return float4(a.x / b, a.y / b, a.z / b, a.w / b);
+}
+
 inline float4 operator - (const float4& a, const float4& b) {
     return float4(a.x - b.x, a.y - b.y, a.z - b.z, a.w - b.w);
+}
+
+inline float4 operator - (const float4& a) {
+    return float4(-a.x, -a.y, -a.z, -a.w);
 }
 
 inline float4 operator + (const float4& a, const float4& b) {

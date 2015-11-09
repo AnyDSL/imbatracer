@@ -1,13 +1,16 @@
+#ifndef IMBA_RENDER_WINDOW_H
+#define IMBA_RENDER_WINDOW_H
+
 #include <SDL.h>
 #include "../render/render.h"
 
 namespace imba {
 
-    class SDLDevice {
+    class RenderWindow {
         using StateType = PTState;
     public:
-        SDLDevice(int img_width, int img_height, int n_samples, Renderer<StateType>& r);
-        ~SDLDevice(); 
+        RenderWindow(int img_width, int img_height, int n_samples, Renderer<StateType>& r);
+        ~RenderWindow(); 
         
         void render();
         bool handle_events(bool flush);
@@ -27,3 +30,5 @@ namespace imba {
     };
 
 } // namespace imba
+
+#endif

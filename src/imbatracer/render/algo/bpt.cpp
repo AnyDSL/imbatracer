@@ -6,7 +6,9 @@
 #include <cfloat>
 #include <cassert>
 
-void imba::BidirPathTracer::shade_light_rays(RayQueue<BPTState>& ray_in, Image& out, RayQueue<BPTState>& ray_out) {
+namespace imba {
+
+void BidirPathTracer::shade_light_rays(RayQueue<BPTState>& ray_in, Image& out, RayQueue<BPTState>& ray_out) {
     static RNG rng;
 
     int ray_count = ray_in.size(); 
@@ -58,7 +60,7 @@ void imba::BidirPathTracer::shade_light_rays(RayQueue<BPTState>& ray_in, Image& 
     }
 }
 
-void imba::BidirPathTracer::shade_camera_rays(RayQueue<BPTState>& ray_in, Image& out, RayQueue<BPTState>& ray_out) {
+void BidirPathTracer::shade_camera_rays(RayQueue<BPTState>& ray_in, Image& out, RayQueue<BPTState>& ray_out) {
     static RNG rng;
 
     int ray_count = ray_in.size(); 
@@ -108,3 +110,5 @@ void imba::BidirPathTracer::shade_camera_rays(RayQueue<BPTState>& ray_in, Image&
         }
     }
 }
+
+} // namespace imba

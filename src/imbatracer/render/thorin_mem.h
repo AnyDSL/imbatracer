@@ -23,8 +23,7 @@ public:
 		: device_array(thorin::Platform::TRAVERSAL_PLATFORM, thorin::Device(TRAVERSAL_DEVICE), rhs.size()),
 		  host_array(thorin::Platform::HOST, 0, rhs.size())
 	{
-		rhs.shrink_to_fit();
-		thorin_copy(rhs.data(), host_array.data());
+		thorin_copy(rhs.data(), 0, host_array.data(), 0, rhs.size() * sizeof(T));
 	}
 	
 	ThorinArray(ThorinArray&& other) = default;
@@ -35,12 +34,12 @@ public:
 
 	// Uploads the host data to the device.
 	void upload() {
-		thorin::copy(host_array, device_array);
+		thorin::copy(host_array, device_array, size());
 	}
 	
 	// Downloads the data from the device to the host.
 	void download() {
-		thorin::copy(device_array, host_array);
+		thorin::copy(device_array, host_array, size());
 	}
 	
 	T* begin() { return host_array.begin(); }

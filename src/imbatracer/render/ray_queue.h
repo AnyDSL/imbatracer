@@ -14,9 +14,10 @@ namespace imba {
 
 enum RayKind {
     CAMERA_RAY,
+    RANDOM_RAY,
     LIGHT_RAY,
     SHADOW_RAY,
-    RANDOM_RAY
+    NUM_RAY_KINDS
 };
 
 // Base class for storing the current state associated with a ray.

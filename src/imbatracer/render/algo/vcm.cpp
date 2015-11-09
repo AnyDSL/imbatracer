@@ -7,6 +7,10 @@
 #include <cassert>
 #include <random>
 
-void imba::VCMShader::shade(int pass_id, RayQueue& ray_in, Image& out, RayQueue& ray_out) {
+namespace imba {
+
+void VCMShader::shade(int pass_id, RayQueue& ray_in, Image& out, RayQueue& ray_out) {
    
 }
+
+} // namespace imba

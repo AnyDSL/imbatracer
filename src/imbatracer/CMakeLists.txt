@@ -29,8 +29,8 @@ add_library(imba_render
 
 add_executable(imbatracer
                frontend/main.cpp
-               frontend/SDL_device.h
-               frontend/SDL_device.cpp
+               frontend/render_window.h
+               frontend/render_window.cpp
                frontend/test_scene.h
                frontend/obj_loader.h
                frontend/obj_loader.cpp

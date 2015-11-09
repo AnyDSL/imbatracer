@@ -7,13 +7,16 @@
 #include <cassert>
 #include <random>
 
-void imba::PathTracer::shade(int pass_id, RayQueue<PTState>& ray_in, Image& out, RayQueue<PTState>& ray_out) {
+namespace imba {
+
+void PathTracer::shade(int pass_id, RayQueue<PTState>& ray_in, Image& out, RayQueue<PTState>& ray_out) {
     static RNG rng;
 
     int ray_count = ray_in.size(); 
-    const PTState* shader_state = ray_in.states();
-    const Hit* hits = ray_in.hits(); 
-    const Ray* rays = ray_in.rays();
+    PTState* shader_state = ray_in.states();
+    Hit* hits = ray_in.hits(); 
+    Ray* rays = ray_in.rays();
+    
     for (int i = 0; i < ray_count; ++i) {        
         switch (shader_state[i].kind) {
         case CAMERA_RAY:
@@ -139,3 +142,5 @@ void imba::PathTracer::shade(int pass_id, RayQueue<PTState>& ray_in, Image& out,
         }
     }
 }
+
+} // namespace imba

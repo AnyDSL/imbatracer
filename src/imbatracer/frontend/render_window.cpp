@@ -6,9 +6,11 @@
 #include <unistd.h>
 #include <png.h>
 
-#include "SDL_device.h"
+#include "render_window.h"
 
-imba::SDLDevice::SDLDevice(int img_width, int img_height, int n_samples, Renderer<StateType>& r) 
+namespace imba {
+
+RenderWindow::RenderWindow(int img_width, int img_height, int n_samples, Renderer<StateType>& r) 
     : image_width_(img_width), image_height_(img_height), render_(r), n_samples_(n_samples), img_(img_width, img_height), n_sample_frames_(0)
 {
     SDL_Init(SDL_INIT_VIDEO);
@@ -25,11 +27,11 @@ imba::SDLDevice::SDLDevice(int img_width, int img_height, int n_samples, Rendere
     }   
 }
 
-imba::SDLDevice::~SDLDevice() {
+RenderWindow::~RenderWindow() {
     SDL_Quit();
 }
 
-void imba::SDLDevice::render() {
+void RenderWindow::render() {
     SDL_WM_SetCaption("Imbatracer", NULL);
 
     SDL_EnableKeyRepeat(SDL_DEFAULT_REPEAT_DELAY, SDL_DEFAULT_REPEAT_INTERVAL);
@@ -80,7 +82,7 @@ inline float clamp(float x, float a, float b)
     return x < a ? a : (x > b ? b : x);
 }
 
-void imba::SDLDevice::render_surface() {
+void RenderWindow::render_surface() {
     Image& tex = render_(n_samples_);
     n_sample_frames_++;
         
@@ -108,7 +110,7 @@ void imba::SDLDevice::render_surface() {
     SDL_UnlockSurface(screen_);
 }
 
-bool imba::SDLDevice::handle_events(bool flush) {
+bool RenderWindow::handle_events(bool flush) {
     SDL_Event event;
 
     while (SDL_PollEvent(&event)) {
@@ -140,7 +142,7 @@ void flush_stream(png_structp png_ptr) {
     // Nothing to do
 }
 
-bool imba::SDLDevice::save_image_file(const char* file_name) {
+bool RenderWindow::save_image_file(const char* file_name) {
     std::ofstream file(file_name, std::ofstream::binary);
     if (!file)
         return false;
@@ -190,3 +192,5 @@ bool imba::SDLDevice::save_image_file(const char* file_name) {
     
     return true;
 }
+
+} // namespace imba

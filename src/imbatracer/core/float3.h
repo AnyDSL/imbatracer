@@ -16,6 +16,21 @@ struct float3 {
 
     float operator [] (int axis) const { return *(&x + axis); }
     float& operator [] (int axis) { return *(&x + axis); }
+    
+    float3& operator += (const float3& a) { 
+        x += a.x; y += a.y; z += a.z;
+        return *this;    
+    }
+    
+    float3& operator *= (float a) { 
+        x *= a; y *= a; z *= a;
+        return *this;    
+    }
+    
+    float3& operator *= (const float3& a) { 
+        x *= a.x; y *= a.y; z *= a.z;
+        return *this;    
+    }
 };
 
 inline float3 operator * (float a, const float3& b) {
@@ -26,8 +41,16 @@ inline float3 operator * (const float3& a, float b) {
     return float3(a.x * b, a.y * b, a.z * b);
 }
 
+inline float3 operator / (const float3& a, float b) {
+    return float3(a.x / b, a.y / b, a.z / b);
+}
+
 inline float3 operator - (const float3& a, const float3& b) {
     return float3(a.x - b.x, a.y - b.y, a.z - b.z);
+}
+
+inline float3 operator - (const float3& a) {
+    return float3(-a.x, -a.y, -a.z);
 }
 
 inline float3 operator + (const float3& a, const float3& b) {
