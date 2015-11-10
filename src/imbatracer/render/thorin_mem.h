@@ -6,6 +6,7 @@
 
 #define TRAVERSAL_DEVICE 	0
 #define TRAVERSAL_PLATFORM 	CUDA
+#define TRAVERSAL_ROUTINE   intersect_gpu
 
 namespace imba {
 	
@@ -19,13 +20,12 @@ public:
 		  host_array(size) 
 	{}
 	
-	ThorinArray(ThorinVector<T>& rhs)
+	ThorinArray(const ThorinVector<T>& rhs)
 		: device_array(thorin::Platform::TRAVERSAL_PLATFORM, thorin::Device(TRAVERSAL_DEVICE), rhs.size()),
-		  host_array(thorin::Platform::HOST, 0, rhs.size())
+		  host_array(rhs.size())
 	{
-		rhs.shrink_to_fit();
-		thorin_copy(rhs.data(), host_array.data());
-	}
+        std::copy(rhs.begin(), rhs.end(), host_array.begin());
+    }
 	
 	ThorinArray(ThorinArray&& other) = default;
 	ThorinArray& operator = (ThorinArray&& other) = default;
