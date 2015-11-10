@@ -33,14 +33,17 @@ public:
 	ThorinArray(const ThorinArray&) = delete;
 	ThorinArray& operator = (const ThorinArray&) = delete;
 
+    void upload() { upload(size()); }
+    void download() { download(size()); }
+
 	// Uploads the host data to the device.
-	void upload() {
-		thorin::copy(host_array, device_array);
+	void upload(int count) {
+		thorin::copy(host_array, device_array, count);
 	}
 	
 	// Downloads the data from the device to the host.
-	void download() {
-		thorin::copy(device_array, host_array);
+	void download(int count) {
+		thorin::copy(device_array, host_array, count);
 	}
 	
 	T* begin() { return host_array.begin(); }

@@ -100,9 +100,9 @@ public:
         if (count % 64 != 0) {
             count = count + 64 - count % 64;        
         }
-        ray_buffer_.upload();
+        ray_buffer_.upload(size());
         TRAVERSAL_ROUTINE(nodes_->device_data(), tris_->device_data(), ray_buffer_.device_data(), hit_buffer_.device_data(), count);
-        hit_buffer_.download();
+        hit_buffer_.download(size());
     }
     
 private:
