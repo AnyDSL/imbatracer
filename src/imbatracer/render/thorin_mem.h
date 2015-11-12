@@ -6,6 +6,7 @@
 
 #define TRAVERSAL_DEVICE 	0
 #define TRAVERSAL_PLATFORM 	CUDA
+#define TRAVERSAL_ROUTINE   intersect_gpu
 
 namespace imba {
 	
@@ -19,12 +20,12 @@ public:
 		  host_array(size) 
 	{}
 	
-	ThorinArray(ThorinVector<T>& rhs)
+	ThorinArray(const ThorinVector<T>& rhs)
 		: device_array(thorin::Platform::TRAVERSAL_PLATFORM, thorin::Device(TRAVERSAL_DEVICE), rhs.size()),
-		  host_array(thorin::Platform::HOST, 0, rhs.size())
+		  host_array(rhs.size())
 	{
-		thorin_copy(rhs.data(), 0, host_array.data(), 0, rhs.size() * sizeof(T));
-	}
+        std::copy(rhs.begin(), rhs.end(), host_array.begin());
+    }
 	
 	ThorinArray(ThorinArray&& other) = default;
 	ThorinArray& operator = (ThorinArray&& other) = default;
@@ -32,14 +33,17 @@ public:
 	ThorinArray(const ThorinArray&) = delete;
 	ThorinArray& operator = (const ThorinArray&) = delete;
 
+    void upload() { upload(size()); }
+    void download() { download(size()); }
+
 	// Uploads the host data to the device.
-	void upload() {
-		thorin::copy(host_array, device_array, size());
+	void upload(int count) {
+		thorin::copy(host_array, device_array, count);
 	}
 	
 	// Downloads the data from the device to the host.
-	void download() {
-		thorin::copy(device_array, host_array, size());
+	void download(int count) {
+		thorin::copy(device_array, host_array, count);
 	}
 	
 	T* begin() { return host_array.begin(); }

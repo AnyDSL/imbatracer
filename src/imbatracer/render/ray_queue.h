@@ -95,9 +95,15 @@ public:
     // Traverses the acceleration structure with the rays currently inside the queue.
     void traverse() {
         //printf("traverse: %d \n", size());
-        ray_buffer_.upload();
-        traverse_accel(nodes_->device_data(), ray_buffer_.device_data(), tris_->device_data(), hit_buffer_.device_data(), size());
-        hit_buffer_.download();
+        assert(size() != 0);
+
+        int count = size();
+        if (count % 64 != 0) {
+            count = count + 64 - count % 64;        
+        }
+        ray_buffer_.upload(size());
+        TRAVERSAL_ROUTINE(nodes_->device_data(), tris_->device_data(), ray_buffer_.device_data(), hit_buffer_.device_data(), count);
+        hit_buffer_.download(size());
     }
     
 private:
