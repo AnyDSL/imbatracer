@@ -61,8 +61,7 @@ public:
 	
 private:
 	thorin::Array<T> device_array;
-	thorin::Array<T> host_array;
-	
+	thorin::Array<T> host_array;	
 };
 
 }

@@ -23,6 +23,8 @@ void BidirPathTracer::shade_light_rays(RayQueue<BPTState>& ray_in, Image& out, R
             float3 normal = normals_[hits[i].tri_id];
             auto& mat = materials_[material_ids_[hits[i].tri_id]];
         
+            SurfaceInfo surf_info { normal, hits[i].u, hits[i].v };
+            
             // Create a new vertex for this light path.
             int vertex_id = (light_path_lengths_[states[i].pixel_id][states[i].sample_id])++;
             
@@ -35,7 +37,7 @@ void BidirPathTracer::shade_light_rays(RayQueue<BPTState>& ray_in, Image& out, R
             if (vertex_id < max_light_path_length - 1) {
                 float pdf;
                 float3 sample_dir;
-                float4 brdf = sample_material(mat.get(), ray_dir, normal, rng.random01(), rng.random01(), sample_dir, pdf);
+                float4 brdf = sample_material(mat.get(), ray_dir, surf_info, rng.random01(), rng.random01(), sample_dir, pdf);
                 float cos_term = fabsf(dot(normal, sample_dir));
                 
                 BPTState s = states[i];

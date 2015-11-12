@@ -4,6 +4,8 @@
 #include "thorin_mem.h"
 #include "../core/float4.h"
 
+#include <vector>
+
 namespace imba {
 
 class Image {
@@ -13,12 +15,13 @@ public:
         : pixels_(w * h * 4), width_(w), height_(h)
     {}
 
-    const float* pixels() const { return pixels_.host_data(); }
-    float* pixels() { return pixels_.host_data(); }
-    
-    float* device_pixels() { return pixels_.device_data(); }
+    const float* pixels() const { return pixels_.data(); }
+    float* pixels() { return pixels_.data(); }
+    float* row(int i) { return pixels() + i * width_; }
     
     const float4 get(int i) const { return float4(pixels_[i * 4], pixels_[i * 4 + 1], pixels_[i * 4 + 2], pixels_[i * 4 + 3]); }
+    const float4 get(int col, int row) const { return get(row * width_ + col); }
+    
     void set(int i, const float4& value) {
         pixels_[i * 4]     = value.x;
         pixels_[i * 4 + 1] = value.y;
@@ -32,11 +35,11 @@ public:
     void resize(int width, int height) {
         width_ = width;
         height_ = height;
-        pixels_ = ThorinArray<float>(width_ * height_ * 4);
+        pixels_.resize(width_ * height_ * 4);
     }
 
 private:
-    ThorinArray<float> pixels_;
+    std::vector<float> pixels_;
     int width_, height_;
 };
 

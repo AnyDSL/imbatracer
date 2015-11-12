@@ -4,6 +4,7 @@
 #include "../core/mesh.h"
 #include "../render/scene.h"
 #include "../render/light.h"
+#include "../render/texture_sampler.h"
 #include "logger.h"
 #include "path.h"
 
@@ -20,7 +21,8 @@ public:
     {}
 
     bool check_format(const Path& path);
-    bool load_file(const Path& path, Mesh& scene, MaterialContainer& scene_materials, std::vector<int>& triangle_material_ids, LightContainer& lights, Logger* logger = nullptr);
+    bool load_file(const Path& path, Mesh& scene, MaterialContainer& scene_materials, TextureContainer& textures, 
+                   std::vector<int>& triangle_material_ids, LightContainer& lights, Logger* logger = nullptr);
 
 private:
     struct Index {

@@ -30,6 +30,8 @@ void PathTracer::shade(int pass_id, RayQueue<PTState>& ray_in, Image& out, RayQu
                 float3 normal = normals_[hits[i].tri_id];
                 pos = pos + (hits[i].tmax) * out_dir;
                 
+                SurfaceInfo surf_info { normal, hits[i].u, hits[i].v };
+                
                 if (mat->kind == Material::emissive) {
                     // If an emissive object is hit after a specular bounce or as the first intersection along the path, add its contribution. 
                     // otherwise the light has to be ignored because it was already sampled as direct illumination.
@@ -81,7 +83,7 @@ void PathTracer::shade(int pass_id, RayQueue<PTState>& ray_in, Image& out, RayQu
                     
                     // Compute the values stored in the ray state.
                     float cos_term = fabsf(dot(sample.dir, normal));
-                    float4 brdf = evaluate_material(mat.get(), out_dir, normal, sample.dir);
+                    float4 brdf = evaluate_material(mat.get(), out_dir, surf_info, sample.dir);
                     
                     // Update the current state of this path.
                     PTState s = shader_state[i];
@@ -99,7 +101,7 @@ void PathTracer::shade(int pass_id, RayQueue<PTState>& ray_in, Image& out, RayQu
                     // sample brdf
                     float pdf;
                     float3 sample_dir;
-                    float4 brdf = sample_material(mat.get(), out_dir, normal, rng.random01(), rng.random01(), sample_dir, pdf);
+                    float4 brdf = sample_material(mat.get(), out_dir, surf_info, rng.random01(), rng.random01(), sample_dir, pdf);
                     
                     float cos_term = fabsf(dot(normal, sample_dir));
                     

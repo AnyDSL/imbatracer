@@ -47,12 +47,13 @@ namespace imba {
         return ct + (left_bb.half_area() * left_cost + right_bb.half_area() * right_cost) / parent_bb.half_area();
     }*/
     
-    void buildTestScene(ThorinVector<Node>& nodes, ThorinVector<Vec4>& tris, Mesh& m, MaterialContainer& materials, std::vector<int>& material_ids, LightContainer& lights) {
+    void buildTestScene(ThorinVector<Node>& nodes, ThorinVector<Vec4>& tris, Mesh& m, TextureContainer& textures, MaterialContainer& materials,
+                        std::vector<int>& material_ids, LightContainer& lights) {
         ObjLoader l;
         
-        //l.load_file(Path("../test/sponza_light_large.obj"), m, materials, material_ids, lights);
-        //l.load_file(Path("../test/sibenik.obj"), m, materials, material_ids, lights);
-        l.load_file(Path("../test/CornellBox-Original.obj"), m, materials, material_ids, lights);
+        l.load_file(Path("../test/sponza_light_large.obj"), m, materials, textures, material_ids, lights);
+        //l.load_file(Path("../test/sibenik.obj"), m, materials, textures, material_ids, lights);
+        //l.load_file(Path("../test/CornellBox-Original.obj"), m, materials, textures, material_ids, lights);
         
         std::unique_ptr<Adapter> adapter = new_adapter(nodes, tris);
         adapter->build_accel(m);

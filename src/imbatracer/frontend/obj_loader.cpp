@@ -4,6 +4,7 @@
 #include <locale>
 #include <memory>
 #include "obj_loader.h"
+#include "texture_loader.h"
 
 namespace imba {
 
@@ -18,8 +19,11 @@ bool ObjLoader::check_format(const Path& path) {
     return path.extension() == "obj";
 }
 
-bool ObjLoader::load_file(const Path& path, Mesh& scene, MaterialContainer& scene_materials, std::vector<int>& triangle_material_ids, LightContainer& lights, Logger* logger) {
+bool ObjLoader::load_file(const Path& path, Mesh& scene, MaterialContainer& scene_materials, TextureContainer& textures,
+                          std::vector<int>& triangle_material_ids, LightContainer& lights, Logger* logger) {
     ObjFile obj_file;
+    PngLoader png_loader;
+    TgaLoader tga_loader;
 
     // Parse the OBJ file
     {
@@ -89,8 +93,30 @@ bool ObjLoader::load_file(const Path& path, Mesh& scene, MaterialContainer& scen
                 scene_materials.push_back(std::unique_ptr<MirrorMaterial>(new MirrorMaterial()));
             else if (is_emissive) {
                 scene_materials.push_back(std::unique_ptr<EmissiveMaterial>(new EmissiveMaterial(float4(mat.ke.x, mat.ke.y, mat.ke.z, 1.0f))));
-            } else
-                scene_materials.push_back(std::unique_ptr<LambertMaterial>(new LambertMaterial(float4(mat.kd.x, mat.kd.y, mat.kd.z, 1.0f))));
+            } else {
+                LambertMaterial* mtl;
+                if (!mat.map_kd.empty()) {
+                    TextureLoader* ldr = &png_loader;
+                    if (!png_loader.check_format(mat.map_kd)) {
+                        ldr = &tga_loader;
+                        if (!tga_loader.check_format(mat.map_kd))
+                            ldr = nullptr;
+                    }
+                    
+                    if (!ldr) {
+                        mtl = new LambertMaterial(float4(1.0f, 0.0f, 1.0f, 1.0f)); 
+                    } else {
+                        std::unique_ptr<Image> img(new Image);
+                        ldr->load_file(mat.map_kd, *img, logger);
+                        textures.emplace_back(new TextureSampler(std::move(img)));
+                        mtl = new LambertMaterial(textures.back().get());
+                    }
+                } else {
+                    mtl = new LambertMaterial(float4(mat.kd.x, mat.kd.y, mat.kd.z, 1.0f));
+                }
+               
+                scene_materials.push_back(std::unique_ptr<LambertMaterial>(mtl));
+            }
         }
     }
 

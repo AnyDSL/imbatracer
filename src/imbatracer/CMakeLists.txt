@@ -25,7 +25,8 @@ add_library(imba_render
             render/random.h
             render/material.h
             render/scene.h
-            render/thorin_mem.h)
+            render/thorin_mem.h
+            render/texture_sampler.h)
 
 add_executable(imbatracer
                frontend/main.cpp
@@ -35,7 +36,9 @@ add_executable(imbatracer
                frontend/obj_loader.h
                frontend/obj_loader.cpp
                frontend/path.h
-               frontend/logger.h)
+               frontend/logger.h
+               frontend/texture_loader.h
+               frontend/texture_loader.cpp)
 
 target_link_libraries(imbatracer
                       imba_render
