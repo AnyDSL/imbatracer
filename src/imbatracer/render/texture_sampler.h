@@ -16,8 +16,16 @@ public:
 	TextureSampler& operator=(const TextureSampler&) = delete;
 	
 	float4 sample(float u, float v) {
-		int col = clamp(static_cast<int>(u * img_->width()), 0, img_->width() - 1);
-		int row = clamp(static_cast<int>(v * img_->height()), 0, img_->height() - 1);
+		float intpart;
+		u = modff(u, &intpart);
+		v = modff(v, &intpart);
+		if (u < 0.0f) u += 1.0f;
+		if (v < 0.0f) v += 1.0f;
+		
+		int col = u * (img_->width() - 1);
+		int row = v * (img_->height() - 1);
+		
+		//return float4(u, 0.0f, v, 1.0f);
 		
 		return img_->get(col, row);
 	}	

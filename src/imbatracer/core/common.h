@@ -15,7 +15,7 @@ inline float degrees(float x) {
 
 template <typename T>
 inline T clamp(T a, T b, T c) {
-    return (a < b) ? b : (a > c) ? c : a;
+    return (a < b) ? b : ((a > c) ? c : a);
 }
 
 inline int float_as_int(float f) {

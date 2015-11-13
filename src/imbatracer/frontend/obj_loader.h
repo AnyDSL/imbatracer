@@ -22,7 +22,7 @@ public:
 
     bool check_format(const Path& path);
     bool load_file(const Path& path, Mesh& scene, MaterialContainer& scene_materials, TextureContainer& textures, 
-                   std::vector<int>& triangle_material_ids, LightContainer& lights, Logger* logger = nullptr);
+                   std::vector<int>& triangle_material_ids, std::vector<float2>& texcoords, LightContainer& lights, Logger* logger = nullptr);
 
 private:
     struct Index {

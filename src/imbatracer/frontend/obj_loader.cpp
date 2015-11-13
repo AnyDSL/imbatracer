@@ -20,7 +20,7 @@ bool ObjLoader::check_format(const Path& path) {
 }
 
 bool ObjLoader::load_file(const Path& path, Mesh& scene, MaterialContainer& scene_materials, TextureContainer& textures,
-                          std::vector<int>& triangle_material_ids, LightContainer& lights, Logger* logger) {
+                          std::vector<int>& triangle_material_ids, std::vector<float2>& texcoords, LightContainer& lights, Logger* logger) {
     ObjFile obj_file;
     PngLoader png_loader;
     TgaLoader tga_loader;
@@ -191,16 +191,18 @@ bool ObjLoader::load_file(const Path& path, Mesh& scene, MaterialContainer& scen
             scene.vertices()[vert_offset + p.second].z = v.z;
         }
 
-       /* if (has_texcoords) {
+        if (has_texcoords) {
             // Set up mesh texture coordinates
-            mesh->set_texcoord_count(cur_idx);
+            texcoords.resize(cur_idx);
+            scene.set_texcoord_count(cur_idx);
             for (auto& p : mapping) {
                 const Texcoord& t = obj_file.texcoords[p.first.t];
-                mesh->texcoords()[p.second] = Vec2(t.u, t.v);
+                texcoords[p.second] = float2(t.u, t.v);
+                scene.texcoords()[p.second] = float2(t.u, t.v);
             }
         }
 
-        if (has_normals) {
+ /*       if (has_normals) {
             // Set up mesh normals
             mesh->set_normal_count(cur_idx);
             for (auto& p : mapping) {

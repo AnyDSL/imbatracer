@@ -21,7 +21,7 @@ void PathTracer::shade(int pass_id, RayQueue<PTState>& ray_in, Image& out, RayQu
         switch (shader_state[i].kind) {
         case CAMERA_RAY:
         case RANDOM_RAY:
-            if (hits[i].tri_id != -1) { 
+            if (hits[i].tri_id != -1) {             
                 auto& mat = materials_[material_ids_[hits[i].tri_id]];
                        
                 float3 pos = float3(rays[i].org.x, rays[i].org.y, rays[i].org.z);
@@ -30,7 +30,12 @@ void PathTracer::shade(int pass_id, RayQueue<PTState>& ray_in, Image& out, RayQu
                 float3 normal = normals_[hits[i].tri_id];
                 pos = pos + (hits[i].tmax) * out_dir;
                 
-                SurfaceInfo surf_info { normal, hits[i].u, hits[i].v };
+                float u = hits[i].u;
+                float v = hits[i].v;
+                float w = 1.0f - u - v;
+                float2 uv_coords = mesh_.calc_texcoords(hits[i].tri_id, u, v, w);
+                
+                SurfaceInfo surf_info { normal, uv_coords.x, uv_coords.y };
                 
                 if (mat->kind == Material::emissive) {
                     // If an emissive object is hit after a specular bounce or as the first intersection along the path, add its contribution. 

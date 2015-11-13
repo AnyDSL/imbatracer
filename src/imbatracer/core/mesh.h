@@ -25,8 +25,10 @@ public:
 
     const uint32_t* indices() const { return indices_.data(); }
     const float4* vertices() const { return vertices_.data(); }
+    const float2* texcoords() const { return texcoords_.data(); }
     uint32_t* indices() { return indices_.data(); }
     float4* vertices() { return vertices_.data(); }
+    float2* texcoords() { return texcoords_.data(); }
 
     size_t index_count() const { return indices_.size(); }
     void set_index_count(size_t count) { indices_.resize(count); }
@@ -36,6 +38,8 @@ public:
         for (auto attr: attrs_)
             attr.data.resize(attr.stride * count);
     }
+    size_t texcoord_count() const { return texcoords_.size(); }
+    void set_texcoord_count(size_t count) { texcoords_.resize(count); }
 
     void add_attribute(AttributeType type) {
         attrs_.emplace_back(type, vertex_count());
@@ -52,6 +56,18 @@ public:
         return Tri(float3(vertices_[i0].x, vertices_[i0].y, vertices_[i0].z),
                    float3(vertices_[i1].x, vertices_[i1].y, vertices_[i1].z),
                    float3(vertices_[i2].x, vertices_[i2].y, vertices_[i2].z));
+    }
+    
+    float2 calc_texcoords(int tri_id, float u, float v, float w) {
+        int i0 = indices_[tri_id * 3 + 0];
+        int i1 = indices_[tri_id * 3 + 1];
+        int i2 = indices_[tri_id * 3 + 2];
+        
+        float2 uv0 = texcoords_[i0];
+        float2 uv1 = texcoords_[i1];
+        float2 uv2 = texcoords_[i2];
+        
+        return uv0 * w + uv1 * u + uv2 * v;
     }
 
     size_t triangle_count() const {
@@ -87,6 +103,8 @@ private:
     ThorinVector<uint32_t> indices_;
     ThorinVector<float4> vertices_;
     std::vector<Attribute> attrs_;
+    
+    std::vector<float2> texcoords_;
 };
 
 } // namespace imba

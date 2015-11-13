@@ -106,12 +106,12 @@ public:
         s.distance = sqrtf(distsq);
         s.dir = s.dir * (1.0f / s.distance);
         
-        float cos_normal_dir = dot(normal_, -1.0f * s.dir);
+        float cos_normal_dir = dot(-normal_, -1.0f * s.dir);
         
         // directions form the opposite side of the light have zero intensity
         if (cos_normal_dir > 0.0f && cos_normal_dir < 1.0f)
             s.intensity = intensity_ * cos_normal_dir * (area() / distsq);
-        else
+        else 
             s.intensity = float4(0.0f);
             
         return s;

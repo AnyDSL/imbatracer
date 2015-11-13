@@ -17,7 +17,6 @@ newmtl leftWall
   Kd 0.63 0.065 0.05
   Ks 0 0 0
   Ke 0 0 0
-  map_Kd textures/background.tga
 
 
 newmtl rightWall
@@ -38,7 +37,6 @@ newmtl floor
   Kd 0.725 0.71 0.68
   Ks 0 0 0
   Ke 0 0 0
-  map_Kd textures/background.tga
 
 
 newmtl ceiling
@@ -59,6 +57,7 @@ newmtl backWall
   Kd 0.725 0.71 0.68
   Ks 0 0 0
   Ke 0 0 0
+  map_Kd default.png
 
 
 newmtl shortBox

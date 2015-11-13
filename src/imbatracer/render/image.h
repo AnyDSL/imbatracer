@@ -17,7 +17,7 @@ public:
 
     const float* pixels() const { return pixels_.data(); }
     float* pixels() { return pixels_.data(); }
-    float* row(int i) { return pixels() + i * width_; }
+    float* row(int i) { return pixels() + i * width_ * 4; }
     
     const float4 get(int i) const { return float4(pixels_[i * 4], pixels_[i * 4 + 1], pixels_[i * 4 + 2], pixels_[i * 4 + 3]); }
     const float4 get(int col, int row) const { return get(row * width_ + col); }

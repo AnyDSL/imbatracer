@@ -48,12 +48,13 @@ namespace imba {
     }*/
     
     void buildTestScene(ThorinVector<Node>& nodes, ThorinVector<Vec4>& tris, Mesh& m, TextureContainer& textures, MaterialContainer& materials,
-                        std::vector<int>& material_ids, LightContainer& lights) {
+                        std::vector<int>& material_ids, std::vector<float2>& texcoords, LightContainer& lights) {
         ObjLoader l;
         
-        l.load_file(Path("../test/sponza_light_large.obj"), m, materials, textures, material_ids, lights);
-        //l.load_file(Path("../test/sibenik.obj"), m, materials, textures, material_ids, lights);
-        //l.load_file(Path("../test/CornellBox-Original.obj"), m, materials, textures, material_ids, lights);
+        //l.load_file(Path("../test/sponza_light_large.obj"), m, materials, textures, material_ids, texcoords, lights);
+        //l.load_file(Path("../test/sibenik.obj"), m, materials, textures, material_ids, texcoords, lights);
+        //l.load_file(Path("../test/CornellBox-Original.obj"), m, materials, textures, material_ids, texcoords, lights);
+        l.load_file(Path("../test/sponza_curtain.obj"), m, materials, textures, material_ids, texcoords, lights);
         
         std::unique_ptr<Adapter> adapter = new_adapter(nodes, tris);
         adapter->build_accel(m);
@@ -63,5 +64,10 @@ namespace imba {
         
         assert(nodes.size() && "Nodes are empty");
         assert(tris.size() && "No tris");
+        
+        if (lights.size() == 0) {
+            printf("ERROR: There are no lights in the scene.\n");
+            exit(1);
+        }
     }
 } // namespace imba
