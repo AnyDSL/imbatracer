@@ -12,16 +12,16 @@ void render_test_scene() {
     using StateType = imba::PTState;
     using IntegratorType = imba::PathTracer;
     
-    constexpr int width = 512;
-    constexpr int height = 512;
+    constexpr int width = 1024;
+    constexpr int height = 1024;
     constexpr int n_samples = 16;
     
     // sponza
-    //imba::PerspectiveCamera<StateType> cam(width, height, n_samples, float3(-184.0f, 193.f, -4.5f), normalize(float3(-171.081f, 186.426f, -4.96049f) - float3(-184.244f, 193.221f, -4.445f)), float3(0.0f, 1.0f, 0.0f), 60.0f);
+    imba::PerspectiveCamera<StateType> cam(width, height, n_samples, float3(-184.0f, 193.f, -4.5f), normalize(float3(-171.081f, 186.426f, -4.96049f) - float3(-184.244f, 193.221f, -4.445f)), float3(0.0f, 1.0f, 0.0f), 60.0f);
     // cornell
     //imba::PerspectiveCamera<StateType> cam(width, height, n_samples, float3(0.0f, 0.9f, 2.5f), float3(0.0f, 0.0f, -1.0f), float3(0.0f, 1.0f, 0.0f), 60.0f);
-    // curtain
-    imba::PerspectiveCamera<StateType> cam(width, height, n_samples, float3(-5, 0.0f, 0.0f), normalize(float3(1.0f, 0.0f, 0.0f)), float3(0.0f, 1.0f, 0.0f), 60.0f);
+    // sponza parts
+    //imba::PerspectiveCamera<StateType> cam(width, height, n_samples, float3(-5, 0.0f, 0.0f), normalize(float3(1.0f, 0.0f, 0.0f)), float3(0.0f, 1.0f, 0.0f), 60.0f);
 
     imba::ThorinVector<Node> nodes;
     imba::ThorinVector<Vec4> tris;

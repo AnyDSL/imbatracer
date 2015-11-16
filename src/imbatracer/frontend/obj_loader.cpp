@@ -193,12 +193,12 @@ bool ObjLoader::load_file(const Path& path, Mesh& scene, MaterialContainer& scen
 
         if (has_texcoords) {
             // Set up mesh texture coordinates
-            texcoords.resize(cur_idx);
-            scene.set_texcoord_count(cur_idx);
+            texcoords.resize(vert_offset + cur_idx);
+            scene.set_texcoord_count(vert_offset + cur_idx);
             for (auto& p : mapping) {
                 const Texcoord& t = obj_file.texcoords[p.first.t];
-                texcoords[p.second] = float2(t.u, t.v);
-                scene.texcoords()[p.second] = float2(t.u, t.v);
+                texcoords[vert_offset + p.second] = float2(t.u, t.v);
+                scene.texcoords()[vert_offset + p.second] = float2(t.u, t.v);
             }
         }
 
