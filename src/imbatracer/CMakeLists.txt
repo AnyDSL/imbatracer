@@ -18,6 +18,8 @@ add_library(imba_loaders
             loaders/loaders.h
             loaders/load_png.cpp
             loaders/load_tga.cpp
+            loaders/load_obj.h
+            loaders/load_obj.cpp
             loaders/path.h)
 
 add_library(imba_render
@@ -41,9 +43,8 @@ add_executable(imbatracer
                frontend/render_window.h
                frontend/render_window.cpp
                frontend/test_scene.h
-               frontend/obj_loader.h
-               frontend/obj_loader.cpp
-               frontend/logger.h)
+               frontend/build_scene.h
+               frontend/build_scene.cpp)
 
 target_link_libraries(imbatracer
                       imba_render
