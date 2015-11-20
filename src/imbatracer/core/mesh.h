@@ -81,11 +81,11 @@ private:
     static int stride_bytes(AttributeType type) {
         switch (type) {
             case ATTR_FLOAT:    return 4;
-            case ATTR_FLOAT2:   return 4 * 4;
+            case ATTR_FLOAT2:   return 4 * 2;
             case ATTR_FLOAT3:   return 4 * 4;
             case ATTR_FLOAT4:   return 4 * 4;
             case ATTR_INT:      return 4;
-            case ATTR_INT2:     return 4 * 4;
+            case ATTR_INT2:     return 4 * 2;
             case ATTR_INT3:     return 4 * 4;
             case ATTR_INT4:     return 4 * 4;
         }
@@ -94,7 +94,7 @@ private:
     struct Attribute {
         size_t stride;
         AttributeType type;
-        ThorinVector<uint8_t> data;
+        std::vector<uint8_t> data;
 
         Attribute() {}
         Attribute(AttributeType type, size_t count)
@@ -108,8 +108,8 @@ private:
         return *reinterpret_cast<T*>(attr.data.data() + attr.stride * i);
     }
 
-    ThorinVector<uint32_t> indices_;
-    ThorinVector<float4> vertices_;
+    std::vector<uint32_t> indices_;
+    std::vector<float4> vertices_;
     std::vector<Attribute> attrs_;
 };
 

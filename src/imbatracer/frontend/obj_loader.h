@@ -4,8 +4,8 @@
 #include "../render/scene.h"
 #include "../render/light.h"
 #include "../render/texture_sampler.h"
+#include "../loaders/path.h"
 #include "logger.h"
-#include "path.h"
 
 #include <string>
 #include <vector>

@@ -14,8 +14,13 @@ add_library(imba_core
             core/sbvh_builder.h
             core/tri.h)
 
+add_library(imba_loaders
+            loaders/loaders.h
+            loaders/load_png.cpp
+            loaders/load_tga.cpp
+            loaders/path.h)
+
 add_library(imba_render
-            render/image.h
             render/camera.h
             render/render.h
             render/integrators/integrator.h
@@ -38,14 +43,12 @@ add_executable(imbatracer
                frontend/test_scene.h
                frontend/obj_loader.h
                frontend/obj_loader.cpp
-               frontend/path.h
-               frontend/logger.h
-               frontend/texture_loader.h
-               frontend/texture_loader.cpp)
+               frontend/logger.h)
 
 target_link_libraries(imbatracer
                       imba_render
                       imba_core
+                      imba_loaders
                       ${SDL_LIBRARY}
                       ${PNG_LIBRARIES}
                       ${TRAVERSAL_LIBRARY}

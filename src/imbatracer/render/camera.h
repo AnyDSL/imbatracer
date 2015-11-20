@@ -3,8 +3,8 @@
 
 #include "ray_gen.h"
 #include "ray_queue.h"
-#include "../core/float3.h"
 #include "random.h"
+#include "../core/float3.h"
 
 namespace imba {
 
