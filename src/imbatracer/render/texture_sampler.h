@@ -26,8 +26,6 @@ public:
 		int row = v * (img_->height() - 1);
 		row = img_->height() - row;
 		
-		//return float4(u, 0.0f, v, 1.0f);
-		
 		return img_->get(col, row);
 	}	
 	

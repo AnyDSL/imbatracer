@@ -47,18 +47,17 @@ namespace imba {
         return ct + (left_bb.half_area() * left_cost + right_bb.half_area() * right_cost) / parent_bb.half_area();
     }*/
     
-    void buildTestScene(ThorinVector<Node>& nodes, ThorinVector<Vec4>& tris, Mesh& m, TextureContainer& textures, MaterialContainer& materials,
-                        std::vector<int>& material_ids, std::vector<float2>& texcoords, LightContainer& lights) {
+    void buildTestScene(ThorinVector<Node>& nodes, ThorinVector<Vec4>& tris, Scene& scene) {
         ObjLoader l;
         
-        l.load_file(Path("../test/sponza_light_large.obj"), m, materials, textures, material_ids, texcoords, lights);
-        //l.load_file(Path("../test/sibenik.obj"), m, materials, textures, material_ids, texcoords, lights);
-        //l.load_file(Path("../test/CornellBox-Original.obj"), m, materials, textures, material_ids, texcoords, lights);
-        //l.load_file(Path("../test/sponza_curtain.obj"), m, materials, textures, material_ids, texcoords, lights);
-        //l.load_file(Path("../test/sponza_vase_multi.obj"), m, materials, textures, material_ids, texcoords, lights);
+        l.load_file(Path("../test/sponza_light_large.obj"), scene);
+        //l.load_file(Path("../test/sibenik.obj"), scene);
+        //l.load_file(Path("../test/CornellBox-Original.obj"), scene);
+        //l.load_file(Path("../test/sponza_curtain.obj"), scene);
+        //l.load_file(Path("../test/sponza_vase_multi.obj"), scene);
         
         std::unique_ptr<Adapter> adapter = new_adapter(nodes, tris);
-        adapter->build_accel(m);
+        adapter->build_accel(scene.mesh);
 
         //printf("Mesh tri. count : %d\nBVH tri. count : %d\nSAH: %lf\n",
         //    m.triangle_count(), tris.size() / 3, evaluate_sah(0, 1, 1, nodes.data(), tris.data()));
@@ -66,7 +65,7 @@ namespace imba {
         assert(nodes.size() && "Nodes are empty");
         assert(tris.size() && "No tris");
         
-        if (lights.size() == 0) {
+        if (scene.lights.size() == 0) {
             printf("ERROR: There are no lights in the scene.\n");
             exit(1);
         }

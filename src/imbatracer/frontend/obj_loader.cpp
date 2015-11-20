@@ -19,8 +19,7 @@ bool ObjLoader::check_format(const Path& path) {
     return path.extension() == "obj";
 }
 
-bool ObjLoader::load_file(const Path& path, Mesh& scene, MaterialContainer& scene_materials, TextureContainer& textures,
-                          std::vector<int>& triangle_material_ids, std::vector<float2>& texcoords, LightContainer& lights, Logger* logger) {
+bool ObjLoader::load_file(const Path& path, Scene& scene, Logger* logger) {
     ObjFile obj_file;
     PngLoader png_loader;
     TgaLoader tga_loader;
@@ -41,39 +40,23 @@ bool ObjLoader::load_file(const Path& path, Mesh& scene, MaterialContainer& scen
             if (logger) logger->log("invalid material library '", lib, "'");
         }
     }
+    
+    // Add attributes for texture coordinates and material ids
+    scene.mesh.add_attribute(Mesh::ATTR_FLOAT2);
+    scene.mesh.add_attribute(Mesh::ATTR_FLOAT3);
+    scene.mesh.add_attribute(Mesh::ATTR_INT);
 
     // Add a dummy material, for objects that have no material
-    scene_materials.push_back(std::unique_ptr<LambertMaterial>(new LambertMaterial));
+    scene.materials.push_back(std::unique_ptr<LambertMaterial>(new LambertMaterial));
     
     // Add all the other materials
-    /*std::unordered_map<std::string, TextureId> tex_map;
-    auto load_map = [this, &tex_map, &logger, &scene, path] (const std::string& name, bool gs) {
-        TextureId tex_id;
-        if (name.empty()) return tex_id;
-
-        if (tex_map.find(name) == tex_map.end()) {
-            Texture tex;
-            if (load_texture(Path(path.base_name() + "/" + name), tex, logger)) {
-                tex_id = scene.new_texture(std::move(gs ? grayscale(tex) : std::move(tex)));
-                auto tex = scene.texture(tex_id);
-                if (is_pow2(tex->width()) && is_pow2(tex->height())) {
-                    generate_mipmaps(*tex.get());
-                }
-            }
-            tex_map[name] = tex_id;
-        } else {
-            tex_id = tex_map[name];
-        }
-        return tex_id;
-    };*/
-
     for (int i = 1; i < obj_file.materials.size(); i++) {
         auto& mat_name = obj_file.materials[i];
         auto it = materials.find(mat_name);
         if (it == materials.end()) {
             if (logger) logger->log("material not found '", mat_name, "'");
             // Add a dummy material in this case
-            scene_materials.push_back(std::unique_ptr<LambertMaterial>(new LambertMaterial));
+            scene.materials.push_back(std::unique_ptr<LambertMaterial>(new LambertMaterial));
         } else {
             const ObjMaterial& mat = it->second;
 
@@ -90,9 +73,9 @@ bool ObjLoader::load_file(const Path& path, Mesh& scene, MaterialContainer& scen
             bool is_emissive = !mat.map_ke.empty() || (mat.ke.x > 0.0f && mat.ke.y > 0.0f && mat.ke.z > 0.0f);
 
             if (mat.illum == 5)
-                scene_materials.push_back(std::unique_ptr<MirrorMaterial>(new MirrorMaterial()));
+                scene.materials.push_back(std::unique_ptr<MirrorMaterial>(new MirrorMaterial()));
             else if (is_emissive) {
-                scene_materials.push_back(std::unique_ptr<EmissiveMaterial>(new EmissiveMaterial(float4(mat.ke.x, mat.ke.y, mat.ke.z, 1.0f))));
+                scene.materials.push_back(std::unique_ptr<EmissiveMaterial>(new EmissiveMaterial(float4(mat.ke.x, mat.ke.y, mat.ke.z, 1.0f))));
             } else {
                 LambertMaterial* mtl;
                 if (!mat.map_kd.empty()) {
@@ -108,14 +91,14 @@ bool ObjLoader::load_file(const Path& path, Mesh& scene, MaterialContainer& scen
                     } else {
                         std::unique_ptr<Image> img(new Image);
                         ldr->load_file(mat.map_kd, *img, logger);
-                        textures.emplace_back(new TextureSampler(std::move(img)));
-                        mtl = new LambertMaterial(textures.back().get());
+                        scene.textures.emplace_back(new TextureSampler(std::move(img)));
+                        mtl = new LambertMaterial(scene.textures.back().get());
                     }
                 } else {
                     mtl = new LambertMaterial(float4(mat.kd.x, mat.kd.y, mat.kd.z, 1.0f));
                 }
                
-                scene_materials.push_back(std::unique_ptr<LambertMaterial>(mtl));
+                scene.materials.push_back(std::unique_ptr<LambertMaterial>(mtl));
             }
         }
     }
@@ -152,16 +135,16 @@ bool ObjLoader::load_file(const Path& path, Mesh& scene, MaterialContainer& scen
                 for (int i = 1; i < face.index_count - 1; i++) {
                     const int next = mapping[face.indices[i + 1]];
                     triangles.push_back(TriIdx(v0, prev, next));
-                    triangle_material_ids.push_back(face.material);
+                    scene.material_ids.push_back(face.material);
                     
-                    auto mat = scene_materials[face.material].get();
+                    auto mat = scene.materials[face.material].get();
                     if (mat->kind == Material::emissive) {
                         Vertex p0 = obj_file.vertices[face.indices[0].v];
                         Vertex p1 = obj_file.vertices[face.indices[i].v];
                         Vertex p2 = obj_file.vertices[face.indices[i+1].v];
                         
                         // Create a light source for this emissive object.
-                        lights.push_back(std::unique_ptr<TriangleLight>(new TriangleLight(static_cast<EmissiveMaterial*>(mat)->color(), 
+                        scene.lights.push_back(std::unique_ptr<TriangleLight>(new TriangleLight(static_cast<EmissiveMaterial*>(mat)->color(), 
                             float3(p0.x, p0.y, p0.z), float3(p1.x, p1.y, p1.z), float3(p2.x, p2.y, p2.z))));
                     }
                     
@@ -172,62 +155,50 @@ bool ObjLoader::load_file(const Path& path, Mesh& scene, MaterialContainer& scen
 
         if (triangles.size() == 0) continue;
 
-        // Create a mesh for this object        
-        int vert_offset = scene.vertex_count();
-        int offset = scene.index_count();
-        scene.set_index_count(offset + triangles.size() * 3);
+        // Create vertices and indices for this object        
+        int vert_offset = scene.mesh.vertex_count();
+        int offset = scene.mesh.index_count();
+        scene.mesh.set_index_count(offset + triangles.size() * 3);
+        scene.mesh.set_vertex_count(vert_offset + cur_idx);
+        
         int i = 0;
         for (TriIdx t : triangles) {
-            scene.indices()[offset + (i++)] = t.v0 + vert_offset;
-            scene.indices()[offset + (i++)] = t.v1 + vert_offset;
-            scene.indices()[offset + (i++)] = t.v2 + vert_offset;
+            scene.mesh.indices()[offset + (i++)] = t.v0 + vert_offset;
+            scene.mesh.indices()[offset + (i++)] = t.v1 + vert_offset;
+            scene.mesh.indices()[offset + (i++)] = t.v2 + vert_offset;
         }
 
-        scene.set_vertex_count(vert_offset + cur_idx);
         for (auto& p : mapping) {
             const Vertex& v = obj_file.vertices[p.first.v];
-            scene.vertices()[vert_offset + p.second].x = v.x;
-            scene.vertices()[vert_offset + p.second].y = v.y;
-            scene.vertices()[vert_offset + p.second].z = v.z;
+            scene.mesh.vertices()[vert_offset + p.second].x = v.x;
+            scene.mesh.vertices()[vert_offset + p.second].y = v.y;
+            scene.mesh.vertices()[vert_offset + p.second].z = v.z;
         }
 
         if (has_texcoords) {
             // Set up mesh texture coordinates
-            texcoords.resize(vert_offset + cur_idx);
-            scene.set_texcoord_count(vert_offset + cur_idx);
             for (auto& p : mapping) {
                 const Texcoord& t = obj_file.texcoords[p.first.t];
-                texcoords[vert_offset + p.second] = float2(t.u, t.v);
-                scene.texcoords()[vert_offset + p.second] = float2(t.u, t.v);
+                scene.mesh.get_attribute_as<float2>(MeshAttributes::texcoords, vert_offset + p.second) = float2(t.u, t.v);
             }
         }
 
- /*       if (has_normals) {
+        if (has_normals) {
             // Set up mesh normals
-            mesh->set_normal_count(cur_idx);
             for (auto& p : mapping) {
                 const Normal& n = obj_file.normals[p.first.n];
-                mesh->normals()[p.second] = float3(n.x, n.y, n.z);
+                scene.mesh.get_attribute_as<float3>(MeshAttributes::normals, vert_offset + p.second) = float3(n.x, n.y, n.z);
             }
         } else {
             // Recompute normals
             if (logger) logger->log("Recomputing normals...");
-            mesh->compute_normals(true);
-        }*/
-/*
+            scene.mesh.compute_normals(true, MeshAttributes::normals);
+        }
+
         if (logger) {
-            logger->log("mesh with ", mesh->vertex_count(), " vertices, ",
-                                      mesh->triangle_count(), " triangles");
+            logger->log("mesh with ", scene.mesh.vertex_count(), " vertices, ",
+                                      scene.mesh.index_count() / 3, " triangles");
         }
-*/
-        /*for (int z = 0; z < 50; z++) {
-            for (int y = 0; y < 50; y++) {
-                for (int x = 0; x < 50; x++) {
-                    scene.new_instance(mesh_id, imba::Mat4::translation(imba::float3(-1250 + x * 50, -1250 + y * 50, -1250 + z * 50)));
-                }
-            }
-        }
-        scene.new_instance(mesh_id);*/
     }
 
     return true;

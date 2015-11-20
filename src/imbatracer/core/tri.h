@@ -14,6 +14,9 @@ struct Tri {
         : v0(v0), v1(v1), v2(v2)
     {}
 
+    float3& operator[] (int i) { return i == 0 ? v0 : (i == 1 ? v1 : v2); }
+    const float3& operator[] (int i) const { return i == 0 ? v0 : (i == 1 ? v1 : v2); }
+
     float area() const { return length(cross(v1 - v0, v2 - v0)) / 2; }
 
     /// Computes the triangle bounding box.

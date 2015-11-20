@@ -10,6 +10,7 @@ add_library(imba_core
             #core/cpu_adapter.cpp
             core/mem_pool.h
             core/mesh.h
+            core/mesh.cpp
             core/sbvh_builder.h
             core/tri.h)
 
@@ -17,10 +18,12 @@ add_library(imba_render
             render/image.h
             render/camera.h
             render/render.h
-            render/integrator.h
-            render/algo/pt.cpp
-            render/algo/bpt.cpp
-            #render/algo/vcm.cpp
+            render/integrators/integrator.h
+            render/integrators/pt.cpp
+            #render/integrators/bpt.cpp
+            render/integrators/pt.h
+            render/integrators/bpt.h
+            #render/integrators/vcm.cpp
             render/ray_queue.h
             render/random.h
             render/material.h

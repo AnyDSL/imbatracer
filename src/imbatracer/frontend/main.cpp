@@ -12,8 +12,8 @@ void render_test_scene() {
     using StateType = imba::PTState;
     using IntegratorType = imba::PathTracer;
     
-    constexpr int width = 1024;
-    constexpr int height = 1024;
+    constexpr int width = 512;
+    constexpr int height = 512;
     constexpr int n_samples = 16;
     
     // sponza
@@ -25,26 +25,14 @@ void render_test_scene() {
 
     imba::ThorinVector<Node> nodes;
     imba::ThorinVector<Vec4> tris;
-    imba::Mesh mesh;
-    imba::MaterialContainer materials;
-    imba::TextureContainer textures;
-    std::vector<int> material_ids;
-    imba::LightContainer lights;
-    std::vector<float2> texcoords;
-    imba::buildTestScene(nodes, tris, mesh, textures, materials, material_ids, texcoords, lights);
-    
-    std::vector<float3> normals;
-    normals.reserve(mesh.triangle_count());
-    for (int i = 0; i < mesh.triangle_count(); ++i) {
-        imba::Tri t = mesh.triangle(i);
-        float3 normal = normalize(cross(t.v1 - t.v0, t.v2 - t.v0));
-        normals.push_back(normal);
-    }
+    imba::Scene scene;
+    scene.camera = &cam;
+    imba::buildTestScene(nodes, tris, scene);
     
     imba::ThorinArray<Node> node_array(nodes);
     imba::ThorinArray<Vec4> tri_array(tris);
     
-    IntegratorType integrator(cam, lights, normals, materials, material_ids, texcoords, mesh, width, height, n_samples);
+    IntegratorType integrator(scene);
     imba::Renderer<StateType> render(node_array, tri_array, integrator, width, height);
     
     imba::RenderWindow wnd(width, height, n_samples, render);

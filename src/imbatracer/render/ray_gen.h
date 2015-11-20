@@ -7,9 +7,12 @@
 
 namespace imba {
 
-// base class for all classes that generate rays per pixel (camera, lights)
-template <typename StateType>
-class PixelRayGen {
+struct RayGen {  
+};
+
+/// Base class for all classes that generate rays per pixel (camera, lights)
+template<typename StateType>
+class PixelRayGen : public RayGen{
 public:
     PixelRayGen(int w, int h, int n, RayKind kind) : width_(w), height_(h), n_samples_(n), kind_(kind) { }
 
@@ -18,8 +21,6 @@ public:
     int num_samples() { return n_samples_; }
 
     void set_target_count(int count) {
-        pixels_.resize(count);
-        rays_.resize(count);
         target_count_ = count;
     }
     
@@ -51,29 +52,29 @@ public:
         
         static RNG rng;      
         for (int i = next_pixel_; i < next_pixel_ + count; ++i) {
+            // Compute coordinates, id etc.
             int pixel_idx = i % (width_ * height_);
             int sample_idx = i / (width_ * height_);
-            
-            auto& state = pixels_[i - next_pixel_];
-            state.pixel_id = pixel_idx;
-            state.sample_id = sample_idx;
-            state.kind = kind_;
-            
             int y = pixel_idx / width_;
             int x = pixel_idx % width_;
             
-            sample_pixel(x, y, rng, rays_[i - next_pixel_], state);
+            // Create the ray and its state.
+            StateType state;
+            ::Ray ray;
+            
+            state.pixel_id = pixel_idx;
+            state.sample_id = sample_idx;
+            state.kind = kind_;
+            sample_pixel(x, y, rng, ray, state);
+            
+            out.push(ray, state);
         }
         
         // store which pixel has to be sampled next
         next_pixel_ = last_pixel;
-        out.push(rays_.begin(), rays_.begin() + count, pixels_.begin(), pixels_.begin() + count);
     }
     
-protected:
-    std::vector<::Ray> rays_;
-    std::vector<StateType> pixels_;
-    
+protected:    
     int next_pixel_;
     int generated_pixels_;
     int target_count_;

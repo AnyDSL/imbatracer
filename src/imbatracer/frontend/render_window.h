@@ -3,6 +3,7 @@
 
 #include <SDL.h>
 #include "../render/render.h"
+#include "../render/integrators/pt.h"
 
 namespace imba {
 

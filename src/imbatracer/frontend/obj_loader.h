@@ -1,7 +1,6 @@
 #ifndef IMBA_OBJ_LOADER_HPP
 #define IMBA_OBJ_LOADER_HPP
 
-#include "../core/mesh.h"
 #include "../render/scene.h"
 #include "../render/light.h"
 #include "../render/texture_sampler.h"
@@ -21,8 +20,7 @@ public:
     {}
 
     bool check_format(const Path& path);
-    bool load_file(const Path& path, Mesh& scene, MaterialContainer& scene_materials, TextureContainer& textures, 
-                   std::vector<int>& triangle_material_ids, std::vector<float2>& texcoords, LightContainer& lights, Logger* logger = nullptr);
+    bool load_file(const Path& path, Scene& scene, Logger* logger = nullptr);
 
 private:
     struct Index {

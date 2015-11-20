@@ -3,7 +3,7 @@
 
 #include "image.h"
 #include "camera.h"
-#include "integrator.h"
+#include "integrators/integrator.h"
 
 //#define RAY_STATS
 
