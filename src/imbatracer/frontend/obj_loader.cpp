@@ -103,7 +103,7 @@ bool ObjLoader::load_file(const Path& path, Scene& scene, Logger* logger) {
                     if (sampler_id < 0) {
                         mtl = new LambertMaterial(float4(1.0f, 0.0f, 1.0f, 1.0f)); 
                     } else {
-                        mtl = new LambertMaterial(textures[sampler_id].get());
+                        mtl = new LambertMaterial(scene.textures[sampler_id].get());
                     }
                 } else {
                     mtl = new LambertMaterial(float4(mat.kd.x, mat.kd.y, mat.kd.z, 1.0f));

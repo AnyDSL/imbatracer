@@ -27,8 +27,8 @@ void Mesh::compute_normals(bool smooth, int normal_attr) {
 		}
 	} else {
 		// Allocate memory for the new vertex data, index data and other attributes.
-		ThorinVector<uint32_t> new_indices(triangle_count() * 3);
-		ThorinVector<float4> new_vertices(triangle_count() * 3);
+		std::vector<uint32_t> new_indices(triangle_count() * 3);
+		std::vector<float4> new_vertices(triangle_count() * 3);
 		std::vector<Attribute> new_attrs(attribute_count());
 		
 		for (int i = 0; i < attribute_count(); ++i) {

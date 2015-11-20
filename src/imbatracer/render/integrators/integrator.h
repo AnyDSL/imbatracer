@@ -3,7 +3,7 @@
 
 #include "../ray_queue.h"
 #include "../camera.h"
-#include "../image.h"
+#include "../../core/image.h"
 #include "../light.h"
 #include "../random.h"
 #include "../scene.h"

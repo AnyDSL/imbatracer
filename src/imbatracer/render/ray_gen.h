@@ -14,7 +14,7 @@ struct RayGen {
 template<typename StateType>
 class PixelRayGen : public RayGen{
 public:
-    PixelRayGen(int w, int h, int n, RayKind kind) : width_(w), height_(h), n_samples_(n), kind_(kind) { }
+    PixelRayGen(int w, int h, int n) : width_(w), height_(h), n_samples_(n) { }
 
     int width() { return width_; }
     int height() { return height_; }
@@ -64,7 +64,6 @@ public:
             
             state.pixel_id = pixel_idx;
             state.sample_id = sample_idx;
-            state.kind = kind_;
             sample_pixel(x, y, rng, ray, state);
             
             out.push(ray, state);
@@ -82,7 +81,6 @@ protected:
     int width_;
     int height_;
     int n_samples_;
-    RayKind kind_;
     
     virtual void sample_pixel(int x, int y, RNG& rng, ::Ray& ray_out, StateType& state_out) = 0;
 };

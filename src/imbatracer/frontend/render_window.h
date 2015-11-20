@@ -10,7 +10,7 @@ namespace imba {
     class RenderWindow {
         using StateType = PTState;
     public:
-        RenderWindow(int img_width, int img_height, int n_samples, Renderer<StateType>& r);
+        RenderWindow(int img_width, int img_height, int n_samples, Integrator& r);
         ~RenderWindow(); 
         
         void render();
@@ -22,7 +22,7 @@ namespace imba {
         int image_height_;
         Image img_;
         SDL_Surface* screen_;
-        Renderer<StateType>& render_;
+        Integrator& render_;
         
         int n_samples_;
         int n_sample_frames_;

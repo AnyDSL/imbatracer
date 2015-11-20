@@ -47,14 +47,17 @@ namespace imba {
         return ct + (left_bb.half_area() * left_cost + right_bb.half_area() * right_cost) / parent_bb.half_area();
     }*/
     
-    void buildTestScene(ThorinVector<Node>& nodes, ThorinVector<Vec4>& tris, Scene& scene) {
+    void buildTestScene(Scene& scene) {
         ObjLoader l;
         
-        l.load_file(Path("../test/sponza_light_large.obj"), scene);
+        //l.load_file(Path("../test/sponza_light_large.obj"), scene);
         //l.load_file(Path("../test/sibenik.obj"), scene);
-        //l.load_file(Path("../test/CornellBox-Original.obj"), scene);
+        l.load_file(Path("../test/CornellBox-Original.obj"), scene);
         //l.load_file(Path("../test/sponza_curtain.obj"), scene);
         //l.load_file(Path("../test/sponza_vase_multi.obj"), scene);
+        
+        ThorinVector<Node> nodes;
+        ThorinVector<Vec4> tris;
         
         std::unique_ptr<Adapter> adapter = new_adapter(nodes, tris);
         adapter->build_accel(scene.mesh);
@@ -69,5 +72,8 @@ namespace imba {
             printf("ERROR: There are no lights in the scene.\n");
             exit(1);
         }
+        
+        scene.traversal_data.nodes = nodes;
+        scene.traversal_data.tris = tris;
     }
 } // namespace imba

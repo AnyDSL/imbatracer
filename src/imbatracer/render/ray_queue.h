@@ -34,6 +34,29 @@ public:
         : ray_buffer_(capacity), hit_buffer_(capacity), state_buffer_(capacity), last_(-1), traversal_data_(traversal_data)
     {
     }
+    
+    RayQueue(const RayQueue<StateType>&) = delete;
+    RayQueue& operator= (const RayQueue<StateType>&) = delete;
+    
+    RayQueue(RayQueue<StateType>&& rhs)
+        : traversal_data_(rhs.traversal_data_),
+          ray_buffer_(std::move(rhs.ray_buffer_)),
+          hit_buffer_(std::move(rhs.hit_buffer_)),
+          state_buffer_(std::move(rhs.state_buffer_)),
+          last_(rhs.last_.load())
+    {
+    }
+    
+    RayQueue& operator= (RayQueue<StateType>&& rhs) {
+        traversal_data_ = rhs.traversal_data_;
+        ray_buffer_ = std::move(rhs.ray_buffer_);
+        hit_buffer_ = std::move(rhs.hit_buffer_);
+        state_buffer_ = std::move(rhs.state_buffer_);
+        last_ = rhs.last_.load();
+        
+        return *this;
+    }
+    
     /*
     void resize(int capacity, ThorinArray<::Node>* nodes, ThorinArray<Vec4>* tris) {
         assert(nodes && tris && "No acceleration structure data passed to the RayQueue");
@@ -99,7 +122,7 @@ public:
             count = count + 64 - count % 64;        
         }
         ray_buffer_.upload(size());
-        TRAVERSAL_ROUTINE(nodes_->device_data(), tris_->device_data(), ray_buffer_.device_data(), hit_buffer_.device_data(), count);
+        TRAVERSAL_ROUTINE(traversal_data_.nodes.device_data(), traversal_data_.tris.device_data(), ray_buffer_.device_data(), hit_buffer_.device_data(), count);
         hit_buffer_.download(size());
     }
     
