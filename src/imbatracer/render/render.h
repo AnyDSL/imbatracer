@@ -1,7 +1,7 @@
 #ifndef IMBA_RENDER_H
 #define IMBA_RENDER_H
 
-#include "image.h"
+#include "../core/image.h"
 #include "camera.h"
 #include "integrator.h"
 
@@ -113,9 +113,9 @@ public:
     
 private:
     void clear_texture() {
-        const int size = tex_.width() * tex_.height() * 4;
+        const int size = tex_.width() * tex_.height();
         for (int i = 0; i < size; i++) {
-            tex_.pixels()[i] = 0.0f;
+            tex_.pixels()[i] = float4(0.0f);
         }
     }
 

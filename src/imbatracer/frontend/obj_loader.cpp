@@ -4,7 +4,7 @@
 #include <locale>
 #include <memory>
 #include "obj_loader.h"
-#include "texture_loader.h"
+#include "../loaders/loaders.h"
 
 namespace imba {
 
@@ -22,8 +22,26 @@ bool ObjLoader::check_format(const Path& path) {
 bool ObjLoader::load_file(const Path& path, Mesh& scene, MaterialContainer& scene_materials, TextureContainer& textures,
                           std::vector<int>& triangle_material_ids, std::vector<float2>& texcoords, LightContainer& lights, Logger* logger) {
     ObjFile obj_file;
-    PngLoader png_loader;
-    TgaLoader tga_loader;
+
+    std::unordered_map<std::string, int> tex_map;
+    auto load_texture = [&](const std::string& name) {
+        auto tex = tex_map.find(name);
+        if (tex != tex_map.end())
+            return tex->second;
+
+        Image img;
+        int id;
+        if (load_image(name, img)) {
+            id = textures.size();
+            tex_map.emplace(name, id);
+            textures.emplace_back(new TextureSampler(std::move(img)));
+        } else {
+            id = -1;
+            tex_map.emplace(name, -1);
+        }
+
+        return id;
+    };
 
     // Parse the OBJ file
     {
@@ -96,20 +114,13 @@ bool ObjLoader::load_file(const Path& path, Mesh& scene, MaterialContainer& scen
             } else {
                 LambertMaterial* mtl;
                 if (!mat.map_kd.empty()) {
-                    TextureLoader* ldr = &png_loader;
-                    if (!png_loader.check_format(mat.map_kd)) {
-                        ldr = &tga_loader;
-                        if (!tga_loader.check_format(mat.map_kd))
-                            ldr = nullptr;
-                    }
+                    const std::string img_file = path.base_name() + "/" + mat.map_kd;
                     
-                    if (!ldr) {
+                    int sampler_id = load_texture(img_file);
+                    if (sampler_id < 0) {
                         mtl = new LambertMaterial(float4(1.0f, 0.0f, 1.0f, 1.0f)); 
                     } else {
-                        std::unique_ptr<Image> img(new Image);
-                        ldr->load_file(mat.map_kd, *img, logger);
-                        textures.emplace_back(new TextureSampler(std::move(img)));
-                        mtl = new LambertMaterial(textures.back().get());
+                        mtl = new LambertMaterial(textures[sampler_id].get());
                     }
                 } else {
                     mtl = new LambertMaterial(float4(mat.kd.x, mat.kd.y, mat.kd.z, 1.0f));

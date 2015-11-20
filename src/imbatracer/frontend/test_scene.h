@@ -51,7 +51,8 @@ namespace imba {
                         std::vector<int>& material_ids, std::vector<float2>& texcoords, LightContainer& lights) {
         ObjLoader l;
         
-        l.load_file(Path("../test/sponza_light_large.obj"), m, materials, textures, material_ids, texcoords, lights);
+        l.load_file(Path("../test/sanMiguel.obj"), m, materials, textures, material_ids, texcoords, lights);
+        //l.load_file(Path("../test/sponza_light_large.obj"), m, materials, textures, material_ids, texcoords, lights);
         //l.load_file(Path("../test/sibenik.obj"), m, materials, textures, material_ids, texcoords, lights);
         //l.load_file(Path("../test/CornellBox-Original.obj"), m, materials, textures, material_ids, texcoords, lights);
         //l.load_file(Path("../test/sponza_curtain.obj"), m, materials, textures, material_ids, texcoords, lights);

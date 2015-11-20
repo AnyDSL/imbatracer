@@ -106,9 +106,7 @@ void BidirPathTracer::shade_camera_rays(RayQueue<BPTState>& ray_in, Image& out, 
             
         case SHADOW_RAY:
             float4 color;
-            out.pixels()[states[i].pixel_id * 4] += color.x;
-            out.pixels()[states[i].pixel_id * 4 + 1] += color.y;
-            out.pixels()[states[i].pixel_id * 4 + 2] += color.z;
+            out.pixels()[states[i].pixel_id] += color;
         }
     }
 }

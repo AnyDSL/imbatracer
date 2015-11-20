@@ -1,12 +1,11 @@
-#ifndef IMBA_PATH_HPP
-#define IMBA_PATH_HPP
+#ifndef IMBA_PATH_H
+#define IMBA_PATH_H
 
 #include <string>
 #include <algorithm>
 
 namespace imba {
 
-/// Path represented as a directory and file name.
 class Path {
 public:
     Path(const std::string& path)
@@ -39,5 +38,5 @@ private:
 
 } // namespace imba
 
-#endif // IMBA_PATH_HPP
+#endif // IMBA_PATH_H
 

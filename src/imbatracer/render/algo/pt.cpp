@@ -45,9 +45,7 @@ void PathTracer::shade(int pass_id, RayQueue<PTState>& ray_in, Image& out, RayQu
                         float4 color = em->color();
 
                         // Add contribution to the pixel which this ray belongs to.
-                        out.pixels()[shader_state[i].pixel_id * 4] += color.x;
-                        out.pixels()[shader_state[i].pixel_id * 4 + 1] += color.y;
-                        out.pixels()[shader_state[i].pixel_id * 4 + 2] += color.z;
+                        out.pixels()[shader_state[i].pixel_id] += color;
                     } else if (shader_state[i].last_specular) {
                         EmissiveMaterial* em = static_cast<EmissiveMaterial*>(mat.get());
                         
@@ -56,9 +54,7 @@ void PathTracer::shade(int pass_id, RayQueue<PTState>& ray_in, Image& out, RayQu
                             float4 color = shader_state[i].throughput * em->color();
                             
                             // Add contribution to the pixel which this ray belongs to.
-                            out.pixels()[shader_state[i].pixel_id * 4] += color.x;
-                            out.pixels()[shader_state[i].pixel_id * 4 + 1] += color.y;
-                            out.pixels()[shader_state[i].pixel_id * 4 + 2] += color.z;
+                            out.pixels()[shader_state[i].pixel_id] += color;
                         }
                     }
 
@@ -142,9 +138,7 @@ void PathTracer::shade(int pass_id, RayQueue<PTState>& ray_in, Image& out, RayQu
             }
 
             // Add contribution to the pixel which this ray belongs to.
-            out.pixels()[shader_state[i].pixel_id * 4] += color.x;
-            out.pixels()[shader_state[i].pixel_id * 4 + 1] += color.y;
-            out.pixels()[shader_state[i].pixel_id * 4 + 2] += color.z;
+            out.pixels()[shader_state[i].pixel_id] += color;
             break;
         }
     }

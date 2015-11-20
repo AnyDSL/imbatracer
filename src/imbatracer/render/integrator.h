@@ -3,12 +3,12 @@
 
 #include "ray_queue.h"
 #include "camera.h"
-#include "image.h"
 #include "light.h"
 #include "random.h"
 #include "scene.h"
 
 #include "../core/mesh.h"
+#include "../core/image.h"
 
 namespace imba {
 

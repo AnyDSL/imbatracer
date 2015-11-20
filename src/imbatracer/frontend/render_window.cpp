@@ -17,12 +17,9 @@ RenderWindow::RenderWindow(int img_width, int img_height, int n_samples, Rendere
     
 #pragma omp parallel for
     for (int y = 0; y < image_height_; y++) {
-        float* buf_row_all = img_.pixels() + y * image_width_ * 4;
+        float4* buf_row = img_.row(y);
         for (int x = 0; x < image_width_; x++) {
-            buf_row_all[x * 4] = 0.0f;
-            buf_row_all[x * 4 + 1] = 0.0f;
-            buf_row_all[x * 4 + 2] = 0.0f;
-            buf_row_all[x * 4 + 3] = 0.0f;
+            buf_row[x] = float4(0.0);
         }
     }   
 }
@@ -94,17 +91,15 @@ void RenderWindow::render_surface() {
 #pragma omp parallel for
     for (int y = 0; y < screen_->h; y++) {
         unsigned char* row = (unsigned char*)screen_->pixels + screen_->pitch * y;
-        const float* rendered_row = tex.pixels() + y * image_width_ * 4;
-        float* buf_row = img_.pixels() + y * image_width_ * 4;
+        const float4* rendered_row = tex.row(y);
+        float4* buf_row = img_.row(y);
         
         for (int x = 0; x < screen_->w; x++) {        
-            buf_row[x * 4] += rendered_row[x * 4];
-            buf_row[x * 4 + 1] += rendered_row[x * 4 + 1];
-            buf_row[x * 4 + 2] += rendered_row[x * 4 + 2];
+            buf_row[x] += rendered_row[x];
         
-            row[x * 4 + r] = 255.0f * clamp(buf_row[x * 4] / (n_samples_ * n_sample_frames_), 0.0f, 1.0f);
-            row[x * 4 + g] = 255.0f * clamp(buf_row[x * 4 + 1] / (n_samples_ * n_sample_frames_), 0.0f, 1.0f);
-            row[x * 4 + b] = 255.0f * clamp(buf_row[x * 4 + 2] / (n_samples_ * n_sample_frames_), 0.0f, 1.0f);
+            row[x * 4 + r] = 255.0f * clamp(buf_row[x].x / (n_samples_ * n_sample_frames_), 0.0f, 1.0f);
+            row[x * 4 + g] = 255.0f * clamp(buf_row[x].y / (n_samples_ * n_sample_frames_), 0.0f, 1.0f);
+            row[x * 4 + b] = 255.0f * clamp(buf_row[x].z / (n_samples_ * n_sample_frames_), 0.0f, 1.0f);
         }
     }
     SDL_UnlockSurface(screen_);
@@ -176,11 +171,11 @@ bool RenderWindow::save_image_file(const char* file_name) {
     row = new png_byte[4 * image_width_];
 
     for (int y = 0; y < image_height_; y++) {
-        float* buf_row = img_.pixels() + y * image_width_ * 4;
+        float4* buf_row = img_.row(y);
         for (int x = 0; x < image_width_; x++) {
-            row[x * 4 + 0] = (png_byte)(255.0f * clamp(buf_row[x * 4] / (n_samples_ * n_sample_frames_), 0.0f, 1.0f));
-            row[x * 4 + 1] = (png_byte)(255.0f * clamp(buf_row[x * 4 + 1] / (n_samples_ * n_sample_frames_), 0.0f, 1.0f));
-            row[x * 4 + 2] = (png_byte)(255.0f * clamp(buf_row[x * 4 + 2] / (n_samples_ * n_sample_frames_), 0.0f, 1.0f));
+            row[x * 4 + 0] = (png_byte)(255.0f * clamp(buf_row[x].x / (n_samples_ * n_sample_frames_), 0.0f, 1.0f));
+            row[x * 4 + 1] = (png_byte)(255.0f * clamp(buf_row[x].y / (n_samples_ * n_sample_frames_), 0.0f, 1.0f));
+            row[x * 4 + 2] = (png_byte)(255.0f * clamp(buf_row[x].z / (n_samples_ * n_sample_frames_), 0.0f, 1.0f));
             row[x * 4 + 3] = (png_byte)(255.0f);
         }
         png_write_row(png_ptr, row);
