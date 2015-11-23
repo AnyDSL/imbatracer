@@ -123,6 +123,8 @@ inline float4 evaluate_material(Material* mat, const float3& out_dir, const Surf
     }
 }
 
+using MaterialContainer = std::vector<std::unique_ptr<imba::Material>>;
+
 }
 
 #endif

@@ -30,6 +30,16 @@ inline float int_as_float(int i) {
     return v.vf;
 }
 
+template <typename T, typename U>
+T lerp(T a, T b, U u) {
+    return a * (1 - u) + b * u;
+}
+
+template <typename T, typename U>
+T lerp(T a, T b, T c, U u, U v) {
+    return a * (1 - u - v) + b * u + c * v;
+}
+
 } // namespace imba
 
 #endif // IMBA_COMMON_H

@@ -13,8 +13,7 @@
 
 namespace imba {
 
-bool build_scene(const Path& path, Mesh& scene, MaterialContainer& scene_materials, TextureContainer& textures, 
-                 std::vector<int>& triangle_material_ids, std::vector<float2>& texcoords, LightContainer& lights);
+bool build_scene(const Path& path, Scene& scene);
 
 }
 

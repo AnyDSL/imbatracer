@@ -13,35 +13,38 @@
 
 namespace imba {
 
-void buildTestScene(ThorinVector<Node>& nodes, ThorinVector<Vec4>& tris, Mesh& m, TextureContainer& textures, MaterialContainer& materials,
-                    std::vector<int>& material_ids, std::vector<float2>& texcoords, LightContainer& lights) {
-
+void buildTestScene(ThorinVector<Node>& nodes, ThorinVector<Vec4>& tris, Scene& scene) {
     //const std::string file_name = "../test/sanMiguel.obj";
-    const std::string file_name = "../test/sponza_light_large.obj";
+    //const std::string file_name = "../test/sponza_light_large.obj";
     //const std::string file_name = "../test/sibenik.obj";
-    //const std::string file_name = "../test/CornellBox-Original.obj";
+    const std::string file_name = "../test/CornellBox-Original.obj";
     //const std::string file_name = "../test/sponza_curtain.obj";
     //const std::string file_name = "../test/sponza_vase_multi.obj";
 
-    if (!build_scene(file_name, m, materials, textures, material_ids, texcoords, lights)) {
+    if (!build_scene(file_name, scene)) {
         std::cerr << "ERROR: Cannot load scene" << std::endl;
         exit(1);
     }
 
-    if (m.triangle_count() == 0) {
+    if (scene.mesh.triangle_count() == 0) {
         std::cerr << "ERROR: No triangle in the scene" << std::endl;
         exit(1);
     }
     
-    if (lights.empty()) {
+    if (scene.lights.empty()) {
         std::cerr << "ERROR: There are no lights in the scene." << std::endl;
         exit(1);
     }
 
     std::unique_ptr<Adapter> adapter = new_adapter(nodes, tris);
-    adapter->build_accel(m);
+    adapter->build_accel(scene.mesh);
 
     assert(!nodes.empty());
+    
+    scene.traversal_data.nodes = nodes;
+    scene.traversal_data.tris = tris;
+    scene.traversal_data.nodes.upload();
+    scene.traversal_data.tris.upload();
 }
 
 } // namespace imba

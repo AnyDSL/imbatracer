@@ -24,7 +24,7 @@ public:
 		
 		int col = u * (img_.width() - 1);
 		int row = v * (img_.height() - 1);
-		row = img_.height() - row;
+		row = (img_.height() - 1) - row;
 		
 		return img_(col, row);
 	}	

@@ -3,10 +3,10 @@
 
 #include "../core/image.h"
 #include "camera.h"
-#include "integrator.h"
+#include "integrators/integrator.h"
 
 //#define RAY_STATS
-
+/*
 namespace imba {
 
 template <typename StateType>
@@ -131,5 +131,5 @@ private:
 };
 
 } // namespace imba
-
+*/
 #endif

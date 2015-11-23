@@ -12,7 +12,7 @@ template <typename StateType>
 class PerspectiveCamera : public PixelRayGen<StateType> {
 public:
     PerspectiveCamera(int w, int h, int n_samples, float3 pos, float3 dir, float3 up, float fov)
-        : PixelRayGen<StateType>(w, h, n_samples, CAMERA_RAY), pos_(pos), aspect_(w / h)
+        : PixelRayGen<StateType>(w, h, n_samples), pos_(pos), aspect_(w / h)
     {
         dir_ = normalize(dir);
         right_ = normalize(cross(dir_, up));

@@ -12,32 +12,52 @@
 
 namespace imba {
 
-enum RayKind {
-    CAMERA_RAY,
-    RANDOM_RAY,
-    LIGHT_RAY,
-    SHADOW_RAY,
-    NUM_RAY_KINDS
-};
-
-// Base class for storing the current state associated with a ray.
+/// Base class for storing the current state associated with a ray.
 struct RayState {
     int pixel_id;
     int sample_id;
-    RayKind kind;
 };
 
+/// Stores the representation of the acceleration structure in the format required by the traversal library.
+struct TraversalData {
+    ThorinArray<::Node> nodes;
+	ThorinArray<::Vec4> tris;  
+};
+
+/// Stores a set of rays for traversal along with their state.
 template <typename StateType>
 class RayQueue {
 public:
     RayQueue() { }
     
-    RayQueue(int capacity, ThorinArray<::Node>* nodes, ThorinArray<Vec4>* tris) 
-        : ray_buffer_(capacity), hit_buffer_(capacity), state_buffer_(capacity), last_(-1), nodes_(nodes), tris_(tris)
+    RayQueue(int capacity, TraversalData& traversal_data) 
+        : ray_buffer_(capacity), hit_buffer_(capacity), state_buffer_(capacity), last_(-1), traversal_data_(traversal_data)
     {
-        assert(nodes && tris && "No acceleration structure data passed to the RayQueue");
     }
     
+    RayQueue(const RayQueue<StateType>&) = delete;
+    RayQueue& operator= (const RayQueue<StateType>&) = delete;
+    
+    RayQueue(RayQueue<StateType>&& rhs)
+        : traversal_data_(rhs.traversal_data_),
+          ray_buffer_(std::move(rhs.ray_buffer_)),
+          hit_buffer_(std::move(rhs.hit_buffer_)),
+          state_buffer_(std::move(rhs.state_buffer_)),
+          last_(rhs.last_.load())
+    {
+    }
+    
+    RayQueue& operator= (RayQueue<StateType>&& rhs) {
+        traversal_data_ = rhs.traversal_data_;
+        ray_buffer_ = std::move(rhs.ray_buffer_);
+        hit_buffer_ = std::move(rhs.hit_buffer_);
+        state_buffer_ = std::move(rhs.state_buffer_);
+        last_ = rhs.last_.load();
+        
+        return *this;
+    }
+    
+    /*
     void resize(int capacity, ThorinArray<::Node>* nodes, ThorinArray<Vec4>* tris) {
         assert(nodes && tris && "No acceleration structure data passed to the RayQueue");
            
@@ -47,7 +67,7 @@ public:
         hit_buffer_ = ThorinArray<::Hit>(capacity);
         state_buffer_.resize(capacity);
         last_ = -1;
-    }
+    }*/
 
     int size() const { return last_ + 1; }
     
@@ -67,7 +87,7 @@ public:
         last_ = -1;
     }
     
-    // Adds a single secondary or shadow ray to the queue. Thread-safe
+    /// Adds a single secondary or shadow ray to the queue. Thread-safe
     void push(const Ray& ray, const StateType& state) {     
         int id = ++last_; // atomic inc. of last_
 
@@ -77,7 +97,7 @@ public:
         state_buffer_[id] = state;
     }
     
-    // Adds a set of camera rays to the queue. Thread-safe
+    /// Adds a set of camera rays to the queue. Thread-safe
     template<typename RayIter, typename StateIter> 
     void push(RayIter rays_begin, RayIter rays_end, StateIter states_begin, StateIter states_end) {
         // Calculate the position at which the rays will be inserted.
@@ -92,7 +112,7 @@ public:
         std::copy(states_begin, states_end, state_buffer_.begin() + start_idx);
     }
     
-    // Traverses the acceleration structure with the rays currently inside the queue.
+    /// Traverses the acceleration structure with the rays currently inside the queue.
     void traverse() {
         //printf("traverse: %d \n", size());
         assert(size() != 0);
@@ -102,13 +122,12 @@ public:
             count = count + 64 - count % 64;        
         }
         ray_buffer_.upload(size());
-        TRAVERSAL_ROUTINE(nodes_->device_data(), tris_->device_data(), ray_buffer_.device_data(), hit_buffer_.device_data(), count);
+        TRAVERSAL_ROUTINE(traversal_data_.nodes.device_data(), traversal_data_.tris.device_data(), ray_buffer_.device_data(), hit_buffer_.device_data(), count);
         hit_buffer_.download(size());
     }
     
 private:
-    ThorinArray<::Node>* nodes_;
-    ThorinArray<::Vec4>* tris_;
+    TraversalData& traversal_data_;
     
     ThorinArray<::Ray> ray_buffer_;
     ThorinArray<::Hit> hit_buffer_;

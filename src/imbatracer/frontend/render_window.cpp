@@ -10,7 +10,7 @@
 
 namespace imba {
 
-RenderWindow::RenderWindow(int img_width, int img_height, int n_samples, Renderer<StateType>& r) 
+RenderWindow::RenderWindow(int img_width, int img_height, int n_samples, Integrator& r) 
     : image_width_(img_width), image_height_(img_height), render_(r), n_samples_(n_samples), img_(img_width, img_height), n_sample_frames_(0)
 {
     SDL_Init(SDL_INIT_VIDEO);
@@ -80,7 +80,13 @@ inline float clamp(float x, float a, float b)
 }
 
 void RenderWindow::render_surface() {
-    Image& tex = render_(n_samples_);
+    static Image render_buffer(screen_->w, screen_->h);
+    const int size = screen_->w * screen_->h;
+    for (int i = 0; i < size; i++) {
+        render_buffer.pixels()[i] = float4(0.0f);
+    }
+        
+    render_.render(render_buffer);
     n_sample_frames_++;
         
     SDL_LockSurface(screen_);
@@ -91,7 +97,7 @@ void RenderWindow::render_surface() {
 #pragma omp parallel for
     for (int y = 0; y < screen_->h; y++) {
         unsigned char* row = (unsigned char*)screen_->pixels + screen_->pitch * y;
-        const float4* rendered_row = tex.row(y);
+        const float4* rendered_row = render_buffer.row(y);
         float4* buf_row = img_.row(y);
         
         for (int x = 0; x < screen_->w; x++) {        
