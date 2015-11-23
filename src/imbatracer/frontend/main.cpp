@@ -12,8 +12,8 @@ void render_test_scene() {
     using StateType = imba::PTState;
     using IntegratorType = imba::PathTracer;
     
-    constexpr int width = 1024;
-    constexpr int height = 1024;
+    constexpr int width = 512;
+    constexpr int height = 512;
     constexpr int n_samples = 16;
     
     // sponza

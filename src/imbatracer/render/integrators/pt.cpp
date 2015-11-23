@@ -17,19 +17,7 @@ void PathTracer::process_primary_rays(RayQueue<PTState>& ray_in, RayQueue<PTStat
     Ray* rays = ray_in.rays();
     int ray_count = ray_in.size(); 
     
-    for (int i = 0; i < ray_count; ++i) {
-        /*float4 color = float4(0.0f);
-                
-        if (hits[i].tri_id != -1) {
-            // The shadow ray hit the light source. Multiply the contribution of the light by the 
-            // current throughput of the path (as stored in the state of the shadow ray)
-            color = float4(hits[i].tmax / 1000.0f);
-        }
-    
-        // Add contribution to the pixel which this ray belongs to.
-        out.pixels()[shader_state[i].pixel_id] += color;
-        continue;*/
-        
+    for (int i = 0; i < ray_count; ++i) {       
         if (hits[i].tri_id < 0)
             continue;             
 
@@ -108,6 +96,7 @@ void PathTracer::process_primary_rays(RayQueue<PTState>& ray_in, RayQueue<PTStat
             // sample brdf
             float pdf;
             float3 sample_dir;
+
             const float4 brdf = sample_material(mat.get(), out_dir, surf_info, rng.random01(), rng.random01(), sample_dir, pdf);
             const float cos_term = fabsf(dot(normal, sample_dir));
             
@@ -131,18 +120,15 @@ void PathTracer::process_shadow_rays(RayQueue<PTState>& ray_in, Image& out) {
     Hit* hits = ray_in.hits(); 
     Ray* rays = ray_in.rays();
     int ray_count = ray_in.size(); 
-    
+
     for (int i = 0; i < ray_count; ++i) {
-        float4 color = float4(0.0f);
-                
-        if (hits[i].tri_id == -1) {
+        if (hits[i].tri_id < 0) {
             // The shadow ray hit the light source. Multiply the contribution of the light by the 
             // current throughput of the path (as stored in the state of the shadow ray)
-            color = shader_state[i].throughput;
-        }
-    
-        // Add contribution to the pixel which this ray belongs to.
-        out.pixels()[shader_state[i].pixel_id] += color;
+            float4 color = shader_state[i].throughput;
+            // Add contribution to the pixel which this ray belongs to.
+            out.pixels()[shader_state[i].pixel_id] += color;
+        }        
     }
 }
 
@@ -159,21 +145,18 @@ void PathTracer::render(Image& out) {
         
         if (primary_rays[in_queue].size() <= 0)
             break;
-        
-        //printf("traverse %d primary rays \n", primary_rays[in_queue].size());
-        
+
         primary_rays[in_queue].traverse();
         process_primary_rays(primary_rays[in_queue], primary_rays[out_queue], shadow_rays, out);
         primary_rays[in_queue].clear();
-        
-        //printf("traverse %d shadow rays \n", shadow_rays.size());
+
         // Processing primary rays creates new primary rays and some shadow rays.
         if (shadow_rays.size() > 0) {
-            shadow_rays.traverse();
+            shadow_rays.traverse_occluded();
             process_shadow_rays(shadow_rays, out);
             shadow_rays.clear();
         }
-        
+
         std::swap(in_queue, out_queue);
     }
 }

@@ -158,6 +158,58 @@ private:
     }
 };
 
+class DirectionalLight : public Light {
+public:    
+    DirectionalLight(const float3& dir, const float4& intensity) : dir_(dir), intensity_(intensity) {}
+
+    // Samples an outgoing ray from the light source.
+    virtual LightRaySample sample(RNG& rng) override { return LightRaySample(); } // TODO
+    
+    // Samples a point on the light source. Used for shadow rays.
+    virtual LightSample sample(const float3& from, float u1, float u2) override {
+        LightSample sample = {
+            -dir_,
+            FLT_MAX,
+            intensity_
+        };
+        
+        return sample;
+    }
+    
+private:
+    float4 intensity_;
+    float3 dir_;
+};
+
+class PointLight : public Light {
+public:    
+    PointLight(const float3& pos, const float4& intensity) : pos_(pos), intensity_(intensity) {}
+
+    // Samples an outgoing ray from the light source.
+    virtual LightRaySample sample(RNG& rng) override { return LightRaySample(); } // TODO
+    
+    // Samples a point on the light source. Used for shadow rays.
+    virtual LightSample sample(const float3& from, float u1, float u2) override {
+        float3 dir = pos_ - from;
+        float dist = length(dir);
+        dir *= 1.0f / dist;
+        
+        float4 intensity = intensity_ / (dist * dist);
+        
+        LightSample sample = {
+            dir,
+            dist,
+            intensity
+        };
+        
+        return sample;
+    }
+    
+private:
+    float4 intensity_;
+    float3 pos_;
+};
+
 using LightContainer = std::vector<std::unique_ptr<Light>>;
 
 } // namespace imba
