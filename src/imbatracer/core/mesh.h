@@ -106,9 +106,10 @@ private:
 
         Attribute() {}
         Attribute(AttributeType type, size_t count)
-            : stride(stride_bytes(type)), type(type) {
-            data.resize(stride * count);
-        }
+            : stride(stride_bytes(type))
+            , type(type)
+            , data(stride * count)
+        {}
     };
     
     std::vector<uint32_t> indices_;
