@@ -32,7 +32,7 @@ void build_test_scene(std::vector<Node>& nodes, std::vector<Vec4>& tris, Scene& 
     }
     
     //scene.lights.clear();
-    scene.lights.emplace_back(new DirectionalLight(normalize(float3(0.7f, -1.0f, -0.001f)), float4(2.5f)));
+    //scene.lights.emplace_back(new DirectionalLight(normalize(float3(0.7f, -1.0f, -0.001f)), float4(2.5f)));
     //scene.lights.emplace_back(new PointLight(float3(-10.0f, 193.f, -4.5f), float4(500000.5f)));
     
     if (scene.lights.empty()) {

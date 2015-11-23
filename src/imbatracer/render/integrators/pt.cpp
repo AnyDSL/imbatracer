@@ -90,7 +90,10 @@ void PathTracer::process_primary_rays(RayQueue<PTState>& ray_in, RayQueue<PTStat
         ray_out_shadow.push(ray, s);
         
         // Continue the path using russian roulette.
-        const float rrprob = 0.7f;
+        const float4 srgb(0.2126, 0.7152, 0.0722, 0.0f);
+        const float kill_prob = dot(shader_state[i].throughput, srgb) * 100.0f;
+
+        const float rrprob = std::min(1.0f, kill_prob);
         const float u_rr = rng.random01();
         if (u_rr < rrprob) {
             // sample brdf
