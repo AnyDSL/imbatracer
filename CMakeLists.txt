@@ -26,6 +26,10 @@ find_package(Threads REQUIRED)
 find_package(PNG REQUIRED)
 include_directories(${PNG_INCLUDE_DIRS})
 
+#Zlib
+find_package(ZLIB REQUIRED)
+include_directories(${ZLIB_INCLUDE_DIRS})
+
 # SDL
 find_package(SDL REQUIRED)
 include_directories(${SDL_INCLUDE_DIR})

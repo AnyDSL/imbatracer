@@ -13,6 +13,18 @@ struct TriIdx {
     TriIdx(int v0, int v1, int v2) : v1(v1), v2(v2), v0(v0) { }
 };
 
+struct HashIndex {
+    size_t operator () (const obj::Index& i) const {
+        return i.v ^ (i.t << 7) ^ (i.n << 11);
+    }
+};
+
+struct CompareIndex {
+    bool operator () (const obj::Index& a, const obj::Index& b) const {
+        return a.v == b.v && a.t == b.t && a.n == b.n;
+    }
+};
+
 bool build_scene(const Path& path, Mesh& scene, MaterialContainer& scene_materials, TextureContainer& textures,
                  std::vector<int>& triangle_material_ids, std::vector<float2>& texcoords, LightContainer& lights) {
     obj::File obj_file;
@@ -100,10 +112,7 @@ bool build_scene(const Path& path, Mesh& scene, MaterialContainer& scene_materia
     for (auto& obj: obj_file.objects) {
         // Convert the faces to triangles & build the new list of indices
         std::vector<TriIdx> triangles;
-
-        auto hash_index = [] (const obj::Index& i) { return i.v ^ (i.t << 7) ^ (i.n << 11); };
-        auto pred_index = [] (const obj::Index& a, const obj::Index& b) { return (a.v == b.v) && (a.n == b.n) && (a.t == b.t); };
-        std::unordered_map<obj::Index, int, decltype(hash_index), decltype(pred_index)> mapping(obj_file.vertices.size(), hash_index, pred_index);
+        std::unordered_map<obj::Index, int, HashIndex, CompareIndex> mapping;
 
         int cur_idx = 0;
         bool has_normals = false;

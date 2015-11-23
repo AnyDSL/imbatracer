@@ -19,6 +19,8 @@ add_library(imba_loaders
             loaders/load_tga.cpp
             loaders/load_obj.h
             loaders/load_obj.cpp
+            loaders/load_zmod.h
+            loaders/load_zmod.cpp
             loaders/path.h)
 
 add_library(imba_render
@@ -49,6 +51,11 @@ target_link_libraries(imbatracer
                       imba_loaders
                       ${SDL_LIBRARY}
                       ${PNG_LIBRARIES}
+                      ${ZLIB_LIBRARIES}
                       ${TRAVERSAL_LIBRARY}
                       ${THORIN_RUNTIME_LIBRARY}
                       ${THORIN_RUNTIME_LIBRARIES})
+
+add_executable(zmodel tools/zmodel.cpp)
+
+target_link_libraries(zmodel imba_core imba_loaders ${ZLIB_LIBRARIES})
