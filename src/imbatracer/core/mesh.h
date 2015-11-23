@@ -2,7 +2,7 @@
 #define IMBA_MESH_H
 
 #include <cstdint>
-#include "allocator.h"
+
 #include "float4.h"
 #include "tri.h"
 

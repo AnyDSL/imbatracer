@@ -1,7 +1,6 @@
 #include "test_scene.h"
 #include "render_window.h"
 #include "../render/render.h"
-#include "../core/allocator.h"
 #include "../render/scene.h"
 
 #include "thorin_runtime.h"
@@ -25,9 +24,9 @@ void render_test_scene() {
 
     imba::Scene scene;
     scene.camera = &cam;
-    ThorinVector<Node> nodes;
-    ThorinVector<Vec4> tris;
-    imba::buildTestScene(nodes, tris, scene);
+    std::vector<Node> nodes;
+    std::vector<Vec4> tris;
+    imba::build_test_scene(nodes, tris, scene);
     
     IntegratorType integrator(scene);
     //imba::Renderer<StateType> render(node_array, tri_array, integrator, width, height);

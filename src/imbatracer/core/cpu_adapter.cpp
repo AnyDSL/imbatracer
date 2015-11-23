@@ -8,7 +8,7 @@ namespace imba {
 
 class CpuAdapter : public Adapter {
 public:
-    CpuAdapter(ThorinVector<Node>& nodes, ThorinVector<Vec4>& tris)
+    CpuAdapter(std::vector<Node>& nodes, std::vector<Vec4>& tris)
         : Adapter(nodes, tris)
     {}
 
@@ -191,7 +191,7 @@ private:
     SplitBvhBuilder<4, CostFn> builder_;
 };
 
-std::unique_ptr<Adapter> new_adapter(ThorinVector<Node>& nodes, ThorinVector<Vec4>& tris) {
+std::unique_ptr<Adapter> new_adapter(std::vector<Node>& nodes, std::vector<Vec4>& tris) {
     return std::unique_ptr<Adapter>(new CpuAdapter(nodes, tris));
 }
 

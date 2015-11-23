@@ -13,7 +13,7 @@
 
 namespace imba {
 
-void buildTestScene(ThorinVector<Node>& nodes, ThorinVector<Vec4>& tris, Scene& scene) {
+void build_test_scene(std::vector<Node>& nodes, std::vector<Vec4>& tris, Scene& scene) {
     //const std::string file_name = "../test/sanMiguel.obj";
     //const std::string file_name = "../test/sponza_light_large.obj";
     //const std::string file_name = "../test/sibenik.obj";

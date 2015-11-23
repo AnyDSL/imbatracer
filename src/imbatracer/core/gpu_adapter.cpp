@@ -8,7 +8,7 @@ namespace imba {
 
 class GpuAdapter : public Adapter {
 public:
-    GpuAdapter(ThorinVector<Node>& nodes, ThorinVector<Vec4>& tris)
+    GpuAdapter(std::vector<Node>& nodes, std::vector<Vec4>& tris)
         : Adapter(nodes, tris)
     {}
 
@@ -120,7 +120,7 @@ private:
     SplitBvhBuilder<2, CostFn> builder_;
 };
 
-std::unique_ptr<Adapter> new_adapter(ThorinVector<Node>& nodes, ThorinVector<Vec4>& tris) {
+std::unique_ptr<Adapter> new_adapter(std::vector<Node>& nodes, std::vector<Vec4>& tris) {
     return std::unique_ptr<Adapter>(new GpuAdapter(nodes, tris));
 }
 

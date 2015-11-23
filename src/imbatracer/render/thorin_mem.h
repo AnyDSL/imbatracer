@@ -1,8 +1,8 @@
 #ifndef THORIN_MEM
 #define THORIN_MEM
 
-#include "../core/allocator.h"
 #include <vector>
+#include <thorin_runtime.hpp>
 
 #define TRAVERSAL_DEVICE 	0
 #define TRAVERSAL_PLATFORM 	CUDA
@@ -20,7 +20,7 @@ public:
 		  host_array(size) 
 	{}
 	
-	ThorinArray(const ThorinVector<T>& rhs)
+	ThorinArray(const std::vector<T>& rhs)
 		: device_array(thorin::Platform::TRAVERSAL_PLATFORM, thorin::Device(TRAVERSAL_DEVICE), rhs.size()),
 		  host_array(rhs.size())
 	{
