@@ -126,6 +126,18 @@ public:
         hit_buffer_.download(size());
     }
     
+    void traverse_occluded() {
+        assert(size() != 0);
+
+        int count = size();
+        if (count % 64 != 0) {
+            count = count + 64 - count % 64;        
+        }
+        ray_buffer_.upload(size());
+        TRAVERSAL_ROUTINE/*occluded_gpu*/(traversal_data_.nodes.device_data(), traversal_data_.tris.device_data(), ray_buffer_.device_data(), hit_buffer_.device_data(), count);
+        hit_buffer_.download(size());
+    }
+    
 private:
     TraversalData& traversal_data_;
     
