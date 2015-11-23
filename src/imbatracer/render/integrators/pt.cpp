@@ -18,7 +18,18 @@ void PathTracer::process_primary_rays(RayQueue<PTState>& ray_in, RayQueue<PTStat
     int ray_count = ray_in.size(); 
     
     for (int i = 0; i < ray_count; ++i) {
-        printf("hit at %d: %d \n", i, hits[i].tri_id);
+        /*float4 color = float4(0.0f);
+                
+        if (hits[i].tri_id != -1) {
+            // The shadow ray hit the light source. Multiply the contribution of the light by the 
+            // current throughput of the path (as stored in the state of the shadow ray)
+            color = float4(hits[i].tmax / 500.0f);
+        }
+    
+        // Add contribution to the pixel which this ray belongs to.
+        out.pixels()[shader_state[i].pixel_id] += color;
+        continue;*/
+        
         if (hits[i].tri_id != -1) {             
             auto& mat = scene_.materials[scene_.material_ids[hits[i].tri_id]];
                     
@@ -59,40 +70,39 @@ void PathTracer::process_primary_rays(RayQueue<PTState>& ray_in, RayQueue<PTStat
                 }
 
                 // Do not continue the path after hitting a light source.
-                break;
-                
-            } else if (!mat.get()->is_specular) {
-                // Compute direct illumination only for materials that are not specular.
-                // Generate the shadow ray (sample one point on one lightsource)
-                auto ls = scene_.lights[rng.random(0, scene_.lights.size() - 1)].get();
-                auto sample = ls->sample(pos, rng.random01(), rng.random01());
-                float3 sh_dir = sample.dir;
-                float pdf = scene_.lights.size();
-                
-                Ray ray;
-                auto& org = ray.org;
-                org.x = pos.x;
-                org.y = pos.y;
-                org.z = pos.z;
-                org.w = 0.001;
-                
-                auto& dir = ray.dir;
-                dir.x = sh_dir.x;
-                dir.y = sh_dir.y;
-                dir.z = sh_dir.z;
-                dir.w = sample.distance - 0.001;
-                
-                // Compute the values stored in the ray state.
-                float cos_term = fabsf(dot(sample.dir, normal));
-                float4 brdf = evaluate_material(mat.get(), out_dir, surf_info, sample.dir);
-                
-                // Update the current state of this path.
-                PTState s = shader_state[i];
-                s.throughput = s.throughput * brdf * cos_term * sample.intensity * pdf;
-                
-                // Push the shadow ray into the queue.
-                ray_out_shadow.push(ray, s);
-            }
+                continue;
+            } 
+            
+            // Compute direct illumination only for materials that are not specular.
+            // Generate the shadow ray (sample one point on one lightsource)
+            auto ls = scene_.lights[rng.random(0, scene_.lights.size() - 1)].get();
+            auto sample = ls->sample(pos, rng.random01(), rng.random01());
+            float3 sh_dir = sample.dir;
+            float pdf = scene_.lights.size();
+            
+            Ray ray;
+            auto& org = ray.org;
+            org.x = pos.x;
+            org.y = pos.y;
+            org.z = pos.z;
+            org.w = 0.001;
+            
+            auto& dir = ray.dir;
+            dir.x = sh_dir.x;
+            dir.y = sh_dir.y;
+            dir.z = sh_dir.z;
+            dir.w = sample.distance - 0.001;
+            
+            // Compute the values stored in the ray state.
+            float cos_term = fabsf(dot(sample.dir, normal));
+            float4 brdf = evaluate_material(mat.get(), out_dir, surf_info, sample.dir);
+            
+            // Update the current state of this path.
+            PTState s = shader_state[i];
+            s.throughput = s.throughput * brdf * cos_term * sample.intensity * pdf;
+            
+            // Push the shadow ray into the queue.
+            ray_out_shadow.push(ray, s);
             
             // Continue the path using russian roulette.
             float rrprob = 0.7f;
@@ -143,9 +153,7 @@ void PathTracer::process_shadow_rays(RayQueue<PTState>& ray_in, Image& out) {
         }
     
         // Add contribution to the pixel which this ray belongs to.
-        out.pixels()[shader_state[i].pixel_id * 4] += color.x;
-        out.pixels()[shader_state[i].pixel_id * 4 + 1] += color.y;
-        out.pixels()[shader_state[i].pixel_id * 4 + 2] += color.z;
+        out.pixels()[shader_state[i].pixel_id] += color;
     }
 }
 
@@ -163,15 +171,18 @@ void PathTracer::render(Image& out) {
         if (primary_rays[in_queue].size() <= 0)
             break;
         
-        printf("traverse %d rays \n", primary_rays[in_queue].size());
+        //printf("traverse %d primary rays \n", primary_rays[in_queue].size());
         
         primary_rays[in_queue].traverse();
         process_primary_rays(primary_rays[in_queue], primary_rays[out_queue], shadow_rays, out);
-        printf("traverse %d rays \n", shadow_rays.size());
+        primary_rays[in_queue].clear();
+        
+        //printf("traverse %d shadow rays \n", shadow_rays.size());
         // Processing primary rays creates new primary rays and some shadow rays.
         if (shadow_rays.size() > 0) {
             shadow_rays.traverse();
             process_shadow_rays(shadow_rays, out);
+            shadow_rays.clear();
         }
         
         std::swap(in_queue, out_queue);

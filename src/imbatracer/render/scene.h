@@ -12,8 +12,7 @@ namespace imba {
 struct MeshAttributes {
 	enum {
 		texcoords,
-		normals,
-		materials
+		normals
 	};
 };
 
