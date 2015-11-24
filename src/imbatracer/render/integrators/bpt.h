@@ -1,6 +1,6 @@
 #ifndef IMBA_BPT_H
 #define IMBA_BPT_H
-/*
+
 #include "integrator.h"
 
 namespace imba {
@@ -16,7 +16,7 @@ struct BPTState : RayState {
 // Ray generator for light sources. Samples a point and a direction on a lightsource for every pixel sample.
 class BPTLightRayGen : public PixelRayGen<BPTState> {
 public:
-    BPTLightRayGen(int w, int h, int n, LightContainer& lights) : PixelRayGen<BPTState>(w, h, n, LIGHT_RAY), lights_(lights) { }
+    BPTLightRayGen(int w, int h, int n, LightContainer& lights) : PixelRayGen<BPTState>(w, h, n), lights_(lights) { }
     
     virtual void sample_pixel(int x, int y, RNG& rng, ::Ray& ray_out, BPTState& state_out) override { 
         // randomly choose one light source to sample
@@ -42,10 +42,10 @@ private:
 };
 
 // bidirectional path tracing
-class BidirPathTracer : public Integrator<BPTState> {        
+class BidirPathTracer : public Integrator {        
 public:
-    BidirPathTracer(Scene<BPTState>& scene, int w, int h, int n_samples) 
-        : Integrator<BPTState>(scene), 
+    BidirPathTracer(Scene& scene) 
+        : Integrator(scene), 
           width_(scene.camera.width()), height_(scene.camera.height()), n_samples_(scene.camera.num_samples()),
           light_sampler_(width_, height_, n_samples_, scene.lights)
     {
@@ -61,28 +61,7 @@ public:
         }
     }
     
-    virtual void start_pass(int pass_id) { 
-        if (pass_id == 0) {
-            for (auto& p : light_path_lengths_) {
-                for (auto& s : p) s = 20;
-            }    
-        }
-    }
-    
-    virtual int num_passes() const override { return 2; }
-    virtual void shade(int pass_id, RayQueue<BPTState>& rays, Image& out, RayQueue<BPTState>& ray_out) override {
-        if (pass_id == 0)
-            shade_light_rays(rays, out, ray_out);
-        else 
-            shade_camera_rays(rays, out, ray_out);
-    }
-    
-    virtual PixelRayGen<BPTState>& get_ray_gen(int pass_id) override { 
-        if (pass_id == 0)
-            return light_sampler_;
-        else
-            return scene_.camera;
-    }
+    virtual void render(Image& out) override;
     
 private:
     constexpr static int max_light_path_length = 4;
@@ -103,8 +82,11 @@ private:
     
     void shade_light_rays(RayQueue<BPTState>& ray_in, Image& out, RayQueue<BPTState>& ray_out);
     void shade_camera_rays(RayQueue<BPTState>& ray_in, Image& out, RayQueue<BPTState>& ray_out);
+    
+    void build_light_paths();
+    void build_camera_paths();
 };
 
 } // namespace imba
-*/
+
 #endif

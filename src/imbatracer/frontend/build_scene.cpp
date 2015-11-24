@@ -54,6 +54,7 @@ bool build_scene(const Path& path, Scene& scene) {
         } else {
             id = -1;
             tex_map.emplace(name, -1);
+            printf("fail\n");
         }
 
         return id;
@@ -88,7 +89,7 @@ bool build_scene(const Path& path, Scene& scene) {
             else if (is_emissive) {
                 scene.materials.push_back(std::unique_ptr<EmissiveMaterial>(new EmissiveMaterial(float4(mat.ke.x, mat.ke.y, mat.ke.z, 1.0f))));
             } else {
-                LambertMaterial* mtl;
+                Material* mtl;
                 if (!mat.map_kd.empty()) {
                     const std::string img_file = path.base_name() + "/" + mat.map_kd;
                     
@@ -101,8 +102,19 @@ bool build_scene(const Path& path, Scene& scene) {
                 } else {
                     mtl = new LambertMaterial(float4(mat.kd.x, mat.kd.y, mat.kd.z, 1.0f));
                 }
-               
-                scene.materials.push_back(std::unique_ptr<LambertMaterial>(mtl));
+
+                // If specified, load the alpha map
+                if (!mat.map_d.empty()) {
+                    const std::string img_file = path.base_name() + "/" + mat.map_d;
+                    
+                    int sampler_id = load_texture(img_file);
+                    if (sampler_id >= 0) {
+                        Material* tmat = new TransparentMaterial();
+                        mtl = new CombineMaterial(scene.textures[sampler_id].get(), std::unique_ptr<Material>(mtl), std::unique_ptr<Material>(tmat));
+                    }
+                }
+
+                scene.materials.push_back(std::unique_ptr<Material>(mtl));
             }
         }
     }

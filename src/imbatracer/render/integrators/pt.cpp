@@ -74,8 +74,8 @@ void PathTracer::process_primary_rays(RayQueue<PTState>& ray_in, RayQueue<PTStat
         const float pdf = scene_.lights.size();
         
         Ray ray {
-            { pos.x, pos.y, pos.z, 0.001f },
-            { sh_dir.x, sh_dir.y, sh_dir.z, sample.distance - 0.001f }
+            { pos.x, pos.y, pos.z, 0.01f },
+            { sh_dir.x, sh_dir.y, sh_dir.z, sample.distance - 0.01f }
         };
         
         // Compute the values stored in the ray state.
@@ -88,28 +88,30 @@ void PathTracer::process_primary_rays(RayQueue<PTState>& ray_in, RayQueue<PTStat
         
         // Push the shadow ray into the queue.
         ray_out_shadow.push(ray, s);
-        
+      
         // Continue the path using russian roulette.
         const float4 srgb(0.2126, 0.7152, 0.0722, 0.0f);
         const float kill_prob = dot(shader_state[i].throughput, srgb) * 100.0f;
 
         const float rrprob = std::min(1.0f, kill_prob);
         const float u_rr = rng.random01();
-        if (u_rr < rrprob) {
+        const int max_recursion = 32; // prevent havoc
+        if (u_rr < rrprob && shader_state[i].bounces < max_recursion) {
             // sample brdf
             float pdf;
             float3 sample_dir;
+            bool specular;
 
-            const float4 brdf = sample_material(mat.get(), out_dir, surf_info, rng.random01(), rng.random01(), sample_dir, pdf);
+            const float4 brdf = sample_material(mat.get(), out_dir, surf_info, rng, sample_dir, pdf, specular);
             const float cos_term = fabsf(dot(normal, sample_dir));
             
             PTState s = shader_state[i];
             s.throughput = s.throughput * brdf * (cos_term / (rrprob * pdf));
             s.bounces++;
-            s.last_specular = mat->is_specular;
+            s.last_specular = specular;
             
             Ray ray {
-                { pos.x, pos.y, pos.z, 0.001f },
+                { pos.x, pos.y, pos.z, 0.01f },
                 { sample_dir.x, sample_dir.y, sample_dir.z, FLT_MAX }
             };
             

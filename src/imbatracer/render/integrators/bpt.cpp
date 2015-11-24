@@ -113,4 +113,58 @@ void BidirPathTracer::shade_camera_rays(RayQueue<BPTState>& ray_in, Image& out, 
     }
 }
 
+void BidirPathTracer::build_light_paths() {
+    light_sampler_.start_frame();
+    
+    int in_queue = 0;
+    int out_queue = 1;
+    
+    while(true) {
+        light_sampler_.fill_queue(pixel_rays_[in_queue]);
+        
+        if (pixel_rays_[in_queue].size() <= 0)
+            break;
+        
+        pixel_rays_[in_queue].traverse();
+        process_light_rays(pixel_rays_[in_queue], pixel_rays_[out_queue]);
+        pixel_rays_[in_queue].clear();
+        
+        std::swap(in_queue, out_queue);
+    }
+}
+
+void BidirPathTracer::build_camera_paths() {
+    // Create the initial set of camera rays.
+    auto camera = static_cast<PixelRayGen<PTState>*>(scene_.camera);
+    camera->start_frame();
+    
+    int in_queue = 0;
+    int out_queue = 1;
+    
+    while(true) {
+        camera->fill_queue(primary_rays[in_queue]);
+        
+        if (primary_rays[in_queue].size() <= 0)
+            break;
+
+        primary_rays[in_queue].traverse();
+        process_primary_rays(primary_rays[in_queue], primary_rays[out_queue], shadow_rays, out);
+        primary_rays[in_queue].clear();
+
+        // Processing primary rays creates new primary rays and some shadow rays.
+        if (shadow_rays.size() > 0) {
+            shadow_rays.traverse_occluded();
+            process_shadow_rays(shadow_rays, out);
+            shadow_rays.clear();
+        }
+
+        std::swap(in_queue, out_queue);
+    }
+}
+
+void BidirPathTracer::render(Image& out) {    
+    build_light_paths();
+    build_camera_paths();
+}
+
 } // namespace imba

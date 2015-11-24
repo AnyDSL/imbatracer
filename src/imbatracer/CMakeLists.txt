@@ -1,6 +1,5 @@
 add_library(imba_core
             core/adapter.h
-            core/allocator.h
             core/bbox.h
             core/common.h
             core/float2.h

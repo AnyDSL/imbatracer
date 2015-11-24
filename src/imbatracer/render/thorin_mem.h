@@ -2,6 +2,7 @@
 #define THORIN_MEM
 
 #include <vector>
+using std::size_t;
 #include <thorin_runtime.hpp>
 
 #define TRAVERSAL_DEVICE 	0
