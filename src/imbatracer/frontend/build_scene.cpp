@@ -15,7 +15,24 @@ struct TriIdx {
 
 struct HashIndex {
     size_t operator () (const obj::Index& i) const {
-        return i.v ^ (i.t << 7) ^ (i.n << 11);
+        unsigned h = 0, g;
+
+        h = (h << 4) + i.v;
+        g = h & 0xF0000000;
+        h = g ? (h ^ (g >> 24)) : h;
+        h &= ~g;
+
+        h = (h << 4) + i.t;
+        g = h & 0xF0000000;
+        h = g ? (h ^ (g >> 24)) : h;
+        h &= ~g;
+
+        h = (h << 4) + i.n;
+        g = h & 0xF0000000;
+        h = g ? (h ^ (g >> 24)) : h;
+        h &= ~g;
+
+        return h;
     }
 };
 
@@ -27,12 +44,13 @@ struct CompareIndex {
 
 bool build_scene(const Path& path, Scene& scene) {
     obj::File obj_file;
-    if(!load_obj(path, obj_file)) {
+
+    if (!load_obj(path, obj_file))
         return false;
-    }
+
+    obj::MaterialLib mtl_lib;
 
     // Parse the associated MTL files
-    obj::MaterialLib mtl_lib;
     for (auto& lib : obj_file.mtl_libs) {
         if (!load_mtl(path.base_name() + "/" + lib, mtl_lib)) {
             return false;
@@ -162,13 +180,12 @@ bool build_scene(const Path& path, Scene& scene) {
 
         // Create a mesh for this object        
         int vert_offset = scene.mesh.vertex_count();
-        int offset = scene.mesh.index_count();
-        scene.mesh.set_index_count(offset + triangles.size() * 3);
-        int i = 0;
+        int idx_offset = scene.mesh.index_count();
+        scene.mesh.set_index_count(idx_offset + triangles.size() * 3);
         for (TriIdx t : triangles) {
-            scene.mesh.indices()[offset + (i++)] = t.v0 + vert_offset;
-            scene.mesh.indices()[offset + (i++)] = t.v1 + vert_offset;
-            scene.mesh.indices()[offset + (i++)] = t.v2 + vert_offset;
+            scene.mesh.indices()[idx_offset++] = t.v0 + vert_offset;
+            scene.mesh.indices()[idx_offset++] = t.v1 + vert_offset;
+            scene.mesh.indices()[idx_offset++] = t.v2 + vert_offset;
         }
 
         scene.mesh.set_vertex_count(vert_offset + cur_idx);

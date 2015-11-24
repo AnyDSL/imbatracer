@@ -4,7 +4,6 @@
 #include "../core/image.h"
 #include "path.h"
 #include "load_obj.h"
-#include "load_zmod.h"
 
 namespace imba {
 
