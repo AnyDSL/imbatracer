@@ -26,6 +26,11 @@ public:
         return (pos != std::string::npos) ? file_.substr(pos + 1) : std::string();
     }
 
+    std::string remove_extension() const {
+        auto pos = file_.rfind('.');
+        return (pos != std::string::npos) ? file_.substr(0, pos) : file_;
+    }
+
     operator const std::string& () const {
         return path();
     }
