@@ -45,10 +45,10 @@ void build_test_scene(std::vector<Node>& nodes, std::vector<Vec4>& tris, Scene& 
 
     assert(!nodes.empty());
     
-    scene.traversal_data.nodes = nodes;
-    scene.traversal_data.tris = tris;
-    scene.traversal_data.nodes.upload();
-    scene.traversal_data.tris.upload();
+    scene.nodes = nodes;
+    scene.tris = tris;
+    scene.nodes.upload();
+    scene.tris.upload();
 }
 
 } // namespace imba

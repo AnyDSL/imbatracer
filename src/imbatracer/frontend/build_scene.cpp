@@ -9,8 +9,10 @@
 namespace imba {
 
 struct TriIdx {
-    int v0, v1, v2;
-    TriIdx(int v0, int v1, int v2) : v1(v1), v2(v2), v0(v0) { }
+    int v0, v1, v2, m;
+    TriIdx(int v0, int v1, int v2, int m)
+        : v1(v1), v2(v2), v0(v0), m(m)
+    {}
 };
 
 struct HashIndex {
@@ -43,6 +45,7 @@ struct CompareIndex {
 };
 
 bool build_scene(const Path& path, Scene& scene) {
+    MaskBuffer masks;
     obj::File obj_file;
 
     if (!load_obj(path, obj_file))
@@ -72,7 +75,6 @@ bool build_scene(const Path& path, Scene& scene) {
         } else {
             id = -1;
             tex_map.emplace(name, -1);
-            printf("fail\n");
         }
 
         return id;
@@ -80,10 +82,13 @@ bool build_scene(const Path& path, Scene& scene) {
 
     // Add a dummy material, for objects that have no material
     scene.materials.push_back(std::unique_ptr<LambertMaterial>(new LambertMaterial));
-    
+    masks.add_opaque();
+
     for (int i = 1; i < obj_file.materials.size(); i++) {
         auto& mat_name = obj_file.materials[i];
         auto it = mtl_lib.find(mat_name);
+
+        int mask_id = -1;
         if (it == mtl_lib.end()) {
             // Add a dummy material in this case
             scene.materials.push_back(std::unique_ptr<LambertMaterial>(new LambertMaterial));
@@ -121,19 +126,24 @@ bool build_scene(const Path& path, Scene& scene) {
                     mtl = new LambertMaterial(float4(mat.kd.x, mat.kd.y, mat.kd.z, 1.0f));
                 }
 
-                // If specified, load the alpha map
-                if (!mat.map_d.empty()) {
-                    const std::string img_file = path.base_name() + "/" + mat.map_d;
-                    
-                    int sampler_id = load_texture(img_file);
-                    if (sampler_id >= 0) {
-                        Material* tmat = new TransparentMaterial();
-                        mtl = new CombineMaterial(scene.textures[sampler_id].get(), std::unique_ptr<Material>(mtl), std::unique_ptr<Material>(tmat));
-                    }
-                }
-
                 scene.materials.push_back(std::unique_ptr<Material>(mtl));
             }
+
+            // If specified, load the alpha map
+            if (!mat.map_d.empty()) {
+                mask_id = load_texture(path.base_name() + "/" + mat.map_d);
+            } else {
+                // HACK
+                const Path p = mat.map_kd;
+                const std::string img_file = path.base_name() + "/" + p.base_name() + "/" + p.remove_extension() + "_Mask.png";
+                mask_id = load_texture(img_file);
+            }
+        }
+
+        if (mask_id >= 0) {
+            masks.add_mask(scene.textures[mask_id]->image());
+        } else {
+            masks.add_opaque();
         }
     }
 
@@ -169,8 +179,7 @@ bool build_scene(const Path& path, Scene& scene) {
                 int prev = mapping[face.indices[1]];
                 for (int i = 1; i < face.index_count - 1; i++) {
                     const int next = mapping[face.indices[i + 1]];
-                    triangles.push_back(TriIdx(v0, prev, next));
-                    scene.material_ids.push_back(face.material);
+                    triangles.emplace_back(v0, prev, next, face.material);
                     
                     auto mat = scene.materials[face.material].get();
                     if (mat->kind == Material::emissive) {
@@ -182,7 +191,7 @@ bool build_scene(const Path& path, Scene& scene) {
                         scene.lights.push_back(std::unique_ptr<TriangleLight>(new TriangleLight(static_cast<EmissiveMaterial*>(mat)->color(), 
                             float3(p0.x, p0.y, p0.z), float3(p1.x, p1.y, p1.z), float3(p2.x, p2.y, p2.z))));
                     }
-                    
+
                     prev = next;
                 }
             }
@@ -193,11 +202,12 @@ bool build_scene(const Path& path, Scene& scene) {
         // Create a mesh for this object        
         int vert_offset = scene.mesh.vertex_count();
         int idx_offset = scene.mesh.index_count();
-        scene.mesh.set_index_count(idx_offset + triangles.size() * 3);
+        scene.mesh.set_index_count(idx_offset + triangles.size() * 4);
         for (TriIdx t : triangles) {
             scene.mesh.indices()[idx_offset++] = t.v0 + vert_offset;
             scene.mesh.indices()[idx_offset++] = t.v1 + vert_offset;
             scene.mesh.indices()[idx_offset++] = t.v2 + vert_offset;
+            scene.mesh.indices()[idx_offset++] = t.m;
         }
 
         scene.mesh.set_vertex_count(vert_offset + cur_idx);
@@ -229,6 +239,32 @@ bool build_scene(const Path& path, Scene& scene) {
             scene.mesh.compute_normals(true, MeshAttributes::normals);
         }
     }
+
+    scene.texcoords = std::move(ThorinArray<::Vec2>(scene.mesh.vertex_count()));
+    {
+        auto texcoords = scene.mesh.attribute<float2>(MeshAttributes::texcoords);
+        for (int i = 0; i < scene.mesh.vertex_count(); i++) {
+            scene.texcoords[i].x = texcoords[i].x;
+            scene.texcoords[i].y = texcoords[i].y;
+        }
+    }
+
+    scene.indices = std::move(ThorinArray<int>(scene.mesh.index_count()));
+    {
+        for (int i = 0; i < scene.mesh.index_count(); i++)
+            scene.indices[i] = scene.mesh.indices()[i];
+    }
+
+    // Send the masks to the GPU
+    scene.masks = std::move(ThorinArray<::TransparencyMask>(masks.mask_count()));
+    memcpy(scene.masks.begin(), masks.descs(), sizeof(MaskBuffer::MaskDesc) * masks.mask_count());
+    scene.mask_buffer = std::move(ThorinArray<char>(masks.buffer_size()));
+    memcpy(scene.mask_buffer.begin(), masks.buffer(), masks.buffer_size());
+
+    scene.masks.upload();
+    scene.mask_buffer.upload();
+    scene.indices.upload();
+    scene.texcoords.upload();
 
     return true;
 }

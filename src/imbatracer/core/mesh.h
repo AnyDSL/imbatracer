@@ -71,16 +71,16 @@ public:
     size_t attribute_stride(int i) const { return attrs_[i].stride; }
 
     Tri triangle(int i) const {
-        int i0 = indices_[i * 3 + 0];
-        int i1 = indices_[i * 3 + 1];
-        int i2 = indices_[i * 3 + 2];
+        int i0 = indices_[i * 4 + 0];
+        int i1 = indices_[i * 4 + 1];
+        int i2 = indices_[i * 4 + 2];
         return Tri(float3(vertices_[i0].x, vertices_[i0].y, vertices_[i0].z),
                    float3(vertices_[i1].x, vertices_[i1].y, vertices_[i1].z),
                    float3(vertices_[i2].x, vertices_[i2].y, vertices_[i2].z));
     }
 
     size_t triangle_count() const {
-        return indices_.size() / 3;
+        return indices_.size() / 4;
     }
 
     void compute_normals(bool smooth, int normal_attr);

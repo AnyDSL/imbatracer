@@ -2,12 +2,16 @@
 #define IMBA_SCENE_H
 
 #include "material.h"
-#include "ray_gen.h"
 #include "light.h"
+#include "thorin_mem.h"
 
 #include "../core/mesh.h"
+#include "../core/mask.h"
+#include "traversal.h"
 
 namespace imba {
+
+class RayGen;
 
 struct MeshAttributes {
 	enum {
@@ -21,15 +25,17 @@ struct Scene {
 	RayGen* camera;
 	
 	LightContainer lights;
-	
-	MaterialContainer materials;
-	std::vector<int> material_ids;
-	
 	TextureContainer textures;
-	
+	MaterialContainer materials;
+
+    ThorinArray<::Node> nodes;
+    ThorinArray<::Vec4> tris;
+    ThorinArray<::Vec2> texcoords;
+    ThorinArray<int> indices;
+    ThorinArray<::TransparencyMask> masks;
+    ThorinArray<char> mask_buffer;
+
 	Mesh mesh;
-	
-	TraversalData traversal_data;
 };
 
 }

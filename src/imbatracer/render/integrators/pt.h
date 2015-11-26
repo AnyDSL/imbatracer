@@ -19,8 +19,8 @@ class PathTracer : public Integrator {
 public:
     PathTracer(Scene& scene) 
         : Integrator(scene), 
-          primary_rays { RayQueue<PTState>(TARGET_RAY_COUNT, scene.traversal_data), RayQueue<PTState>(TARGET_RAY_COUNT, scene.traversal_data)}, 
-          shadow_rays(TARGET_RAY_COUNT, scene.traversal_data)
+          primary_rays { RayQueue<PTState>(TARGET_RAY_COUNT), RayQueue<PTState>(TARGET_RAY_COUNT) },
+          shadow_rays(TARGET_RAY_COUNT)
     {
         static_cast<PixelRayGen<PTState>*>(scene.camera)->set_target_count(TARGET_RAY_COUNT);
     }
