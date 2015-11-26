@@ -19,12 +19,12 @@ void PathTracer::process_primary_rays(RayQueue<PTState>& ray_in, RayQueue<PTStat
     
     for (int i = 0; i < ray_count; ++i) {       
         if (hits[i].tri_id < 0)
-            continue;           
+            continue;
 
         const int i0 = scene_.mesh.indices()[hits[i].tri_id * 4 + 0];
         const int i1 = scene_.mesh.indices()[hits[i].tri_id * 4 + 1];
         const int i2 = scene_.mesh.indices()[hits[i].tri_id * 4 + 2];
-        const int  m = scene_.mesh.indices()[hits[i].tri_id * 4 + 3];  
+        const int  m = scene_.mesh.indices()[hits[i].tri_id * 4 + 3];
 
         const auto& mat = scene_.materials[m];
                 
