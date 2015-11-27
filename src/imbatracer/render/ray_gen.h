@@ -48,8 +48,6 @@ public:
         // remember how many pixel samples were generated
         generated_pixels_ += count;
         
-        const int last_pixel = (next_pixel_ + count) % (width_ * height_);
-        
         static RNG rng;      
         for (int i = next_pixel_; i < next_pixel_ + count; ++i) {
             // Compute coordinates, id etc.
@@ -70,7 +68,7 @@ public:
         }
         
         // store which pixel has to be sampled next
-        next_pixel_ = last_pixel;
+        next_pixel_ += count;
     }
     
 protected:    

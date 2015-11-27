@@ -21,13 +21,12 @@ struct Scene {
 	RayGen* camera;
 	
 	LightContainer lights;
-	
-	MaterialContainer materials;
-	std::vector<int> material_ids;
-	
+	MaterialContainer materials;	
 	TextureContainer textures;
 	
 	Mesh mesh;
+	std::vector<float3> geometry_normals;
+	std::vector<int> material_ids;
 	
 	TraversalData traversal_data;
 };

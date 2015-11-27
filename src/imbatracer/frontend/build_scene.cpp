@@ -229,6 +229,16 @@ bool build_scene(const Path& path, Scene& scene) {
             scene.mesh.compute_normals(true, MeshAttributes::normals);
         }
     }
+    
+    // Compute geometry normals
+    scene.geometry_normals.resize(scene.mesh.triangle_count());
+    for (int i = 0; i < scene.mesh.triangle_count(); ++i) {
+        auto t = scene.mesh.triangle(i);
+        float3 e0 = t[1] - t[0];
+        float3 e1 = t[2] - t[0];
+        float3 n = cross(e0, e1);
+        scene.geometry_normals[i] = n;
+    }
 
     return true;
 }

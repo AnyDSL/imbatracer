@@ -8,163 +8,176 @@
 
 namespace imba {
 
-void BidirPathTracer::shade_light_rays(RayQueue<BPTState>& ray_in, Image& out, RayQueue<BPTState>& ray_out) {
+void BidirPathTracer::process_light_rays(RayQueue<LightRayState>& rays_in, RayQueue<LightRayState>& rays_out) {
     static RNG rng;
 
-    int ray_count = ray_in.size(); 
-    const BPTState* states = ray_in.states();
-    const Hit* hits = ray_in.hits(); 
-    const Ray* rays = ray_in.rays();
+    int ray_count = rays_in.size(); 
+    const LightRayState* states = rays_in.states();
+    const Hit* hits = rays_in.hits(); 
+    const Ray* rays = rays_in.rays();
+    
     for (int i = 0; i < ray_count; ++i) { 
-        if (hits[i].tri_id != -1) {
-            float3 pos = float3(rays[i].org.x, rays[i].org.y, rays[i].org.z);
-            float3 ray_dir = float3(rays[i].dir.x, rays[i].dir.y, rays[i].dir.z);
-            pos = pos + hits[i].tmax * ray_dir;
-            float3 normal = normals_[hits[i].tri_id];
-            auto& mat = materials_[material_ids_[hits[i].tri_id]];
+        if (hits[i].tri_id < 0)
+            continue;
         
-            SurfaceInfo surf_info { normal, hits[i].u, hits[i].v };
+        Intersection isect = calculate_intersection(hits, rays, i);
+        
+        // Create a new vertex for this light path.
+        int vertex_id = (light_path_lengths_[states[i].pixel_id][states[i].sample_id])++;
+        
+        auto& light_vertex = light_paths_[states[i].pixel_id][states[i].sample_id][vertex_id];
+        light_vertex.pos = isect.pos;
+        light_vertex.light_id = states[i].light_id;
+        
+        // Decide wether or not to continue this path.
+        if (vertex_id < MAX_LIGHT_PATH_LEN - 1) {
+            float pdf;
+            float3 sample_dir;
+            bool is_specular;
+            float4 brdf = sample_material(isect.mat, isect.out_dir, isect.surf, rng, sample_dir, pdf, is_specular);
             
-            // Create a new vertex for this light path.
-            int vertex_id = (light_path_lengths_[states[i].pixel_id][states[i].sample_id])++;
+            // As we are using shading normals, we need to use the adjoint BSDF
+            float cos_out_snorm = fabsf(dot(isect.surf.normal, isect.out_dir));
+            float cos_out_gnorm = fabsf(dot(isect.surf.geometry_normal, isect.out_dir));
+            float cos_in_gnorm = fabsf(dot(isect.surf.geometry_normal, sample_dir));
+            float adjoint_conversion = cos_out_snorm / cos_out_gnorm * cos_in_gnorm;
             
-            auto& light_vertex = light_paths_[states[i].pixel_id][states[i].sample_id][vertex_id];
-            light_vertex.pos = pos;
-            light_vertex.light_id = states[i].light_id;
-            light_vertex.is_specular = mat->is_specular;
-           
-            // Decide wether or not to continue this path.
-            if (vertex_id < max_light_path_length - 1) {
-                float pdf;
-                float3 sample_dir;
-                float4 brdf = sample_material(mat.get(), ray_dir, surf_info, rng.random01(), rng.random01(), sample_dir, pdf);
-                float cos_term = fabsf(dot(normal, sample_dir));
-                
-                BPTState s = states[i];
-                s.kind = RANDOM_RAY;
-                s.throughput = s.throughput * brdf * (cos_term / pdf);
-                s.bounces++;
-                
-                Ray ray;
-                ray.org.x = pos.x;
-                ray.org.y = pos.y;
-                ray.org.z = pos.z;
-                ray.org.w = 0.001;
-                
-                ray.dir.y = sample_dir.y;
-                ray.dir.x = sample_dir.x;
-                ray.dir.z = sample_dir.z;
-                ray.dir.w = FLT_MAX;
-                
-                ray_out.push(ray, s);
-            }
+            LightRayState s = states[i];
+            s.throughput = s.throughput * brdf * adjoint_conversion / pdf;
+            s.bounces++;
+            
+            // Store the throughput etc. in the light path vertex. 
+            light_vertex.is_specular = is_specular;
+            light_vertex.throughput = s.throughput;
+            light_vertex.power = states[i].throughput * states[i].power;
+            
+            Ray ray {
+                { isect.pos.x, isect.pos.y, isect.pos.z, 0.01f },
+                { sample_dir.x, sample_dir.y, sample_dir.z, FLT_MAX }
+            };
+            
+            rays_out.push(ray, s);
         }
     }
 }
 
-void BidirPathTracer::shade_camera_rays(RayQueue<BPTState>& ray_in, Image& out, RayQueue<BPTState>& ray_out) {
+void BidirPathTracer::process_primary_rays(RayQueue<BPTState>& rays_in, RayQueue<BPTState>& rays_out, RayQueue<BPTState>& shadow_rays_, Image& img) {
     static RNG rng;
 
-    int ray_count = ray_in.size(); 
-    const BPTState* states = ray_in.states();
-    const Hit* hits = ray_in.hits(); 
-    const Ray* rays = ray_in.rays();
-    for (int i = 0; i < ray_count; ++i) { 
-        switch (states[i].kind) {
-        case CAMERA_RAY:
-        case RANDOM_RAY:
-            if (hits[i].tri_id != -1) {
-                float3 pos = float3(rays[i].org.x, rays[i].org.y, rays[i].org.z);
-                float3 ray_dir = float3(rays[i].dir.x, rays[i].dir.y, rays[i].dir.z);
-                pos = pos + hits[i].tmax * ray_dir;
-                float3 normal = normals_[hits[i].tri_id];
-                auto& mat = materials_[material_ids_[hits[i].tri_id]];
-                
-                int n_vertices = light_path_lengths_[states[i].pixel_id][states[i].sample_id];
-                auto& sample_path = light_paths_[states[i].pixel_id][states[i].sample_id];
-                
-                // Connect the hitpoint to the light path.
-                BPTState s = states[i];
-                s.kind = SHADOW_RAY;
-                
-                float3 connect_dir = sample_path[0].pos - pos;
-                
-                Ray ray;
-                ray.org.x = pos.x;
-                ray.org.y = pos.y;
-                ray.org.z = pos.z;
-                ray.org.w = 0.001;
-                
-                ray.dir.y = connect_dir.y;
-                ray.dir.x = connect_dir.x;
-                ray.dir.z = connect_dir.z;
-                ray.dir.w = FLT_MAX;
-                
-                ray_out.push(ray, s);
-            }
-            break;
+    int ray_count = rays_in.size(); 
+    const BPTState* states = rays_in.states();
+    const Hit* hits = rays_in.hits(); 
+    const Ray* rays = rays_in.rays();
+    
+    for (int i = 0; i < ray_count; ++i) {        
+        if (hits[i].tri_id < 0) 
+            continue;
             
-        case SHADOW_RAY:
-            float4 color;
-            out.pixels()[states[i].pixel_id * 4] += color.x;
-            out.pixels()[states[i].pixel_id * 4 + 1] += color.y;
-            out.pixels()[states[i].pixel_id * 4 + 2] += color.z;
+        Intersection isect = calculate_intersection(hits, rays, i);
+        
+        int n_vertices = light_path_lengths_[states[i].pixel_id][states[i].sample_id];
+        auto& sample_path = light_paths_[states[i].pixel_id][states[i].sample_id];
+       
+        // TODO compute direct illumination
+        
+        // Connect the hitpoint to the light path.
+        for (int i = 0; i < n_vertices; ++i) {
+            float3 dir = sample_path[i].pos - isect.pos;
+            const float distance = length(dir);
+            dir = dir / distance;
+                        
+            const float cos_term = fabsf(dot(dir, isect.surf.normal));
+            const float4 brdf = evaluate_material(isect.mat, isect.out_dir, isect.surf, dir);
+            const float4 throughput = states[i].throughput * brdf * cos_term;
+            
+            BPTState s = states[i];
+            s.contribution = sample_path[i].power * throughput;
+            
+            Ray ray {
+                { isect.pos.x, isect.pos.y, isect.pos.z, 0.01f },
+                { dir.x, dir.y, dir.z, distance - 0.01f }
+            };
+            
+            shadow_rays_.push(ray, s);
+        }
+        
+        // TODO continue the camera path
+    }
+}
+
+void BidirPathTracer::process_shadow_rays(RayQueue<BPTState>& rays_in, Image& img) {
+    int ray_count = rays_in.size(); 
+    const BPTState* states = rays_in.states();
+    const Hit* hits = rays_in.hits(); 
+    const Ray* rays = rays_in.rays();
+    
+    for (int i = 0; i < ray_count; ++i) {
+        if (hits[i].tri_id >= 0) {
+            img.pixels()[states[i].pixel_id] += states[i].contribution;
         }
     }
 }
 
-void BidirPathTracer::build_light_paths() {
+void BidirPathTracer::trace_light_paths() {
     light_sampler_.start_frame();
     
     int in_queue = 0;
     int out_queue = 1;
     
     while(true) {
-        light_sampler_.fill_queue(pixel_rays_[in_queue]);
+        light_sampler_.fill_queue(light_rays_[in_queue]);
         
-        if (pixel_rays_[in_queue].size() <= 0)
+        if (light_rays_[in_queue].size() <= 0)
             break;
         
-        pixel_rays_[in_queue].traverse();
-        process_light_rays(pixel_rays_[in_queue], pixel_rays_[out_queue]);
-        pixel_rays_[in_queue].clear();
+        light_rays_[in_queue].traverse();
+        process_light_rays(light_rays_[in_queue], light_rays_[out_queue]);
+        light_rays_[in_queue].clear();
         
         std::swap(in_queue, out_queue);
     }
 }
 
-void BidirPathTracer::build_camera_paths() {
+void BidirPathTracer::trace_camera_paths(Image& img) {
     // Create the initial set of camera rays.
-    auto camera = static_cast<PixelRayGen<PTState>*>(scene_.camera);
+    auto camera = static_cast<PixelRayGen<BPTState>*>(scene_.camera);
     camera->start_frame();
     
     int in_queue = 0;
     int out_queue = 1;
     
     while(true) {
-        camera->fill_queue(primary_rays[in_queue]);
-        
-        if (primary_rays[in_queue].size() <= 0)
+        camera->fill_queue(primary_rays_[in_queue]);
+         
+        if (primary_rays_[in_queue].size() <= 0)
             break;
 
-        primary_rays[in_queue].traverse();
-        process_primary_rays(primary_rays[in_queue], primary_rays[out_queue], shadow_rays, out);
-        primary_rays[in_queue].clear();
+        primary_rays_[in_queue].traverse();
+        process_primary_rays(primary_rays_[in_queue], primary_rays_[out_queue], shadow_rays_, img);
+        primary_rays_[in_queue].clear();
 
         // Processing primary rays creates new primary rays and some shadow rays.
-        if (shadow_rays.size() > 0) {
-            shadow_rays.traverse_occluded();
-            process_shadow_rays(shadow_rays, out);
-            shadow_rays.clear();
+        if (shadow_rays_.size() > 0) {
+            shadow_rays_.traverse_occluded();
+            process_shadow_rays(shadow_rays_, img);
+            shadow_rays_.clear();
         }
 
         std::swap(in_queue, out_queue);
     }
 }
 
-void BidirPathTracer::render(Image& out) {    
-    build_light_paths();
-    build_camera_paths();
+void BidirPathTracer::reset_light_paths() {
+    for (auto& p : light_path_lengths_) {
+        std::fill(p.begin(), p.end(), 0);
+    }
+}
+
+void BidirPathTracer::render(Image& img) {
+    reset_light_paths();
+        
+    trace_light_paths();
+    trace_camera_paths(img);
 }
 
 } // namespace imba

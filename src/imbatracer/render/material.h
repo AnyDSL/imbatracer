@@ -25,6 +25,7 @@ struct Material {
 
 struct SurfaceInfo {
     float3 normal;
+    float3 geometry_normal;
     float u, v;  
 };
 
