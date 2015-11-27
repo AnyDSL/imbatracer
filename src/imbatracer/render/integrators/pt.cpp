@@ -42,7 +42,7 @@ void PathTracer::process_primary_rays(RayQueue<PTState>& ray_in, RayQueue<PTStat
         const auto normals = scene_.mesh.attribute<float3>(MeshAttributes::normals);
 
         const float2 uv_coords = lerp(texcoords[i0], texcoords[i1], texcoords[i2], u, v);
-        const float3 normal = lerp(normals[i0], normals[i1], normals[i2], u, v);
+        const float3 normal = normalize(lerp(normals[i0], normals[i1], normals[i2], u, v));
         
         SurfaceInfo surf_info { normal, uv_coords, float3() };
         
@@ -79,8 +79,8 @@ void PathTracer::process_primary_rays(RayQueue<PTState>& ray_in, RayQueue<PTStat
         const float pdf = scene_.lights.size();
         
         Ray ray {
-            { pos.x, pos.y, pos.z, sample.distance * offset },
-            { sh_dir.x, sh_dir.y, sh_dir.z, sample.distance * (1.0f - offset) }
+            { pos.x, pos.y, pos.z, offset },
+            { sh_dir.x, sh_dir.y, sh_dir.z, sample.distance - offset }
         };
         
         // Compute the values stored in the ray state.

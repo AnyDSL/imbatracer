@@ -157,7 +157,6 @@ bool build_scene(const Path& path, Scene& scene) {
         std::vector<TriIdx> triangles;
         std::unordered_map<obj::Index, int, HashIndex, CompareIndex> mapping;
 
-        int cur_idx = 0;
         bool has_normals = false;
         bool has_texcoords = false;
 
@@ -169,8 +168,7 @@ bool build_scene(const Path& path, Scene& scene) {
                         has_normals |= (face.indices[i].n != 0);
                         has_texcoords |= (face.indices[i].t != 0);
 
-                        mapping.insert(std::make_pair(face.indices[i], cur_idx));
-                        cur_idx++;
+                        mapping.insert(std::make_pair(face.indices[i], mapping.size()));
                     }
                 }
 
@@ -209,7 +207,7 @@ bool build_scene(const Path& path, Scene& scene) {
             scene.mesh.indices()[idx_offset++] = t.m;
         }
 
-        scene.mesh.set_vertex_count(vert_offset + cur_idx);
+        scene.mesh.set_vertex_count(vert_offset + mapping.size());
 
         for (auto& p : mapping) {
             const auto& v = obj_file.vertices[p.first.v];

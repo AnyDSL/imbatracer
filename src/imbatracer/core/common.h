@@ -1,6 +1,9 @@
 #ifndef IMBA_COMMON_H
 #define IMBA_COMMON_H
 
+#include <iostream>
+#include <cstdlib>
+
 namespace imba {
 
 static const float pi = 3.14159265359f;
@@ -38,6 +41,20 @@ T lerp(T a, T b, U u) {
 template <typename T, typename U>
 T lerp(T a, T b, T c, U u, U v) {
     return a * (1 - u - v) + b * u + c * v;
+}
+
+#define assert_normalized(x) check_normalized(x, __FILE__, __LINE__)
+
+template <typename T>
+inline void check_normalized(const T& n, const char* file, const char* line) {
+#ifdef CHECK_NORMALS
+    const float len = length(n);
+    const float tolerance = 0.001f;
+    if (len < 1.0f - tolerance || len > 1.0f + tolerance) {
+        std::cerr << "Vector not normalized in " << file << ", line " << line << std::endl;
+        abort();
+    }
+#endif
 }
 
 } // namespace imba

@@ -196,17 +196,18 @@ public:
     // Samples a point on the light source. Used for shadow rays.
     virtual LightSample sample(const float3& from, float u1, float u2) override {
         float3 dir = pos_ - from;
-        float dist = length(dir);
+        const float sqdist = dot(dir, dir);
+        const float dist = sqrtf(dist);
         dir *= 1.0f / dist;
-        
-        float4 intensity = intensity_ / (dist * dist);
-        
+
+        float4 intensity = intensity_ / sqdist;
+
         LightSample sample = {
             dir,
             dist,
             intensity
         };
-        
+
         return sample;
     }
     
