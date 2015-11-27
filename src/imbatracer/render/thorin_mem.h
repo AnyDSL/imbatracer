@@ -6,9 +6,9 @@ using std::size_t;
 #include <thorin_runtime.hpp>
 
 #define TRAVERSAL_DEVICE 	0
-#define TRAVERSAL_PLATFORM 	HOST
-#define TRAVERSAL_INTERSECT intersect_masked_cpu
-#define TRAVERSAL_OCCLUDED  occluded_masked_cpu
+#define TRAVERSAL_PLATFORM 	CUDA
+#define TRAVERSAL_INTERSECT intersect_masked_gpu
+#define TRAVERSAL_OCCLUDED  occluded_masked_gpu
 
 namespace imba {
 	

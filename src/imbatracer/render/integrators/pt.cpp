@@ -9,14 +9,16 @@
 
 namespace imba {
 
+static thread_local RNG rng;
+
 void PathTracer::process_primary_rays(RayQueue<PTState>& ray_in, RayQueue<PTState>& ray_out, RayQueue<PTState>& ray_out_shadow, Image& out) {
-    static RNG rng;
     
     PTState* shader_state = ray_in.states();
     Hit* hits = ray_in.hits(); 
     Ray* rays = ray_in.rays();
     int ray_count = ray_in.size(); 
     
+    #pragma omp parallel for
     for (int i = 0; i < ray_count; ++i) {       
         if (hits[i].tri_id < 0)
             continue;
@@ -128,6 +130,7 @@ void PathTracer::process_shadow_rays(RayQueue<PTState>& ray_in, Image& out) {
     Ray* rays = ray_in.rays();
     int ray_count = ray_in.size(); 
 
+    #pragma omp parallel for
     for (int i = 0; i < ray_count; ++i) {
         if (hits[i].tri_id < 0) {
             // The shadow ray hit the light source. Multiply the contribution of the light by the 
