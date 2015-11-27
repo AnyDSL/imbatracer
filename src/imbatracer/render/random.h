@@ -72,6 +72,8 @@ inline DirectionSample generate_cosine_weighted_direction(const float3& up, cons
 }
 
 inline DirectionSample sample_hemisphere(const float3& n, float u1, float u2) {
+    assert_normalized(n);
+
     float3 tangent;
     float3 binormal;
     local_coordinates(n, tangent, binormal);

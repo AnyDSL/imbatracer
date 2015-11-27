@@ -46,7 +46,7 @@ T lerp(T a, T b, T c, U u, U v) {
 #define assert_normalized(x) check_normalized(x, __FILE__, __LINE__)
 
 template <typename T>
-inline void check_normalized(const T& n, const char* file, const char* line) {
+inline void check_normalized(const T& n, const char* file, int line) {
 #ifdef CHECK_NORMALS
     const float len = length(n);
     const float tolerance = 0.001f;

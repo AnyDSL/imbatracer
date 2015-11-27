@@ -200,7 +200,7 @@ public:
         const float dist = sqrtf(sqdist);
         dir *= 1.0f / dist;
 
-        float4 intensity = intensity_ / sqdist;
+        float4 intensity = intensity_ / (4.0f * pi * sqdist);
 
         LightSample sample = {
             dir,
