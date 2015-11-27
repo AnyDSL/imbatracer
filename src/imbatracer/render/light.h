@@ -197,7 +197,7 @@ public:
     virtual LightSample sample(const float3& from, float u1, float u2) override {
         float3 dir = pos_ - from;
         const float sqdist = dot(dir, dir);
-        const float dist = sqrtf(dist);
+        const float dist = sqrtf(sqdist);
         dir *= 1.0f / dist;
 
         float4 intensity = intensity_ / sqdist;
