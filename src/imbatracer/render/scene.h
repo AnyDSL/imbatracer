@@ -14,19 +14,19 @@ namespace imba {
 class RayGen;
 
 struct MeshAttributes {
-	enum {
-		texcoords = 0,
-		normals = 1
-	};
+    enum {
+        texcoords = 0,
+        normals = 1
+    };
 };
 
 /// Stores all data required to render a scene.
 struct Scene {
-	RayGen* camera;
-	
-	LightContainer lights;
-	TextureContainer textures;
-	MaterialContainer materials;
+    RayGen* camera;
+    
+    LightContainer lights;
+    TextureContainer textures;
+    MaterialContainer materials;
 
     ThorinArray<::Node> nodes;
     ThorinArray<::Vec4> tris;
@@ -35,7 +35,7 @@ struct Scene {
     ThorinArray<::TransparencyMask> masks;
     ThorinArray<char> mask_buffer;
 
-	Mesh mesh;
+    Mesh mesh;
 };
 
 }

@@ -63,8 +63,8 @@ struct DirectionSample {
 inline DirectionSample generate_cosine_weighted_direction(const float3& up, const float3& left, const float3& forward, const float u1, const float u2) {
     float3 dir(
         cosf(2.f * pi * u1) * sqrtf(1 - u2),
-		sinf(2.f * pi * u1) * sqrtf(1 - u2),
-		sqrtf(u2));
+        sinf(2.f * pi * u1) * sqrtf(1 - u2),
+        sqrtf(u2));
 
     dir = dir.x * left + dir.y * forward + dir.z * up;
 
