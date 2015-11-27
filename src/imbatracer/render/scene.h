@@ -15,8 +15,8 @@ class RayGen;
 
 struct MeshAttributes {
 	enum {
-		texcoords,
-		normals
+		texcoords = 0,
+		normals = 1
 	};
 };
 

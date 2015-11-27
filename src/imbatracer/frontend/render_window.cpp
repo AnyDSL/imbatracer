@@ -93,7 +93,7 @@ void RenderWindow::render_surface() {
     const int r = screen_->format->Rshift / 8;
     const int g = screen_->format->Gshift / 8;
     const int b = screen_->format->Bshift / 8;
-    
+
 #pragma omp parallel for
     for (int y = 0; y < screen_->h; y++) {
         unsigned char* row = (unsigned char*)screen_->pixels + screen_->pitch * y;

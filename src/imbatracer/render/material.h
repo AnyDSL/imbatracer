@@ -25,8 +25,8 @@ struct Material {
 
 struct SurfaceInfo {
     float3 normal;
-    float3 geometry_normal;
-    float u, v;  
+    float2 uv;
+    float3 gnormal;
 };
 
 float4 evaluate_material(Material* mat, const float3& out_dir, const SurfaceInfo& surf, const float3& in_dir);
@@ -41,7 +41,7 @@ public:
     inline float4 sample(const float3& out_dir, const SurfaceInfo& surf, RNG& rng, float3& in_dir, float& pdf, bool& specular) {
         float4 clr = diffuse_;
         if (sampler_) {
-            clr = sampler_->sample(surf.u, surf.v);
+            clr = sampler_->sample(surf.uv);
         }
         
         // uniform sample the hemisphere
@@ -55,7 +55,7 @@ public:
     inline float4 eval(const float3& out_dir, const SurfaceInfo& surf, const float3& in_dir) {
         float4 clr = diffuse_;
         if (sampler_) {
-            clr = sampler_->sample(surf.u, surf.v);
+            clr = sampler_->sample(surf.uv);
         }
         
         return clr * (1.0f / pi); 
@@ -90,7 +90,7 @@ public:
         : Material(combine), scale_(scale), m1_(std::move(m1)), m2_(std::move(m2)) { }
     
     inline float4 sample(const float3& out_dir, const SurfaceInfo& surf, RNG& rng, float3& in_dir, float& pdf, bool& specular) {
-        const float s = scale_->sample(surf.u, surf.v).x;
+        const float s = scale_->sample(surf.uv).x;
         const float r = rng.random01();
         if (r < s) {
             return sample_material(m1_.get(), out_dir, surf, rng, in_dir, pdf, specular);
@@ -100,7 +100,7 @@ public:
     }
     
     inline float4 eval(const float3& out_dir, const SurfaceInfo& surf, const float3& in_dir) {
-        const float s = scale_->sample(surf.u, surf.v).x;
+        const float s = scale_->sample(surf.uv).x;
         const float4 v1 = evaluate_material(m1_.get(), out_dir, surf, in_dir);
         const float4 v2 = evaluate_material(m2_.get(), out_dir, surf, in_dir);
         return v1 * s + (1.0f - s)  * v2; 

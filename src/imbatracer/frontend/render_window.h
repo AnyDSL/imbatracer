@@ -9,8 +9,6 @@
 namespace imba {
 
     class RenderWindow {
-        //using StateType = PTState;
-        using StateType = BPTState;
     public:
         RenderWindow(int img_width, int img_height, int n_samples, Integrator& r);
         ~RenderWindow(); 

@@ -15,10 +15,9 @@ public:
 	TextureSampler(const TextureSampler&) = delete;
 	TextureSampler& operator=(const TextureSampler&) = delete;
 	
-	float4 sample(float u, float v) {
-		float intpart;
-		u = modff(u, &intpart);
-		v = modff(v, &intpart);
+	float4 sample(float2 uv) {
+		float u = clamp(uv.x - (int)uv.x, -1.0f, 1.0f);
+		float v = clamp(uv.y - (int)uv.y, -1.0f, 1.0f);
 		if (u < 0.0f) u += 1.0f;
 		if (v < 0.0f) v += 1.0f;
 		

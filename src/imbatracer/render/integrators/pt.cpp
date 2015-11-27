@@ -9,14 +9,17 @@
 
 namespace imba {
 
+static thread_local RNG rng;
+
 void PathTracer::process_primary_rays(RayQueue<PTState>& ray_in, RayQueue<PTState>& ray_out, RayQueue<PTState>& ray_out_shadow, Image& out) {
-    static RNG rng;
-    
     PTState* shader_state = ray_in.states();
     Hit* hits = ray_in.hits(); 
     Ray* rays = ray_in.rays();
-    int ray_count = ray_in.size(); 
-    
+    int ray_count = ray_in.size();
+
+    const float offset = 0.0001f;
+
+    #pragma omp parallel for
     for (int i = 0; i < ray_count; ++i) {       
         if (hits[i].tri_id < 0)
             continue;
@@ -41,7 +44,7 @@ void PathTracer::process_primary_rays(RayQueue<PTState>& ray_in, RayQueue<PTStat
         const float2 uv_coords = lerp(texcoords[i0], texcoords[i1], texcoords[i2], u, v);
         const float3 normal = lerp(normals[i0], normals[i1], normals[i2], u, v);
         
-        SurfaceInfo surf_info { normal, uv_coords.x, uv_coords.y };
+        SurfaceInfo surf_info { normal, uv_coords, float3() };
         
         if (mat->kind == Material::emissive) {
             // If an emissive object is hit after a specular bounce or as the first intersection along the path, add its contribution. 
@@ -76,8 +79,8 @@ void PathTracer::process_primary_rays(RayQueue<PTState>& ray_in, RayQueue<PTStat
         const float pdf = scene_.lights.size();
         
         Ray ray {
-            { pos.x, pos.y, pos.z, 0.01f },
-            { sh_dir.x, sh_dir.y, sh_dir.z, sample.distance - 0.01f }
+            { pos.x, pos.y, pos.z, sample.distance * offset },
+            { sh_dir.x, sh_dir.y, sh_dir.z, sample.distance * (1.0f - offset) }
         };
         
         // Compute the values stored in the ray state.
@@ -109,14 +112,15 @@ void PathTracer::process_primary_rays(RayQueue<PTState>& ray_in, RayQueue<PTStat
             
             PTState s = shader_state[i];
             s.throughput = s.throughput * brdf * (cos_term / (rrprob * pdf));
+
             s.bounces++;
             s.last_specular = specular;
-            
+
             Ray ray {
-                { pos.x, pos.y, pos.z, 0.01f },
+                { pos.x, pos.y, pos.z, offset },
                 { sample_dir.x, sample_dir.y, sample_dir.z, FLT_MAX }
             };
-            
+
             ray_out.push(ray, s);
         }
     }
@@ -128,6 +132,7 @@ void PathTracer::process_shadow_rays(RayQueue<PTState>& ray_in, Image& out) {
     Ray* rays = ray_in.rays();
     int ray_count = ray_in.size(); 
 
+    #pragma omp parallel for
     for (int i = 0; i < ray_count; ++i) {
         if (hits[i].tri_id < 0) {
             // The shadow ray hit the light source. Multiply the contribution of the light by the 

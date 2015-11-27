@@ -7,7 +7,7 @@
 namespace imba {
 
 struct float2 {
-    float x, y, z;
+    float x, y;
     float2() {}
     float2(float x) : x(x), y(x) {}
     float2(float x, float y) : x(x), y(y) {}

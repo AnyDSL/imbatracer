@@ -114,7 +114,7 @@ public:
             s.intensity = intensity_ * cos_normal_dir * (area() / distsq);
         else 
             s.intensity = float4(0.0f);
-            
+
         return s;
     }
     
@@ -130,7 +130,7 @@ public:
         DirectionSample ds = sample_hemisphere(normal_, rng.random01(), rng.random01());
         s.dir = ds.dir;
         s.intensity = intensity_ * (area() / ds.pdf);
-        
+
         return s;
     }
     

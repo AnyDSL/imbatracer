@@ -172,7 +172,6 @@ bool build_scene(const Path& path, Scene& scene) {
                         mapping.insert(std::make_pair(face.indices[i], cur_idx));
                         cur_idx++;
                     }
-                    
                 }
 
                 const int v0 = mapping[face.indices[0]];
@@ -211,6 +210,7 @@ bool build_scene(const Path& path, Scene& scene) {
         }
 
         scene.mesh.set_vertex_count(vert_offset + cur_idx);
+
         for (auto& p : mapping) {
             const auto& v = obj_file.vertices[p.first.v];
             scene.mesh.vertices()[vert_offset + p.second].x = v.x;
@@ -241,14 +241,14 @@ bool build_scene(const Path& path, Scene& scene) {
     }
     
     // Compute geometry normals
-    scene.geometry_normals.resize(scene.mesh.triangle_count());
+    /*scene.geometry_normals.resize(scene.mesh.triangle_count());
     for (int i = 0; i < scene.mesh.triangle_count(); ++i) {
         auto t = scene.mesh.triangle(i);
         float3 e0 = t[1] - t[0];
         float3 e1 = t[2] - t[0];
         float3 n = cross(e0, e1);
         scene.geometry_normals[i] = n;
-    }
+    }*/
 
     scene.texcoords = std::move(ThorinArray<::Vec2>(scene.mesh.vertex_count()));
     {

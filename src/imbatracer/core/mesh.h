@@ -89,11 +89,11 @@ private:
     static int stride_bytes(AttributeType type) {
         switch (type) {
             case ATTR_FLOAT:    return 4;
-            case ATTR_FLOAT2:   return 4 * 4;
+            case ATTR_FLOAT2:   return 4 * 2;
             case ATTR_FLOAT3:   return 4 * 4;
             case ATTR_FLOAT4:   return 4 * 4;
             case ATTR_INT:      return 4;
-            case ATTR_INT2:     return 4 * 4;
+            case ATTR_INT2:     return 4 * 2;
             case ATTR_INT3:     return 4 * 4;
             case ATTR_INT4:     return 4 * 4;
         }

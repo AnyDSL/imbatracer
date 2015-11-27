@@ -38,8 +38,8 @@ void BidirPathTracer::process_light_rays(RayQueue<LightRayState>& rays_in, RayQu
             
             // As we are using shading normals, we need to use the adjoint BSDF
             float cos_out_snorm = fabsf(dot(isect.surf.normal, isect.out_dir));
-            float cos_out_gnorm = fabsf(dot(isect.surf.geometry_normal, isect.out_dir));
-            float cos_in_gnorm = fabsf(dot(isect.surf.geometry_normal, sample_dir));
+            float cos_out_gnorm = fabsf(dot(isect.surf.gnormal, isect.out_dir));
+            float cos_in_gnorm = fabsf(dot(isect.surf.gnormal, sample_dir));
             float adjoint_conversion = cos_out_snorm / cos_out_gnorm * cos_in_gnorm;
             
             LightRayState s = states[i];
@@ -130,7 +130,7 @@ void BidirPathTracer::trace_light_paths() {
         if (light_rays_[in_queue].size() <= 0)
             break;
         
-        light_rays_[in_queue].traverse();
+        light_rays_[in_queue].traverse(scene_);
         process_light_rays(light_rays_[in_queue], light_rays_[out_queue]);
         light_rays_[in_queue].clear();
         
@@ -152,13 +152,13 @@ void BidirPathTracer::trace_camera_paths(Image& img) {
         if (primary_rays_[in_queue].size() <= 0)
             break;
 
-        primary_rays_[in_queue].traverse();
+        primary_rays_[in_queue].traverse(scene_);
         process_primary_rays(primary_rays_[in_queue], primary_rays_[out_queue], shadow_rays_, img);
         primary_rays_[in_queue].clear();
 
         // Processing primary rays creates new primary rays and some shadow rays.
         if (shadow_rays_.size() > 0) {
-            shadow_rays_.traverse_occluded();
+            shadow_rays_.traverse_occluded(scene_);
             process_shadow_rays(shadow_rays_, img);
             shadow_rays_.clear();
         }

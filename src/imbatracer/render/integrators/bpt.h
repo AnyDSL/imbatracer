@@ -62,9 +62,9 @@ public:
           height_(static_cast<PixelRayGen<BPTState>*>(scene.camera)->height()),
           n_samples_(static_cast<PixelRayGen<BPTState>*>(scene.camera)->num_samples()),
           light_sampler_(width_, height_, n_samples_, scene.lights),
-          primary_rays_ { RayQueue<BPTState>(TARGET_RAY_COUNT, scene.traversal_data), RayQueue<BPTState>(TARGET_RAY_COUNT, scene.traversal_data)}, 
-          shadow_rays_(TARGET_RAY_COUNT * MAX_LIGHT_PATH_LEN, scene.traversal_data),
-          light_rays_ { RayQueue<LightRayState>(TARGET_RAY_COUNT, scene.traversal_data), RayQueue<LightRayState>(TARGET_RAY_COUNT, scene.traversal_data)}
+          primary_rays_ { RayQueue<BPTState>(TARGET_RAY_COUNT), RayQueue<BPTState>(TARGET_RAY_COUNT)}, 
+          shadow_rays_(TARGET_RAY_COUNT * MAX_LIGHT_PATH_LEN),
+          light_rays_ { RayQueue<LightRayState>(TARGET_RAY_COUNT), RayQueue<LightRayState>(TARGET_RAY_COUNT)}
     {
         light_paths_.resize(width_ * height_);
         for (auto& p : light_paths_) {
