@@ -3,6 +3,7 @@
 
 #include "../core/float3.h"
 #include "material.h"
+#include <cfloat>
 
 namespace imba {
 

@@ -3,6 +3,7 @@
 
 #include "traversal.h"
 #include "thorin_mem.h"
+#include "scene.h"
 
 #include <vector>
 #include <algorithm>
@@ -18,20 +19,14 @@ struct RayState {
     int sample_id;
 };
 
-/// Stores the representation of the acceleration structure in the format required by the traversal library.
-struct TraversalData {
-    ThorinArray<::Node> nodes;
-	ThorinArray<::Vec4> tris;  
-};
-
 /// Stores a set of rays for traversal along with their state.
 template <typename StateType>
 class RayQueue {
 public:
     RayQueue() { }
     
-    RayQueue(int capacity, TraversalData& traversal_data) 
-        : ray_buffer_(capacity), hit_buffer_(capacity), state_buffer_(capacity), last_(-1), traversal_data_(traversal_data)
+    RayQueue(int capacity)
+        : ray_buffer_(capacity), hit_buffer_(capacity), state_buffer_(capacity), last_(-1)
     {
     }
     
@@ -39,8 +34,7 @@ public:
     RayQueue& operator= (const RayQueue<StateType>&) = delete;
     
     RayQueue(RayQueue<StateType>&& rhs)
-        : traversal_data_(rhs.traversal_data_),
-          ray_buffer_(std::move(rhs.ray_buffer_)),
+        : ray_buffer_(std::move(rhs.ray_buffer_)),
           hit_buffer_(std::move(rhs.hit_buffer_)),
           state_buffer_(std::move(rhs.state_buffer_)),
           last_(rhs.last_.load())
@@ -48,7 +42,6 @@ public:
     }
     
     RayQueue& operator= (RayQueue<StateType>&& rhs) {
-        traversal_data_ = rhs.traversal_data_;
         ray_buffer_ = std::move(rhs.ray_buffer_);
         hit_buffer_ = std::move(rhs.hit_buffer_);
         state_buffer_ = std::move(rhs.state_buffer_);
@@ -113,34 +106,49 @@ public:
     }
     
     /// Traverses the acceleration structure with the rays currently inside the queue.
-    void traverse() {
-        //printf("traverse: %d \n", size());
+    void traverse(Scene& scene) {
         assert(size() != 0);
 
         int count = size();
         if (count % 64 != 0) {
             count = count + 64 - count % 64;        
         }
+
         ray_buffer_.upload(size());
-        TRAVERSAL_ROUTINE(traversal_data_.nodes.device_data(), traversal_data_.tris.device_data(), ray_buffer_.device_data(), hit_buffer_.device_data(), count);
+        TRAVERSAL_INTERSECT(scene.nodes.device_data(),
+                            scene.tris.device_data(),
+                            ray_buffer_.device_data(),
+                            hit_buffer_.device_data(),
+                            scene.indices.device_data(),
+                            scene.texcoords.device_data(),
+                            scene.masks.device_data(),
+                            scene.mask_buffer.device_data(),
+                            count);
         hit_buffer_.download(size());
     }
     
-    void traverse_occluded() {
+    void traverse_occluded(Scene& scene) {
         assert(size() != 0);
 
         int count = size();
         if (count % 64 != 0) {
             count = count + 64 - count % 64;        
         }
+
         ray_buffer_.upload(size());
-        TRAVERSAL_ROUTINE/*occluded_gpu*/(traversal_data_.nodes.device_data(), traversal_data_.tris.device_data(), ray_buffer_.device_data(), hit_buffer_.device_data(), count);
+        TRAVERSAL_OCCLUDED(scene.nodes.device_data(),
+                           scene.tris.device_data(),
+                           ray_buffer_.device_data(),
+                           hit_buffer_.device_data(),
+                           scene.indices.device_data(),
+                           scene.texcoords.device_data(),
+                           scene.masks.device_data(),
+                           scene.mask_buffer.device_data(),
+                           count);
         hit_buffer_.download(size());
     }
     
 private:
-    TraversalData& traversal_data_;
-    
     ThorinArray<::Ray> ray_buffer_;
     ThorinArray<::Hit> hit_buffer_;
     std::vector<StateType> state_buffer_;

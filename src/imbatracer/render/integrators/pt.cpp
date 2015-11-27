@@ -19,19 +19,21 @@ void PathTracer::process_primary_rays(RayQueue<PTState>& ray_in, RayQueue<PTStat
     
     for (int i = 0; i < ray_count; ++i) {       
         if (hits[i].tri_id < 0)
-            continue;             
+            continue;
 
-        auto& mat = scene_.materials[scene_.material_ids[hits[i].tri_id]];
+        const int i0 = scene_.mesh.indices()[hits[i].tri_id * 4 + 0];
+        const int i1 = scene_.mesh.indices()[hits[i].tri_id * 4 + 1];
+        const int i2 = scene_.mesh.indices()[hits[i].tri_id * 4 + 2];
+        const int  m = scene_.mesh.indices()[hits[i].tri_id * 4 + 3];
+
+        const auto& mat = scene_.materials[m];
                 
-        const float3 org(rays[i].org.x, rays[i].org.y, rays[i].org.z);
+        const float3     org(rays[i].org.x, rays[i].org.y, rays[i].org.z);
         const float3 out_dir(rays[i].dir.x, rays[i].dir.y, rays[i].dir.z);
         const float3 pos = org + (hits[i].tmax) * out_dir;
         
         const float u = hits[i].u;
         const float v = hits[i].v;
-        const int i0 = scene_.mesh.indices()[hits[i].tri_id * 3 + 0];
-        const int i1 = scene_.mesh.indices()[hits[i].tri_id * 3 + 1];
-        const int i2 = scene_.mesh.indices()[hits[i].tri_id * 3 + 2];
 
         const auto texcoords = scene_.mesh.attribute<float2>(MeshAttributes::texcoords);
         const auto normals = scene_.mesh.attribute<float3>(MeshAttributes::normals);
@@ -64,7 +66,7 @@ void PathTracer::process_primary_rays(RayQueue<PTState>& ray_in, RayQueue<PTStat
 
             // Do not continue the path after hitting a light source.
             continue;
-        } 
+        }
         
         // Compute direct illumination only for materials that are not specular.
         // Generate the shadow ray (sample one point on one lightsource)
@@ -133,7 +135,7 @@ void PathTracer::process_shadow_rays(RayQueue<PTState>& ray_in, Image& out) {
             float4 color = shader_state[i].throughput;
             // Add contribution to the pixel which this ray belongs to.
             out.pixels()[shader_state[i].pixel_id] += color;
-        }        
+        }
     }
 }
 
@@ -151,13 +153,13 @@ void PathTracer::render(Image& out) {
         if (primary_rays[in_queue].size() <= 0)
             break;
 
-        primary_rays[in_queue].traverse();
+        primary_rays[in_queue].traverse(scene_);
         process_primary_rays(primary_rays[in_queue], primary_rays[out_queue], shadow_rays, out);
         primary_rays[in_queue].clear();
 
         // Processing primary rays creates new primary rays and some shadow rays.
         if (shadow_rays.size() > 0) {
-            shadow_rays.traverse_occluded();
+            shadow_rays.traverse_occluded(scene_);
             process_shadow_rays(shadow_rays, out);
             shadow_rays.clear();
         }

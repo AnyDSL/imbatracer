@@ -27,7 +27,9 @@ public:
 		row = (img_.height() - 1) - row;
 		
 		return img_(col, row);
-	}	
+	}
+
+    const Image& image() const { return img_; }
 	
 private:
 	Image img_;
