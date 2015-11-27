@@ -237,6 +237,21 @@ bool build_scene(const Path& path, Scene& scene) {
             scene.mesh.compute_normals(true, MeshAttributes::normals);
         }
     }
+
+    // HACK for borked normals
+    bool borked = false;
+    auto normals = scene.mesh.attribute<float3>(MeshAttributes::normals);
+    for (int i = 0; i < scene.mesh.vertex_count(); i++) {
+        auto& n = normals[i];
+        if (isnan(n.x) || isnan(n.y) || isnan(n.z)) {
+            n.x = 0;
+            n.y = 1;
+            n.z = 0;
+            borked = true;
+        }
+    }
+
+    if (borked) std::cerr << "Borked normals !!!!" << std::endl;
     
     // Compute geometry normals
     /*scene.geometry_normals.resize(scene.mesh.triangle_count());
