@@ -28,6 +28,8 @@ struct Scene {
     TextureContainer textures;
     MaterialContainer materials;
 
+    std::vector<float3> geom_normals;
+
     ThorinArray<::Node> nodes;
     ThorinArray<::Vec4> tris;
     ThorinArray<::Vec2> texcoords;

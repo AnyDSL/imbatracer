@@ -45,38 +45,39 @@ protected:
 
         const auto texcoords = scene_.mesh.attribute<float2>(MeshAttributes::texcoords);
         const auto normals = scene_.mesh.attribute<float3>(MeshAttributes::normals);
+        const auto geom_normal = scene_.geom_normals[hits[i].tri_id];
 
         const float2 uv_coords = lerp(texcoords[i0], texcoords[i1], texcoords[i2], u, v);
         const float3 normal = normalize(lerp(normals[i0], normals[i1], normals[i2], u, v));
        
         return {
-            SurfaceInfo { normal, uv_coords, float3() },
+            SurfaceInfo { normal, uv_coords, geom_normal },
             pos, -normalize(out_dir), mat.get()
         };
     }
 
     template<typename StateType>
     inline void compute_direct_illum(RNG& rng, const Intersection& isect, const StateType& state, RayQueue<StateType>& ray_out_shadow) {
-        float offset = 0.0001f;
+        const float offset = 0.001f;
 
         // Generate the shadow ray (sample one point on one lightsource)
         const auto ls = scene_.lights[rng.random_int(0, scene_.lights.size() - 1)].get();
-        const auto sample = ls->sample(isect.pos, rng.random_float(), rng.random_float());
-        const float3 sh_dir = normalize(sample.dir);
         const float pdf = scene_.lights.size();
+        const auto sample = ls->sample(isect.pos, rng.random_float(), rng.random_float());
+        assert_normalized(sample.dir);
 
         // Ensure that the incoming and outgoing directions are on the same side of the surface.
-        const float cos_sign = dot(sample.dir, isect.surf.normal);
-        if (cos_sign * dot(isect.out_dir, isect.surf.normal) < 0.0f)
+        if (dot(isect.surf.geom_normal, sample.dir) *
+            dot(isect.surf.geom_normal, isect.out_dir) < 0.0f)
             return;
 
         Ray ray {
             { isect.pos.x, isect.pos.y, isect.pos.z, offset },
-            { sh_dir.x, sh_dir.y, sh_dir.z, sample.distance - offset }
+            { sample.dir.x, sample.dir.y, sample.dir.z, sample.distance - offset }
         };
         
         // Compute the values stored in the ray state.
-        const float cos_term = fabsf(cos_sign);
+        const float cos_term = fabsf(dot(sample.dir, isect.surf.normal));
         const float4 brdf = evaluate_material(isect.mat, isect.out_dir, isect.surf, sample.dir);
 
         // Update the current state of this path.

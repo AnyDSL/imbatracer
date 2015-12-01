@@ -15,7 +15,7 @@ void PathTracer::process_primary_rays(RayQueue<PTState>& ray_in, RayQueue<PTStat
     Ray* rays = ray_in.rays();
     int ray_count = ray_in.size();
 
-    const float offset = 0.0001f;
+    const float offset = 0.001f;
 
     #pragma omp parallel for
     for (int i = 0; i < ray_count; ++i) {

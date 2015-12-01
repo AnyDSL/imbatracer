@@ -13,8 +13,8 @@ void render_test_scene() {
     /*using StateType = imba::BPTState;
     using IntegratorType = imba::BidirPathTracer;*/
     
-    constexpr int width = 512;
-    constexpr int height = 512;
+    constexpr int width = 1024;
+    constexpr int height = 1024;
     constexpr int n_samples = 8;    
 
     // sponza

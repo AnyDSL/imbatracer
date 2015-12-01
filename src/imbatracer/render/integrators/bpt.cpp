@@ -38,8 +38,8 @@ void BidirPathTracer::process_light_rays(RayQueue<LightRayState>& rays_in, RayQu
             
             // As we are using shading normals, we need to use the adjoint BSDF
             float cos_out_snorm = fabsf(dot(isect.surf.normal, isect.out_dir));
-            float cos_out_gnorm = fabsf(dot(isect.surf.gnormal, isect.out_dir));
-            float cos_in_gnorm = fabsf(dot(isect.surf.gnormal, sample_dir));
+            float cos_out_gnorm = fabsf(dot(isect.surf.geom_normal, isect.out_dir));
+            float cos_in_gnorm = fabsf(dot(isect.surf.geom_normal, sample_dir));
             float adjoint_conversion = cos_out_snorm / cos_out_gnorm * cos_in_gnorm;
             
             LightRayState s = states[i];

@@ -26,7 +26,7 @@ struct Material {
 struct SurfaceInfo {
     float3 normal;
     float2 uv;
-    float3 gnormal;
+    float3 geom_normal;
 };
 
 float4 evaluate_material(Material* mat, const float3& out_dir, const SurfaceInfo& surf, const float3& in_dir);

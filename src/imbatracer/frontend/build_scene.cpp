@@ -256,14 +256,11 @@ bool build_scene(const Path& path, Scene& scene) {
     if (borked) std::cerr << "Borked normals !!!!" << std::endl;
     
     // Compute geometry normals
-    /*scene.geometry_normals.resize(scene.mesh.triangle_count());
+    scene.geom_normals.resize(scene.mesh.triangle_count());
     for (int i = 0; i < scene.mesh.triangle_count(); ++i) {
         auto t = scene.mesh.triangle(i);
-        float3 e0 = t[1] - t[0];
-        float3 e1 = t[2] - t[0];
-        float3 n = cross(e0, e1);
-        scene.geometry_normals[i] = n;
-    }*/
+        scene.geom_normals[i] = normalize(cross(t[1] - t[0], t[2] - t[0]));
+    }
 
     scene.texcoords = std::move(ThorinArray<::Vec2>(scene.mesh.vertex_count()));
     {
