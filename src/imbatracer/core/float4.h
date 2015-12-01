@@ -10,7 +10,7 @@ namespace imba {
 struct float4 {
     float x, y, z, w;
     float4() {}
-    float4(float x) : x(x), y(x), z(x), w(x) {}
+    explicit float4(float x) : x(x), y(x), z(x), w(x) {}
     float4(float x, float y, float z, float w) : x(x), y(y), z(z), w(w) {}
     float4(const float3& f, float w) : x(f.x), y(f.y), z(f.z), w(w) {}
     float4(float x, const float3& f) : x(x), y(f.x), z(f.y), w(f.z) {}

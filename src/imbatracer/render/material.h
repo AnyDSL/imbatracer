@@ -133,11 +133,11 @@ public:
         pdf = 1.0f;
         specular = true;
 
-        return fresnel_conductor(cos_theta, eta_, kappa_) / cos_theta;
+        return float4(fresnel_conductor(cos_theta, eta_, kappa_) / cos_theta);
     }
     
     inline float4 eval(const float3& out_dir, const SurfaceInfo& surf, const float3& in_dir) {
-        return 0.0f;
+        return float4(0.0f);
     }
 
 private:
@@ -198,7 +198,7 @@ public:
     }
 
     inline float4 eval(const float3& out_dir, const SurfaceInfo& surf, const float3& in_dir) {
-        return 0.0f;
+        return float4(0.0f);
     }
 
 private:

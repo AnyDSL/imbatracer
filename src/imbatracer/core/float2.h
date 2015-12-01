@@ -9,7 +9,7 @@ namespace imba {
 struct float2 {
     float x, y;
     float2() {}
-    float2(float x) : x(x), y(x) {}
+    explicit float2(float x) : x(x), y(x) {}
     float2(float x, float y) : x(x), y(y) {}
 
     float operator [] (int axis) const { return *(&x + axis); }
