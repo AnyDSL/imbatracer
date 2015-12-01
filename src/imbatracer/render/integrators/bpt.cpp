@@ -108,7 +108,7 @@ void BidirPathTracer::process_primary_rays(RayQueue<BPTState>& rays_in, RayQueue
         const float kill_prob = dot(states[i].throughput, srgb) * 100.0f;
 
         const float rrprob = std::min(1.0f, kill_prob);
-        const float u_rr = rng.random01();
+        const float u_rr = rng.random_float();
         const int max_recursion = 32; // prevent havoc
         if (u_rr < rrprob && states[i].bounces < max_recursion) {
             // sample brdf

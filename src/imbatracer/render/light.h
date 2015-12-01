@@ -65,8 +65,8 @@ public:
         LightRaySample s;
         
         // sample a point and a direction on the light
-        s.pos = point0_ + rng.random01() * edge0_ + rng.random01() * edge1_;
-        DirectionSample ds = sample_hemisphere(normal_, rng.random01(), rng.random01());
+        s.pos = point0_ + rng.random_float() * edge0_ + rng.random_float() * edge1_;
+        DirectionSample ds = sample_hemisphere(normal_, rng.random_float(), rng.random_float());
         s.dir = ds.dir;
         s.intensity = intensity_ * (area() / ds.pdf);
         
@@ -123,11 +123,11 @@ public:
         
         // Sample a point on the light source
         float u, v;
-        uniform_sample_triangle(rng.random01(), rng.random01(), u, v);
+        uniform_sample_triangle(rng.random_float(), rng.random_float(), u, v);
         s.pos = u * p0_ + v * p1_ + (1.0f - u - v) * p2_;
         
         // Sample an outgoing direction
-        DirectionSample ds = sample_hemisphere(normal_, rng.random01(), rng.random01());
+        DirectionSample ds = sample_hemisphere(normal_, rng.random_float(), rng.random_float());
         s.dir = ds.dir;
         s.intensity = intensity_ * (area() / ds.pdf);
 

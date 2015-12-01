@@ -48,7 +48,9 @@ public:
         // remember how many pixel samples were generated
         generated_pixels_ += count;
         
-        static RNG rng;      
+        std::random_device rd;
+        std::mt19937 seed_gen(rd());
+        //uint64_t rnd_seed_base = rd();
         for (int i = next_pixel_; i < next_pixel_ + count; ++i) {
             // Compute coordinates, id etc.
             int pixel_idx = i % (width_ * height_);
@@ -59,10 +61,15 @@ public:
             // Create the ray and its state.
             StateType state;
             ::Ray ray;
+
+            std::uniform_int_distribution<int> uniform(0, 0xFFFFFF);
+            int seed = uniform(seed_gen);
             
             state.pixel_id = pixel_idx;
             state.sample_id = sample_idx;
-            sample_pixel(x, y, rng, ray, state);
+            state.rng = RNG(seed);
+            //state.rng = RNG(rnd_seed_base << ((x + y) % 16)); // TODO improve seed
+            sample_pixel(x, y, ray, state);
             
             out.push(ray, state);
         }
@@ -80,7 +87,7 @@ protected:
     int height_;
     int n_samples_;
     
-    virtual void sample_pixel(int x, int y, RNG& rng, ::Ray& ray_out, StateType& state_out) = 0;
+    virtual void sample_pixel(int x, int y, ::Ray& ray_out, StateType& state_out) = 0;
 };
 
 } // namespace imba

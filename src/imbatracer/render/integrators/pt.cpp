@@ -9,8 +9,6 @@
 
 namespace imba {
 
-static thread_local RNG rng;
-
 void PathTracer::process_primary_rays(RayQueue<PTState>& ray_in, RayQueue<PTState>& ray_out, RayQueue<PTState>& ray_out_shadow, Image& out) {
     PTState* states = ray_in.states();
     Hit* hits = ray_in.hits(); 
@@ -21,9 +19,10 @@ void PathTracer::process_primary_rays(RayQueue<PTState>& ray_in, RayQueue<PTStat
 
     #pragma omp parallel for
     for (int i = 0; i < ray_count; ++i) {
-
         if (hits[i].tri_id < 0)
             continue;
+
+        RNG& rng = states[i].rng;
 
         auto isect = calculate_intersection(hits, rays, i);
 
@@ -40,7 +39,7 @@ void PathTracer::process_primary_rays(RayQueue<PTState>& ray_in, RayQueue<PTStat
                 EmissiveMaterial* em = static_cast<EmissiveMaterial*>(isect.mat);
                 
                 float cos_light = fabsf(dot(isect.surf.normal, -1.0f * isect.out_dir));
-                if (cos_light > 0.0f && cos_light < 1.0f) {  // Only add contribution from the side of the light that the normal is on.
+                if (cos_light < 1.0f) {  // Only add contribution from the side of the light that the normal is on.
                     float4 color = states[i].throughput * em->color();
                     
                     // Add contribution to the pixel which this ray belongs to.
@@ -59,7 +58,7 @@ void PathTracer::process_primary_rays(RayQueue<PTState>& ray_in, RayQueue<PTStat
         const float kill_prob = dot(states[i].throughput, srgb) * 100.0f;
 
         const float rrprob = std::min(1.0f, kill_prob);
-        const float u_rr = rng.random01();
+        const float u_rr = rng.random_float();
         const int max_recursion = 32; // prevent havoc
         if (u_rr < rrprob && states[i].bounces < max_recursion) {
             // sample brdf

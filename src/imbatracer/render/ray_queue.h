@@ -17,6 +17,8 @@ namespace imba {
 struct RayState {
     int pixel_id;
     int sample_id;
+
+    RNG rng;
 };
 
 /// Stores a set of rays for traversal along with their state.

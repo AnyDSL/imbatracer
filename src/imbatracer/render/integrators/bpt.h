@@ -28,12 +28,12 @@ class BPTLightRayGen : public PixelRayGen<LightRayState> {
 public:
     BPTLightRayGen(int w, int h, int n, LightContainer& lights) : PixelRayGen<LightRayState>(w, h, n), lights_(lights) { }
     
-    virtual void sample_pixel(int x, int y, RNG& rng, ::Ray& ray_out, LightRayState& state_out) override { 
+    virtual void sample_pixel(int x, int y, ::Ray& ray_out, LightRayState& state_out) override { 
         // randomly choose one light source to sample
-        int i = rng.random(0, lights_.size() - 1);
+        int i = state_out.rng.random_int(0, lights_.size() - 1);
         auto& l = lights_[i];
         
-        Light::LightRaySample sample = l->sample(rng);
+        Light::LightRaySample sample = l->sample(state_out.rng);
         ray_out.org.x = sample.pos.x;
         ray_out.org.y = sample.pos.y;
         ray_out.org.z = sample.pos.z;

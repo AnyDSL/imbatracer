@@ -48,11 +48,9 @@ protected:
 
         const float2 uv_coords = lerp(texcoords[i0], texcoords[i1], texcoords[i2], u, v);
         const float3 normal = normalize(lerp(normals[i0], normals[i1], normals[i2], u, v));
-
-        SurfaceInfo surf_info { normal, uv_coords, float3() };
-        
+       
         return {
-            SurfaceInfo { normal, uv_coords.x, uv_coords.y },
+            SurfaceInfo { normal, uv_coords, float3() },
             pos, -normalize(out_dir), mat.get()
         };
     }
@@ -62,8 +60,8 @@ protected:
         float offset = 0.0001f;
 
         // Generate the shadow ray (sample one point on one lightsource)
-        const auto ls = scene_.lights[rng.random(0, scene_.lights.size() - 1)].get();
-        const auto sample = ls->sample(isect.pos, rng.random01(), rng.random01());
+        const auto ls = scene_.lights[rng.random_int(0, scene_.lights.size() - 1)].get();
+        const auto sample = ls->sample(isect.pos, rng.random_float(), rng.random_float());
         const float3 sh_dir = normalize(sample.dir);
         const float pdf = scene_.lights.size();
 

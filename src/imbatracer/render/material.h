@@ -34,24 +34,25 @@ float4 sample_material(Material* mat, const float3& out_dir, const SurfaceInfo& 
 
 inline float fresnel_conductor(float cosi, float eta, float kappa)
 {
-    float ekc = (eta*eta + kappa*kappa) * cosi*cosi;
-    float parallel = (ekc - (2.f * eta * cosi) + 1) /
-                      (ekc + (2.f * eta * cosi) + 1);
+    const float ekc = (eta*eta + kappa*kappa) * cosi*cosi;
+    const float par =
+        (ekc - (2.f * eta * cosi) + 1) /
+        (ekc + (2.f * eta * cosi) + 1);
 
-    float ek = eta*eta + kappa*kappa;
-    float perpendicular =
+    const float ek = eta*eta + kappa*kappa;
+    const float perp =
         (ek - (2.f * eta * cosi) + cosi*cosi) /
         (ek + (2.f * eta * cosi) + cosi*cosi);
 
-    return (parallel + perpendicular) / 2.f;
+    return (par + perp) / 2.f;
 }
 
 inline float fresnel_dielectric(float cosi, float coso, float etai, float etao)
 {
-    float parallel = (etao * cosi - etai * coso) / (etao * cosi + etai * coso);
-    float perpendicular = (etai * cosi - etao * coso) / (etai * cosi + etao * coso);
+    const float par  = (etao * cosi - etai * coso) / (etao * cosi + etai * coso);
+    const float perp = (etai * cosi - etao * coso) / (etai * cosi + etao * coso);
 
-    return (parallel * parallel + perpendicular * perpendicular) / 2.f;
+    return (par * par + perp * perp) / 2.f;
 }
 
 class LambertMaterial : public Material {
@@ -67,7 +68,7 @@ public:
         }
         
         // uniform sample the hemisphere
-        DirectionSample hemi_sample = sample_hemisphere(surf.normal, rng.random01(), rng.random01());
+        DirectionSample hemi_sample = sample_hemisphere(surf.normal, rng.random_float(), rng.random_float());
         in_dir = hemi_sample.dir;
         pdf = hemi_sample.pdf;
         specular = false;
@@ -97,7 +98,7 @@ public:
     
     inline float4 sample(const float3& out_dir, const SurfaceInfo& surf, RNG& rng, float3& in_dir, float& pdf, bool& specular) {
         const float s = scale_->sample(surf.uv).x;
-        const float r = rng.random01();
+        const float r = rng.random_float();
         if (r < s) {
             return sample_material(m1_.get(), out_dir, surf, rng, in_dir, pdf, specular);
         } else {
@@ -152,15 +153,13 @@ public:
     inline float4 sample(const float3& out_dir, const SurfaceInfo& surf, RNG& rng, float3& in_dir, float& pdf, bool& specular) {
         specular = true;
 
-        if (length(out_dir) > 1.01f || length(out_dir) < 0.99f)
-            printf("%f\n", length(out_dir)); 
-
         float cos_theta = dot(surf.normal, out_dir);
         cos_theta = clamp(cos_theta, -1.0f, 1.0f);
 
         bool entering = cos_theta > 0;
         float eta_i = 1.0f;
         float eta_o = eta_;
+
         if (!entering) {
             std::swap(eta_i, eta_o);
             cos_theta = -cos_theta;
@@ -172,8 +171,7 @@ public:
         float3 reflect_dir = -out_dir + 2.0f * (surf.normal * dot(out_dir, surf.normal));
         reflect_dir = normalize(reflect_dir);
 
-        if (sin2sq >= 1.0f) 
-        {
+        if (sin2sq >= 1.0f) {
             // total internal reflection
             in_dir = reflect_dir;
             pdf = 1.0f;
@@ -183,15 +181,12 @@ public:
         float cos_o = sqrtf(std::max(0.0f, 1.f - sin2sq));
         float fr = fresnel_dielectric(cos_theta, cos_o, eta_i, eta_o);
 
-        float rnd_num = rng.random01();
-        if (rnd_num < fr)
-        {
+        float rnd_num = rng.random_float();
+        if (rnd_num < fr) {
             in_dir = reflect_dir;
             pdf = 1.0f;
             return float4(ks_ / fabsf(cos_theta));
-        }
-        else
-        {
+        } else {
             float3 refract_dir = etafrac * (-out_dir) +
                 (etafrac * cos_theta - cos_o) * surf.normal;
 
@@ -219,7 +214,7 @@ public:
     
     inline float4 sample(const float3& out_dir, const SurfaceInfo& surf, RNG& rng, float3& in_dir, float& pdf, bool& specular) {
         // uniform sample the hemisphere
-        DirectionSample hemi_sample = sample_hemisphere(surf.normal, rng.random01(), rng.random01());
+        DirectionSample hemi_sample = sample_hemisphere(surf.normal, rng.random_float(), rng.random_float());
         in_dir = hemi_sample.dir;
         pdf = hemi_sample.pdf;
         specular = false;

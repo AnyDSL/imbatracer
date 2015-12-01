@@ -9,33 +9,31 @@ namespace imba {
 
 class RNG {
 public:
-    RNG() {
-        std::random_device rd;
-        rng_ = std::mt19937(rd());
-//        v = 1214;
+    RNG(uint64_t seed = 0) : state_(seed) {}
+
+    float random_float(float min, float max) {
+        const float r = random_float();
+        return lerp(min, max, r);
     }
-    
-    RNG(const RNG& rhs) = delete;
-    RNG& operator= (const RNG&& rhs) = delete;
-    
-    float random(float min, float max) {
-       /* if (v != 1214)
-            printf("fuck\n");*/
-    
-        std::uniform_real_distribution<float> uniform(min, max);
-        return uniform(rng_);
+
+    float random_float() {
+        return static_cast<float>(MWC64X()) / static_cast<float>(0xFFFFFFFF);
     }
-    
-    float random01() { return random(0.0f, 1.0f); }
-    
-    int random(int min, int max) {
-        std::uniform_int_distribution<int> uniform(min, max);
-        return uniform(rng_);
+
+    int random_int(int min, int max) {
+        const float r = random_float();
+        return lerp(min, max, r);
     }
-    
+
 private:
-    std::mt19937 rng_;
-//    int v;
+    uint64_t state_;
+
+    uint32_t MWC64X() {
+        const uint32_t c = (state_) >> 32;
+        const uint32_t x = (state_) & 0xFFFFFFFF;
+        state_ = x * ((uint64_t)4294883355U) + c;
+        return x^c;
+    }
 };
 
 //computes orthogonal local coordinate system

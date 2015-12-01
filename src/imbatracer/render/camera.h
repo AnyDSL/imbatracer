@@ -40,9 +40,9 @@ private:
     float3 step_x_;
     float3 step_y_;
     
-    virtual void sample_pixel(int x, int y, RNG& rng, ::Ray& ray_out, StateType& state_out) override {
-        float sample_x = static_cast<float>(x) + rng.random01();
-        float sample_y = static_cast<float>(y) + rng.random01();
+    virtual void sample_pixel(int x, int y, ::Ray& ray_out, StateType& state_out) override {
+        float sample_x = static_cast<float>(x) + state_out.rng.random_float();
+        float sample_y = static_cast<float>(y) + state_out.rng.random_float();
         
         float3 dir = top_left_ + sample_x * step_x_ + sample_y * step_y_;
         
