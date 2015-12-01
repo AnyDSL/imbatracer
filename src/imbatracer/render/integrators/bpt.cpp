@@ -61,8 +61,10 @@ void BidirPathTracer::process_light_rays(RayQueue<LightRayState>& rays_in, RayQu
     }
 }
 
-void BidirPathTracer::process_primary_rays(RayQueue<BPTState>& rays_in, RayQueue<BPTState>& rays_out, RayQueue<BPTState>& shadow_rays_, Image& img) {
+void BidirPathTracer::process_primary_rays(RayQueue<BPTState>& rays_in, RayQueue<BPTState>& rays_out, RayQueue<BPTState>& ray_out_shadow, Image& img) {
     static RNG rng;
+
+    const float offset = 0.0001f;
 
     int ray_count = rays_in.size(); 
     const BPTState* states = rays_in.states();
@@ -78,7 +80,7 @@ void BidirPathTracer::process_primary_rays(RayQueue<BPTState>& rays_in, RayQueue
         int n_vertices = light_path_lengths_[states[i].pixel_id][states[i].sample_id];
         auto& sample_path = light_paths_[states[i].pixel_id][states[i].sample_id];
        
-        // TODO compute direct illumination
+        compute_direct_illum(rng, isect, states[i], ray_out_shadow);
         
         // Connect the hitpoint to the light path.
         for (int i = 0; i < n_vertices; ++i) {
@@ -101,7 +103,35 @@ void BidirPathTracer::process_primary_rays(RayQueue<BPTState>& rays_in, RayQueue
             shadow_rays_.push(ray, s);
         }
         
-        // TODO continue the camera path
+        // continue the camera path
+        const float4 srgb(0.2126f, 0.7152f, 0.0722f, 0.0f);
+        const float kill_prob = dot(states[i].throughput, srgb) * 100.0f;
+
+        const float rrprob = std::min(1.0f, kill_prob);
+        const float u_rr = rng.random01();
+        const int max_recursion = 32; // prevent havoc
+        if (u_rr < rrprob && states[i].bounces < max_recursion) {
+            // sample brdf
+            float pdf;
+            float3 sample_dir;
+            bool specular;
+
+            const float4 brdf = sample_material(isect.mat, isect.out_dir, isect.surf, rng, sample_dir, pdf, specular);
+            const float cos_term = fabsf(dot(isect.surf.normal, sample_dir));
+            
+            BPTState s = states[i];
+            s.throughput = s.throughput * brdf * (cos_term / (rrprob * pdf));
+
+            s.bounces++;
+            s.last_specular = specular;
+
+            Ray ray {
+                { isect.pos.x, isect.pos.y, isect.pos.z, offset },
+                { sample_dir.x, sample_dir.y, sample_dir.z, FLT_MAX }
+            };
+
+            rays_out.push(ray, s);
+        }
     }
 }
 

@@ -17,7 +17,8 @@ void build_test_scene(std::vector<Node>& nodes, std::vector<Vec4>& tris, Scene& 
     //const std::string file_name = "../test/sanMiguel.obj";
     //const std::string file_name = "../test/sponza_light_large.obj";
     //const std::string file_name = "../test/sibenik.obj";
-    const std::string file_name = "../test/CornellBox-Original.obj";
+    //const std::string file_name = "../test/CornellBox-Original.obj";
+    const std::string file_name = "../test/CornellBox-Sphere.obj";
     //const std::string file_name = "../test/sponza_curtain.obj";
     //const std::string file_name = "../test/sponza_vase_multi.obj";
 

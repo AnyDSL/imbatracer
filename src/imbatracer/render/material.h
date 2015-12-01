@@ -15,8 +15,8 @@ struct Material {
         lambert,
         mirror,
         emissive,
-        transparent,
-        combine
+        combine,
+        glass
     } kind;
     
     Material(Kind k) : kind(k) { }
@@ -31,6 +31,28 @@ struct SurfaceInfo {
 
 float4 evaluate_material(Material* mat, const float3& out_dir, const SurfaceInfo& surf, const float3& in_dir);
 float4 sample_material(Material* mat, const float3& out_dir, const SurfaceInfo& surf, RNG& rng, float3& in_dir, float& pdf, bool& specular);
+
+inline float fresnel_conductor(float cosi, float eta, float kappa)
+{
+    float ekc = (eta*eta + kappa*kappa) * cosi*cosi;
+    float parallel = (ekc - (2.f * eta * cosi) + 1) /
+                      (ekc + (2.f * eta * cosi) + 1);
+
+    float ek = eta*eta + kappa*kappa;
+    float perpendicular =
+        (ek - (2.f * eta * cosi) + cosi*cosi) /
+        (ek + (2.f * eta * cosi) + cosi*cosi);
+
+    return (parallel + perpendicular) / 2.f;
+}
+
+inline float fresnel_dielectric(float cosi, float coso, float etai, float etao)
+{
+    float parallel = (etao * cosi - etai * coso) / (etao * cosi + etai * coso);
+    float perpendicular = (etai * cosi - etao * coso) / (etai * cosi + etao * coso);
+
+    return (parallel * parallel + perpendicular * perpendicular) / 2.f;
+}
 
 class LambertMaterial : public Material {
 public:
@@ -57,29 +79,13 @@ public:
         if (sampler_) {
             clr = sampler_->sample(surf.uv);
         }
-        
+
         return clr * (1.0f / pi); 
     }
     
 private:
     float4 diffuse_;
     TextureSampler* sampler_;
-};
-
-class TransparentMaterial : public Material {
-public:
-    TransparentMaterial() : Material(transparent) { }
-    
-    inline float4 sample(const float3& out_dir, const SurfaceInfo& surf, RNG& rng, float3& in_dir, float& pdf, bool& specular) {
-        in_dir = out_dir;
-        specular = true;
-        pdf = 1.0f;
-        return 1.0f / fabsf(dot(out_dir, surf.normal));
-    }
-    
-    inline float4 eval(const float3& out_dir, const SurfaceInfo& surf, const float3& in_dir) {
-        return 0.0f; 
-    }
 };
 
 /// Combines two materials together using weights from a texture. 0 => full contribution from the first material
@@ -116,19 +122,94 @@ private:
 /// Perfect mirror reflection.
 class MirrorMaterial : public Material {
 public:
-    MirrorMaterial() : Material(mirror) { }
+    MirrorMaterial(float eta, float kappa, const float3& ks) : Material(mirror), eta_(eta), kappa_(kappa), ks_(ks, 1.0f) { }
 
     inline float4 sample(const float3& out_dir, const SurfaceInfo& surf, RNG& rng, float3& in_dir, float& pdf, bool& specular) {
         // calculate the reflected direction
-        in_dir = out_dir + 2.0f * surf.normal * dot(-1.0f * out_dir, surf.normal);
+        in_dir = -out_dir + 2.0f * surf.normal * dot(out_dir, surf.normal);
+        float cos_theta = fabsf(dot(surf.normal, out_dir));
+
         pdf = 1.0f;
         specular = true;
-        return 1.0f;
+
+        return fresnel_conductor(cos_theta, eta_, kappa_) / cos_theta;
     }
     
     inline float4 eval(const float3& out_dir, const SurfaceInfo& surf, const float3& in_dir) {
         return 0.0f;
     }
+
+private:
+    float eta_;
+    float kappa_;
+    float4 ks_;
+};
+
+class GlassMaterial : public Material {
+public:
+    GlassMaterial(float eta, const float3& tf, const float3& ks) : Material(glass), eta_(eta), tf_(tf, 1.0f), ks_(ks, 1.0f) {}
+
+    inline float4 sample(const float3& out_dir, const SurfaceInfo& surf, RNG& rng, float3& in_dir, float& pdf, bool& specular) {
+        specular = true;
+
+        if (length(out_dir) > 1.01f || length(out_dir) < 0.99f)
+            printf("%f\n", length(out_dir)); 
+
+        float cos_theta = dot(surf.normal, out_dir);
+        cos_theta = clamp(cos_theta, -1.0f, 1.0f);
+
+        bool entering = cos_theta > 0;
+        float eta_i = 1.0f;
+        float eta_o = eta_;
+        if (!entering) {
+            std::swap(eta_i, eta_o);
+            cos_theta = -cos_theta;
+        }
+
+        float etafrac = eta_i / eta_o;
+        float sin2sq = etafrac * etafrac * (1.0f - cos_theta*cos_theta);
+
+        float3 reflect_dir = -out_dir + 2.0f * (surf.normal * dot(out_dir, surf.normal));
+        reflect_dir = normalize(reflect_dir);
+
+        if (sin2sq >= 1.0f) 
+        {
+            // total internal reflection
+            in_dir = reflect_dir;
+            pdf = 1.0f;
+            return float4(0.0f);
+        }
+
+        float cos_o = sqrtf(std::max(0.0f, 1.f - sin2sq));
+        float fr = fresnel_dielectric(cos_theta, cos_o, eta_i, eta_o);
+
+        float rnd_num = rng.random01();
+        if (rnd_num < fr)
+        {
+            in_dir = reflect_dir;
+            pdf = 1.0f;
+            return float4(ks_ / fabsf(cos_theta));
+        }
+        else
+        {
+            float3 refract_dir = etafrac * (-out_dir) +
+                (etafrac * cos_theta - cos_o) * surf.normal;
+
+            in_dir = refract_dir;
+            pdf = 1.0f;
+
+            return float4(((eta_o * eta_o) / (eta_i * eta_i) * tf_) / fabsf(cos_theta));
+        }
+    }
+
+    inline float4 eval(const float3& out_dir, const SurfaceInfo& surf, const float3& in_dir) {
+        return 0.0f;
+    }
+
+private:
+    float eta_;
+    float4 tf_;
+    float4 ks_;
 };
 
 /// Material for diffuse emissive objects.
@@ -159,8 +240,8 @@ private:
     HANDLE_MATERIAL(Material::lambert, LambertMaterial) \
     HANDLE_MATERIAL(Material::mirror, MirrorMaterial) \
     HANDLE_MATERIAL(Material::emissive, EmissiveMaterial) \
-    HANDLE_MATERIAL(Material::transparent, TransparentMaterial) \
-    HANDLE_MATERIAL(Material::combine, CombineMaterial)
+    HANDLE_MATERIAL(Material::combine, CombineMaterial) \
+    HANDLE_MATERIAL(Material::glass, GlassMaterial)
 
 inline float4 sample_material(Material* mat, const float3& out_dir, const SurfaceInfo& surf, RNG& rng, float3& in_dir, float& pdf, bool& specular) {
     switch (mat->kind) {

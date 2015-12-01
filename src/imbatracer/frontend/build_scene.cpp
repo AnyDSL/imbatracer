@@ -108,7 +108,9 @@ bool build_scene(const Path& path, Scene& scene) {
             bool is_emissive = !mat.map_ke.empty() || (mat.ke.x > 0.0f && mat.ke.y > 0.0f && mat.ke.z > 0.0f);
 
             if (mat.illum == 5)
-                scene.materials.push_back(std::unique_ptr<MirrorMaterial>(new MirrorMaterial()));
+                scene.materials.push_back(std::unique_ptr<MirrorMaterial>(new MirrorMaterial(1.0f, mat.ns, mat.ks)));
+            else if (mat.illum == 7)
+                scene.materials.push_back(std::unique_ptr<GlassMaterial>(new GlassMaterial(mat.ni, mat.tf, mat.ks)));
             else if (is_emissive) {
                 scene.materials.push_back(std::unique_ptr<EmissiveMaterial>(new EmissiveMaterial(float4(mat.ke.x, mat.ke.y, mat.ke.z, 1.0f))));
             } else {

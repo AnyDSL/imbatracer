@@ -9,8 +9,9 @@ struct BPTState : RayState {
     float4 throughput;
     float4 contribution;
     int bounces;
+    bool last_specular;
     
-    BPTState() : bounces(0), throughput(1.0f), contribution(0.0f) { }
+    BPTState() : bounces(0), throughput(1.0f), contribution(0.0f), last_specular(false) { }
 };
 
 struct LightRayState : RayState {

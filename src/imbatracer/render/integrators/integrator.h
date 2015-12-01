@@ -53,7 +53,7 @@ protected:
         
         return {
             SurfaceInfo { normal, uv_coords.x, uv_coords.y },
-            pos, -out_dir, mat.get()
+            pos, -normalize(out_dir), mat.get()
         };
     }
 
