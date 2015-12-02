@@ -153,7 +153,7 @@ public:
     inline float4 sample(const float3& out_dir, const SurfaceInfo& surf, RNG& rng, float3& in_dir, float& pdf, bool& specular) {
         specular = true;
 
-        const float3& normal = surf.geom_normal;
+        float3 normal = surf.normal;
 
         float cos_theta = dot(normal, out_dir);
         float eta_i = 1.0f;
@@ -162,6 +162,7 @@ public:
         if (cos_theta < 0) {
             std::swap(eta_i, eta_o);
             cos_theta = -cos_theta;
+            normal = -normal;
         }
 
         const float etafrac = eta_i / eta_o;
