@@ -43,6 +43,11 @@ T lerp(T a, T b, T c, U u, U v) {
     return a * (1 - u - v) + b * u + c * v;
 }
 
+template <typename T>
+T reflect(T v, T n) {
+    return v - (2 * dot(n, v)) * n;
+}
+
 #define assert_normalized(x) check_normalized(x, __FILE__, __LINE__)
 
 template <typename T>

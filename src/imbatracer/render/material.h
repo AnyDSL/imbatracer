@@ -153,47 +153,44 @@ public:
     inline float4 sample(const float3& out_dir, const SurfaceInfo& surf, RNG& rng, float3& in_dir, float& pdf, bool& specular) {
         specular = true;
 
-        float cos_theta = dot(surf.normal, out_dir);
-        cos_theta = clamp(cos_theta, -1.0f, 1.0f);
+        const float3& normal = surf.geom_normal;
 
-        bool entering = cos_theta > 0;
+        float cos_theta = dot(normal, out_dir);
         float eta_i = 1.0f;
         float eta_o = eta_;
 
-        if (!entering) {
+        if (cos_theta < 0) {
             std::swap(eta_i, eta_o);
             cos_theta = -cos_theta;
         }
 
-        float etafrac = eta_i / eta_o;
-        float sin2sq = etafrac * etafrac * (1.0f - cos_theta*cos_theta);
+        const float etafrac = eta_i / eta_o;
+        const float sin2sq = etafrac * etafrac * (1.0f - cos_theta * cos_theta);
 
-        float3 reflect_dir = -out_dir + 2.0f * (surf.normal * dot(out_dir, surf.normal));
-        reflect_dir = normalize(reflect_dir);
+        const float3 reflect_dir = reflect(-out_dir, normal);
 
         if (sin2sq >= 1.0f) {
             // total internal reflection
             in_dir = reflect_dir;
             pdf = 1.0f;
-            return float4(0.0f);
+            return float4(1.0f);
         }
 
-        float cos_o = sqrtf(std::max(0.0f, 1.f - sin2sq));
-        float fr = fresnel_dielectric(cos_theta, cos_o, eta_i, eta_o);
+        const float cos_o = sqrtf(1.0f - sin2sq);
+        const float fr = fresnel_dielectric(cos_theta, cos_o, eta_i, eta_o);
 
-        float rnd_num = rng.random_float();
+        const float rnd_num = rng.random_float();
         if (rnd_num < fr) {
             in_dir = reflect_dir;
             pdf = 1.0f;
-            return float4(ks_ / fabsf(cos_theta));
+            return ks_ * (1.0f / cos_theta);
         } else {
-            float3 refract_dir = etafrac * (-out_dir) +
-                (etafrac * cos_theta - cos_o) * surf.normal;
+            const float3 refract_dir = -etafrac * out_dir + (etafrac * cos_theta - cos_o) * normal;
 
             in_dir = refract_dir;
             pdf = 1.0f;
 
-            return float4(((eta_o * eta_o) / (eta_i * eta_i) * tf_) / fabsf(cos_theta));
+            return tf_ * (1.0f / (etafrac * etafrac * cos_theta));
         }
     }
 
