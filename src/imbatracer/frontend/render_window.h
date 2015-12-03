@@ -8,28 +8,42 @@
 
 namespace imba {
 
-    class RenderWindow {
-    public:
-        RenderWindow(int img_width, int img_height, int n_samples, Integrator& r);
-        ~RenderWindow(); 
-        
-        void render();
-        bool handle_events(bool flush);
-        void render_surface(); 
-        
-    private:    
-        int image_width_;
-        int image_height_;
-        Image img_;
-        SDL_Surface* screen_;
-        Integrator& render_;
-        
-        int n_samples_;
-        int n_sample_frames_;
-        
-        bool save_image_file(const char* filename);
-    };
+enum class Key {
+    LEFT, RIGHT, UP, DOWN, PLUS, MINUS
+};
+
+class InputController {
+public:
+    virtual ~InputController() {}
+    virtual bool key_press(Key) {}
+    virtual bool mouse_move(bool, float, float) {}
+};
+
+class RenderWindow {
+public:
+    RenderWindow(int width, int height, int spp, Integrator& r, InputController& ctrl);
+    ~RenderWindow();
+
+    void render_loop();
+
+private:
+    void clear();
+    bool handle_events(bool flush);
+    void render();
+
+    bool write_image(const char* filename);
+
+    Image accum_buffer_;
+    SDL_Surface* screen_;
+    Integrator& integrator_;
+    InputController& ctrl_;
+
+    float mouse_speed_;
+    int spp_;
+    int frames_;
+};
 
 } // namespace imba
 
 #endif
+

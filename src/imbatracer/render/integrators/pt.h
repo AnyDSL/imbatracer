@@ -17,12 +17,12 @@ struct PTState : RayState {
 class PathTracer : public Integrator {
     static constexpr int TARGET_RAY_COUNT = 64 * 1000;
 public:
-    PathTracer(Scene& scene) 
-        : Integrator(scene), 
+    PathTracer(Scene& scene, RayGen& cam)
+        : Integrator(scene, cam),
           primary_rays { RayQueue<PTState>(TARGET_RAY_COUNT), RayQueue<PTState>(TARGET_RAY_COUNT) },
           shadow_rays(TARGET_RAY_COUNT)
     {
-        static_cast<PixelRayGen<PTState>*>(scene.camera)->set_target_count(TARGET_RAY_COUNT);
+        static_cast<PixelRayGen<PTState>*>(&cam_)->set_target(TARGET_RAY_COUNT);
     }
     
     virtual void render(Image& out) override;

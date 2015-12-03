@@ -41,7 +41,6 @@ add_executable(imbatracer
                frontend/main.cpp
                frontend/render_window.h
                frontend/render_window.cpp
-               frontend/test_scene.h
                frontend/build_scene.h
                frontend/build_scene.cpp)
 

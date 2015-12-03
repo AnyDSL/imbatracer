@@ -11,7 +11,9 @@ public:
         int height;
         int offset;
 
-        MaskDesc() {}
+        MaskDesc()
+            : width(1), height(1), offset(0)
+        {}
         MaskDesc(int w, int h, int off)
             : width(w), height(h), offset(off)
         {}
@@ -23,13 +25,8 @@ public:
             buffer_.push_back(1);
     }
 
-    /// Adds a completely opaque mask of size 1x1
-    void add_opaque() {
-        descs_.emplace_back(1, 1, 0);
-    }
-
-    /// Adds an image to the mask
-    void add_mask(const Image& image) {
+    /// Adds an image to the mask.
+    MaskDesc append_mask(const Image& image) {
         const int offset = buffer_.size();
         descs_.emplace_back(image.width(), image.height(), offset);
         buffer_.resize(buffer_.size() + image.width() * image.height());
@@ -39,6 +36,12 @@ public:
                 buffer_[offset + y * image.width() + x] = (pix.x + pix.y + pix.z > 0);
             }
         }
+        return descs_.back();
+    }
+
+    /// Adds an existing image to the mask.
+    void add_desc(const MaskDesc& desc = MaskDesc()) {
+        descs_.emplace_back(desc);
     }
 
     const uint8_t* buffer() const { return buffer_.data(); }

@@ -57,11 +57,11 @@ class BidirPathTracer : public Integrator {
     static constexpr int TARGET_RAY_COUNT = 64 * 1000;      
     constexpr static int MAX_LIGHT_PATH_LEN = 4;
 public:
-    BidirPathTracer(Scene& scene) 
-        : Integrator(scene), 
-          width_(static_cast<PixelRayGen<BPTState>*>(scene.camera)->width()), 
-          height_(static_cast<PixelRayGen<BPTState>*>(scene.camera)->height()),
-          n_samples_(static_cast<PixelRayGen<BPTState>*>(scene.camera)->num_samples()),
+    BidirPathTracer(Scene& scene, RayGen& cam)
+        : Integrator(scene, cam),
+          width_(static_cast<PixelRayGen<BPTState>*>(&cam_)->width()),
+          height_(static_cast<PixelRayGen<BPTState>*>(&cam_)->height()),
+          n_samples_(static_cast<PixelRayGen<BPTState>*>(&cam_)->num_samples()),
           light_sampler_(width_, height_, n_samples_, scene.lights),
           primary_rays_ { RayQueue<BPTState>(TARGET_RAY_COUNT), RayQueue<BPTState>(TARGET_RAY_COUNT)}, 
           shadow_rays_(TARGET_RAY_COUNT * MAX_LIGHT_PATH_LEN),
@@ -78,8 +78,8 @@ public:
             p.resize(n_samples_);
         }
         
-        static_cast<PixelRayGen<BPTState>*>(scene.camera)->set_target_count(TARGET_RAY_COUNT);
-        light_sampler_.set_target_count(TARGET_RAY_COUNT);
+        static_cast<PixelRayGen<BPTState>*>(&cam_)->set_target(TARGET_RAY_COUNT);
+        light_sampler_.set_target(TARGET_RAY_COUNT);
     }
     
     virtual void render(Image& out) override;
@@ -117,3 +117,4 @@ private:
 } // namespace imba
 
 #endif
+

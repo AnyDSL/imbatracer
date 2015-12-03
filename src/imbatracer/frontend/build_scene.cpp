@@ -3,8 +3,10 @@
 #include <cstdlib>
 #include <locale>
 #include <memory>
+
 #include "build_scene.h"
 #include "../loaders/loaders.h"
+#include "../core/adapter.h"
 
 namespace imba {
 
@@ -44,21 +46,8 @@ struct CompareIndex {
     }
 };
 
-bool build_scene(const Path& path, Scene& scene) {
+void convert_materials(const Path& path, const obj::File& obj_file, const obj::MaterialLib& mtl_lib, Scene& scene) {
     MaskBuffer masks;
-    obj::File obj_file;
-
-    if (!load_obj(path, obj_file))
-        return false;
-
-    obj::MaterialLib mtl_lib;
-
-    // Parse the associated MTL files
-    for (auto& lib : obj_file.mtl_libs) {
-        if (!load_mtl(path.base_name() + "/" + lib, mtl_lib)) {
-            return false;
-        }
-    }
 
     std::unordered_map<std::string, int> tex_map;
     auto load_texture = [&](const std::string& name) {
@@ -66,23 +55,29 @@ bool build_scene(const Path& path, Scene& scene) {
         if (tex != tex_map.end())
             return tex->second;
 
+        std::cout << "  Loading texture " << name << "..." << std::flush;
+
         Image img;
         int id;
         if (load_image(name, img)) {
             id = scene.textures.size();
             tex_map.emplace(name, id);
             scene.textures.emplace_back(new TextureSampler(std::move(img)));
+            std::cout << std::endl;
         } else {
             id = -1;
             tex_map.emplace(name, -1);
+            std::cout << " FAILED!" << std::endl;
         }
 
         return id;
     };
 
+    std::unordered_map<int, int> mask_map;
+
     // Add a dummy material, for objects that have no material
     scene.materials.push_back(std::unique_ptr<LambertMaterial>(new LambertMaterial));
-    masks.add_opaque();
+    masks.add_desc();
 
     for (int i = 1; i < obj_file.materials.size(); i++) {
         auto& mat_name = obj_file.materials[i];
@@ -109,8 +104,8 @@ bool build_scene(const Path& path, Scene& scene) {
 
             if (mat.illum == 5)
                 scene.materials.push_back(std::unique_ptr<MirrorMaterial>(new MirrorMaterial(1.0f, mat.ns, mat.ks)));
-            else if (mat.illum == 7)
-                scene.materials.push_back(std::unique_ptr<GlassMaterial>(new GlassMaterial(mat.ni, mat.tf, mat.ks)));
+            //else if (mat.illum == 7 /* HACK !!! */ || mat.ni != 0)
+            //    scene.materials.push_back(std::unique_ptr<GlassMaterial>(new GlassMaterial(mat.ni, /* HACK !!! */ /*mat.tf*/ mat.kd, mat.ks)));
             else if (is_emissive) {
                 scene.materials.push_back(std::unique_ptr<EmissiveMaterial>(new EmissiveMaterial(float4(mat.ke.x, mat.ke.y, mat.ke.z, 1.0f))));
             } else {
@@ -134,26 +129,35 @@ bool build_scene(const Path& path, Scene& scene) {
             // If specified, load the alpha map
             if (!mat.map_d.empty()) {
                 mask_id = load_texture(path.base_name() + "/" + mat.map_d);
-            } else {
-                // HACK
-                const Path p = mat.map_kd;
-                const std::string img_file = path.base_name() + "/" + p.base_name() + "/" + p.remove_extension() + "_Mask.png";
-                mask_id = load_texture(img_file);
             }
         }
 
         if (mask_id >= 0) {
-            masks.add_mask(scene.textures[mask_id]->image());
+            auto offset = mask_map.find(mask_id);
+            const auto& image = scene.textures[mask_id]->image();
+            if (offset != mask_map.end()) {
+                masks.add_desc(MaskBuffer::MaskDesc(image.width(), image.height(), offset->second));
+            } else {
+                auto desc = masks.append_mask(image);
+                mask_map.emplace(mask_id, desc.offset);
+            }
         } else {
-            masks.add_opaque();
+            masks.add_desc();
         }
     }
 
+    // Send the masks to the GPU
+    scene.masks = std::move(ThorinArray<::TransparencyMask>(masks.mask_count()));
+    memcpy(scene.masks.begin(), masks.descs(), sizeof(MaskBuffer::MaskDesc) * masks.mask_count());
+    scene.mask_buffer = std::move(ThorinArray<char>(masks.buffer_size()));
+    memcpy(scene.mask_buffer.begin(), masks.buffer(), masks.buffer_size());
+}
+
+void create_mesh(const obj::File& obj_file, Scene& scene) {
     // Add attributes for texture coordinates and normals
     scene.mesh.add_attribute(Mesh::ATTR_FLOAT2);
     scene.mesh.add_attribute(Mesh::ATTR_FLOAT3);
 
-    // Create a scene from the OBJ file.
     for (auto& obj: obj_file.objects) {
         // Convert the faces to triangles & build the new list of indices
         std::vector<TriIdx> triangles;
@@ -161,7 +165,6 @@ bool build_scene(const Path& path, Scene& scene) {
 
         bool has_normals = false;
         bool has_texcoords = false;
-
         for (auto& group : obj.groups) {
             for (auto& face : group.faces) {
                 for (int i = 0; i < face.index_count; i++) {
@@ -236,12 +239,46 @@ bool build_scene(const Path& path, Scene& scene) {
             }
         } else {
             // Recompute normals
+            std::cout << "  Recomputing normals..." << std::flush;
             scene.mesh.compute_normals(true, MeshAttributes::normals);
+            std::cout << std::endl;
         }
     }
+}
 
-    // HACK for borked normals
-    bool borked = false;
+bool build_scene(const Path& path, Scene& scene) {
+    obj::File obj_file;
+
+    std::cout << "[1/7] Loading OBJ..." << std::flush;
+    if (!load_obj(path, obj_file)) {
+        std::cout << " FAILED" << std::endl;
+        return false;
+    }
+    std::cout << std::endl;
+
+    obj::MaterialLib mtl_lib;
+
+    // Parse the associated MTL files
+    std::cout << "[2/7] Loading MTLs..." << std::flush;
+    for (auto& lib : obj_file.mtl_libs) {
+        if (!load_mtl(path.base_name() + "/" + lib, mtl_lib)) {
+            std::cout << " FAILED" << std::endl;
+            return false;
+        }
+    }
+    std::cout << std::endl;
+
+    std::cout << "[3/7] Converting materials..." << std::endl;
+    convert_materials(path, obj_file, mtl_lib, scene);
+
+    // Create a scene from the OBJ file.
+    std::cout << "[4/7] Creating scene..." << std::endl;
+    create_mesh(obj_file, scene);
+
+    // Check for invalid normals
+    std::cout << "[5/7] Validating scene..." << std::endl;
+
+    bool bad_normals = false;
     auto normals = scene.mesh.attribute<float3>(MeshAttributes::normals);
     for (int i = 0; i < scene.mesh.vertex_count(); i++) {
         auto& n = normals[i];
@@ -249,12 +286,27 @@ bool build_scene(const Path& path, Scene& scene) {
             n.x = 0;
             n.y = 1;
             n.z = 0;
-            borked = true;
+            bad_normals = true;
         }
     }
 
-    if (borked) std::cerr << "Borked normals !!!!" << std::endl;
+    if (bad_normals) std::cout << "  Normals containing invalid values have been replaced" << std::endl;
+
+    if (scene.mesh.triangle_count() == 0) {
+        std::cout << " There is no triangle in the scene." << std::endl;
+        return false;
+    }
+
+    //scene.lights.emplace_back(new DirectionalLight(normalize(float3(0.7f, -1.0f, -1.001f)), float4(2.5f)));
+    //scene.lights.emplace_back(new PointLight(float3(-10.0f, 193.f, -4.5f), float4(100000.5f)));
+    //scene.lights.emplace_back(new PointLight(float3(9.0f, 3.0f, 6.0f), float4(500.0f)));
+    //scene.lights.emplace_back(new PointLight(float3(0.0f, 0.8f, 1.0f), float4(200.0f)));
     
+    if (scene.lights.empty()) {
+        std::cout << "  There are no lights in the scene." << std::endl;
+        return false;
+    }
+
     // Compute geometry normals
     scene.geom_normals.resize(scene.mesh.triangle_count());
     for (int i = 0; i < scene.mesh.triangle_count(); ++i) {
@@ -277,16 +329,27 @@ bool build_scene(const Path& path, Scene& scene) {
             scene.indices[i] = scene.mesh.indices()[i];
     }
 
-    // Send the masks to the GPU
-    scene.masks = std::move(ThorinArray<::TransparencyMask>(masks.mask_count()));
-    memcpy(scene.masks.begin(), masks.descs(), sizeof(MaskBuffer::MaskDesc) * masks.mask_count());
-    scene.mask_buffer = std::move(ThorinArray<char>(masks.buffer_size()));
-    memcpy(scene.mask_buffer.begin(), masks.buffer(), masks.buffer_size());
+    std::cout << "[6/7] Building acceleration structure..." << std::endl;
+    {
+        std::vector<::Node> nodes;
+        std::vector<::Vec4> tris;
+        std::unique_ptr<Adapter> adapter = new_adapter(nodes, tris);
+        adapter->build_accel(scene.mesh);
+#ifdef STATISTICS
+        std::cout << "  "; adapter->print_stats();
+#endif
+        scene.nodes = nodes;
+        scene.tris = tris;
+    }
 
+    std::cout << "[7/7] Moving the scene to the device..." << std::flush;
+    scene.nodes.upload();
+    scene.tris.upload();
     scene.masks.upload();
     scene.mask_buffer.upload();
     scene.indices.upload();
     scene.texcoords.upload();
+    std::cout << std::endl;
 
     return true;
 }

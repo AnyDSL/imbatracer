@@ -170,7 +170,7 @@ void BidirPathTracer::trace_light_paths() {
 
 void BidirPathTracer::trace_camera_paths(Image& img) {
     // Create the initial set of camera rays.
-    auto camera = static_cast<PixelRayGen<BPTState>*>(scene_.camera);
+    auto camera = static_cast<PixelRayGen<BPTState>*>(&cam_);
     camera->start_frame();
     
     int in_queue = 0;

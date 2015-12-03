@@ -2,19 +2,22 @@
 #define IMBA_INTEGRATOR_H
 
 #include "../ray_queue.h"
+#include "../ray_gen.h"
 #include "../camera.h"
-#include "../../core/image.h"
 #include "../light.h"
 #include "../random.h"
 #include "../scene.h"
 
 #include "../../core/mesh.h"
+#include "../../core/image.h"
 
 namespace imba {
 
 class Integrator {
 public:
-    Integrator(Scene& scene) : scene_(scene) {}
+    Integrator(Scene& scene, RayGen& cam)
+        : scene_(scene), cam_(cam)
+    {}
 
     virtual void render(Image& out) = 0;
     
@@ -27,6 +30,7 @@ protected:
     };
     
     Scene& scene_;
+    RayGen& cam_;
     
     inline Intersection calculate_intersection(const Hit* const hits, const Ray* const rays, const int i) {
         const int i0 = scene_.mesh.indices()[hits[i].tri_id * 4 + 0];

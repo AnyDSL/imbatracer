@@ -105,7 +105,7 @@ void PathTracer::process_shadow_rays(RayQueue<PTState>& ray_in, Image& out) {
 
 void PathTracer::render(Image& out) {    
     // Create the initial set of camera rays.
-    auto camera = static_cast<PixelRayGen<PTState>*>(scene_.camera);
+    auto camera = static_cast<PixelRayGen<PTState>*>(&cam_);
     camera->start_frame();
 
     int in_queue = 0;

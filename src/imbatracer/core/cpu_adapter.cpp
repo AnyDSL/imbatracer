@@ -15,10 +15,11 @@ public:
     void build_accel(const Mesh& mesh) override {
         mesh_ = &mesh;
         builder_.build(mesh, NodeWriter(this), LeafWriter(this), 2, 1e-4f);
-#ifdef STATISTICS
-        builder_.print_stats();
-#endif
     }
+
+#ifdef STATISTICS
+    void print_stats() const { builder_.print_stats(); }
+#endif
 
 private:
     struct CostFn {

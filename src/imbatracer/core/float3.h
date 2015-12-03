@@ -67,6 +67,24 @@ inline float3 cross(const float3& a, const float3& b) {
                   a.x * b.y - a.y * b.x);
 }
 
+inline float3 rotate(const float3& v, const float3& axis, float angle) {
+    float q[4];
+    q[0] = axis.x * sinf(angle / 2);
+    q[1] = axis.y * sinf(angle / 2);
+    q[2] = axis.z * sinf(angle / 2);
+    q[3] = cosf(angle / 2);
+
+    float p[4];
+    p[0] = q[3] * v.x + q[1] * v.z - q[2] * v.y;
+    p[1] = q[3] * v.y - q[0] * v.z + q[2] * v.x;
+    p[2] = q[3] * v.z + q[0] * v.y - q[1] * v.x;
+    p[3] = -(q[0] * v.x + q[1] * v.y + q[2] * v.z);
+
+    return float3(p[3] * -q[0] + p[0] * q[3] + p[1] * -q[2] - p[2] * -q[1],
+                  p[3] * -q[1] - p[0] * -q[2] + p[1] * q[3] + p[2] * -q[0],
+                  p[3] * -q[2] + p[0] * -q[1] - p[1] * -q[0] + p[2] * q[3]);
+}
+
 inline float3 min(const float3& a, const float3& b) {
     return float3(a.x < b.x ? a.x : b.x,
                   a.y < b.y ? a.y : b.y,

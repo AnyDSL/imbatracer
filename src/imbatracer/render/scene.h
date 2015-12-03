@@ -22,8 +22,6 @@ struct MeshAttributes {
 
 /// Stores all data required to render a scene.
 struct Scene {
-    RayGen* camera;
-    
     LightContainer lights;
     TextureContainer textures;
     MaterialContainer materials;

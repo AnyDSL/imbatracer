@@ -15,8 +15,6 @@
 #include "bbox.h"
 #include "tri.h"
 
-#define STATISTICS
-
 namespace imba {
 
 /// Builds a SBVH (Spatial split BVH), given the set of triangles and the alpha parameter
