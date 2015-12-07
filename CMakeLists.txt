@@ -35,7 +35,7 @@ find_package(Traversal REQUIRED)
 include_directories(${TRAVERSAL_INCLUDE_DIR})
 
 # OpenMP
-find_package(OpenMP REQUIRED)
+find_package(OpenMP)
 if (OPENMP_FOUND)
     message("OpenMP found")
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")

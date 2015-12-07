@@ -2,6 +2,7 @@
 #define IMBA_MESH_H
 
 #include <cstdint>
+#include <vector>
 
 #include "float4.h"
 #include "tri.h"
