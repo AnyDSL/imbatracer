@@ -7,6 +7,8 @@ namespace imba {
 
 template <typename T, int N = 64>
 struct Stack {
+    static constexpr int capacity() { return N; }
+
     T elems[N];
     int top;
 
@@ -25,6 +27,7 @@ struct Stack {
 
     bool empty() const { return top < 0; }
     bool full() const { return top >= N - 1; }
+    int size() const { return top + 1; }
 };
 
 } // namespace imba

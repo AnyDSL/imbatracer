@@ -140,7 +140,8 @@ public:
             assert(multi_node.count > 0);
 
             // The multi-node is ready to be stored
-            if (multi_node.is_leaf()) {
+            if (multi_node.is_leaf() ||
+                stack.size() + multi_node.count >= stack.capacity()) {
                 // Store a leaf if it could not be split
                 const Node& node = multi_node.nodes[0];
                 assert(node.tested);
