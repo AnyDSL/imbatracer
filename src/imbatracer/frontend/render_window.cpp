@@ -107,8 +107,8 @@ bool RenderWindow::handle_events(bool flush) {
                     case SDLK_KP_PLUS:  update |= ctrl_.key_press(Key::PLUS);  break;
                     case SDLK_KP_MINUS: update |= ctrl_.key_press(Key::MINUS); break;
                     case SDLK_SPACE:    update |= ctrl_.key_press(Key::SPACE); break;
-                    case SDLK_ESCAPE:
-                        return true;
+                    case SDLK_ESCAPE:   return true;
+                    default: break;
                 }
                 break;
 

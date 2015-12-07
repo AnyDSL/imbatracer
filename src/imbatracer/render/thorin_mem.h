@@ -5,6 +5,9 @@
 using std::size_t;
 #include <thorin_runtime.hpp>
 
+// Define this symbol to avoid unnecessary copies on the CPU
+//#define NO_COPY
+
 #define TRAVERSAL_DEVICE    0
 #define TRAVERSAL_PLATFORM  CUDA
 #define TRAVERSAL_INTERSECT intersect_masked_gpu
@@ -18,13 +21,17 @@ public:
     ThorinArray() {}
     
     ThorinArray(int64_t size)
-        : device_array(thorin::Platform::TRAVERSAL_PLATFORM, thorin::Device(TRAVERSAL_DEVICE), size),
-          host_array(size) 
+        : host_array(size)
+#ifndef NO_COPY
+        , device_array(thorin::Platform::TRAVERSAL_PLATFORM, thorin::Device(TRAVERSAL_DEVICE), size)
+#endif
     {}
     
     ThorinArray(const std::vector<T>& rhs)
-        : device_array(thorin::Platform::TRAVERSAL_PLATFORM, thorin::Device(TRAVERSAL_DEVICE), rhs.size()),
-          host_array(rhs.size())
+        : host_array(rhs.size())
+#ifndef NO_COPY
+        , device_array(thorin::Platform::TRAVERSAL_PLATFORM, thorin::Device(TRAVERSAL_DEVICE), rhs.size())
+#endif
     {
         std::copy(rhs.begin(), rhs.end(), host_array.begin());
     }
@@ -40,12 +47,16 @@ public:
 
     // Uploads the host data to the device.
     void upload(int count) {
+#ifndef NO_COPY
         thorin::copy(host_array, device_array, count);
+#endif
     }
     
     // Downloads the data from the device to the host.
     void download(int count) {
+#ifndef NO_COPY
         thorin::copy(device_array, host_array, count);
+#endif
     }
     
     T* begin() { return host_array.begin(); }
@@ -56,9 +67,14 @@ public:
 
     T* host_data() { return host_array.data(); }
     const T* host_data() const { return host_array.data(); }
-    
+
+#ifdef NO_COPY
+    T* device_data() { return host_array.data(); }
+    const T* device_data() const { return host_array.data(); }
+#else
     T* device_data() { return device_array.data(); }
     const T* device_data() const { return device_array.data(); }
+#endif
     
     int64_t size() const { return host_array.size(); }
 
@@ -66,7 +82,9 @@ public:
     T& operator [] (int i) { return host_array[i]; }
     
 private:
+#ifndef NO_COPY
     thorin::Array<T> device_array;
+#endif
     thorin::Array<T> host_array;
 };
 

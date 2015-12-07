@@ -15,8 +15,8 @@ enum class Key {
 class InputController {
 public:
     virtual ~InputController() {}
-    virtual bool key_press(Key) {}
-    virtual bool mouse_move(bool, float, float) {}
+    virtual bool key_press(Key) { return false; }
+    virtual bool mouse_move(bool, float, float) { return false; }
 };
 
 class RenderWindow {
