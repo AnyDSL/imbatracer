@@ -104,8 +104,8 @@ void convert_materials(const Path& path, const obj::File& obj_file, const obj::M
 
             if (mat.illum == 5)
                 scene.materials.push_back(std::unique_ptr<MirrorMaterial>(new MirrorMaterial(1.0f, mat.ns, mat.ks)));
-            //else if (mat.illum == 7 /* HACK !!! */ || mat.ni != 0)
-            //    scene.materials.push_back(std::unique_ptr<GlassMaterial>(new GlassMaterial(mat.ni, /* HACK !!! */ /*mat.tf*/ mat.kd, mat.ks)));
+            else if (mat.illum == 7) ///* HACK !!! */ || mat.ni != 0)
+                scene.materials.push_back(std::unique_ptr<GlassMaterial>(new GlassMaterial(mat.ni, /* HACK !!! mat.kd*/ mat.tf, mat.ks)));
             else if (is_emissive) {
                 scene.materials.push_back(std::unique_ptr<EmissiveMaterial>(new EmissiveMaterial(float4(mat.ke.x, mat.ke.y, mat.ke.z, 1.0f))));
             } else {
@@ -301,6 +301,8 @@ bool build_scene(const Path& path, Scene& scene) {
     //scene.lights.emplace_back(new PointLight(float3(-10.0f, 193.f, -4.5f), float4(100000.5f)));
     //scene.lights.emplace_back(new PointLight(float3(9.0f, 3.0f, 6.0f), float4(500.0f)));
     //scene.lights.emplace_back(new PointLight(float3(0.0f, 0.8f, 1.0f), float4(200.0f)));
+
+    scene.lights.emplace_back(new DirectionalLight(normalize(float3(-0.647207f, -1.55414f, -1.0797f)), float4(5.f)));
     
     if (scene.lights.empty()) {
         std::cout << "  There are no lights in the scene." << std::endl;

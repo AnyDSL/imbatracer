@@ -69,6 +69,7 @@ void RenderWindow::render() {
     const int g = screen_->format->Gshift / 8;
     const int b = screen_->format->Bshift / 8;
     const float weight = 1.0f / (spp_ * frames_);
+    const float gamma = 0.454f;
 
 #pragma omp parallel for
     for (int y = 0; y < screen_->h; y++) {
@@ -76,9 +77,9 @@ void RenderWindow::render() {
         const float4* accum_row = accum_buffer_.row(y);
         
         for (int x = 0; x < screen_->w; x++) {        
-            row[x * 4 + r] = 255.0f * clamp(accum_row[x].x * weight, 0.0f, 1.0f);
-            row[x * 4 + g] = 255.0f * clamp(accum_row[x].y * weight, 0.0f, 1.0f);
-            row[x * 4 + b] = 255.0f * clamp(accum_row[x].z * weight, 0.0f, 1.0f);
+            row[x * 4 + r] = 255.0f * clamp(powf(accum_row[x].x * weight, gamma), 0.0f, 1.0f);
+            row[x * 4 + g] = 255.0f * clamp(powf(accum_row[x].y * weight, gamma), 0.0f, 1.0f);
+            row[x * 4 + b] = 255.0f * clamp(powf(accum_row[x].z * weight, gamma), 0.0f, 1.0f);
         }
     }
 
@@ -105,6 +106,7 @@ bool RenderWindow::handle_events(bool flush) {
                     case SDLK_RIGHT:    update |= ctrl_.key_press(Key::RIGHT); break;
                     case SDLK_KP_PLUS:  update |= ctrl_.key_press(Key::PLUS);  break;
                     case SDLK_KP_MINUS: update |= ctrl_.key_press(Key::MINUS); break;
+                    case SDLK_SPACE:    update |= ctrl_.key_press(Key::SPACE); break;
                     case SDLK_ESCAPE:
                         return true;
                 }

@@ -9,7 +9,7 @@
 namespace imba {
 
 enum class Key {
-    LEFT, RIGHT, UP, DOWN, PLUS, MINUS
+    LEFT, RIGHT, UP, DOWN, PLUS, MINUS, SPACE
 };
 
 class InputController {
