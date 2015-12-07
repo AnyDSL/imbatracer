@@ -55,7 +55,7 @@ private:
                 nodes[elem.parent].children[elem.child] = i;
             }
 
-            assert(count == 2);
+            assert(count >= 2 && count <= 4);
 
             for (int j = count - 1; j >= 0; j--) {
                 const BBox& bbox = bboxes(j);
