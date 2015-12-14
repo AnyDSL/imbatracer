@@ -18,9 +18,12 @@ struct Material {
         combine,
         glass
     } kind;
-    
-    Material(Kind k) : kind(k) { }
-    virtual ~Material() { }
+
+    // whether or not the material is described by a delta distribution
+    bool is_delta;
+
+    Material(Kind k, bool is_delta) : kind(k), is_delta(is_delta) {}
+    virtual ~Material() {}
 };
 
 struct SurfaceInfo {
@@ -57,16 +60,16 @@ inline float fresnel_dielectric(float cosi, float coso, float etai, float etao)
 
 class LambertMaterial : public Material {
 public:
-    LambertMaterial() : Material(lambert), diffuse_(1.0f, 0.0f, 1.0f, 1.0f), sampler_(nullptr) { }
-    LambertMaterial(const float4& color) : Material(lambert), diffuse_(color), sampler_(nullptr) { }
-    LambertMaterial(TextureSampler* sampler) : Material(lambert), sampler_(sampler) { }  
-    
+    LambertMaterial() : Material(lambert, false), diffuse_(1.0f, 0.0f, 1.0f, 1.0f), sampler_(nullptr) { }
+    LambertMaterial(const float4& color) : Material(lambert, false), diffuse_(color), sampler_(nullptr) { }
+    LambertMaterial(TextureSampler* sampler) : Material(lambert, false), sampler_(sampler) { }
+
     inline float4 sample(const float3& out_dir, const SurfaceInfo& surf, RNG& rng, float3& in_dir, float& pdf, bool& specular) {
         float4 clr = diffuse_;
         if (sampler_) {
             clr = sampler_->sample(surf.uv);
         }
-        
+
         // uniform sample the hemisphere
         DirectionSample hemi_sample = sample_hemisphere(surf.normal, rng.random_float(), rng.random_float());
         in_dir = hemi_sample.dir;
@@ -74,16 +77,16 @@ public:
         specular = false;
         return clr * (1.0f / pi);
     }
-    
+
     inline float4 eval(const float3& out_dir, const SurfaceInfo& surf, const float3& in_dir) {
         float4 clr = diffuse_;
         if (sampler_) {
             clr = sampler_->sample(surf.uv);
         }
 
-        return clr * (1.0f / pi); 
+        return clr * (1.0f / pi);
     }
-    
+
 private:
     float4 diffuse_;
     TextureSampler* sampler_;
@@ -93,9 +96,9 @@ private:
 /// 1 => full contribution from the second material
 class CombineMaterial : public Material {
 public:
-    CombineMaterial(TextureSampler* scale, std::unique_ptr<Material> m1, std::unique_ptr<Material> m2) 
-        : Material(combine), scale_(scale), m1_(std::move(m1)), m2_(std::move(m2)) { }
-    
+    CombineMaterial(TextureSampler* scale, std::unique_ptr<Material> m1, std::unique_ptr<Material> m2)
+        : Material(combine, m1->is_delta && m2->is_delta), scale_(scale), m1_(std::move(m1)), m2_(std::move(m2)) { }
+
     inline float4 sample(const float3& out_dir, const SurfaceInfo& surf, RNG& rng, float3& in_dir, float& pdf, bool& specular) {
         const float s = scale_->sample(surf.uv).x;
         const float r = rng.random_float();
@@ -105,14 +108,14 @@ public:
             return sample_material(m2_.get(), out_dir, surf, rng, in_dir, pdf, specular);
         }
     }
-    
+
     inline float4 eval(const float3& out_dir, const SurfaceInfo& surf, const float3& in_dir) {
         const float s = scale_->sample(surf.uv).x;
         const float4 v1 = evaluate_material(m1_.get(), out_dir, surf, in_dir);
         const float4 v2 = evaluate_material(m2_.get(), out_dir, surf, in_dir);
-        return v1 * s + (1.0f - s)  * v2; 
+        return v1 * s + (1.0f - s)  * v2;
     }
-    
+
 private:
     TextureSampler* scale_;
     std::unique_ptr<Material> m1_;
@@ -123,7 +126,7 @@ private:
 /// Perfect mirror reflection.
 class MirrorMaterial : public Material {
 public:
-    MirrorMaterial(float eta, float kappa, const float3& ks) : Material(mirror), eta_(eta), kappa_(kappa), ks_(ks, 1.0f) { }
+    MirrorMaterial(float eta, float kappa, const float3& ks) : Material(mirror, true), eta_(eta), kappa_(kappa), ks_(ks, 1.0f) { }
 
     inline float4 sample(const float3& out_dir, const SurfaceInfo& surf, RNG& rng, float3& in_dir, float& pdf, bool& specular) {
         // calculate the reflected direction
@@ -135,7 +138,7 @@ public:
 
         return float4(fresnel_conductor(cos_theta, eta_, kappa_) / cos_theta);
     }
-    
+
     inline float4 eval(const float3& out_dir, const SurfaceInfo& surf, const float3& in_dir) {
         return float4(0.0f);
     }
@@ -148,7 +151,7 @@ private:
 
 class GlassMaterial : public Material {
 public:
-    GlassMaterial(float eta, const float3& tf, const float3& ks) : Material(glass), eta_(eta), tf_(tf, 1.0f), ks_(ks, 1.0f) {}
+    GlassMaterial(float eta, const float3& tf, const float3& ks) : Material(glass, true), eta_(eta), tf_(/*tf,*/ 1.0f), ks_(/*ks,*/ 1.0f) {}
 
     inline float4 sample(const float3& out_dir, const SurfaceInfo& surf, RNG& rng, float3& in_dir, float& pdf, bool& specular) {
         specular = true;
@@ -208,8 +211,8 @@ private:
 /// Material for diffuse emissive objects.
 class EmissiveMaterial : public Material {
 public:
-    EmissiveMaterial(const float4& color) : color_(color), Material(emissive) { }
-    
+    EmissiveMaterial(const float4& color) : color_(color), Material(emissive, false) { }
+
     inline float4 sample(const float3& out_dir, const SurfaceInfo& surf, RNG& rng, float3& in_dir, float& pdf, bool& specular) {
         // uniform sample the hemisphere
         DirectionSample hemi_sample = sample_hemisphere(surf.normal, rng.random_float(), rng.random_float());
@@ -218,13 +221,13 @@ public:
         specular = false;
         return color_ * (1.0f / pi);
     }
-    
+
     inline float4 eval(const float3& out_dir, const SurfaceInfo& surf, const float3& in_dir) {
         return color_ * (1.0f / pi);
     }
-    
+
     inline float4 color() { return color_; }
-    
+
 private:
     float4 color_;
 };

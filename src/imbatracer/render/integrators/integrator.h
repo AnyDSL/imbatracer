@@ -15,23 +15,25 @@ namespace imba {
 
 class Integrator {
 public:
-    Integrator(Scene& scene, RayGen& cam)
-        : scene_(scene), cam_(cam)
+    Integrator(Scene& scene, PerspectiveCamera& cam, int n_samples)
+        : scene_(scene), cam_(cam), n_samples_(n_samples)
     {}
 
     virtual void render(Image& out) = 0;
-    
+
 protected:
     struct Intersection {
         SurfaceInfo surf;
         float3 pos;
-        float3 out_dir;  
+        float distance;
+        float3 out_dir;
         Material* mat;
     };
-    
+
     Scene& scene_;
-    RayGen& cam_;
-    
+    PerspectiveCamera& cam_;
+    int n_samples_;
+
     inline Intersection calculate_intersection(const Hit* const hits, const Ray* const rays, const int i) {
         const int i0 = scene_.mesh.indices()[hits[i].tri_id * 4 + 0];
         const int i1 = scene_.mesh.indices()[hits[i].tri_id * 4 + 1];
@@ -39,11 +41,11 @@ protected:
         const int  m = scene_.mesh.indices()[hits[i].tri_id * 4 + 3];
 
         const auto& mat = scene_.materials[m];
-                
+
         const float3     org(rays[i].org.x, rays[i].org.y, rays[i].org.z);
         const float3 out_dir(rays[i].dir.x, rays[i].dir.y, rays[i].dir.z);
         const float3 pos = org + (hits[i].tmax) * out_dir;
-        
+
         const float u = hits[i].u;
         const float v = hits[i].v;
 
@@ -53,10 +55,10 @@ protected:
 
         const float2 uv_coords = lerp(texcoords[i0], texcoords[i1], texcoords[i2], u, v);
         const float3 normal = normalize(lerp(normals[i0], normals[i1], normals[i2], u, v));
-       
+
         return {
             SurfaceInfo { normal, uv_coords, geom_normal },
-            pos, -normalize(out_dir), mat.get()
+            pos, hits[i].tmax, -normalize(out_dir), mat.get()
         };
     }
 
@@ -79,7 +81,7 @@ protected:
             { isect.pos.x, isect.pos.y, isect.pos.z, offset },
             { sample.dir.x, sample.dir.y, sample.dir.z, sample.distance - offset }
         };
-        
+
         // Compute the values stored in the ray state.
         const float cos_term = fabsf(dot(sample.dir, isect.surf.normal));
         const float4 brdf = evaluate_material(isect.mat, isect.out_dir, isect.surf, sample.dir);
@@ -87,7 +89,7 @@ protected:
         // Update the current state of this path.
         StateType s = state;
         s.throughput = s.throughput * brdf * cos_term * sample.intensity * pdf;
-        
+
         // Push the shadow ray into the queue.
         ray_out_shadow.push(ray, s);
     }
