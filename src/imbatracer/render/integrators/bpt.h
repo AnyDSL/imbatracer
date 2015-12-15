@@ -8,11 +8,6 @@ namespace imba {
 struct BPTState : RayState {
     float4 throughput;
     int path_length;
-};
-
-struct LightRayState : RayState {
-    float4 throughput;
-    int path_length;
 
     // partial weights for MIS, see VCM technical report
     float dVC;
@@ -20,11 +15,11 @@ struct LightRayState : RayState {
 };
 
 // Ray generator for light sources. Samples a point and a direction on a lightsource for every pixel sample.
-class BPTLightRayGen : public PixelRayGen<LightRayState> {
+class BPTLightRayGen : public PixelRayGen<BPTState> {
 public:
-    BPTLightRayGen(int w, int h, int n, LightContainer& lights) : PixelRayGen<LightRayState>(w, h, n), lights_(lights) { }
+    BPTLightRayGen(int w, int h, int n, LightContainer& lights) : PixelRayGen<BPTState>(w, h, n), lights_(lights) { }
 
-    virtual void sample_pixel(int x, int y, ::Ray& ray_out, LightRayState& state_out) override {
+    virtual void sample_pixel(int x, int y, ::Ray& ray_out, BPTState& state_out) override {
         const float offset = 0.01f;
 
         // randomly choose one light source to sample
@@ -59,22 +54,34 @@ private:
 /// Generates camera rays for BPT.
 class BPTCameraRayGen : public PixelRayGen<BPTState> {
 public:
-    BPTCameraRayGen(PerspectiveCamera& cam, int spp) : PixelRayGen<BPTState>(cam.width(), cam.height(), spp), cam_(cam) { }
+    BPTCameraRayGen(PerspectiveCamera& cam, int spp)
+        : PixelRayGen<BPTState>(cam.width(), cam.height(), spp), cam_(cam), light_path_count_(cam.width() * cam.height())
+    {}
 
     virtual void sample_pixel(int x, int y, ::Ray& ray_out, BPTState& state_out) override {
-        cam_.sample_pixel(x, y, ray_out, state_out.rng);
+        float pdf_cam_w;
+
+        const float sample_x = static_cast<float>(x) + state_out.rng.random_float();
+        const float sample_y = static_cast<float>(y) + state_out.rng.random_float();
+
+        ray_out = cam_.generate_ray(sample_x, sample_y);
+
         state_out.throughput = float4(1.0f);
         state_out.path_length = 1;
+
+        state_out.dVC = 0.0f;
+        state_out.dVCM = light_path_count_ / pdf_cam_w;
     }
 
 private:
     PerspectiveCamera& cam_;
+    const float light_path_count_;
 };
 
 // bidirectional path tracing
 class BidirPathTracer : public Integrator {
     static constexpr int TARGET_RAY_COUNT = 64 * 1000;
-    constexpr static int MAX_LIGHT_PATH_LEN = 16;
+    static constexpr int MAX_LIGHT_PATH_LEN = 16;
 public:
     BidirPathTracer(Scene& scene, PerspectiveCamera& cam, int spp)
         : Integrator(scene, cam, spp),
@@ -85,7 +92,7 @@ public:
           camera_sampler_(cam, spp),
           primary_rays_ { RayQueue<BPTState>(TARGET_RAY_COUNT), RayQueue<BPTState>(TARGET_RAY_COUNT)},
           shadow_rays_(TARGET_RAY_COUNT * (MAX_LIGHT_PATH_LEN + 1)),
-          light_rays_ { RayQueue<LightRayState>(TARGET_RAY_COUNT), RayQueue<LightRayState>(TARGET_RAY_COUNT)}
+          light_image_(width_, height_)
     {
         light_paths_.resize(width_ * height_);
         for (auto& p : light_paths_) {
@@ -124,14 +131,18 @@ private:
 
     RayQueue<BPTState> primary_rays_[2];
     RayQueue<BPTState> shadow_rays_;
-    RayQueue<LightRayState> light_rays_[2];
+    RayQueue<BPTState> light_rays_[2];
 
-    void process_light_rays(RayQueue<LightRayState>& rays_in, RayQueue<LightRayState>& rays_out);
-    void process_primary_rays(RayQueue<BPTState>& rays_in, RayQueue<BPTState>& rays_out, RayQueue<BPTState>& shadow_rays, Image& img);
+    Image light_image_;
+
+    void process_light_rays(RayQueue<BPTState>& rays_in, RayQueue<BPTState>& rays_out, RayQueue<BPTState>& rays_out_shadow);
+    void process_camera_rays(RayQueue<BPTState>& rays_in, RayQueue<BPTState>& rays_out, RayQueue<BPTState>& shadow_rays, Image& img);
     void process_shadow_rays(RayQueue<BPTState>& rays_in, Image& img);
 
     void trace_light_paths();
     void trace_camera_paths(Image& img);
+
+    void connect_to_camera(const BPTState& light_state, const Intersection& isect, RayQueue<BPTState>& rays_out_shadow);
 };
 
 } // namespace imba

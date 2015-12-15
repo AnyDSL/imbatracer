@@ -5,6 +5,7 @@ add_library(imba_core
             core/float2.h
             core/float3.h
             core/float4.h
+            core/float4x4.h
             core/gpu_adapter.cpp
             #core/cpu_adapter.cpp
             core/mask.h
