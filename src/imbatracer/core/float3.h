@@ -16,20 +16,20 @@ struct float3 {
 
     float operator [] (int axis) const { return *(&x + axis); }
     float& operator [] (int axis) { return *(&x + axis); }
-    
-    float3& operator += (const float3& a) { 
+
+    float3& operator += (const float3& a) {
         x += a.x; y += a.y; z += a.z;
-        return *this;    
+        return *this;
     }
-    
-    float3& operator *= (float a) { 
+
+    float3& operator *= (float a) {
         x *= a; y *= a; z *= a;
-        return *this;    
+        return *this;
     }
-    
-    float3& operator *= (const float3& a) { 
+
+    float3& operator *= (const float3& a) {
         x *= a.x; y *= a.y; z *= a.z;
-        return *this;    
+        return *this;
     }
 };
 
@@ -63,7 +63,7 @@ inline float3 operator * (const float3& a, const float3& b) {
 
 inline float3 cross(const float3& a, const float3& b) {
     return float3(a.y * b.z - a.z * b.y,
-                  a.z * b.x - a.x * b.z, 
+                  a.z * b.x - a.x * b.z,
                   a.x * b.y - a.y * b.x);
 }
 
@@ -99,6 +99,10 @@ inline float3 max(const float3& a, const float3& b) {
 
 inline float dot(const float3& a, const float3& b) {
     return a.x * b.x + a.y * b.y + a.z * b.z;
+}
+
+inline float lensqr(const float3& a) {
+    return dot(a, a);
 }
 
 inline float length(const float3& a) {

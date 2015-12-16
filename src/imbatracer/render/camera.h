@@ -30,6 +30,7 @@ public:
         pos_ = pos;
         forward_ = dir;
 
+        // Camera is represented by a matrix. The image plane is at such a distance from the position that the pixels have area one.
         const float3 local_p(dot(up, pos), dot(-right, pos), dot(-dir, pos));
         const float4x4 world_to_cam(float4(    up, -local_p.x),
                                     float4(-right, -local_p.y),
@@ -46,9 +47,12 @@ public:
         raster_to_world_ = screen_to_world *
                            translate_matrix(-1.0f, -1.0f, 0.0f) *
                            scale_matrix(2.0f / width_, 2.0f / height_, 0.0f);
+
+        const float tan_half = std::tan(fov_ * pi / 360.0f);
+        img_plane_dist_ = width_ / (2.0f * tan_half);
     }
 
-    Ray generate_ray(const float2& raster_pos) {
+    Ray generate_ray(const float2& raster_pos) const {
         float3 w = raster_to_world(raster_pos);
         const float3 dir = normalize(w - pos_);
 
@@ -58,21 +62,24 @@ public:
         };
     }
 
-    Ray generate_ray(float x, float y) {
+    Ray generate_ray(float x, float y) const {
         return generate_ray(float2(x,y));
     }
 
-    float2 world_to_raster(const float3& world_pos) {
+    float2 world_to_raster(const float3& world_pos) const {
         float3 t = transform_point(world_to_raster_, world_pos);
+
+        //printf("%f %f %f to %f %f \n", world_pos.x, world_pos.y, world_pos.z, t.y, t.x);
+
         return float2(t.y, t.x);
     }
 
-    float3 raster_to_world(const float2& raster_pos) {
+    float3 raster_to_world(const float2& raster_pos) const {
         float2 rp(raster_pos.y, raster_pos.x);
         return transform_point(raster_to_world_, float3(rp, 0.0f));
     }
 
-    int get_pixel(const float2& pos) {
+    int raster_to_id(const float2& pos) const {
         int x = std::floor(pos.x);
         int y = std::floor(pos.y);
 
@@ -83,8 +90,13 @@ public:
         return y * width_ + x;
     }
 
-    int width() { return width_; }
-    int height() { return height_; }
+    int width() const { return width_; }
+    int height() const { return height_; }
+
+    const float3& pos() const { return pos_; }
+    const float3& dir() const { return forward_; }
+
+    const float image_plane_dist() const { return img_plane_dist_; }
 
 private:
     float width_;
@@ -93,6 +105,7 @@ private:
 
     float3 pos_;
     float3 forward_;
+    float img_plane_dist_;
 
     float4x4 world_to_raster_;
     float4x4 raster_to_world_;

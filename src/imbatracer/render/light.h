@@ -138,7 +138,7 @@ public:
         float cos_out = dot(ds.dir, normal_);
 
         s.dir = ds.dir;
-        s.radiance = intensity_ * cos_out;
+        s.radiance = intensity_;// * cos_out;
         s.normal = normal_;
 
         s.cos_out = cos_out;

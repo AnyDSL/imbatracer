@@ -45,6 +45,13 @@ void BidirPathTracer::trace_light_paths() {
         process_light_rays(primary_rays_[in_queue], primary_rays_[out_queue], shadow_rays_);
         primary_rays_[in_queue].clear();
 
+        // Processing primary rays creates new primary rays and some shadow rays.
+        if (shadow_rays_.size() > 0) {
+            shadow_rays_.traverse_occluded(scene_);
+            process_shadow_rays(shadow_rays_, light_image_);
+            shadow_rays_.clear();
+        }
+
         std::swap(in_queue, out_queue);
     }
 }
@@ -151,7 +158,47 @@ void BidirPathTracer::process_light_rays(RayQueue<BPTState>& rays_in, RayQueue<B
 }
 
 void BidirPathTracer::connect_to_camera(const BPTState& light_state, const Intersection& isect, RayQueue<BPTState>& ray_out_shadow) {
+    constexpr float offset = 0.001f;
 
+    float3 dir_to_cam = cam_.pos() - isect.pos;
+
+    if (dot(-dir_to_cam, cam_.dir()) < 0.0f)
+        return; // Vertex is behind the camera.
+
+    const float2 raster_pos = cam_.world_to_raster(isect.pos);
+
+    BPTState state = light_state;
+    state.pixel_id = cam_.raster_to_id(raster_pos);
+
+    if (state.pixel_id < 0)
+        return; // The point is outside the image plane.
+
+    // Compute ray direction and distance.
+    float dist_to_cam_sqr = lensqr(dir_to_cam);
+    float dist_to_cam = sqrt(dist_to_cam_sqr);
+    dir_to_cam = dir_to_cam / dist_to_cam;
+
+    // Evaluate the bsdf.
+    const float cos_theta_o = dot(isect.surf.normal, dir_to_cam);
+    const float4 bsdf = evaluate_material(isect.mat, dir_to_cam, isect.surf, isect.out_dir);
+
+    // Compute pdf.
+    const float cos_theta_i = dot(cam_.dir(), -dir_to_cam);
+    const float dist_pixel_to_cam = cam_.image_plane_dist() / cos_theta_i;
+    const float img_to_solid_angle = dist_pixel_to_cam * dist_pixel_to_cam / cos_theta_i;
+    const float img_to_surf = img_to_solid_angle * cos_theta_o / dist_to_cam_sqr;
+    const float surf_to_img = 1.0f / img_to_surf;
+
+    const float pdf = light_path_count_ * surf_to_img;
+
+    state.throughput = float4(light_state.throughput * bsdf / pdf);
+
+    Ray ray {
+        { isect.pos.x, isect.pos.y, isect.pos.z, offset },
+        { dir_to_cam.x, dir_to_cam.y, dir_to_cam.z, dist_to_cam - offset }
+    };
+
+    ray_out_shadow.push(ray, state);
 }
 
 void BidirPathTracer::process_camera_rays(RayQueue<BPTState>& rays_in, RayQueue<BPTState>& rays_out, RayQueue<BPTState>& ray_out_shadow, Image& img) {
@@ -176,6 +223,7 @@ void BidirPathTracer::process_shadow_rays(RayQueue<BPTState>& rays_in, Image& im
 
     for (int i = 0; i < ray_count; ++i) {
         if (hits[i].tri_id < 0) {
+            assert(states[i].pixel_id >= 0 && states[i].pixel_id < img.width() * img.height() && "Write outside of image detected. (BPT::process_shadow_rays)");
             img.pixels()[states[i].pixel_id] += states[i].throughput;
         }
     }

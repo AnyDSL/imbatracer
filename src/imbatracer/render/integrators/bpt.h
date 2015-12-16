@@ -90,9 +90,10 @@ public:
           n_samples_(spp),
           light_sampler_(width_, height_, n_samples_, scene.lights),
           camera_sampler_(cam, spp),
-          primary_rays_ { RayQueue<BPTState>(TARGET_RAY_COUNT), RayQueue<BPTState>(TARGET_RAY_COUNT)},
+          primary_rays_{ RayQueue<BPTState>(TARGET_RAY_COUNT), RayQueue<BPTState>(TARGET_RAY_COUNT)},
           shadow_rays_(TARGET_RAY_COUNT * (MAX_LIGHT_PATH_LEN + 1)),
-          light_image_(width_, height_)
+          light_image_(width_, height_),
+          light_path_count_(width_ * height_)
     {
         light_paths_.resize(width_ * height_);
         for (auto& p : light_paths_) {
@@ -109,6 +110,7 @@ public:
 private:
     int width_, height_;
     int n_samples_;
+    float light_path_count_;
 
     BPTLightRayGen light_sampler_;
     BPTCameraRayGen camera_sampler_;

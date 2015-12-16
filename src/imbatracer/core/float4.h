@@ -21,20 +21,20 @@ struct float4 {
 
     float operator [] (int axis) const { return *(&x + axis); }
     float& operator [] (int axis) { return *(&x + axis); }
-    
-    float4& operator += (const float4& a) { 
+
+    float4& operator += (const float4& a) {
         x += a.x; y += a.y; z += a.z; w += a.w;
-        return *this;    
+        return *this;
     }
-    
-    float4& operator *= (float a) { 
+
+    float4& operator *= (float a) {
         x *= a; y *= a; z *= a; w *= a;
-        return *this;    
+        return *this;
     }
-    
-    float4& operator *= (const float4& a) { 
+
+    float4& operator *= (const float4& a) {
         x *= a.x; y *= a.y; z *= a.z; w *= a.w;
-        return *this;    
+        return *this;
     }
 };
 
@@ -82,6 +82,10 @@ inline float4 max(const float4& a, const float4& b) {
 
 inline float dot(const float4& a, const float4& b) {
     return a.x * b.x + a.y * b.y + a.z * b.z + a.w * b.w;
+}
+
+inline float lensqr(const float4& a) {
+    return dot(a, a);
 }
 
 inline float length(const float4& a) {
