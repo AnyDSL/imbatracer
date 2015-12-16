@@ -71,7 +71,7 @@ public:
         }
 
         // uniform sample the hemisphere
-        DirectionSample hemi_sample = sample_hemisphere(surf.normal, rng.random_float(), rng.random_float());
+        DirectionSample hemi_sample = sample_cos_hemisphere(surf.normal, rng.random_float(), rng.random_float());
         in_dir = hemi_sample.dir;
         pdf = hemi_sample.pdf;
         specular = false;
@@ -215,7 +215,7 @@ public:
 
     inline float4 sample(const float3& out_dir, const SurfaceInfo& surf, RNG& rng, float3& in_dir, float& pdf, bool& specular) {
         // uniform sample the hemisphere
-        DirectionSample hemi_sample = sample_hemisphere(surf.normal, rng.random_float(), rng.random_float());
+        DirectionSample hemi_sample = sample_cos_hemisphere(surf.normal, rng.random_float(), rng.random_float());
         in_dir = hemi_sample.dir;
         pdf = hemi_sample.pdf;
         specular = false;

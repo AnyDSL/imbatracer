@@ -122,9 +122,10 @@ void BidirPathTracer::process_light_rays(RayQueue<BPTState>& rays_in, RayQueue<B
         }
 
         // Decide wether or not to continue this path using russian roulette and a fixed maximum length.
-        const float4 srgb(0.2126f, 0.7152f, 0.0722f, 0.0f);
+        /*const float4 srgb(0.2126f, 0.7152f, 0.0722f, 0.0f);
         const float kill_prob = dot(states[i].throughput, srgb) * 100.0f;
-        const float rrprob = std::min(1.0f, kill_prob);
+        const float rrprob = std::min(1.0f, kill_prob);*/
+        const float rrprob = 0.7f;
         const float u_rr = rng.random_float();
         if (u_rr > rrprob || light_path.size() >= MAX_LIGHT_PATH_LEN - 1)
             continue;
@@ -145,8 +146,9 @@ void BidirPathTracer::process_light_rays(RayQueue<BPTState>& rays_in, RayQueue<B
             s.dVCM = 1.0f / pdf_dir_w;
         }
 
-        s.throughput *= bsdf * cos_theta_o / pdf_dir_w;
+        s.throughput *= bsdf * cos_theta_o / (pdf_dir_w * rrprob);
         s.path_length++;
+        s.continue_prob = rrprob;
 
         Ray ray {
             { isect.pos.x, isect.pos.y, isect.pos.z, offset },

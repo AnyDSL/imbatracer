@@ -9,6 +9,9 @@ struct BPTState : RayState {
     float4 throughput;
     int path_length;
 
+    // Russian roulette probability for continuing this path.
+    float continue_prob;
+
     // partial weights for MIS, see VCM technical report
     float dVC;
     float dVCM;
@@ -42,6 +45,7 @@ public:
 
         state_out.throughput = sample.radiance / pdf_e;
         state_out.path_length = 1;
+        state_out.continue_prob = 1.0f;
 
         state_out.dVC = sample.cos_out / pdf_e;
         state_out.dVCM = sample.pdf_direct_w * pdf_lightpick / pdf_e;
@@ -68,6 +72,7 @@ public:
 
         state_out.throughput = float4(1.0f);
         state_out.path_length = 1;
+        state_out.continue_prob = 1.0f;
 
         state_out.dVC = 0.0f;
         state_out.dVCM = light_path_count_ / pdf_cam_w;

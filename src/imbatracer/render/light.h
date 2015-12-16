@@ -134,11 +134,11 @@ public:
         s.pos = u * p0_ + v * p1_ + (1.0f - u - v) * p2_;
 
         // Sample an outgoing direction
-        DirectionSample ds = sample_hemisphere(normal_, rng.random_float(), rng.random_float());
+        DirectionSample ds = sample_cos_hemisphere(normal_, rng.random_float(), rng.random_float());
         float cos_out = dot(ds.dir, normal_);
 
         s.dir = ds.dir;
-        s.radiance = intensity_;// * cos_out;
+        s.radiance = intensity_ * cos_out;
         s.normal = normal_;
 
         s.cos_out = cos_out;

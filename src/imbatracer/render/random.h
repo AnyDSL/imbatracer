@@ -54,29 +54,25 @@ inline void local_coordinates(const float3& normal, float3& tangent_out, float3&
 struct DirectionSample {
     float3 dir;
     float pdf;
-    
+
     DirectionSample(float3 dir, float pdf) : dir(dir), pdf(pdf) {}
 };
 
-inline DirectionSample generate_cosine_weighted_direction(const float3& up, const float3& left, const float3& forward, const float u1, const float u2) {
-    float3 dir(
-        cosf(2.f * pi * u1) * sqrtf(1 - u2),
-        sinf(2.f * pi * u1) * sqrtf(1 - u2),
-        sqrtf(u2));
-
-    dir = dir.x * left + dir.y * forward + dir.z * up;
-
-    return DirectionSample(dir, 1.f / pi);
-}
-
-inline DirectionSample sample_hemisphere(const float3& n, float u1, float u2) {
+inline DirectionSample sample_cos_hemisphere(const float3& n, float u1, float u2) {
     assert_normalized(n);
 
     float3 tangent;
     float3 binormal;
     local_coordinates(n, tangent, binormal);
-    
-    return generate_cosine_weighted_direction(n, tangent, binormal, u1, u2);
+
+    float3 dir(
+        cosf(2.f * pi * u1) * sqrtf(1 - u2),
+        sinf(2.f * pi * u1) * sqrtf(1 - u2),
+        sqrtf(u2));
+
+    dir = dir.x * tangent + dir.y * binormal + dir.z * n;
+
+    return DirectionSample(dir, dot(n, dir) * 1.f / pi);
 }
 
 inline void uniform_sample_triangle(float rnd1, float rnd2, float& u, float& v) {
