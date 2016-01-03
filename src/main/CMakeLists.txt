@@ -39,19 +39,19 @@ set(impala_acc_SRC
     interface_acc.impala
 )
 
-THORIN_RUNTIME_WRAP(impala_acc_OBJ impala_acc_LIB
-    RTTYPE ${RTTYPE}
+THORIN_RUNTIME_WRAP(impala_acc_PROGRAM
+    BACKEND ${BACKEND}
     FILES ${impala_shared_SRC} ${impala_acc_SRC})
-THORIN_RUNTIME_WRAP(impala_loc_OBJ impala_loc_LIB
-    RTTYPE none
+THORIN_RUNTIME_WRAP(impala_loc_PROGRAM
+    BACKEND cpu
     FILES ${impala_shared_SRC} ${impala_loc_SRC})
 
-add_library(rt ${cpp_SRC} ${impala_shared_SRC} ${impala_loc_SRC} ${impala_acc_SRC} ${impala_loc_OBJ} ${impala_acc_OBJ})
-target_link_libraries(rt core ${impala_loc_LIB} ${impala_acc_LIB})
+add_library(rt ${cpp_SRC} ${impala_shared_SRC} ${impala_loc_SRC} ${impala_acc_SRC} ${impala_loc_PROGRAM} ${impala_acc_PROGRAM})
+target_link_libraries(rt core ${THORIN_RUNTIME_LIBRARY} ${THORIN_RUNTIME_LIBRARIES})
 
 add_executable(main main.cpp)
-target_link_libraries(main rt io)
+target_link_libraries(main rt io ${THORIN_RUNTIME_LIBRARY} ${THORIN_RUNTIME_LIBRARIES})
 
 add_executable(bench bench.cpp)
-target_link_libraries(bench rt)
+target_link_libraries(bench rt ${THORIN_RUNTIME_LIBRARY} ${THORIN_RUNTIME_LIBRARIES})
 

@@ -4,7 +4,7 @@ fn renderIteration(width : int, height : int, measureTime : bool, state : &State
     let start = thorin_get_micro_time();
     $renderSubsampled(8u, width as uint, height as uint, state, setcolor, getcolor);
     let stop = thorin_get_micro_time();
-    if measureTime { thorin_print_micro_time(stop-start); };
+    if measureTime { thorin_print_long(stop-start); thorin_print_char('\n'); }
 }
 
 

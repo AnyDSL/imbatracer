@@ -18,7 +18,7 @@ if(NOT (PKG_PATHS STREQUAL ""))
 endif()
 message(STATUS "pkgconfig search path: $ENV{PKG_CONFIG_PATH}")
 
-# SDL
+# SDL2
 pkg_check_modules(SDL2 sdl2 REQUIRED)
 include_directories(${SDL2_INCLUDE_DIRS})
 link_directories(${SDL2_LIBRARY_DIRS})
@@ -33,13 +33,13 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -Wall -Wextra")
 # thorin stuff
 FIND_PACKAGE ( THORIN REQUIRED )
 message(STATUS "Using THORIN at ${THORIN_RUNTIME_DIR}")
-include(${THORIN_RUNTIME_DIR}/cmake/ThorinRuntime.cmake)
-include_directories(${THORIN_RUNTIME_INCLUDE_DIR})
+include(${THORIN_CMAKE_DIR}/ThorinRuntime.cmake)
+include_directories(${THORIN_RUNTIME_DIR})
 
 # which run-time do we use?
-set(RTTYPE "nvvm" CACHE STRING "The runtime-type of the tests")
-message(STATUS "Using runtime-type ${RTTYPE}")
-if(RTTYPE STREQUAL "cpu" OR RTTYPE STREQUAL "avx")
+set(BACKEND "nvvm" CACHE STRING "The runtime-type of the tests")
+message(STATUS "Using runtime-type ${BACKEND}")
+if(BACKEND STREQUAL "cpu" OR BACKEND STREQUAL "avx")
     set(DEVICE "cpu")
 else()
     set(DEVICE "gpu")
@@ -47,5 +47,4 @@ endif()
 
 
 add_subdirectory(src)
-
 
