@@ -25,10 +25,10 @@ public:
     BPTLightRayGen(int w, int h, int n, LightContainer& lights) : PixelRayGen<BPTState>(w, h, n), lights_(lights) { }
 
     virtual void sample_pixel(int x, int y, ::Ray& ray_out, BPTState& state_out) override {
-        const float offset = 0.01f;
+        const float offset = 0.001f;
 
         // randomly choose one light source to sample
-        int i = state_out.rng.random_int(0, lights_.size());
+        int i = rand() % lights_.size();//state_out.rng.random_int(0, lights_.size());
         //printf("%d\n", i);
         auto& l = lights_[i];
         float pdf_lightpick = 1.0f / lights_.size();

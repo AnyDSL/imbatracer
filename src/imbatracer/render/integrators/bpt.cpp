@@ -9,6 +9,8 @@
 
 namespace imba {
 
+static const float offset = 0.001f;
+
 void BidirPathTracer::render(Image& img) {
     reset_buffers();
 
@@ -86,8 +88,6 @@ void BidirPathTracer::trace_camera_paths(Image& img) {
 }
 
 void BidirPathTracer::process_light_rays(RayQueue<BPTState>& rays_in, RayQueue<BPTState>& rays_out, RayQueue<BPTState>& ray_out_shadow) {
-    constexpr float offset = 0.001f;
-
     int ray_count = rays_in.size();
     BPTState* states = rays_in.states();
     const Hit* hits = rays_in.hits();
@@ -140,7 +140,7 @@ void BidirPathTracer::process_light_rays(RayQueue<BPTState>& rays_in, RayQueue<B
             float pdf_rev_w = pdf_dir_w; // TODO let material calculate this
             float cos_theta_o = dot(sample_dir, isect.surf.normal);
 
-            float3 offset_pos = isect.pos + isect.surf.normal * offset;
+            float3 offset_pos = isect.pos;// + isect.surf.normal * offset;
 
             BPTState s = states[i];
             if (is_specular) {
@@ -166,8 +166,6 @@ void BidirPathTracer::process_light_rays(RayQueue<BPTState>& rays_in, RayQueue<B
 }
 
 void BidirPathTracer::connect_to_camera(const BPTState& light_state, const Intersection& isect, RayQueue<BPTState>& ray_out_shadow) {
-    constexpr float offset = 0.001f;
-
     float3 dir_to_cam = cam_.pos() - isect.pos;
 
     if (dot(-dir_to_cam, cam_.dir()) < 0.0f)
@@ -187,7 +185,7 @@ void BidirPathTracer::connect_to_camera(const BPTState& light_state, const Inter
     dir_to_cam = dir_to_cam / dist_to_cam;
 
     const float cos_theta_o = dot(isect.surf.normal, dir_to_cam);
-    if (cos_theta_o * dot(isect.surf.normal, isect.out_dir) < 0.0f)
+    if (dot(isect.surf.geom_normal, dir_to_cam) * dot(isect.surf.geom_normal, isect.out_dir) < 0.0f)
         return; // camera and light arrive at the surface from two different sides.
 
     // Evaluate the material.
@@ -218,8 +216,6 @@ void BidirPathTracer::connect_to_camera(const BPTState& light_state, const Inter
 }
 
 void BidirPathTracer::process_camera_rays(RayQueue<BPTState>& rays_in, RayQueue<BPTState>& rays_out, RayQueue<BPTState>& ray_out_shadow, Image& img) {
-    const float offset = 0.01f;
-
     int ray_count = rays_in.size();
     BPTState* states = rays_in.states();
     const Hit* hits = rays_in.hits();
@@ -299,7 +295,6 @@ void BidirPathTracer::process_camera_rays(RayQueue<BPTState>& rays_in, RayQueue<
 }
 
 void BidirPathTracer::direct_illum(BPTState& cam_state, const Intersection& isect, RayQueue<BPTState>& rays_out_shadow) {
-    const float offset = 0.001f;
     RNG& rng = cam_state.rng;
 
     // Generate the shadow ray (sample one point on one lightsource)
@@ -337,8 +332,6 @@ void BidirPathTracer::direct_illum(BPTState& cam_state, const Intersection& isec
 }
 
 void BidirPathTracer::connect(BPTState& cam_state, const Intersection& isect, RayQueue<BPTState>& rays_out_shadow) {
-    const float offset = 0.001f;
-
     auto& light_path = light_paths_[cam_state.pixel_id][cam_state.sample_id];
     for (auto& v : light_path) {
         // Compute connection direction and distance.

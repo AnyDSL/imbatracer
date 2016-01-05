@@ -47,13 +47,13 @@ void RenderWindow::render_loop() {
             frames = 0;
             ticks = t;
         }
-        
+
         render();
         done = handle_events(false);
 
         frames++;
     }
-    
+
     std::stringstream file_name;
     file_name << "render_" << spp_ * frames_ << "_samples.png";
     write_image(file_name.str().c_str());
@@ -62,21 +62,21 @@ void RenderWindow::render_loop() {
 void RenderWindow::render() {
     integrator_.render(accum_buffer_);
     frames_++;
-        
+
     SDL_LockSurface(screen_);
 
     const int r = screen_->format->Rshift / 8;
     const int g = screen_->format->Gshift / 8;
     const int b = screen_->format->Bshift / 8;
     const float weight = 1.0f / (spp_ * frames_);
-    const float gamma = 0.454f;
+    const float gamma = 0.854f;
 
 #pragma omp parallel for
     for (int y = 0; y < screen_->h; y++) {
         unsigned char* row = (unsigned char*)screen_->pixels + screen_->pitch * y;
         const float4* accum_row = accum_buffer_.row(y);
-        
-        for (int x = 0; x < screen_->w; x++) {        
+
+        for (int x = 0; x < screen_->w; x++) {
             row[x * 4 + r] = 255.0f * clamp(powf(accum_row[x].x * weight, gamma), 0.0f, 1.0f);
             row[x * 4 + g] = 255.0f * clamp(powf(accum_row[x].y * weight, gamma), 0.0f, 1.0f);
             row[x * 4 + b] = 255.0f * clamp(powf(accum_row[x].z * weight, gamma), 0.0f, 1.0f);
@@ -180,7 +180,7 @@ bool RenderWindow::write_image(const char* file_name) {
                  PNG_COMPRESSION_TYPE_BASE, PNG_FILTER_TYPE_BASE);
 
     png_write_info(png_ptr, info_ptr);
-    
+
     row.reset(new png_byte[4 * accum_buffer_.width()]);
 
     const float weight = 1.0f / (spp_ * frames_);
@@ -195,10 +195,10 @@ bool RenderWindow::write_image(const char* file_name) {
         }
         png_write_row(png_ptr, row.get());
     }
-    
+
     png_write_end(png_ptr, info_ptr);
     png_destroy_write_struct(&png_ptr, &info_ptr);
-    
+
     return true;
 }
 
