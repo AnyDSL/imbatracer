@@ -28,7 +28,7 @@ newmtl rightWall
   Ks 0 0 0
   Ke 0 0 0
 
-  
+
 newmtl floor
   Ns 10.0000
   Ni 1.0000
@@ -47,7 +47,7 @@ newmtl ceiling
   Kd 0.725 0.71 0.68
   Ks 0     0    0
   Ke 0     0    0
-  
+
 
 newmtl backWall
   Ns 10.0000
@@ -57,7 +57,6 @@ newmtl backWall
   Kd 0.725 0.71 0.68
   Ks 0 0 0
   Ke 0 0 0
-  map_Kd default.png
 
 
 newmtl shortBox
@@ -68,7 +67,7 @@ newmtl shortBox
   Kd 0.725 0.71 0.68
   Ks 0 0 0
   Ke 0 0 0
-  
+
 
 newmtl tallBox
   Ns 10.0000
@@ -86,4 +85,4 @@ newmtl light
   Ka 0.78 0.78 0.78 # White
   Kd 0.78 0.78 0.78
   Ks 0 0 0
-  Ke 100 100 100
+  Ke 17 12 4

@@ -5,19 +5,19 @@
 
 using namespace imba;
 
-template <typename T>
 class CameraControl : public InputController {
 public:
-    CameraControl(PerspectiveCamera<T>& cam)
-        : cam_(cam), speed_(0.1f) {
+    CameraControl(PerspectiveCamera& cam)
+        : cam_(cam), speed_(0.1f)
+    {
         reset();
     }
 
     void reset() {
         // sponza
-        setup(float3(-184.0f, 193.f, -4.5f), float3(-171.081f, 186.426f, -4.96049f) - float3(-184.244f, 193.221f, -4.445f), float3(0.0f, 1.0f, 0.0f));
+        //setup(float3(-184.0f, 193.f, -4.5f), float3(-171.081f, 186.426f, -4.96049f) - float3(-184.244f, 193.221f, -4.445f), float3(0.0f, 1.0f, 0.0f));
         // cornell
-        //setup(float3(0.0f, 0.9f, 2.5f), float3(0.0f, 0.0f, -1.0f), float3(0.0f, 1.0f, 0.0f));
+        setup(float3(0.0f, 0.9f, 2.5f), float3(0.0f, 0.0f, -1.0f), float3(0.0f, 1.0f, 0.0f));
         // cornell low
         //setup(float3(0.0f, 0.8f, 2.2f), float3(0.0f, 0.0f, -1.0f), float3(0.0f, 1.0f, 0.0f));
         // sponza parts
@@ -69,22 +69,17 @@ private:
     float speed_;
     float3 eye_;
     float3 dir_, up_, right_;
-    PerspectiveCamera<T>& cam_;
+    PerspectiveCamera& cam_;
 };
 
 int main(int argc, char** argv) {
-    using StateType = PTState;
-    using IntegratorType = PathTracer;
-    /*using StateType = imba::BPTState;
-    using IntegratorType = imba::BidirPathTracer;*/
-
     std::cout << "Imbatracer - A ray-tracer written with Impala" << std::endl;
 
-    if (argc != 2) {
-        std::cout << "USAGE: imbatracer file.obj" << std::endl;
+    if (argc != 2 && argc != 3) {
+        std::cout << "USAGE: imbatracer file.obj [-b]" << std::endl;
         return 1;
     }
-    
+
     constexpr int width = 512;
     constexpr int height = 512;
     constexpr int spp = 1;
@@ -97,12 +92,22 @@ int main(int argc, char** argv) {
 
     std::cout << "The scene has been loaded successfully." << std::endl;
 
-    PerspectiveCamera<StateType> cam(width, height, spp, 60.0f);
-    IntegratorType integrator(scene, cam);
-    CameraControl<StateType> ctrl(cam);
+    PerspectiveCamera cam(width, height, 60.0f);
+    CameraControl ctrl(cam);
 
-    RenderWindow wnd(width, height, spp, integrator, ctrl);
-    wnd.render_loop();
+    if (argc == 3) {
+        using IntegratorType = imba::BidirPathTracer;
+        IntegratorType integrator(scene, cam, spp);
+
+        RenderWindow wnd(width, height, spp, integrator, ctrl);
+        wnd.render_loop();
+    } else {
+        using IntegratorType = PathTracer;
+        IntegratorType integrator(scene, cam, spp);
+
+        RenderWindow wnd(width, height, spp, integrator, ctrl);
+        wnd.render_loop();
+    }
 
     return 0;
 }

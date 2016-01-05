@@ -1,4 +1,4 @@
-# The sphere Cornell Box as seen in Henrik Jensen's 
+# The sphere Cornell Box as seen in Henrik Jensen's
 # "Realistic Image Synthesis Using Photon Mapping" (Page 107 Fig. 9.10) in OBJ format.
 # Note that the real box is not a perfect cube, so
 # the faces are imperfect in this data set.
@@ -18,7 +18,7 @@ newmtl leftSphere
     Ks 0.95 0.95 0.95
     Ns 1000
     illum 5
-    
+
 newmtl rightSphere
     Ka 0.01 0.01 0.01
     Kd 0.01 0.01 0.01
@@ -27,7 +27,7 @@ newmtl rightSphere
     Ns 200
     Ni 2.5
     illum 7
-   
+
 newmtl floor
     Ns 10.0000
     Ni 1.5000
@@ -59,7 +59,7 @@ newmtl rightWall
     Ka 0.161 0.133 0.427 # Blue
     Kd 0.161 0.133 0.427
 	Ks 0 0 0
-    
+
 newmtl leftWall
 	Ns 10.0000
 	illum 2
@@ -72,9 +72,9 @@ newmtl light
 	Ni 1.5000
 	d 1.0000
 	Tr 0.0000
-	Tf 1.0000 1.0000 1.0000 
+	Tf 1.0000 1.0000 1.0000
 	illum 2
 	Ka 0.7800 0.7800 0.7800
 	Kd 0.7800 0.7800 0.7800
-    Ke 40 40 40
+    Ke 10 10 10
 	Ks 0 0 0

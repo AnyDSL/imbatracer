@@ -99,7 +99,7 @@ void convert_materials(const Path& path, const obj::File& obj_file, const obj::M
             } else {
                 map_ka = mat.map_ka;
             }
-            
+
             bool is_emissive = !mat.map_ke.empty() || (mat.ke.x > 0.0f && mat.ke.y > 0.0f && mat.ke.z > 0.0f);
 
             if (mat.illum == 5)
@@ -112,10 +112,10 @@ void convert_materials(const Path& path, const obj::File& obj_file, const obj::M
                 Material* mtl;
                 if (!mat.map_kd.empty()) {
                     const std::string img_file = path.base_name() + "/" + mat.map_kd;
-                    
+
                     int sampler_id = load_texture(img_file);
                     if (sampler_id < 0) {
-                        mtl = new LambertMaterial(float4(1.0f, 0.0f, 1.0f, 1.0f)); 
+                        mtl = new LambertMaterial(float4(1.0f, 0.0f, 1.0f, 1.0f));
                     } else {
                         mtl = new LambertMaterial(scene.textures[sampler_id].get());
                     }
@@ -182,16 +182,18 @@ void create_mesh(const obj::File& obj_file, Scene& scene) {
                 for (int i = 1; i < face.index_count - 1; i++) {
                     const int next = mapping[face.indices[i + 1]];
                     triangles.emplace_back(v0, prev, next, face.material);
-                    
+
                     auto mat = scene.materials[face.material].get();
                     if (mat->kind == Material::emissive) {
                         auto p0 = obj_file.vertices[face.indices[0].v];
                         auto p1 = obj_file.vertices[face.indices[i].v];
                         auto p2 = obj_file.vertices[face.indices[i+1].v];
-                        
+
                         // Create a light source for this emissive object.
-                        scene.lights.push_back(std::unique_ptr<TriangleLight>(new TriangleLight(static_cast<EmissiveMaterial*>(mat)->color(), 
+                        scene.lights.push_back(std::unique_ptr<TriangleLight>(new TriangleLight(static_cast<EmissiveMaterial*>(mat)->color(),
                             float3(p0.x, p0.y, p0.z), float3(p1.x, p1.y, p1.z), float3(p2.x, p2.y, p2.z))));
+
+                        static_cast<EmissiveMaterial*>(mat)->set_light(scene.lights.back().get());
                     }
 
                     prev = next;
@@ -201,7 +203,7 @@ void create_mesh(const obj::File& obj_file, Scene& scene) {
 
         if (triangles.size() == 0) continue;
 
-        // Create a mesh for this object        
+        // Create a mesh for this object
         int vert_offset = scene.mesh.vertex_count();
         int idx_offset = scene.mesh.index_count();
         scene.mesh.set_index_count(idx_offset + triangles.size() * 4);
@@ -302,8 +304,6 @@ bool build_scene(const Path& path, Scene& scene) {
     //scene.lights.emplace_back(new PointLight(float3(9.0f, 3.0f, 6.0f), float4(500.0f)));
     //scene.lights.emplace_back(new PointLight(float3(0.0f, 0.8f, 1.0f), float4(200.0f)));
 
-    scene.lights.emplace_back(new DirectionalLight(normalize(float3(-0.647207f, -1.55414f, -1.0797f)), float4(5.f)));
-    
     if (scene.lights.empty()) {
         std::cout << "  There are no lights in the scene." << std::endl;
         return false;

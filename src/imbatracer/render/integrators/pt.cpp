@@ -11,7 +11,7 @@ namespace imba {
 
 void PathTracer::process_primary_rays(RayQueue<PTState>& ray_in, RayQueue<PTState>& ray_out, RayQueue<PTState>& ray_out_shadow, Image& out) {
     PTState* states = ray_in.states();
-    Hit* hits = ray_in.hits(); 
+    Hit* hits = ray_in.hits();
     Ray* rays = ray_in.rays();
     int ray_count = ray_in.size();
 
@@ -27,9 +27,9 @@ void PathTracer::process_primary_rays(RayQueue<PTState>& ray_in, RayQueue<PTStat
         auto isect = calculate_intersection(hits, rays, i);
 
         if (isect.mat->kind == Material::emissive) {
-            // If an emissive object is hit after a specular bounce or as the first intersection along the path, add its contribution. 
+            // If an emissive object is hit after a specular bounce or as the first intersection along the path, add its contribution.
             // otherwise the light has to be ignored because it was already sampled as direct illumination.
-            if (states[i].bounces == 0) {                        
+            if (states[i].bounces == 0) {
                 EmissiveMaterial* em = static_cast<EmissiveMaterial*>(isect.mat);
                 float4 color = em->color();
 
@@ -37,11 +37,11 @@ void PathTracer::process_primary_rays(RayQueue<PTState>& ray_in, RayQueue<PTStat
                 out.pixels()[states[i].pixel_id] += color;
             } else if (states[i].last_specular) {
                 EmissiveMaterial* em = static_cast<EmissiveMaterial*>(isect.mat);
-                
+
                 float cos_light = fabsf(dot(isect.surf.normal, -1.0f * isect.out_dir));
                 if (cos_light < 1.0f) {  // Only add contribution from the side of the light that the normal is on.
                     float4 color = states[i].throughput * em->color();
-                    
+
                     // Add contribution to the pixel which this ray belongs to.
                     out.pixels()[states[i].pixel_id] += color;
                 }
@@ -66,11 +66,11 @@ void PathTracer::process_primary_rays(RayQueue<PTState>& ray_in, RayQueue<PTStat
             float3 sample_dir;
             bool specular;
 
-            const float4 brdf = sample_material(isect.mat, isect.out_dir, isect.surf, rng, sample_dir, pdf, specular);
+            const float4 brdf = sample_material_in(isect.mat, isect.out_dir, isect.surf, rng, sample_dir, pdf, specular);
             const float cos_term = fabsf(dot(isect.surf.normal, sample_dir));
-            
+
             PTState s = states[i];
-            s.throughput = s.throughput * brdf * (cos_term / (rrprob * pdf));
+            s.throughput *= brdf / rrprob;
 
             s.bounces++;
             s.last_specular = specular;
@@ -87,14 +87,14 @@ void PathTracer::process_primary_rays(RayQueue<PTState>& ray_in, RayQueue<PTStat
 
 void PathTracer::process_shadow_rays(RayQueue<PTState>& ray_in, Image& out) {
     PTState* states = ray_in.states();
-    Hit* hits = ray_in.hits(); 
+    Hit* hits = ray_in.hits();
     Ray* rays = ray_in.rays();
-    int ray_count = ray_in.size(); 
+    int ray_count = ray_in.size();
 
     #pragma omp parallel for
     for (int i = 0; i < ray_count; ++i) {
         if (hits[i].tri_id < 0) {
-            // The shadow ray hit the light source. Multiply the contribution of the light by the 
+            // The shadow ray hit the light source. Multiply the contribution of the light by the
             // current throughput of the path (as stored in the state of the shadow ray)
             float4 color = states[i].throughput;
             // Add contribution to the pixel which this ray belongs to.
@@ -103,29 +103,29 @@ void PathTracer::process_shadow_rays(RayQueue<PTState>& ray_in, Image& out) {
     }
 }
 
-void PathTracer::render(Image& out) {    
+void PathTracer::render(Image& out) {
     // Create the initial set of camera rays.
-    auto camera = static_cast<PixelRayGen<PTState>*>(&cam_);
-    camera->start_frame();
+    auto camera = ray_gen_;
+    camera.start_frame();
 
     int in_queue = 0;
     int out_queue = 1;
 
     while(true) {
-        camera->fill_queue(primary_rays[in_queue]);
-        
-        if (primary_rays[in_queue].size() <= 0)
+        camera.fill_queue(primary_rays_[in_queue]);
+
+        if (primary_rays_[in_queue].size() <= 0)
             break;
 
-        primary_rays[in_queue].traverse(scene_);
-        process_primary_rays(primary_rays[in_queue], primary_rays[out_queue], shadow_rays, out);
-        primary_rays[in_queue].clear();
+        primary_rays_[in_queue].traverse(scene_);
+        process_primary_rays(primary_rays_[in_queue], primary_rays_[out_queue], shadow_rays_, out);
+        primary_rays_[in_queue].clear();
 
         // Processing primary rays creates new primary rays and some shadow rays.
-        if (shadow_rays.size() > 0) {
-            shadow_rays.traverse_occluded(scene_);
-            process_shadow_rays(shadow_rays, out);
-            shadow_rays.clear();
+        if (shadow_rays_.size() > 0) {
+            shadow_rays_.traverse_occluded(scene_);
+            process_shadow_rays(shadow_rays_, out);
+            shadow_rays_.clear();
         }
 
         std::swap(in_queue, out_queue);

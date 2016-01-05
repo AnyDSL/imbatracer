@@ -14,20 +14,20 @@ struct float2 {
 
     float operator [] (int axis) const { return *(&x + axis); }
     float& operator [] (int axis) { return *(&x + axis); }
-    
-    float2& operator += (const float2& a) { 
+
+    float2& operator += (const float2& a) {
         x += a.x; y += a.y;
-        return *this;    
+        return *this;
     }
-    
-    float2& operator *= (float a) { 
+
+    float2& operator *= (float a) {
         x *= a; y *= a;
-        return *this;    
+        return *this;
     }
-    
-    float2& operator *= (const float2& a) { 
+
+    float2& operator *= (const float2& a) {
         x *= a.x; y *= a.y;
-        return *this;    
+        return *this;
     }
 };
 
@@ -71,6 +71,10 @@ inline float2 max(const float2& a, const float2& b) {
 
 inline float dot(const float2& a, const float2& b) {
     return a.x * b.x + a.y * b.y;
+}
+
+inline float lensqr(const float2& a) {
+    return dot(a, a);
 }
 
 inline float length(const float2& a) {
