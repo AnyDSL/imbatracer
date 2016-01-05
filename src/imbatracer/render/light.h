@@ -13,6 +13,10 @@ public:
         float3 dir;
         float distance;
         float4 intensity;
+
+        float cos_out;
+        float pdf_emission_w;
+        float pdf_direct_w;
     };
 
     struct LightRaySample {
@@ -21,8 +25,8 @@ public:
         float3 dir;
 
         float4 radiance;
-        float cos_out;
 
+        float cos_out;
         float pdf_emission_w;
         float pdf_direct_w;
     };
@@ -32,6 +36,8 @@ public:
 
     // Samples a point on the light source. Used for shadow rays.
     virtual LightSample sample(const float3& from, float u1, float u2) = 0;
+
+    virtual float4 radiance(const float3& out_dir, float& pdf_direct_a, float& pdf_emit_w) = 0;
 
     virtual ~Light() { }
 };
@@ -97,7 +103,7 @@ public:
         normal_ = normalize(normal_);
     }
 
-    float area() { return area_; }
+    inline float area() const { return area_; }
 
     // Samples a point on the light source. Used for shadow rays.
     virtual LightSample sample(const float3& from, float rnd1, float rnd2) override {
@@ -118,9 +124,13 @@ public:
 
         // directions form the opposite side of the light have zero intensity
         if (cos_normal_dir > 0.0f && cos_normal_dir < 1.0f)
-            s.intensity = intensity_ * cos_normal_dir * (area() / distsq);
+            s.intensity = intensity_ * cos_normal_dir * (area_ / distsq);
         else
             s.intensity = float4(0.0f);
+
+        s.cos_out = cos_normal_dir;
+        s.pdf_emission_w = (cos_normal_dir * 1.0f / pi) / area_;
+        s.pdf_direct_w = 1.0f / area_;
 
         return s;
     }
@@ -138,14 +148,26 @@ public:
         float cos_out = dot(ds.dir, normal_);
 
         s.dir = ds.dir;
-        s.radiance = intensity_ * cos_out;
+        s.radiance = intensity_ * cos_out * area_ / ds.pdf; // cosine cancels out with the pdf
         s.normal = normal_;
 
         s.cos_out = cos_out;
-        s.pdf_emission_w = ds.pdf / area();
-        s.pdf_direct_w = 1.0f / area();
+        s.pdf_emission_w = ds.pdf / area_;
+        s.pdf_direct_w = 1.0f / area_;
 
         return s;
+    }
+
+    virtual float4 radiance(const float3& out_dir, float& pdf_direct_a, float& pdf_emit_w) override {
+        const float cos_theta_o = dot(normal_, out_dir);
+
+        if (cos_theta_o <= 0.0f)
+            return float4(0.0f);
+
+        pdf_direct_a = 1.0f / area_;
+        pdf_emit_w = 1.0f / area_ * cos_hemisphere_pdf(normal_, out_dir);
+
+        return intensity_;
     }
 
 private:
@@ -191,9 +213,12 @@ public:
             FLT_MAX,
             intensity_
         };
-
+        // TODO pdf
         return sample;
     }
+
+    // Only used for random rays intersection a light.
+    virtual float4 radiance(const float3& out_dir, float& pdf_direct_a, float& pdf_emit_w) { return float4(0.0f); }
 
 private:
     float4 intensity_;
@@ -206,6 +231,9 @@ public:
 
     // Samples an outgoing ray from the light source.
     virtual LightRaySample sample(RNG& rng) override { return LightRaySample(); } // TODO
+
+    // Only used for random rays intersection a light.
+    virtual float4 radiance(const float3& out_dir, float& pdf_direct_a, float& pdf_emit_w) { return float4(0.0f); }
 
     // Samples a point on the light source. Used for shadow rays.
     virtual LightSample sample(const float3& from, float u1, float u2) override {
@@ -221,7 +249,7 @@ public:
             dist,
             intensity
         };
-
+        // TODO pdf
         return sample;
     }
 

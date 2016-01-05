@@ -15,6 +15,8 @@ struct BPTState : RayState {
     // partial weights for MIS, see VCM technical report
     float dVC;
     float dVCM;
+
+    int last_tri;
 };
 
 // Ray generator for light sources. Samples a point and a direction on a lightsource for every pixel sample.
@@ -26,7 +28,8 @@ public:
         const float offset = 0.01f;
 
         // randomly choose one light source to sample
-        int i = state_out.rng.random_int(0, lights_.size() - 1);
+        int i = state_out.rng.random_int(0, lights_.size());
+        //printf("%d\n", i);
         auto& l = lights_[i];
         float pdf_lightpick = 1.0f / lights_.size();
 
@@ -43,9 +46,11 @@ public:
 
         float pdf_e = sample.pdf_emission_w * pdf_lightpick;
 
-        state_out.throughput = sample.radiance / pdf_e;
+        state_out.throughput = sample.radiance / pdf_lightpick;
         state_out.path_length = 1;
         state_out.continue_prob = 1.0f;
+
+        state_out.last_tri = -1;
 
         state_out.dVC = sample.cos_out / pdf_e;
         state_out.dVCM = sample.pdf_direct_w * pdf_lightpick / pdf_e;
@@ -63,8 +68,7 @@ public:
     {}
 
     virtual void sample_pixel(int x, int y, ::Ray& ray_out, BPTState& state_out) override {
-        float pdf_cam_w;
-
+        // Sample a ray from the camera.
         const float sample_x = static_cast<float>(x) + state_out.rng.random_float();
         const float sample_y = static_cast<float>(y) + state_out.rng.random_float();
 
@@ -73,6 +77,11 @@ public:
         state_out.throughput = float4(1.0f);
         state_out.path_length = 1;
         state_out.continue_prob = 1.0f;
+
+        // Compute pdf and MIS weights.
+        const float3 dir(ray_out.dir.x, ray_out.dir.y, ray_out.dir.z);
+        const float cos_theta_o = dot(dir, cam_.dir());
+        const float pdf_cam_w = (cam_.image_plane_dist() / cos_theta_o) * (cam_.image_plane_dist() / cos_theta_o) / cos_theta_o;
 
         state_out.dVC = 0.0f;
         state_out.dVCM = light_path_count_ / pdf_cam_w;
@@ -86,7 +95,7 @@ private:
 // bidirectional path tracing
 class BidirPathTracer : public Integrator {
     static constexpr int TARGET_RAY_COUNT = 64 * 1000;
-    static constexpr int MAX_LIGHT_PATH_LEN = 16;
+    static constexpr int MAX_LIGHT_PATH_LEN = 8;
 public:
     BidirPathTracer(Scene& scene, PerspectiveCamera& cam, int spp)
         : Integrator(scene, cam, spp),
@@ -124,12 +133,14 @@ private:
         Intersection isect;
         float4 throughput;
 
+        float continue_prob;
+
         // partial weights for MIS, see VCM technical report
         float dVC;
         float dVCM;
 
-        LightPathVertex(Intersection isect, float4 tp, float dVC, float dVCM)
-            : isect(isect), throughput(tp), dVC(dVC), dVCM(dVCM)
+        LightPathVertex(Intersection isect, float4 tp, float continue_prob, float dVC, float dVCM)
+            : isect(isect), throughput(tp), continue_prob(continue_prob), dVC(dVC), dVCM(dVCM)
         {}
     };
     std::vector<std::vector<std::vector<LightPathVertex>>> light_paths_;
@@ -150,6 +161,8 @@ private:
     void trace_camera_paths(Image& img);
 
     void connect_to_camera(const BPTState& light_state, const Intersection& isect, RayQueue<BPTState>& rays_out_shadow);
+    void direct_illum(BPTState& cam_state, const Intersection& isect, RayQueue<BPTState>& rays_out_shadow);
+    void connect(BPTState& cam_state, const Intersection& isect, RayQueue<BPTState>& rays_out_shadow);
 };
 
 } // namespace imba

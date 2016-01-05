@@ -96,6 +96,10 @@ inline float4 normalize(const float4& a) {
     return a * (1.0f / length(a));
 }
 
+inline bool is_black(const float4& a) {
+    return a.x <= 0.0f && a.y <= 0.0f && a.z <= 0.0f;
+}
+
 } // namespace imba
 
 #endif // IMBA_FLOAT4_H

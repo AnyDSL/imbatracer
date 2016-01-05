@@ -51,14 +51,20 @@ protected:
 
         const auto texcoords = scene_.mesh.attribute<float2>(MeshAttributes::texcoords);
         const auto normals = scene_.mesh.attribute<float3>(MeshAttributes::normals);
-        const auto geom_normal = scene_.geom_normals[hits[i].tri_id];
+        auto geom_normal = scene_.geom_normals[hits[i].tri_id];
 
         const float2 uv_coords = lerp(texcoords[i0], texcoords[i1], texcoords[i2], u, v);
-        const float3 normal = normalize(lerp(normals[i0], normals[i1], normals[i2], u, v));
+        float3          normal = normalize(lerp(normals[i0], normals[i1], normals[i2], u, v));
+
+        const float3 w_out = -normalize(out_dir);
+
+        // flip the normal to lie on the same side as the ray direction.
+        if (dot(w_out, normal) < 0.0f) normal *= -1.0f;
+        if (dot(w_out, geom_normal) < 0.0f) geom_normal *= -1.0f; // flip separately as the shading normal can be any arbitrary direction.
 
         return {
             SurfaceInfo { normal, uv_coords, geom_normal },
-            pos, hits[i].tmax, -normalize(out_dir), mat.get()
+            pos, hits[i].tmax, w_out, mat.get()
         };
     }
 
@@ -67,7 +73,7 @@ protected:
         const float offset = 0.001f;
 
         // Generate the shadow ray (sample one point on one lightsource)
-        const auto ls = scene_.lights[rng.random_int(0, scene_.lights.size() - 1)].get();
+        const auto ls = scene_.lights[rng.random_int(0, scene_.lights.size())].get();
         const float pdf = scene_.lights.size();
         const auto sample = ls->sample(isect.pos, rng.random_float(), rng.random_float());
         assert_normalized(sample.dir);
@@ -84,7 +90,8 @@ protected:
 
         // Compute the values stored in the ray state.
         const float cos_term = fabsf(dot(sample.dir, isect.surf.normal));
-        const float4 brdf = evaluate_material(isect.mat, isect.out_dir, isect.surf, sample.dir);
+        float pdf_dir, pdf_rev;
+        const float4 brdf = evaluate_material(isect.mat, isect.out_dir, isect.surf, sample.dir, pdf_dir, pdf_rev);
 
         // Update the current state of this path.
         StateType s = state;

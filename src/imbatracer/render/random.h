@@ -20,9 +20,11 @@ public:
         return static_cast<float>(MWC64X()) / static_cast<float>(0xFFFFFFFF);
     }
 
+    // Random number from min (inclusive) to max (exclusive)
     int random_int(int min, int max) {
-        const float r = random_float();
-        return lerp(min, max, r);
+       /* const float r = random_float();
+        return lerp(min, max, r);*/
+        return MWC64X() % (max - min) + min;
     }
 
 private:
@@ -65,14 +67,41 @@ inline DirectionSample sample_cos_hemisphere(const float3& n, float u1, float u2
     float3 binormal;
     local_coordinates(n, tangent, binormal);
 
-    float3 dir(
+    const float3 local_dir(
         cosf(2.f * pi * u1) * sqrtf(1 - u2),
         sinf(2.f * pi * u1) * sqrtf(1 - u2),
         sqrtf(u2));
 
-    dir = dir.x * tangent + dir.y * binormal + dir.z * n;
+    const float3 world_dir = local_dir.x * tangent + local_dir.y * binormal + local_dir.z * n;
 
-    return DirectionSample(dir, dot(n, dir) * 1.f / pi);
+    return DirectionSample(world_dir, local_dir.z * 1.0f / pi);
+}
+
+inline DirectionSample sample_uniform_hemisphere(const float3& n, float u1, float u2) {
+    assert_normalized(n);
+
+    float3 tangent;
+    float3 binormal;
+    local_coordinates(n, tangent, binormal);
+
+    const float phi = 2.f * pi * u1;
+
+    const float3 local_dir(
+        cosf(phi) * sqrtf(1.0f - u2 * u2),
+        sinf(phi) * sqrtf(1.0f - u2 * u2),
+        u2);
+
+    const float3 world_dir = local_dir.x * tangent + local_dir.y * binormal + local_dir.z * n;
+
+    return DirectionSample(world_dir, 1.0f / (2.0f * pi));
+}
+
+inline float cos_hemisphere_pdf(const float3& n, const float3& dir) {
+    return std::max(0.0f, dot(n, dir)) * 1.0f / pi;
+}
+
+inline float uniform_hemisphere_pdf(const float3& n, const float3& dir) {
+    return 1.0f / (2.0f * pi);
 }
 
 inline void uniform_sample_triangle(float rnd1, float rnd2, float& u, float& v) {

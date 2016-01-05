@@ -192,6 +192,8 @@ void create_mesh(const obj::File& obj_file, Scene& scene) {
                         // Create a light source for this emissive object.
                         scene.lights.push_back(std::unique_ptr<TriangleLight>(new TriangleLight(static_cast<EmissiveMaterial*>(mat)->color(),
                             float3(p0.x, p0.y, p0.z), float3(p1.x, p1.y, p1.z), float3(p2.x, p2.y, p2.z))));
+
+                        static_cast<EmissiveMaterial*>(mat)->set_light(scene.lights.back().get());
                     }
 
                     prev = next;
