@@ -34,7 +34,7 @@ struct SurfaceInfo {
     float3 geom_normal;
 };
 
-float4 evaluate_material(Material* mat, const float3& out_dir, const SurfaceInfo& surf, const float3& in_dir, float& pdf_dir, float& pdf_rev);
+float4 evaluate_material(Material* mat, const float3& out_dir, const SurfaceInfo& surf, const float3& in_dir, bool adjoint, float& pdf_dir, float& pdf_rev);
 
 /// Samples a direction for incoming light.
 float4 sample_material_in(Material* mat, const float3& out_dir, const SurfaceInfo& surf, RNG& rng, float3& in_dir, float& pdf, bool& specular);
@@ -81,6 +81,10 @@ public:
         in_dir = hemi_sample.dir;
         pdf = hemi_sample.pdf;
         specular = false;
+
+        if (dot(in_dir, surf.geom_normal) * dot(out_dir, surf.geom_normal) <= 0.0f)
+            return float4(0.0f);
+
         return clr; // Cosine and 1/pi cancle out with pdf from the hemisphere sampling.
     }
 
@@ -90,16 +94,18 @@ public:
             clr = sampler_->sample(surf.uv);
         }
 
-        //DirectionSample hemi_sample = sample_uniform_hemisphere(surf.normal, rng.random_float(), rng.random_float());
         DirectionSample hemi_sample = sample_cos_hemisphere(surf.normal, rng.random_float(), rng.random_float());
         out_dir = hemi_sample.dir;
         pdf = hemi_sample.pdf;
         specular = false;
 
-        return clr * dot(out_dir, surf.normal) * (1.0f / pi) * (1.0f / pdf); // 1/pi cancles out with pdf from the hemisphere sampling, leaving only the factor 2.
+        if (dot(in_dir, surf.geom_normal) * dot(out_dir, surf.geom_normal) <= 0.0f)
+            return float4(0.0f);
+
+        return clr; // Cosine and 1/pi cancle out with pdf from the hemisphere sampling.
     }
 
-    inline float4 eval(const float3& out_dir, const SurfaceInfo& surf, const float3& in_dir, float& pdf_dir, float& pdf_rev) {
+    inline float4 eval(const float3& out_dir, const SurfaceInfo& surf, const float3& in_dir, bool adjoint, float& pdf_dir, float& pdf_rev) {
         float4 clr = diffuse_;
         if (sampler_) {
             clr = sampler_->sample(surf.uv);
@@ -108,7 +114,13 @@ public:
         pdf_dir = (1.0f / pi) * dot(surf.normal, in_dir);
         pdf_rev = pdf_dir;
 
-        return clr * (1.0f / pi);// * dot(surf.normal, in_dir);
+        if (dot(in_dir, surf.geom_normal) * dot(out_dir, surf.geom_normal) <= 0.0f)
+            return float4(0.0f);
+
+        if (adjoint)
+            return clr * (1.0f / pi) * fabsf(dot(surf.normal, in_dir)) * (dot(surf.geom_normal, out_dir) / dot(surf.geom_normal, in_dir));
+        else
+            return clr * (1.0f / pi) * fabsf(dot(surf.normal, in_dir));
     }
 
 private:
@@ -136,13 +148,13 @@ public:
     inline float4 sample_out(const float3& in_dir, const SurfaceInfo& surf, RNG& rng, float3& out_dir, float& pdf, bool& specular) {
     }
 
-    inline float4 eval(const float3& out_dir, const SurfaceInfo& surf, const float3& in_dir, float& pdf_dir, float& pdf_rev) {
+    inline float4 eval(const float3& out_dir, const SurfaceInfo& surf, const float3& in_dir, bool adjoint, float& pdf_dir, float& pdf_rev) {
         const float s = scale_->sample(surf.uv).x;
 
-        const float4 v1 = evaluate_material(m1_.get(), out_dir, surf, in_dir, pdf_dir, pdf_rev);
+        const float4 v1 = evaluate_material(m1_.get(), out_dir, surf, in_dir, adjoint, pdf_dir, pdf_rev);
 
         float pd, pr;
-        const float4 v2 = evaluate_material(m2_.get(), out_dir, surf, in_dir, pd, pr);
+        const float4 v2 = evaluate_material(m2_.get(), out_dir, surf, in_dir, adjoint, pd, pr);
 
         pdf_dir *= pd;
         pdf_rev *= pr;
@@ -176,7 +188,7 @@ public:
     inline float4 sample_out(const float3& in_dir, const SurfaceInfo& surf, RNG& rng, float3& out_dir, float& pdf, bool& specular) {
     }
 
-    inline float4 eval(const float3& out_dir, const SurfaceInfo& surf, const float3& in_dir, float& pdf_dir, float& pdf_rev) {
+    inline float4 eval(const float3& out_dir, const SurfaceInfo& surf, const float3& in_dir, bool adjoint, float& pdf_dir, float& pdf_rev) {
         pdf_rev = pdf_dir = 0.0f;
         return float4(0.0f);
     }
@@ -239,7 +251,7 @@ public:
     inline float4 sample_out(const float3& in_dir, const SurfaceInfo& surf, RNG& rng, float3& out_dir, float& pdf, bool& specular) {
     }
 
-    inline float4 eval(const float3& out_dir, const SurfaceInfo& surf, const float3& in_dir, float& pdf_dir, float& pdf_rev) {
+    inline float4 eval(const float3& out_dir, const SurfaceInfo& surf, const float3& in_dir, bool adjoint, float& pdf_dir, float& pdf_rev) {
         pdf_rev = pdf_dir = 0.0f;
         return float4(0.0f);
     }
@@ -268,7 +280,7 @@ public:
         return float4(0.0f);
     }
 
-    inline float4 eval(const float3& out_dir, const SurfaceInfo& surf, const float3& in_dir, float& pdf_dir, float& pdf_rev) {
+    inline float4 eval(const float3& out_dir, const SurfaceInfo& surf, const float3& in_dir, bool adjoint, float& pdf_dir, float& pdf_rev) {
         pdf_rev = pdf_dir = 0.0f;
         return float4(0.0f);
     }
@@ -308,10 +320,10 @@ inline float4 sample_material_out(Material* mat, const float3& in_dir, const Sur
     }
 }
 
-inline float4 evaluate_material(Material* mat, const float3& out_dir, const SurfaceInfo& surf, const float3& in_dir, float& pdf_dir, float& pdf_rev) {
+inline float4 evaluate_material(Material* mat, const float3& out_dir, const SurfaceInfo& surf, const float3& in_dir, bool adjoint, float& pdf_dir, float& pdf_rev) {
     switch (mat->kind) {
 #define HANDLE_MATERIAL(m,T) \
-        case m: return static_cast<T*>(mat)->eval(out_dir, surf, in_dir, pdf_dir, pdf_rev);
+        case m: return static_cast<T*>(mat)->eval(out_dir, surf, in_dir, adjoint, pdf_dir, pdf_rev);
     ALL_MATERIALS()
 #undef HANDLE_MATERIAL
     }

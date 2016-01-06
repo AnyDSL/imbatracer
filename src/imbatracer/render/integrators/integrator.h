@@ -58,9 +58,10 @@ protected:
 
         const float3 w_out = -normalize(out_dir);
 
-        // flip the normal to lie on the same side as the ray direction.
+        // Flip the normal to lie on the same side as the ray direction.
         if (dot(w_out, normal) < 0.0f) normal *= -1.0f;
-        if (dot(w_out, geom_normal) < 0.0f) geom_normal *= -1.0f; // flip separately as the shading normal can be any arbitrary direction.
+        // Flip geometric normal to same side as the shading normal.
+        if (dot(normal, geom_normal) < 0.0f) geom_normal *= -1.0f;
 
         return {
             SurfaceInfo { normal, uv_coords, geom_normal },
@@ -89,13 +90,12 @@ protected:
         };
 
         // Compute the values stored in the ray state.
-        const float cos_term = fabsf(dot(sample.dir, isect.surf.normal));
         float pdf_dir, pdf_rev;
-        const float4 brdf = evaluate_material(isect.mat, isect.out_dir, isect.surf, sample.dir, pdf_dir, pdf_rev);
+        const float4 brdf = evaluate_material(isect.mat, isect.out_dir, isect.surf, sample.dir, false, pdf_dir, pdf_rev);
 
         // Update the current state of this path.
         StateType s = state;
-        s.throughput = s.throughput * brdf * cos_term * sample.intensity * pdf;
+        s.throughput = s.throughput * brdf * sample.intensity * pdf;
 
         // Push the shadow ray into the queue.
         ray_out_shadow.push(ray, s);

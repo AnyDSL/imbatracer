@@ -185,12 +185,12 @@ void BidirPathTracer::connect_to_camera(const BPTState& light_state, const Inter
     dir_to_cam = dir_to_cam / dist_to_cam;
 
     const float cos_theta_o = dot(isect.surf.normal, dir_to_cam);
-    if (dot(isect.surf.geom_normal, dir_to_cam) * dot(isect.surf.geom_normal, isect.out_dir) < 0.0f)
-        return; // camera and light arrive at the surface from two different sides.
+    /*if (dot(isect.surf.geom_normal, dir_to_cam) * dot(isect.surf.geom_normal, isect.out_dir) < 0.0f)
+        return; // camera and light arrive at the surface from two different sides.*/
 
     // Evaluate the material.
     float pdf_dir_w, pdf_rev_w;
-    const float4 mat_clr = evaluate_material(isect.mat, dir_to_cam, isect.surf, isect.out_dir, pdf_dir_w, pdf_rev_w);
+    const float4 mat_clr = evaluate_material(isect.mat, dir_to_cam, isect.surf, isect.out_dir, true, pdf_dir_w, pdf_rev_w);
 
     // Compute conversion factor from surface area to image plane and vice versa.
     const float cos_theta_i = dot(cam_.dir(), -dir_to_cam);
@@ -205,7 +205,7 @@ void BidirPathTracer::connect_to_camera(const BPTState& light_state, const Inter
     const float mis_weight = 1.0f;// / (mis_weight_light + 1.0f);
 
     // Contribution is divided by the number of samples (light_path_count_) and the factor that converts the (divided) pdf from surface area to image plane area.
-    state.throughput = float4(mis_weight * light_state.throughput * mat_clr / (light_path_count_ * surf_to_img));
+    state.throughput = float4(mis_weight * light_state.throughput * mat_clr / (light_path_count_ * surf_to_img * cos_theta_o));
 
     Ray ray {
         { isect.pos.x, isect.pos.y, isect.pos.z, offset },
@@ -317,7 +317,7 @@ void BidirPathTracer::direct_illum(BPTState& cam_state, const Intersection& isec
     // Evaluate the bsdf.
     const float cos_theta_o = dot(isect.surf.normal, sample.dir);
     float pdf_dir_w, pdf_rev_w;
-    const float4 bsdf = evaluate_material(isect.mat, sample.dir, isect.surf, isect.out_dir, pdf_dir_w, pdf_rev_w);
+    const float4 bsdf = evaluate_material(isect.mat, sample.dir, isect.surf, isect.out_dir, false, pdf_dir_w, pdf_rev_w);
 
     // Compute full MIS weights for camera and light.
     const float mis_weight_light = cam_state.continue_prob * pdf_dir_w / (pdf_lightpick * sample.pdf_direct_w);
@@ -343,12 +343,12 @@ void BidirPathTracer::connect(BPTState& cam_state, const Intersection& isect, Ra
         // Evaluate the bsdf at the camera vertex.
         const float cos_theta_cam = dot(isect.surf.normal, connect_dir);
         float pdf_dir_cam_w, pdf_rev_cam_w;
-        const float4 bsdf_cam = evaluate_material(isect.mat, connect_dir, isect.surf, isect.out_dir, pdf_dir_cam_w, pdf_rev_cam_w);
+        const float4 bsdf_cam = evaluate_material(isect.mat, connect_dir, isect.surf, isect.out_dir, false, pdf_dir_cam_w, pdf_rev_cam_w);
 
         // Evaluate the bsdf at the light vertex.
         const float cos_theta_light = dot(v.isect.surf.normal, -connect_dir);
         float pdf_dir_light_w, pdf_rev_light_w;
-        const float4 bsdf_light = evaluate_material(isect.mat, v.isect.out_dir, isect.surf, -connect_dir, pdf_dir_light_w, pdf_rev_light_w);
+        const float4 bsdf_light = evaluate_material(isect.mat, v.isect.out_dir, isect.surf, -connect_dir, true, pdf_dir_light_w, pdf_rev_light_w);
 
         const float geom_term = cos_theta_light * cos_theta_cam / connect_dist_sq;
 
