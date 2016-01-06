@@ -15,7 +15,7 @@ void BidirPathTracer::render(Image& img) {
     reset_buffers();
 
     trace_light_paths();
-    //trace_camera_paths(img);
+    trace_camera_paths(img);
 
     // Merge light and camera images.
     for (int i = 0; i < width_ * height_; ++i)
@@ -202,7 +202,7 @@ void BidirPathTracer::connect_to_camera(const BPTState& light_state, const Inter
     // Compute the MIS weight.
     const float pdf_cam = 1.0f * img_to_surf; // Pixel sampling pdf is one as pixel area is one by convention.
     const float mis_weight_light = pdf_cam / light_path_count_ * (light_state.dVCM + light_state.dVC + pdf_rev_w);
-    const float mis_weight = 1.0f;// / (mis_weight_light + 1.0f);
+    const float mis_weight = 1.0f / (mis_weight_light + 1.0f);
 
     // Contribution is divided by the number of samples (light_path_count_) and the factor that converts the (divided) pdf from surface area to image plane area.
     state.throughput = float4(mis_weight * light_state.throughput * mat_clr / (light_path_count_ * surf_to_img * cos_theta_o));
@@ -245,8 +245,11 @@ void BidirPathTracer::process_camera_rays(RayQueue<BPTState>& rays_in, RayQueue<
 
             const float mis_weight_camera = pdf_direct_a * pdf_lightpick * states[i].dVCM + pdf_emit_w * pdf_lightpick * states[i].dVCM;
 
-            float4 color = states[i].throughput * radiance * 1.0f / (mis_weight_camera + 1.0f);
-            img.pixels()[states[i].pixel_id] += color;
+            if (states[i].path_length > 1) {
+                float4 color = states[i].throughput * radiance * 1.0f / (mis_weight_camera + 1.0f);
+                img.pixels()[states[i].pixel_id] += color;
+            } else
+                img.pixels()[states[i].pixel_id] += radiance;
         }
 
         // Compute direct illumination.
@@ -280,7 +283,7 @@ void BidirPathTracer::process_camera_rays(RayQueue<BPTState>& rays_in, RayQueue<
                 s.dVCM = 1.0f / pdf_dir_w;
             }
 
-            s.throughput *= bsdf * cos_theta_o * cos_theta_i / (pdf_dir_w * rrprob);
+            s.throughput *= bsdf * /*cos_theta_i*/1.0f / (rrprob);
             s.path_length++;
             s.continue_prob = rrprob;
 
@@ -298,15 +301,15 @@ void BidirPathTracer::direct_illum(BPTState& cam_state, const Intersection& isec
     RNG& rng = cam_state.rng;
 
     // Generate the shadow ray (sample one point on one lightsource)
-    const auto ls = scene_.lights[rng.random_int(0, scene_.lights.size() - 1)].get();
-    const float pdf_lightpick = 1.0f / scene_.lights.size();
+    const auto ls = scene_.lights[rng.random_int(0, scene_.lights.size())].get();
+    const float inv_pdf_lightpick = scene_.lights.size();
     const auto sample = ls->sample(isect.pos, rng.random_float(), rng.random_float());
     const float cos_theta_i = sample.cos_out;
     assert_normalized(sample.dir);
 
     // Ensure that the incoming and outgoing directions are on the same side of the surface.
     if (dot(isect.surf.geom_normal, sample.dir) *
-        dot(isect.surf.geom_normal, isect.out_dir) < 0.0f)
+        dot(isect.surf.geom_normal, isect.out_dir) <= 0.0f)
         return;
 
     Ray ray {
@@ -317,16 +320,16 @@ void BidirPathTracer::direct_illum(BPTState& cam_state, const Intersection& isec
     // Evaluate the bsdf.
     const float cos_theta_o = dot(isect.surf.normal, sample.dir);
     float pdf_dir_w, pdf_rev_w;
-    const float4 bsdf = evaluate_material(isect.mat, sample.dir, isect.surf, isect.out_dir, false, pdf_dir_w, pdf_rev_w);
+    const float4 bsdf = evaluate_material(isect.mat, isect.out_dir, isect.surf, sample.dir, false, pdf_dir_w, pdf_rev_w);
 
     // Compute full MIS weights for camera and light.
-    const float mis_weight_light = cam_state.continue_prob * pdf_dir_w / (pdf_lightpick * sample.pdf_direct_w);
+    const float mis_weight_light = cam_state.continue_prob * pdf_dir_w * inv_pdf_lightpick / sample.pdf_direct_w;
     const float mis_weight_camera = sample.pdf_emission_w * cos_theta_i / (sample.pdf_direct_w * cos_theta_o) * (cam_state.dVCM + cam_state.dVC * pdf_rev_w);
 
-    const float mis_weight = 1.0f / (mis_weight_camera + 1.0f + mis_weight_light);
+    const float mis_weight = 1.0f ;// / (mis_weight_camera + 1.0f + mis_weight_light);
 
     BPTState s = cam_state;
-    s.throughput = sample.intensity * bsdf * cos_theta_i / (pdf_lightpick * sample.pdf_direct_w);
+    s.throughput *= mis_weight * bsdf * sample.intensity * inv_pdf_lightpick;
 
     rays_out_shadow.push(ray, s);
 }

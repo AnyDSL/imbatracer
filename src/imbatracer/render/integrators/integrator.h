@@ -76,7 +76,7 @@ protected:
 
         // Ensure that the incoming and outgoing directions are on the same side of the surface.
         if (dot(isect.surf.geom_normal, sample.dir) *
-            dot(isect.surf.geom_normal, isect.out_dir) < 0.0f)
+            dot(isect.surf.geom_normal, isect.out_dir) <= 0.0f)
             return;
 
         Ray ray {
@@ -90,7 +90,7 @@ protected:
 
         // Update the current state of this path.
         StateType s = state;
-        s.throughput = s.throughput * brdf * sample.intensity * pdf;
+        s.throughput *= brdf * sample.intensity * pdf;
 
         // Push the shadow ray into the queue.
         ray_out_shadow.push(ray, s);

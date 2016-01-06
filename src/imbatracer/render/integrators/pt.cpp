@@ -52,7 +52,7 @@ void PathTracer::process_primary_rays(RayQueue<PTState>& ray_in, RayQueue<PTStat
         }
 
         compute_direct_illum(rng, isect, states[i], ray_out_shadow);
-
+continue;
         // Continue the path using russian roulette.
         const float4 srgb(0.2126f, 0.7152f, 0.0722f, 0.0f);
         const float kill_prob = dot(states[i].throughput, srgb) * 100.0f;
