@@ -58,11 +58,6 @@ protected:
 
         const float3 w_out = -normalize(out_dir);
 
-        // Flip the normal to lie on the same side as the ray direction.
-        if (dot(w_out, normal) < 0.0f) normal *= -1.0f;
-        // Flip geometric normal to same side as the shading normal.
-        if (dot(normal, geom_normal) < 0.0f) geom_normal *= -1.0f;
-
         return {
             SurfaceInfo { normal, uv_coords, geom_normal },
             pos, hits[i].tmax, w_out, mat.get()

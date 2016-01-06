@@ -66,7 +66,7 @@ void PathTracer::process_primary_rays(RayQueue<PTState>& ray_in, RayQueue<PTStat
             float3 sample_dir;
             bool specular;
 
-            const float4 brdf = sample_material_in(isect.mat, isect.out_dir, isect.surf, rng, sample_dir, pdf, specular);
+            const float4 brdf = sample_material(isect.mat, isect.out_dir, isect.surf, rng, sample_dir, false, pdf, specular);
             const float cos_term = fabsf(dot(isect.surf.normal, sample_dir));
 
             PTState s = states[i];

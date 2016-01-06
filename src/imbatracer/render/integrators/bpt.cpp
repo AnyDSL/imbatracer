@@ -132,7 +132,7 @@ void BidirPathTracer::process_light_rays(RayQueue<BPTState>& rays_in, RayQueue<B
             float pdf_dir_w;
             float3 sample_dir;
             bool is_specular;
-            float4 mat_clr = sample_material_out(isect.mat, isect.out_dir, isect.surf, rng, sample_dir, pdf_dir_w, is_specular);
+            float4 mat_clr = sample_material(isect.mat, isect.out_dir, isect.surf, rng, sample_dir, true, pdf_dir_w, is_specular);
 
             if (is_black(mat_clr))
                 continue; // do not bother to shoot a ray if the throughput is (less than) zero.
@@ -266,7 +266,7 @@ void BidirPathTracer::process_camera_rays(RayQueue<BPTState>& rays_in, RayQueue<
             float pdf_dir_w;
             float3 sample_dir;
             bool is_specular;
-            float4 bsdf = sample_material_in(isect.mat, isect.out_dir, isect.surf, rng, sample_dir, pdf_dir_w, is_specular); // TODO compute adjoint BRDF!
+            float4 bsdf = sample_material(isect.mat, isect.out_dir, isect.surf, rng, sample_dir, false, pdf_dir_w, is_specular); // TODO compute adjoint BRDF!
             float pdf_rev_w = pdf_dir_w; // TODO let material calculate this
             float cos_theta_o = dot(sample_dir, isect.surf.normal);
             float cos_theta_i = dot(isect.out_dir, isect.surf.normal);
