@@ -28,7 +28,7 @@ public:
 
         float cos_out;
         float pdf_emission_w;
-        float pdf_direct_w;
+        float pdf_direct_a;
     };
 
     // Samples an outgoing ray from the light source.
@@ -130,7 +130,7 @@ public:
 
         s.cos_out = cos_normal_dir;
         s.pdf_emission_w = (cos_normal_dir * 1.0f / pi) / area_;
-        s.pdf_direct_w = 1.0f / area_;
+        s.pdf_direct_w = 1.0f / area_ * distsq / cos_normal_dir;
 
         return s;
     }
@@ -153,7 +153,7 @@ public:
 
         s.cos_out = cos_out;
         s.pdf_emission_w = ds.pdf / area_;
-        s.pdf_direct_w = 1.0f / area_;
+        s.pdf_direct_a = 1.0f / area_;
 
         return s;
     }

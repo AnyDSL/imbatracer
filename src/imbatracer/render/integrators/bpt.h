@@ -12,11 +12,12 @@ struct BPTState : RayState {
     // Russian roulette probability for continuing this path.
     float continue_prob;
 
+    // Used to store whether the light source during light tracing was finite.
+    bool is_finite;
+
     // partial weights for MIS, see VCM technical report
     float dVC;
     float dVCM;
-
-    int last_tri;
 };
 
 // Ray generator for light sources. Samples a point and a direction on a lightsource for every pixel sample.
@@ -44,16 +45,14 @@ public:
         ray_out.dir.z = sample.dir.z;
         ray_out.dir.w = FLT_MAX;
 
-        float pdf_e = sample.pdf_emission_w * pdf_lightpick;
-
         state_out.throughput = sample.radiance / pdf_lightpick;
         state_out.path_length = 1;
         state_out.continue_prob = 1.0f;
 
-        state_out.last_tri = -1;
+        state_out.dVC = sample.cos_out / (sample.pdf_emission_w * pdf_lightpick);
+        state_out.dVCM = sample.pdf_direct_a / sample.pdf_emission_w;
 
-        state_out.dVC = sample.cos_out / pdf_e;
-        state_out.dVCM = sample.pdf_direct_w * pdf_lightpick / pdf_e;
+        state_out.is_finite = true; // TODO take value from lightsource
     }
 
 private:
@@ -78,10 +77,12 @@ public:
         state_out.path_length = 1;
         state_out.continue_prob = 1.0f;
 
-        // Compute pdf and MIS weights.
         const float3 dir(ray_out.dir.x, ray_out.dir.y, ray_out.dir.z);
+
+        // PDF on image plane is 1. We need to convert this from image plane area to solid angle.
         const float cos_theta_o = dot(dir, cam_.dir());
-        const float pdf_cam_w = (cam_.image_plane_dist() / cos_theta_o) * (cam_.image_plane_dist() / cos_theta_o) / cos_theta_o;
+        assert(cos_theta_o > 0.0f);
+        const float pdf_cam_w = sqr(cam_.image_plane_dist() / cos_theta_o) / cos_theta_o;
 
         state_out.dVC = 0.0f;
         state_out.dVCM = light_path_count_ / pdf_cam_w;

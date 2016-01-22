@@ -16,6 +16,10 @@ inline float degrees(float x) {
     return x * 180.0f / pi;
 }
 
+inline float sqr(float x) {
+    return x * x;
+}
+
 template <typename T>
 inline T clamp(T a, T b, T c) {
     return (a < b) ? b : ((a > c) ? c : a);

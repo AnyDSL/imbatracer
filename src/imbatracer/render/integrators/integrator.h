@@ -58,6 +58,9 @@ protected:
 
         const float3 w_out = -normalize(out_dir);
 
+        if (isinf(w_out.x))
+            printf("gotchabala (%f,%f,%f) (%f,%f,%f)\n", w_out.x, w_out.y, w_out.z, out_dir.x, out_dir.y, out_dir.z);
+
         return {
             SurfaceInfo { normal, uv_coords, geom_normal },
             pos, hits[i].tmax, w_out, mat.get()

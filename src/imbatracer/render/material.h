@@ -36,6 +36,7 @@ struct SurfaceInfo {
 
 float4 evaluate_material(Material* mat, const float3& out_dir, const SurfaceInfo& surf, const float3& in_dir, bool adjoint, float& pdf_dir, float& pdf_rev);
 float4 sample_material(Material* mat, const float3& out_dir, const SurfaceInfo& surf, RNG& rng, float3& in_dir, bool adjoint, float& pdf, bool& specular);
+float pdf_material(Material* mat, const SurfaceInfo& surf, const float3& in_dir);
 
 inline float fresnel_conductor(float cosi, float eta, float kappa)
 {
@@ -96,16 +97,23 @@ public:
             clr = sampler_->sample(surf.uv);
         }
 
-        pdf_dir = (1.0f / pi) * dot(surf.normal, in_dir);
-        pdf_rev = pdf_dir;
-
         if (dot(in_dir, surf.geom_normal) * dot(out_dir, surf.geom_normal) <= 0.0f)
             return float4(0.0f);
 
-        if (adjoint)
+        if (adjoint) {
+            pdf_dir = (1.0f / pi) * fabsf(dot(surf.normal, out_dir));
+            pdf_rev = (1.0f / pi) * fabsf(dot(surf.normal, in_dir));
             return clr * (1.0f / pi) * fabsf(dot(surf.normal, in_dir)) * (dot(surf.geom_normal, out_dir) / dot(surf.geom_normal, in_dir));
-        else
+        }
+        else {
+            pdf_dir = (1.0f / pi) * fabsf(dot(surf.normal, in_dir));
+            pdf_rev = (1.0f / pi) * fabsf(dot(surf.normal, out_dir));
             return clr * (1.0f / pi) * fabsf(dot(surf.normal, in_dir));
+        }
+    }
+
+    inline float pdf(const SurfaceInfo& surf, const float3& in_dir) {
+        return (1.0f / pi) * fabsf(dot(surf.normal, in_dir));
     }
 
 private:
@@ -144,6 +152,10 @@ public:
         return v1 * s + (1.0f - s)  * v2;
     }
 
+    inline float pdf(const SurfaceInfo& surf, const float3& in_dir) {
+        return 0.0f; // TODO
+    }
+
 private:
     TextureSampler* scale_;
     std::unique_ptr<Material> m1_;
@@ -170,6 +182,10 @@ public:
     inline float4 eval(const float3& out_dir, const SurfaceInfo& surf, const float3& in_dir, bool adjoint, float& pdf_dir, float& pdf_rev) {
         pdf_rev = pdf_dir = 0.0f;
         return float4(0.0f);
+    }
+
+    inline float pdf(const SurfaceInfo& surf, const float3& in_dir) {
+        return 0.0f;
     }
 
 private:
@@ -235,6 +251,10 @@ public:
         return float4(0.0f);
     }
 
+    inline float pdf(const SurfaceInfo& surf, const float3& in_dir) {
+        return 0.0f;
+    }
+
 private:
     float eta_;
     float4 tf_;
@@ -244,7 +264,7 @@ private:
 /// Material for diffuse emissive objects.
 class EmissiveMaterial : public Material {
 public:
-    EmissiveMaterial(const float4& color) : color_(color), Material(emissive, false) { }
+    EmissiveMaterial(const float4& color) : color_(color), Material(emissive, true) { }
 
     inline float4 sample(const float3& out_dir, const SurfaceInfo& surf, RNG& rng, float3& in_dir, bool adjoint, float& pdf, bool& specular) {
         /*// uniform sample the hemisphere
@@ -254,12 +274,17 @@ public:
         specular = false;
         return float4(0.0f) * (1.0f / pi);*/
         pdf = 0.0f;
+        specular = true;
         return float4(0.0f);
     }
 
     inline float4 eval(const float3& out_dir, const SurfaceInfo& surf, const float3& in_dir, bool adjoint, float& pdf_dir, float& pdf_rev) {
-        pdf_rev = pdf_dir = 0.0f;
+        pdf_rev = pdf_dir = 1.0f;
         return float4(0.0f);
+    }
+
+    inline float pdf(const SurfaceInfo& surf, const float3& in_dir) {
+        return 0.0f;
     }
 
     inline float4 color() { return color_; }
@@ -292,6 +317,15 @@ inline float4 evaluate_material(Material* mat, const float3& out_dir, const Surf
     switch (mat->kind) {
 #define HANDLE_MATERIAL(m,T) \
         case m: return static_cast<T*>(mat)->eval(out_dir, surf, in_dir, adjoint, pdf_dir, pdf_rev);
+    ALL_MATERIALS()
+#undef HANDLE_MATERIAL
+    }
+}
+
+inline float pdf_material(Material* mat, const SurfaceInfo& surf, const float3& in_dir) {
+    switch (mat->kind) {
+#define HANDLE_MATERIAL(m,T) \
+        case m: return static_cast<T*>(mat)->pdf(surf, in_dir);
     ALL_MATERIALS()
 #undef HANDLE_MATERIAL
     }
