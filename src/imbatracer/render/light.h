@@ -218,7 +218,7 @@ public:
     }
 
     // Only used for random rays intersection a light.
-    virtual float4 radiance(const float3& out_dir, float& pdf_direct_a, float& pdf_emit_w) { return float4(0.0f); }
+    virtual float4 radiance(const float3& out_dir, float& pdf_direct_a, float& pdf_emit_w) override { return float4(0.0f); }
 
 private:
     float4 intensity_;
@@ -233,7 +233,7 @@ public:
     virtual LightRaySample sample(RNG& rng) override { return LightRaySample(); } // TODO
 
     // Only used for random rays intersection a light.
-    virtual float4 radiance(const float3& out_dir, float& pdf_direct_a, float& pdf_emit_w) { return float4(0.0f); }
+    virtual float4 radiance(const float3& out_dir, float& pdf_direct_a, float& pdf_emit_w) override { return float4(0.0f); }
 
     // Samples a point on the light source. Used for shadow rays.
     virtual LightSample sample(const float3& from, float u1, float u2) override {
