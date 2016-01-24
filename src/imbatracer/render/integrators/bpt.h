@@ -49,8 +49,8 @@ public:
         state_out.path_length = 1;
         state_out.continue_prob = 1.0f;
 
+        state_out.dVCM = sample.pdf_direct_a / sample.pdf_emission_w; // pdf_lightpick cancels out
         state_out.dVC = sample.cos_out / (sample.pdf_emission_w * pdf_lightpick);
-        state_out.dVCM = sample.pdf_direct_a / sample.pdf_emission_w;
 
         state_out.is_finite = true; // TODO take value from lightsource
     }
@@ -96,7 +96,7 @@ private:
 // bidirectional path tracing
 class BidirPathTracer : public Integrator {
     static constexpr int TARGET_RAY_COUNT = 64 * 1000;
-    static constexpr int MAX_LIGHT_PATH_LEN = 8;
+    static constexpr int MAX_LIGHT_PATH_LEN = 32;
 public:
     BidirPathTracer(Scene& scene, PerspectiveCamera& cam, int spp)
         : Integrator(scene, cam, spp),

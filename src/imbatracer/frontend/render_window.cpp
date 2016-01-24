@@ -69,7 +69,7 @@ void RenderWindow::render() {
     const int g = screen_->format->Gshift / 8;
     const int b = screen_->format->Bshift / 8;
     const float weight = 1.0f / (spp_ * frames_);
-    const float gamma = 0.854f;
+    const float gamma = 1.0f / 2.2f;
 
 #pragma omp parallel for
     for (int y = 0; y < screen_->h; y++) {

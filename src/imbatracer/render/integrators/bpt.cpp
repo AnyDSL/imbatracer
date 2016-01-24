@@ -108,7 +108,7 @@ void BidirPathTracer::process_light_rays(RayQueue<BPTState>& rays_in, RayQueue<B
 
         // Complete calculation of the partial weights.
         if (states[i].path_length > 1 || states[i].is_finite)
-            states[i].dVCM *= isect.distance * isect.distance;
+            states[i].dVCM *= sqr(isect.distance);
 
         states[i].dVCM *= 1.0f / cos_theta_i;
         states[i].dVC  *= 1.0f / cos_theta_i;
@@ -204,7 +204,7 @@ void BidirPathTracer::connect_to_camera(const BPTState& light_state, const Inter
 
     // Compute the MIS weight.
     const float pdf_cam = 1.0f * img_to_surf; // Pixel sampling pdf is one as pixel area is one by convention.
-    const float mis_weight_light = pdf_cam / light_path_count_ * (light_state.dVCM + light_state.dVC + pdf_rev_w * light_state.continue_prob);
+    const float mis_weight_light = pdf_cam / light_path_count_ * (light_state.dVCM + light_state.dVC * pdf_rev_w * light_state.continue_prob);
     const float mis_weight = 1.0f / (mis_weight_light + 1.0f);
 
     // Contribution is divided by the number of samples (light_path_count_) and the factor that converts the (divided) pdf from surface area to image plane area.
@@ -361,17 +361,19 @@ void BidirPathTracer::connect(BPTState& cam_state, const Intersection& isect, Ra
         connect_dir *= 1.0f / connect_dist;
 
         // Evaluate the bsdf at the camera vertex.
-        const float cos_theta_cam = fabsf(dot(isect.surf.normal, connect_dir));
+        const float cos_theta_cam = dot(isect.surf.normal, connect_dir);
         float pdf_dir_cam_w, pdf_rev_cam_w;
         const float4 bsdf_cam = evaluate_material(isect.mat, isect.out_dir, isect.surf, connect_dir, false, pdf_dir_cam_w, pdf_rev_cam_w);
 
         // Evaluate the bsdf at the light vertex.
-        const float cos_theta_light = fabsf(dot(light_vertex.isect.surf.normal, -connect_dir));
+        const float cos_theta_light = dot(light_vertex.isect.surf.normal, -connect_dir);
         float pdf_dir_light_w, pdf_rev_light_w;
         const float4 bsdf_light = evaluate_material(light_vertex.isect.mat, -connect_dir, light_vertex.isect.surf, light_vertex.isect.out_dir, true, pdf_dir_light_w, pdf_rev_light_w);
 
-        if (is_black(bsdf_light) || is_black(bsdf_cam))
+        if (cos_theta_cam <= 0.0f || cos_theta_light <= 0.0f)
             continue;
+        /*if (is_black(bsdf_light) || is_black(bsdf_cam))
+            continue;*/
 
         // Compute and convert the pdfs
         const float pdf_cam_f = pdf_dir_cam_w * cam_state.continue_prob;
@@ -393,6 +395,9 @@ void BidirPathTracer::connect(BPTState& cam_state, const Intersection& isect, Ra
 
         BPTState s = cam_state;
         s.throughput *= mis_weight * geom_term * bsdf_cam * bsdf_light * light_vertex.throughput;
+
+        if (isnan(s.throughput.x))
+            printf("%f %f \n", cos_theta_cam, cos_theta_light);
 
         Ray ray {
             { isect.pos.x, isect.pos.y, isect.pos.z, offset },
