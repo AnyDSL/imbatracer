@@ -29,8 +29,7 @@ public:
         const float offset = 0.001f;
 
         // randomly choose one light source to sample
-        int i = rand() % lights_.size();//state_out.rng.random_int(0, lights_.size());
-        //printf("%d\n", i);
+        int i = state_out.rng.random_int(0, lights_.size());
         auto& l = lights_[i];
         float pdf_lightpick = 1.0f / lights_.size();
 
@@ -96,7 +95,7 @@ private:
 // bidirectional path tracing
 class BidirPathTracer : public Integrator {
     static constexpr int TARGET_RAY_COUNT = 64 * 1000;
-    static constexpr int MAX_LIGHT_PATH_LEN = 32;
+    static constexpr int MAX_LIGHT_PATH_LEN = 8;
 public:
     BidirPathTracer(Scene& scene, PerspectiveCamera& cam, int spp)
         : Integrator(scene, cam, spp),

@@ -148,7 +148,7 @@ public:
         float cos_out = dot(ds.dir, normal_);
 
         s.dir = ds.dir;
-        s.radiance = intensity_ * cos_out * area_ / ds.pdf; // cosine cancels out with the pdf
+        s.radiance = intensity_ * area_ * pi; // cosine cancels out with the pdf
         s.normal = normal_;
 
         s.cos_out = cos_out;

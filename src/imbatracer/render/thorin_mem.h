@@ -13,6 +13,13 @@ using std::size_t;
 #define TRAVERSAL_INTERSECT intersect_masked_gpu
 #define TRAVERSAL_OCCLUDED  occluded_masked_gpu
 
+/*
+#define TRAVERSAL_DEVICE    0
+#define TRAVERSAL_PLATFORM  HOST
+#define TRAVERSAL_INTERSECT intersect_masked_cpu
+#define TRAVERSAL_OCCLUDED  occluded_masked_cpu
+*/
+
 namespace imba {
     
 template <typename T>

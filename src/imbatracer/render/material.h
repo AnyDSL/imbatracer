@@ -101,13 +101,13 @@ public:
             return float4(0.0f);
 
         if (adjoint) {
-            pdf_dir = (1.0f / pi) * fabsf(dot(surf.normal, out_dir));
-            pdf_rev = (1.0f / pi) * fabsf(dot(surf.normal, in_dir));
+            pdf_dir = (1.0f / pi) * std::max(0.0f, dot(surf.normal, out_dir));
+            pdf_rev = (1.0f / pi) * std::max(0.0f, dot(surf.normal, in_dir));
             return clr * (1.0f / pi) * fabsf(dot(surf.normal, in_dir)) * (dot(surf.geom_normal, out_dir) / dot(surf.geom_normal, in_dir));
         }
         else {
-            pdf_dir = (1.0f / pi) * fabsf(dot(surf.normal, in_dir));
-            pdf_rev = (1.0f / pi) * fabsf(dot(surf.normal, out_dir));
+            pdf_dir = (1.0f / pi) * std::max(0.0f, dot(surf.normal, in_dir));
+            pdf_rev = (1.0f / pi) * std::max(0.0f, dot(surf.normal, out_dir));
             return clr * (1.0f / pi) * fabsf(dot(surf.normal, in_dir));
         }
     }

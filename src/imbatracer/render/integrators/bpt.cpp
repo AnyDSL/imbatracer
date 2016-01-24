@@ -129,7 +129,7 @@ void BidirPathTracer::process_light_rays(RayQueue<BPTState>& rays_in, RayQueue<B
         // Decide wether or not to continue this path using russian roulette and a fixed maximum length.
         const float4 srgb(0.2126f, 0.7152f, 0.0722f, 0.0f);
         const float kill_prob = dot(states[i].throughput, srgb) * 100.0f;
-        const float rrprob = 0.7f;//std::min(1.0f, kill_prob);
+        const float rrprob = 1.0f;//std::min(1.0f, kill_prob);
         const float u_rr = rng.random_float();
         if (u_rr < rrprob && states[i].path_length < MAX_LIGHT_PATH_LEN){
             float pdf_dir_w;
@@ -195,20 +195,22 @@ void BidirPathTracer::connect_to_camera(const BPTState& light_state, const Inter
     float pdf_dir_w, pdf_rev_w;
     const float4 mat_clr = evaluate_material(isect.mat, dir_to_cam, isect.surf, isect.out_dir, true, pdf_dir_w, pdf_rev_w);
 
+    const float pdf_rev = pdf_rev_w * light_state.continue_prob;
+
     // Compute conversion factor from surface area to image plane and vice versa.
-    const float cos_theta_i = dot(cam_.dir(), -dir_to_cam);
+    const float cos_theta_i = fabsf(dot(cam_.dir(), -dir_to_cam));
     const float dist_pixel_to_cam = cam_.image_plane_dist() / cos_theta_i;
-    const float img_to_solid_angle = dist_pixel_to_cam * dist_pixel_to_cam / cos_theta_i;
+    const float img_to_solid_angle = sqr(dist_pixel_to_cam) / cos_theta_i;
     const float img_to_surf = img_to_solid_angle * cos_theta_o / dist_to_cam_sqr;
     const float surf_to_img = 1.0f / img_to_surf;
 
     // Compute the MIS weight.
-    const float pdf_cam = 1.0f * img_to_surf; // Pixel sampling pdf is one as pixel area is one by convention.
-    const float mis_weight_light = pdf_cam / light_path_count_ * (light_state.dVCM + light_state.dVC * pdf_rev_w * light_state.continue_prob);
+    const float pdf_cam = img_to_surf; // Pixel sampling pdf is one as pixel area is one by convention.
+    const float mis_weight_light = pdf_cam / light_path_count_ * (light_state.dVCM + light_state.dVC * pdf_rev);
     const float mis_weight = 1.0f / (mis_weight_light + 1.0f);
 
     // Contribution is divided by the number of samples (light_path_count_) and the factor that converts the (divided) pdf from surface area to image plane area.
-    state.throughput *= mis_weight * mat_clr / (light_path_count_ * surf_to_img * cos_theta_o);
+    state.throughput *= mis_weight * mat_clr * img_to_surf / (light_path_count_ * cos_theta_o);
 
     Ray ray {
         { isect.pos.x, isect.pos.y, isect.pos.z, offset },
@@ -254,7 +256,7 @@ void BidirPathTracer::process_camera_rays(RayQueue<BPTState>& rays_in, RayQueue<
 
                 if (states[i].path_length > 1) {
                     float4 color = states[i].throughput * radiance * 1.0f / (mis_weight_camera + 1.0f);
-                    img.pixels()[states[i].pixel_id] += color;
+                   // img.pixels()[states[i].pixel_id] += color;
                 } else
                     img.pixels()[states[i].pixel_id] += radiance; // Light directly visible, no weighting required.
             }

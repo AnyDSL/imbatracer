@@ -10,6 +10,8 @@
 
 namespace imba {
 
+constexpr float gamma = 1.0f / 2.0f;
+
 RenderWindow::RenderWindow(int width, int height, int spp, Integrator& r, InputController& ctrl)
     : accum_buffer_(width, height)
     , integrator_(r)
@@ -69,7 +71,6 @@ void RenderWindow::render() {
     const int g = screen_->format->Gshift / 8;
     const int b = screen_->format->Bshift / 8;
     const float weight = 1.0f / (spp_ * frames_);
-    const float gamma = 1.0f / 2.2f;
 
 #pragma omp parallel for
     for (int y = 0; y < screen_->h; y++) {
@@ -188,9 +189,9 @@ bool RenderWindow::write_image(const char* file_name) {
         const float4* accum_row = accum_buffer_.row(y);
         png_bytep img_row = row.get();
         for (int x = 0; x < accum_buffer_.width(); x++) {
-            img_row[x * 4 + 0] = (png_byte)(255.0f * clamp(accum_row[x].x * weight, 0.0f, 1.0f));
-            img_row[x * 4 + 1] = (png_byte)(255.0f * clamp(accum_row[x].y * weight, 0.0f, 1.0f));
-            img_row[x * 4 + 2] = (png_byte)(255.0f * clamp(accum_row[x].z * weight, 0.0f, 1.0f));
+            img_row[x * 4 + 0] = (png_byte)(255.0f * clamp(powf(accum_row[x].x * weight, gamma), 0.0f, 1.0f));
+            img_row[x * 4 + 1] = (png_byte)(255.0f * clamp(powf(accum_row[x].y * weight, gamma), 0.0f, 1.0f));
+            img_row[x * 4 + 2] = (png_byte)(255.0f * clamp(powf(accum_row[x].z * weight, gamma), 0.0f, 1.0f));
             img_row[x * 4 + 3] = (png_byte)(255.0f);
         }
         png_write_row(png_ptr, row.get());
