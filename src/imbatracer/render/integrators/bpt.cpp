@@ -339,7 +339,7 @@ void BidirPathTracer::direct_illum(BPTState& cam_state, const Intersection& isec
     float pdf_dir_w, pdf_rev_w;
     const float4 bsdf = evaluate_material(isect.mat, isect.out_dir, isect.surf, sample.dir, false, pdf_dir_w, pdf_rev_w);
 
-    const float pdf_forward = cam_state.continue_prob * pdf_dir_w;
+    const float pdf_forward = ls->is_delta() ? 0.0f : cam_state.continue_prob * pdf_dir_w;
     const float pdf_reverse = cam_state.continue_prob * pdf_rev_w;
 
     // Compute full MIS weights for camera and light.

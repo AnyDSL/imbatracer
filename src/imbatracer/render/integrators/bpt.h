@@ -49,7 +49,11 @@ public:
         state_out.continue_prob = 1.0f;
 
         state_out.dVCM = sample.pdf_direct_a / sample.pdf_emit_w; // pdf_lightpick cancels out
-        state_out.dVC = sample.cos_out / (sample.pdf_emit_w * pdf_lightpick);
+
+        if (l->is_delta())
+            state_out.dVC = 0.0f;
+        else
+            state_out.dVC = sample.cos_out / (sample.pdf_emit_w * pdf_lightpick);
 
         state_out.is_finite = true; // TODO take value from lightsource
     }

@@ -77,6 +77,10 @@ inline DirectionSample sample_cos_hemisphere(const float3& n, float u1, float u2
     return DirectionSample(world_dir, local_dir.z * 1.0f / pi);
 }
 
+inline float cos_hemisphere_pdf(const float3& n, const float3& dir) {
+    return std::max(0.0f, dot(n, dir)) * 1.0f / pi;
+}
+
 inline DirectionSample sample_uniform_hemisphere(const float3& n, float u1, float u2) {
     assert_normalized(n);
 
@@ -96,10 +100,6 @@ inline DirectionSample sample_uniform_hemisphere(const float3& n, float u1, floa
     return DirectionSample(world_dir, 1.0f / (2.0f * pi));
 }
 
-inline float cos_hemisphere_pdf(const float3& n, const float3& dir) {
-    return std::max(0.0f, dot(n, dir)) * 1.0f / pi;
-}
-
 inline float uniform_hemisphere_pdf(const float3& n, const float3& dir) {
     return 1.0f / (2.0f * pi);
 }
@@ -108,6 +108,21 @@ inline void uniform_sample_triangle(float rnd1, float rnd2, float& u, float& v) 
     float sqrt_rnd1 = sqrtf(rnd1);
     u = 1.0f - sqrt_rnd1;
     v = rnd2 * sqrt_rnd1;
+}
+
+inline DirectionSample sample_uniform_sphere(float u1, float u2) {
+    const float a = 2.0f * pi * u1;
+    const float b = 2.0f * sqrtf(u2 - sqr(u2));
+
+    const float3 dir(cosf(a) * b,
+        sinf(a) * b,
+        1.0f - 2.0f * u2);
+
+    return DirectionSample(dir, 1.0f / (4.0f * pi));
+}
+
+inline float uniform_sphere_pdf() {
+    return 1.0f / (4.0f * pi);
 }
 
 }

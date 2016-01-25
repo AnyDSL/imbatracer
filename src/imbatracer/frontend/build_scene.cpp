@@ -303,6 +303,7 @@ bool build_scene(const Path& path, Scene& scene) {
     //scene.lights.emplace_back(new PointLight(float3(-10.0f, 193.f, -4.5f), float4(100000.5f)));
     //scene.lights.emplace_back(new PointLight(float3(9.0f, 3.0f, 6.0f), float4(500.0f)));
     //scene.lights.emplace_back(new PointLight(float3(0.0f, 0.8f, 1.0f), float4(200.0f)));
+    //scene.lights.emplace_back(new PointLight(float3(0.0f, 1.8f, 0.0f), float4(5.0f)));
 
     if (scene.lights.empty()) {
         std::cout << "  There are no lights in the scene." << std::endl;
