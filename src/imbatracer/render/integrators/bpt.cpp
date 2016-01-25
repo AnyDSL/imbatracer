@@ -256,7 +256,7 @@ void BidirPathTracer::process_camera_rays(RayQueue<BPTState>& rays_in, RayQueue<
 
                 if (states[i].path_length > 1) {
                     float4 color = states[i].throughput * radiance * 1.0f / (mis_weight_camera + 1.0f);
-                   // img.pixels()[states[i].pixel_id] += color;
+                    img.pixels()[states[i].pixel_id] += color;
                 } else
                     img.pixels()[states[i].pixel_id] += radiance; // Light directly visible, no weighting required.
             }
@@ -283,7 +283,9 @@ void BidirPathTracer::process_camera_rays(RayQueue<BPTState>& rays_in, RayQueue<
             if (is_black(bsdf))
                 continue; // necessary to prevent nans if no direction was sampled
 
-            float pdf_rev_w = pdf_material(isect.mat, isect.surf, isect.out_dir);
+            float pdf_rev_w = pdf_dir_w;
+            if (!is_specular) // cannot evaluate reverse pdf of specular surfaces (but is the same as forward due to symmetry)
+                pdf_rev_w = pdf_material(isect.mat, isect.surf, isect.out_dir);
             float cos_theta_o = fabsf(dot(sample_dir, isect.surf.normal));
 
             BPTState s = states[i];

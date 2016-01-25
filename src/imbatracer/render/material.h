@@ -231,13 +231,13 @@ public:
         const float rnd_num = rng.random_float();
         if (rnd_num < fr) {
             in_dir = reflect_dir;
-            pdf = 1.0f;
+            pdf = fr;
             return ks_;
         } else {
             const float3 refract_dir = -etafrac * out_dir + (etafrac * cos_theta - cos_o) * normal;
 
             in_dir = refract_dir;
-            pdf = 1.0f;
+            pdf = 1.0f / fr;
 
             if (adjoint)
                 return tf_;
