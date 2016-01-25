@@ -128,8 +128,8 @@ void BidirPathTracer::process_light_rays(RayQueue<BPTState>& rays_in, RayQueue<B
 
         // Decide wether or not to continue this path using russian roulette and a fixed maximum length.
         const float4 srgb(0.2126f, 0.7152f, 0.0722f, 0.0f);
-        const float kill_prob = dot(states[i].throughput, srgb) * 100.0f;
-        const float rrprob = 1.0f;//std::min(1.0f, kill_prob);
+        const float kill_prob = dot(states[i].throughput, srgb) * 10.0f;
+        const float rrprob = std::min(1.0f, kill_prob);
         const float u_rr = rng.random_float();
         if (u_rr < rrprob && states[i].path_length < MAX_LIGHT_PATH_LEN){
             float pdf_dir_w;
@@ -270,8 +270,8 @@ void BidirPathTracer::process_camera_rays(RayQueue<BPTState>& rays_in, RayQueue<
 
         // Continue the path using russian roulette.
         const float4 srgb(0.2126f, 0.7152f, 0.0722f, 0.0f);
-        const float kill_prob = dot(states[i].throughput, srgb) * 100.0f;
-        const float rrprob = 0.7f;//std::min(1.0f, kill_prob);
+        const float kill_prob = dot(states[i].throughput, srgb) * 10.0f;
+        const float rrprob = std::min(1.0f, kill_prob);
         const float u_rr = rng.random_float();
         const int max_recursion = 32; // prevent havoc
         if (u_rr < rrprob && states[i].path_length < max_recursion) {
@@ -320,7 +320,7 @@ void BidirPathTracer::direct_illum(BPTState& cam_state, const Intersection& isec
     const int light_i = rng.random_int(0, scene_.lights.size());
     const auto ls = scene_.lights[light_i].get();
     const float inv_pdf_lightpick = scene_.lights.size();
-    const auto sample = ls->sample(isect.pos, rng.random_float(), rng.random_float());
+    const auto sample = ls->sample_direct(isect.pos, rng);
     const float cos_theta_o = sample.cos_out;
     assert_normalized(sample.dir);
 
@@ -344,13 +344,13 @@ void BidirPathTracer::direct_illum(BPTState& cam_state, const Intersection& isec
 
     // Compute full MIS weights for camera and light.
     const float mis_weight_light = pdf_forward * inv_pdf_lightpick / sample.pdf_direct_w;
-    const float mis_weight_camera = sample.pdf_emission_w * cos_theta_i / (sample.pdf_direct_w * cos_theta_o) *
+    const float mis_weight_camera = sample.pdf_emit_w * cos_theta_i / (sample.pdf_direct_w * cos_theta_o) *
                                     (cam_state.dVCM + cam_state.dVC * pdf_reverse);
 
     const float mis_weight = 1.0f / (mis_weight_camera + 1.0f + mis_weight_light);
 
     BPTState s = cam_state;
-    s.throughput *= mis_weight * bsdf * sample.intensity * inv_pdf_lightpick;
+    s.throughput *= mis_weight * bsdf * sample.radiance * inv_pdf_lightpick;
 
     rays_out_shadow.push(ray, s);
 }
@@ -376,8 +376,6 @@ void BidirPathTracer::connect(BPTState& cam_state, const Intersection& isect, Ra
 
         if (cos_theta_cam <= 0.0f || cos_theta_light <= 0.0f)
             continue;
-        /*if (is_black(bsdf_light) || is_black(bsdf_cam))
-            continue;*/
 
         // Compute and convert the pdfs
         const float pdf_cam_f = pdf_dir_cam_w * cam_state.continue_prob;
@@ -400,9 +398,6 @@ void BidirPathTracer::connect(BPTState& cam_state, const Intersection& isect, Ra
         BPTState s = cam_state;
         s.throughput *= mis_weight * geom_term * bsdf_cam * bsdf_light * light_vertex.throughput;
 
-        if (isnan(s.throughput.x))
-            printf("%f %f \n", cos_theta_cam, cos_theta_light);
-
         Ray ray {
             { isect.pos.x, isect.pos.y, isect.pos.z, offset },
             { connect_dir.x, connect_dir.y, connect_dir.z, connect_dist - offset }
@@ -422,16 +417,6 @@ void BidirPathTracer::process_shadow_rays(RayQueue<BPTState>& rays_in, Image& im
         if (hits[i].tri_id < 0) {
             assert(states[i].pixel_id >= 0 && states[i].pixel_id < img.width() * img.height() && "Write outside of image detected. (BPT::process_shadow_rays)");
             img.pixels()[states[i].pixel_id] += states[i].throughput;
-
-            /*if (isinf(img.pixels()[states[i].pixel_id].x) ||
-                isinf(img.pixels()[states[i].pixel_id].y) ||
-                isinf(img.pixels()[states[i].pixel_id].z))
-                printf("inf\n");
-
-            if (isnan(img.pixels()[states[i].pixel_id].x) ||
-                isnan(img.pixels()[states[i].pixel_id].y) ||
-                isnan(img.pixels()[states[i].pixel_id].z))
-                printf("nan\n");*/
         }
     }
 }

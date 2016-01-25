@@ -33,7 +33,7 @@ public:
         auto& l = lights_[i];
         float pdf_lightpick = 1.0f / lights_.size();
 
-        Light::LightRaySample sample = l->sample(state_out.rng);
+        Light::EmitSample sample = l->sample_emit(state_out.rng);
         ray_out.org.x = sample.pos.x;
         ray_out.org.y = sample.pos.y;
         ray_out.org.z = sample.pos.z;
@@ -48,8 +48,8 @@ public:
         state_out.path_length = 1;
         state_out.continue_prob = 1.0f;
 
-        state_out.dVCM = sample.pdf_direct_a / sample.pdf_emission_w; // pdf_lightpick cancels out
-        state_out.dVC = sample.cos_out / (sample.pdf_emission_w * pdf_lightpick);
+        state_out.dVCM = sample.pdf_direct_a / sample.pdf_emit_w; // pdf_lightpick cancels out
+        state_out.dVC = sample.cos_out / (sample.pdf_emit_w * pdf_lightpick);
 
         state_out.is_finite = true; // TODO take value from lightsource
     }

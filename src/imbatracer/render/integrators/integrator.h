@@ -74,7 +74,7 @@ protected:
         // Generate the shadow ray (sample one point on one lightsource)
         const auto ls = scene_.lights[rng.random_int(0, scene_.lights.size())].get();
         const float pdf = scene_.lights.size();
-        const auto sample = ls->sample(isect.pos, rng.random_float(), rng.random_float());
+        const auto sample = ls->sample_direct(isect.pos, rng);
         assert_normalized(sample.dir);
 
         // Ensure that the incoming and outgoing directions are on the same side of the surface.
@@ -93,7 +93,7 @@ protected:
 
         // Update the current state of this path.
         StateType s = state;
-        s.throughput *= brdf * sample.intensity * pdf;
+        s.throughput *= brdf * sample.radiance * pdf;
 
         // Push the shadow ray into the queue.
         ray_out_shadow.push(ray, s);
