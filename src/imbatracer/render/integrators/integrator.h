@@ -22,14 +22,6 @@ public:
     virtual void render(Image& out) = 0;
 
 protected:
-    struct Intersection {
-        SurfaceInfo surf;
-        float3 pos;
-        float distance;
-        float3 out_dir;
-        Material* mat;
-    };
-
     Scene& scene_;
     PerspectiveCamera& cam_;
     int n_samples_;
@@ -62,8 +54,7 @@ protected:
             printf("gotchabala (%f,%f,%f) (%f,%f,%f)\n", w_out.x, w_out.y, w_out.z, out_dir.x, out_dir.y, out_dir.z);
 
         return {
-            SurfaceInfo { normal, uv_coords, geom_normal },
-            pos, hits[i].tmax, w_out, mat.get()
+            pos, w_out, hits[i].tmax, normal, uv_coords, geom_normal, mat.get()
         };
     }
 
@@ -78,8 +69,8 @@ protected:
         assert_normalized(sample.dir);
 
         // Ensure that the incoming and outgoing directions are on the same side of the surface.
-        if (dot(isect.surf.geom_normal, sample.dir) *
-            dot(isect.surf.geom_normal, isect.out_dir) <= 0.0f)
+        if (dot(isect.geom_normal, sample.dir) *
+            dot(isect.geom_normal, isect.out_dir) <= 0.0f)
             return;
 
         Ray ray {
@@ -89,7 +80,7 @@ protected:
 
         // Compute the values stored in the ray state.
         float pdf_dir, pdf_rev;
-        const float4 brdf = evaluate_material(isect.mat, isect.out_dir, isect.surf, sample.dir, false, pdf_dir, pdf_rev);
+        const float4 brdf = evaluate_material(isect.mat, isect, sample.dir, false, pdf_dir, pdf_rev);
 
         // Update the current state of this path.
         StateType s = state;

@@ -351,10 +351,10 @@ bool build_scene(const Path& path, Scene& scene) {
         const float3 v = truncate(scene.mesh.vertices()[i]);
         mesh_bb.extend(v);
     }
-    const float r_sqr = lensqr(mesh_bb.max - mesh_bb.min) * 0.5f;
-    scene.sphere.inv_radius_sqr = 1.0f / r_sqr;
-    scene.sphere.radius = sqrtf(r_sqr);
-    scene.sphere.center = (mesh_bb.max - mesh_bb.min) * 0.5f;
+    const float radius = length(mesh_bb.max - mesh_bb.min) * 0.5f;
+    scene.sphere.inv_radius_sqr = 1.0f / sqr(radius);
+    scene.sphere.radius = radius;
+    scene.sphere.center = (mesh_bb.max + mesh_bb.min) * 0.5f;
 
     std::cout << "[7/7] Moving the scene to the device..." << std::flush;
     scene.nodes.upload();

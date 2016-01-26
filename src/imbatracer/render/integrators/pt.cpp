@@ -38,7 +38,7 @@ void PathTracer::process_primary_rays(RayQueue<PTState>& ray_in, RayQueue<PTStat
             } else if (states[i].last_specular) {
                 EmissiveMaterial* em = static_cast<EmissiveMaterial*>(isect.mat);
 
-                float cos_light = fabsf(dot(isect.surf.normal, -1.0f * isect.out_dir));
+                float cos_light = fabsf(dot(isect.normal, -1.0f * isect.out_dir));
                 if (cos_light < 1.0f) {  // Only add contribution from the side of the light that the normal is on.
                     float4 color = states[i].throughput * em->color();
 
@@ -65,8 +65,8 @@ void PathTracer::process_primary_rays(RayQueue<PTState>& ray_in, RayQueue<PTStat
             float3 sample_dir;
             bool specular;
 
-            const float4 brdf = sample_material(isect.mat, isect.out_dir, isect.surf, rng, sample_dir, false, pdf, specular);
-            const float cos_term = fabsf(dot(isect.surf.normal, sample_dir));
+            const float4 brdf = sample_material(isect.mat, isect, rng, sample_dir, false, pdf, specular);
+            const float cos_term = fabsf(dot(isect.normal, sample_dir));
 
             PTState s = states[i];
             s.throughput *= brdf / rrprob;

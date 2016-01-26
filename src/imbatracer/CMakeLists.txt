@@ -34,6 +34,7 @@ add_library(imba_render
             render/ray_queue.h
             render/random.h
             render/material.h
+            render/intersection.h
             render/scene.h
             render/thorin_mem.h
             render/texture_sampler.h)

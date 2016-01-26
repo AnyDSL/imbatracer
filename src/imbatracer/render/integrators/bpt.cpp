@@ -104,7 +104,7 @@ void BidirPathTracer::process_light_rays(RayQueue<BPTState>& rays_in, RayQueue<B
         RNG& rng = states[i].rng;
 
         Intersection isect = calculate_intersection(hits, rays, i);
-        float cos_theta_i = fabsf(dot(isect.out_dir, isect.surf.normal));
+        float cos_theta_i = fabsf(dot(isect.out_dir, isect.normal));
 
         // Complete calculation of the partial weights.
         if (states[i].path_length > 1 || states[i].is_finite)
@@ -135,15 +135,15 @@ void BidirPathTracer::process_light_rays(RayQueue<BPTState>& rays_in, RayQueue<B
             float pdf_dir_w;
             float3 sample_dir;
             bool is_specular;
-            float4 mat_clr = sample_material(isect.mat, isect.out_dir, isect.surf, rng, sample_dir, true, pdf_dir_w, is_specular);
+            float4 mat_clr = sample_material(isect.mat, isect, rng, sample_dir, true, pdf_dir_w, is_specular);
 
             if (is_black(mat_clr))
                 continue; // do not bother to shoot a ray if the throughput is (less than) zero.
 
-            float pdf_rev_w = pdf_material(isect.mat, isect.surf, isect.out_dir);
-            float cos_theta_o = fabsf(dot(sample_dir, isect.surf.normal));
+            float pdf_rev_w = pdf_material(isect.mat, isect, isect.out_dir);
+            float cos_theta_o = fabsf(dot(sample_dir, isect.normal));
 
-            float3 offset_pos = isect.pos;// + isect.surf.normal * offset;
+            float3 offset_pos = isect.pos;// + isect.normal * offset;
 
             BPTState s = states[i];
             if (is_specular) {
@@ -189,11 +189,11 @@ void BidirPathTracer::connect_to_camera(const BPTState& light_state, const Inter
     float dist_to_cam = sqrt(dist_to_cam_sqr);
     dir_to_cam = dir_to_cam / dist_to_cam;
 
-    const float cos_theta_o = fabsf(dot(isect.surf.normal, dir_to_cam));
+    const float cos_theta_o = fabsf(dot(isect.normal, dir_to_cam));
 
     // Evaluate the material.
     float pdf_dir_w, pdf_rev_w;
-    const float4 mat_clr = evaluate_material(isect.mat, dir_to_cam, isect.surf, isect.out_dir, true, pdf_dir_w, pdf_rev_w);
+    const float4 mat_clr = evaluate_material(isect.mat, isect, dir_to_cam, true, pdf_dir_w, pdf_rev_w);
 
     const float pdf_rev = pdf_rev_w * light_state.continue_prob;
 
@@ -234,7 +234,7 @@ void BidirPathTracer::process_camera_rays(RayQueue<BPTState>& rays_in, RayQueue<
         RNG& rng = states[i].rng;
 
         Intersection isect = calculate_intersection(hits, rays, i);
-        float cos_theta_o = fabsf(dot(isect.out_dir, isect.surf.normal));
+        float cos_theta_o = fabsf(dot(isect.out_dir, isect.normal));
 
         // Complete computation of partial MIS weights.
         states[i].dVCM *= sqr(isect.distance) / cos_theta_o; // convert divided pdf from solid angle to area
@@ -278,15 +278,15 @@ void BidirPathTracer::process_camera_rays(RayQueue<BPTState>& rays_in, RayQueue<
             float pdf_dir_w;
             float3 sample_dir;
             bool is_specular;
-            float4 bsdf = sample_material(isect.mat, isect.out_dir, isect.surf, rng, sample_dir, false, pdf_dir_w, is_specular);
+            float4 bsdf = sample_material(isect.mat, isect, rng, sample_dir, false, pdf_dir_w, is_specular);
 
             if (is_black(bsdf))
                 continue; // necessary to prevent nans if no direction was sampled
 
             float pdf_rev_w = pdf_dir_w;
             if (!is_specular) // cannot evaluate reverse pdf of specular surfaces (but is the same as forward due to symmetry)
-                pdf_rev_w = pdf_material(isect.mat, isect.surf, isect.out_dir);
-            float cos_theta_o = fabsf(dot(sample_dir, isect.surf.normal));
+                pdf_rev_w = pdf_material(isect.mat, isect, isect.out_dir);
+            float cos_theta_o = fabsf(dot(sample_dir, isect.normal));
 
             BPTState s = states[i];
             if (is_specular) {
@@ -325,8 +325,8 @@ void BidirPathTracer::direct_illum(BPTState& cam_state, const Intersection& isec
     assert_normalized(sample.dir);
 
     // Ensure that the incoming and outgoing directions are on the same side of the surface.
-    if (dot(isect.surf.geom_normal, sample.dir) *
-        dot(isect.surf.geom_normal, isect.out_dir) <= 0.0f)
+    if (dot(isect.geom_normal, sample.dir) *
+        dot(isect.geom_normal, isect.out_dir) <= 0.0f)
         return;
 
     Ray ray {
@@ -335,9 +335,9 @@ void BidirPathTracer::direct_illum(BPTState& cam_state, const Intersection& isec
     };
 
     // Evaluate the bsdf.
-    const float cos_theta_i = fabsf(dot(isect.surf.normal, sample.dir));
+    const float cos_theta_i = fabsf(dot(isect.normal, sample.dir));
     float pdf_dir_w, pdf_rev_w;
-    const float4 bsdf = evaluate_material(isect.mat, isect.out_dir, isect.surf, sample.dir, false, pdf_dir_w, pdf_rev_w);
+    const float4 bsdf = evaluate_material(isect.mat, isect, sample.dir, false, pdf_dir_w, pdf_rev_w);
 
     const float pdf_forward = ls->is_delta() ? 0.0f : cam_state.continue_prob * pdf_dir_w;
     const float pdf_reverse = cam_state.continue_prob * pdf_rev_w;
@@ -365,14 +365,14 @@ void BidirPathTracer::connect(BPTState& cam_state, const Intersection& isect, Ra
         connect_dir *= 1.0f / connect_dist;
 
         // Evaluate the bsdf at the camera vertex.
-        const float cos_theta_cam = dot(isect.surf.normal, connect_dir);
+        const float cos_theta_cam = dot(isect.normal, connect_dir);
         float pdf_dir_cam_w, pdf_rev_cam_w;
-        const float4 bsdf_cam = evaluate_material(isect.mat, isect.out_dir, isect.surf, connect_dir, false, pdf_dir_cam_w, pdf_rev_cam_w);
+        const float4 bsdf_cam = evaluate_material(isect.mat, isect, connect_dir, false, pdf_dir_cam_w, pdf_rev_cam_w);
 
         // Evaluate the bsdf at the light vertex.
-        const float cos_theta_light = dot(light_vertex.isect.surf.normal, -connect_dir);
+        const float cos_theta_light = dot(light_vertex.isect.normal, -connect_dir);
         float pdf_dir_light_w, pdf_rev_light_w;
-        const float4 bsdf_light = evaluate_material(light_vertex.isect.mat, -connect_dir, light_vertex.isect.surf, light_vertex.isect.out_dir, true, pdf_dir_light_w, pdf_rev_light_w);
+        const float4 bsdf_light = evaluate_material(light_vertex.isect.mat, light_vertex.isect, -connect_dir, true, pdf_dir_light_w, pdf_rev_light_w);
 
         if (cos_theta_cam <= 0.0f || cos_theta_light <= 0.0f)
             continue;

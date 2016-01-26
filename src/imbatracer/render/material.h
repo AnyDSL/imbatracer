@@ -4,6 +4,7 @@
 #include "random.h"
 #include "texture_sampler.h"
 #include "light.h"
+#include "intersection.h"
 
 #include "../core/float3.h"
 #include "../core/common.h"
@@ -28,15 +29,9 @@ struct Material {
     virtual ~Material() {}
 };
 
-struct SurfaceInfo {
-    float3 normal;
-    float2 uv;
-    float3 geom_normal;
-};
-
-float4 evaluate_material(Material* mat, const float3& out_dir, const SurfaceInfo& surf, const float3& in_dir, bool adjoint, float& pdf_dir, float& pdf_rev);
-float4 sample_material(Material* mat, const float3& out_dir, const SurfaceInfo& surf, RNG& rng, float3& in_dir, bool adjoint, float& pdf, bool& specular);
-float pdf_material(Material* mat, const SurfaceInfo& surf, const float3& in_dir);
+float4 evaluate_material(Material* mat, const Intersection& isect, const float3& in_dir, bool adjoint, float& pdf_dir, float& pdf_rev);
+float4 sample_material(Material* mat, const Intersection& isect, RNG& rng, float3& in_dir, bool adjoint, float& pdf, bool& specular);
+float pdf_material(Material* mat, const Intersection& isect, const float3& in_dir);
 
 inline float fresnel_conductor(float cosi, float eta, float kappa)
 {
@@ -67,16 +62,16 @@ public:
     LambertMaterial(const float4& color) : Material(lambert, false), diffuse_(color), sampler_(nullptr) { }
     LambertMaterial(TextureSampler* sampler) : Material(lambert, false), sampler_(sampler) { }
 
-    inline float4 sample(const float3& out_dir, const SurfaceInfo& surf, RNG& rng, float3& in_dir, bool adjoint, float& pdf, bool& specular) {
+    inline float4 sample(const Intersection& isect, RNG& rng, float3& in_dir, bool adjoint, float& pdf, bool& specular) {
         float4 clr = diffuse_;
         if (sampler_) {
-            clr = sampler_->sample(surf.uv);
+            clr = sampler_->sample(isect.uv);
         }
 
-        auto normal = surf.normal;
-        auto geom_normal = surf.geom_normal;
+        auto normal = isect.normal;
+        auto geom_normal = isect.geom_normal;
         // Flip the normal to lie on the same side as the ray direction.
-        if (dot(out_dir, normal) < 0.0f) normal *= -1.0f;
+        if (dot(isect.out_dir, normal) < 0.0f) normal *= -1.0f;
         // Flip geometric normal to same side as the shading normal.
         if (dot(normal, geom_normal) < 0.0f) geom_normal *= -1.0f;
 
@@ -85,35 +80,32 @@ public:
         pdf = hemi_sample.pdf;
         specular = false;
 
-        if (dot(in_dir, geom_normal) * dot(out_dir, geom_normal) <= 0.0f)
+        if (dot(in_dir, geom_normal) * dot(isect.out_dir, geom_normal) <= 0.0f)
             return float4(0.0f);
 
         return clr; // Cosine and 1/pi cancle out with pdf from the hemisphere sampling.
     }
 
-    inline float4 eval(const float3& out_dir, const SurfaceInfo& surf, const float3& in_dir, bool adjoint, float& pdf_dir, float& pdf_rev) {
+    inline float4 eval(const Intersection& isect, const float3& in_dir, bool adjoint, float& pdf_dir, float& pdf_rev) {
         float4 clr = diffuse_;
         if (sampler_) {
-            clr = sampler_->sample(surf.uv);
+            clr = sampler_->sample(isect.uv);
         }
 
-        if (dot(in_dir, surf.geom_normal) * dot(out_dir, surf.geom_normal) <= 0.0f)
+        if (dot(in_dir, isect.geom_normal) * dot(isect.out_dir, isect.geom_normal) <= 0.0f)
             return float4(0.0f);
 
-        if (adjoint) {
-            pdf_dir = (1.0f / pi) * std::max(0.0f, dot(surf.normal, out_dir));
-            pdf_rev = (1.0f / pi) * std::max(0.0f, dot(surf.normal, in_dir));
-            return clr * (1.0f / pi) * fabsf(dot(surf.normal, in_dir)) * (dot(surf.geom_normal, out_dir) / dot(surf.geom_normal, in_dir));
-        }
-        else {
-            pdf_dir = (1.0f / pi) * std::max(0.0f, dot(surf.normal, in_dir));
-            pdf_rev = (1.0f / pi) * std::max(0.0f, dot(surf.normal, out_dir));
-            return clr * (1.0f / pi) * fabsf(dot(surf.normal, in_dir));
-        }
+        pdf_dir = (1.0f / pi) * std::max(0.0f, dot(isect.normal, in_dir));
+        pdf_rev = (1.0f / pi) * std::max(0.0f, dot(isect.normal, isect.out_dir));
+
+        if (adjoint)
+            return clr * (1.0f / pi) * fabsf(dot(isect.normal, isect.out_dir)) * (dot(isect.geom_normal, in_dir) / dot(isect.geom_normal, isect.out_dir));
+        else
+            return clr * (1.0f / pi) * fabsf(dot(isect.normal, in_dir));
     }
 
-    inline float pdf(const SurfaceInfo& surf, const float3& in_dir) {
-        return (1.0f / pi) * fabsf(dot(surf.normal, in_dir));
+    inline float pdf(const Intersection& isect, const float3& in_dir) {
+        return (1.0f / pi) * fabsf(dot(isect.normal, in_dir));
     }
 
 private:
@@ -128,23 +120,23 @@ public:
     CombineMaterial(TextureSampler* scale, std::unique_ptr<Material> m1, std::unique_ptr<Material> m2)
         : Material(combine, m1->is_delta && m2->is_delta), scale_(scale), m1_(std::move(m1)), m2_(std::move(m2)) { }
 
-    inline float4 sample(const float3& out_dir, const SurfaceInfo& surf, RNG& rng, float3& in_dir, bool adjoint, float& pdf, bool& specular) {
-        const float s = scale_->sample(surf.uv).x;
+    inline float4 sample(const Intersection& isect, RNG& rng, float3& in_dir, bool adjoint, float& pdf, bool& specular) {
+        const float s = scale_->sample(isect.uv).x;
         const float r = rng.random_float();
         if (r < s) {
-            return sample_material(m1_.get(), out_dir, surf, rng, in_dir, adjoint, pdf, specular);
+            return sample_material(m1_.get(), isect, rng, in_dir, adjoint, pdf, specular);
         } else {
-            return sample_material(m2_.get(), out_dir, surf, rng, in_dir, adjoint, pdf, specular);
+            return sample_material(m2_.get(), isect, rng, in_dir, adjoint, pdf, specular);
         }
     }
 
-    inline float4 eval(const float3& out_dir, const SurfaceInfo& surf, const float3& in_dir, bool adjoint, float& pdf_dir, float& pdf_rev) {
-        const float s = scale_->sample(surf.uv).x;
+    inline float4 eval(const Intersection& isect, const float3& in_dir, bool adjoint, float& pdf_dir, float& pdf_rev) {
+        const float s = scale_->sample(isect.uv).x;
 
-        const float4 v1 = evaluate_material(m1_.get(), out_dir, surf, in_dir, adjoint, pdf_dir, pdf_rev);
+        const float4 v1 = evaluate_material(m1_.get(), isect, in_dir, adjoint, pdf_dir, pdf_rev);
 
         float pd, pr;
-        const float4 v2 = evaluate_material(m2_.get(), out_dir, surf, in_dir, adjoint, pd, pr);
+        const float4 v2 = evaluate_material(m2_.get(), isect, in_dir, adjoint, pd, pr);
 
         pdf_dir *= pd;
         pdf_rev *= pr;
@@ -152,7 +144,7 @@ public:
         return v1 * s + (1.0f - s)  * v2;
     }
 
-    inline float pdf(const SurfaceInfo& surf, const float3& in_dir) {
+    inline float pdf(const Intersection& isect, const float3& in_dir) {
         return 0.0f; // TODO
     }
 
@@ -168,10 +160,10 @@ class MirrorMaterial : public Material {
 public:
     MirrorMaterial(float eta, float kappa, const float3& ks) : Material(mirror, true), eta_(eta), kappa_(kappa), ks_(ks, 1.0f) { }
 
-    inline float4 sample(const float3& out_dir, const SurfaceInfo& surf, RNG& rng, float3& in_dir, bool adjoint, float& pdf, bool& specular) {
+    inline float4 sample(const Intersection& isect, RNG& rng, float3& in_dir, bool adjoint, float& pdf, bool& specular) {
         // calculate the reflected direction
-        in_dir = -out_dir + 2.0f * surf.normal * dot(out_dir, surf.normal);
-        float cos_theta = fabsf(dot(surf.normal, out_dir));
+        in_dir = -isect.out_dir + 2.0f * isect.normal * dot(isect.out_dir, isect.normal);
+        float cos_theta = fabsf(dot(isect.normal, isect.out_dir));
 
         pdf = 1.0f;
         specular = true;
@@ -179,12 +171,12 @@ public:
         return float4(fresnel_conductor(cos_theta, eta_, kappa_));
     }
 
-    inline float4 eval(const float3& out_dir, const SurfaceInfo& surf, const float3& in_dir, bool adjoint, float& pdf_dir, float& pdf_rev) {
+    inline float4 eval(const Intersection& isect, const float3& in_dir, bool adjoint, float& pdf_dir, float& pdf_rev) {
         pdf_rev = pdf_dir = 0.0f;
         return float4(0.0f);
     }
 
-    inline float pdf(const SurfaceInfo& surf, const float3& in_dir) {
+    inline float pdf(const Intersection& isect, const float3& in_dir) {
         return 0.0f;
     }
 
@@ -198,12 +190,12 @@ class GlassMaterial : public Material {
 public:
     GlassMaterial(float eta, const float3& tf, const float3& ks) : Material(glass, true), eta_(eta), tf_(tf, 1.0f), ks_(/*ks,*/ 1.0f) {}
 
-    inline float4 sample(const float3& out_dir, const SurfaceInfo& surf, RNG& rng, float3& in_dir, bool adjoint, float& pdf, bool& specular) {
+    inline float4 sample(const Intersection& isect, RNG& rng, float3& in_dir, bool adjoint, float& pdf, bool& specular) {
         specular = true;
 
-        float3 normal = surf.normal;
+        float3 normal = isect.normal;
 
-        float cos_theta = dot(normal, out_dir);
+        float cos_theta = dot(normal, isect.out_dir);
         float eta_i = 1.0f;
         float eta_o = eta_;
 
@@ -216,7 +208,7 @@ public:
         const float etafrac = eta_i / eta_o;
         const float sin2sq = etafrac * etafrac * (1.0f - cos_theta * cos_theta);
 
-        const float3 reflect_dir = reflect(-out_dir, normal);
+        const float3 reflect_dir = reflect(-isect.out_dir, normal);
 
         if (sin2sq >= 1.0f) {
             // total internal reflection
@@ -234,7 +226,7 @@ public:
             pdf = fr;
             return ks_;
         } else {
-            const float3 refract_dir = -etafrac * out_dir + (etafrac * cos_theta - cos_o) * normal;
+            const float3 refract_dir = -etafrac * isect.out_dir + (etafrac * cos_theta - cos_o) * normal;
 
             in_dir = refract_dir;
             pdf = 1.0f / fr;
@@ -246,12 +238,12 @@ public:
         }
     }
 
-    inline float4 eval(const float3& out_dir, const SurfaceInfo& surf, const float3& in_dir, bool adjoint, float& pdf_dir, float& pdf_rev) {
+    inline float4 eval(const Intersection& isect, const float3& in_dir, bool adjoint, float& pdf_dir, float& pdf_rev) {
         pdf_rev = pdf_dir = 0.0f;
         return float4(0.0f);
     }
 
-    inline float pdf(const SurfaceInfo& surf, const float3& in_dir) {
+    inline float pdf(const Intersection& isect, const float3& in_dir) {
         return 0.0f;
     }
 
@@ -266,9 +258,9 @@ class EmissiveMaterial : public Material {
 public:
     EmissiveMaterial(const float4& color) : color_(color), Material(emissive, true) { }
 
-    inline float4 sample(const float3& out_dir, const SurfaceInfo& surf, RNG& rng, float3& in_dir, bool adjoint, float& pdf, bool& specular) {
+    inline float4 sample(const Intersection& isect, RNG& rng, float3& in_dir, bool adjoint, float& pdf, bool& specular) {
         /*// uniform sample the hemisphere
-        DirectionSample hemi_sample = sample_cos_hemisphere(surf.normal, rng.random_float(), rng.random_float());
+        DirectionSample hemi_sample = sample_cos_hemisphere(isect.normal, rng.random_float(), rng.random_float());
         in_dir = hemi_sample.dir;
         pdf = hemi_sample.pdf;
         specular = false;
@@ -278,12 +270,12 @@ public:
         return float4(0.0f);
     }
 
-    inline float4 eval(const float3& out_dir, const SurfaceInfo& surf, const float3& in_dir, bool adjoint, float& pdf_dir, float& pdf_rev) {
+    inline float4 eval(const Intersection& isect, const float3& in_dir, bool adjoint, float& pdf_dir, float& pdf_rev) {
         pdf_rev = pdf_dir = 1.0f;
         return float4(0.0f);
     }
 
-    inline float pdf(const SurfaceInfo& surf, const float3& in_dir) {
+    inline float pdf(const Intersection& isect, const float3& in_dir) {
         return 0.0f;
     }
 
@@ -304,28 +296,28 @@ private:
     HANDLE_MATERIAL(Material::combine, CombineMaterial) \
     HANDLE_MATERIAL(Material::glass, GlassMaterial)
 
-inline float4 sample_material(Material* mat, const float3& in_dir, const SurfaceInfo& surf, RNG& rng, float3& out_dir, bool adjoint, float& pdf, bool& specular) {
+inline float4 sample_material(Material* mat, const Intersection& isect, RNG& rng, float3& in_dir, bool adjoint, float& pdf, bool& specular) {
     switch (mat->kind) {
 #define HANDLE_MATERIAL(m,T) \
-        case m: return static_cast<T*>(mat)->sample(in_dir, surf, rng, out_dir, adjoint, pdf, specular);
+        case m: return static_cast<T*>(mat)->sample(isect, rng, in_dir, adjoint, pdf, specular);
     ALL_MATERIALS()
 #undef HANDLE_MATERIAL
     }
 }
 
-inline float4 evaluate_material(Material* mat, const float3& out_dir, const SurfaceInfo& surf, const float3& in_dir, bool adjoint, float& pdf_dir, float& pdf_rev) {
+inline float4 evaluate_material(Material* mat, const Intersection& isect, const float3& in_dir, bool adjoint, float& pdf_dir, float& pdf_rev) {
     switch (mat->kind) {
 #define HANDLE_MATERIAL(m,T) \
-        case m: return static_cast<T*>(mat)->eval(out_dir, surf, in_dir, adjoint, pdf_dir, pdf_rev);
+        case m: return static_cast<T*>(mat)->eval(isect, in_dir, adjoint, pdf_dir, pdf_rev);
     ALL_MATERIALS()
 #undef HANDLE_MATERIAL
     }
 }
 
-inline float pdf_material(Material* mat, const SurfaceInfo& surf, const float3& in_dir) {
+inline float pdf_material(Material* mat, const Intersection& isect, const float3& in_dir) {
     switch (mat->kind) {
 #define HANDLE_MATERIAL(m,T) \
-        case m: return static_cast<T*>(mat)->pdf(surf, in_dir);
+        case m: return static_cast<T*>(mat)->pdf(isect, in_dir);
     ALL_MATERIALS()
 #undef HANDLE_MATERIAL
     }
