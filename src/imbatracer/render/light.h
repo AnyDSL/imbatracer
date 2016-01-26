@@ -7,6 +7,12 @@
 
 namespace imba {
 
+struct BoundingSphere {
+    float3 center;
+    float radius;
+    float inv_radius_sqr; // Precomputed, needed for sampling emission from directional light sources.
+};
+
 class Light {
 public:
     struct DirectIllumSample {
@@ -25,7 +31,6 @@ public:
 
     struct EmitSample {
         float3 pos;
-        float3 normal;
         float3 dir;
 
         float4 radiance;
@@ -106,7 +111,6 @@ public:
 
         sample.dir      = dir_sample.dir;
         sample.radiance = intensity_ * area_ * pi; // The cosine cancels out with the pdf
-        sample.normal   = normal_;
 
         sample.cos_out      = cos_out;
         sample.pdf_emit_w   = dir_sample.pdf / area_;
@@ -134,13 +138,27 @@ private:
     float area_;
 };
 
-/* TODO sampling emission from a directional light requires information about the extents of the scene.
 class DirectionalLight : public Light {
 public:
-    DirectionalLight(const float3& dir, const float4& intensity) : dir_(dir), intensity_(intensity) {}
+    // Keeps a reference to the bounding sphere of the scene, because the scene might change after the light is created.
+    DirectionalLight(const float3& dir, const float4& intensity, BoundingSphere& scene_bounds)
+        : dir_(dir), intensity_(intensity), scene_bounds_(scene_bounds)
+    {
+        local_coordinates(dir_, tangent_, binormal_);
+    }
 
     virtual EmitSample sample_emit(RNG& rng) override {
+        float2 disc_pos = sample_concentric_disc(rng.random_float(), rng.random_float());
+
         EmitSample sample;
+        sample.pos = scene_bounds_.center + scene_bounds_.radius * (-dir_ + binormal_ * disc_pos.x + tangent_ * disc_pos.y);
+        sample.dir = dir_;
+
+        sample.pdf_direct_a = 1.0f;
+        sample.pdf_emit_w   = concentric_disc_pdf() * scene_bounds_.inv_radius_sqr;
+        sample.cos_out      = 1.0f;
+
+        sample.radiance = intensity_ / sample.pdf_emit_w;
 
         return sample;
     }
@@ -148,26 +166,34 @@ public:
     virtual DirectIllumSample sample_direct(const float3& from, RNG& rng) override {
         DirectIllumSample sample;
 
-        sample.direction = -dir;
+        sample.dir      = -dir_;
         sample.distance = FLT_MAX;
         sample.radiance = intensity_;
 
         sample.pdf_direct_w = 1.0f;
-        sample.pdf_emit_w = 142;
+        sample.pdf_emit_w   = concentric_disc_pdf() * scene_bounds_.inv_radius_sqr;
+        sample.cos_out      = 1.0f;
 
         return sample;
     }
 
+    // You cannot randomly intersect a directional light.
     virtual float4 radiance(const float3& out_dir, float& pdf_direct_a, float& pdf_emit_w) override { return float4(0.0f); }
+
+    virtual bool is_delta() const override { return true; }
+    virtual bool is_finite() const override { return false; }
 
 private:
     float4 intensity_;
     float3 dir_;
-};*/
+    float3 tangent_, binormal_;
+    BoundingSphere& scene_bounds_;
+};
 
 class PointLight : public Light {
 public:
-    PointLight(const float3& pos, const float4& intensity) : pos_(pos), intensity_(intensity) {}
+    PointLight(const float3&
+     pos, const float4& intensity) : pos_(pos), intensity_(intensity) {}
 
     virtual float4 radiance(const float3& out_dir, float& pdf_direct_a, float& pdf_emit_w) override {
         return float4(0.0f); // Point lights cannot be hit.

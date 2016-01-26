@@ -125,6 +125,43 @@ inline float uniform_sphere_pdf() {
     return 1.0f / (4.0f * pi);
 }
 
+inline float2 sample_concentric_disc(float u1, float u2) {
+    // Taken from SmallVCM
+
+    float phi, r;
+
+    float a = 2 * u1 - 1;
+    float b = 2 * u2 - 1;
+
+    if(a > -b) {
+        if(a > b) {
+            r = a;
+            phi = (pi * 0.25f) * (b / a);
+        } else {
+            r = b;
+            phi = (pi * 0.25f) * (2.f - (a / b));
+        }
+    } else {
+        if(a < b) {
+            r = -a;
+            phi = (pi * 0.25f) * (4.f + (b / a));
+        } else {
+            r = -b;
+
+            if (b != 0)
+                phi = (pi * 0.25f) * (6.f - (a / b));
+            else
+                phi = 0;
+        }
+    }
+
+    return float2(r * cosf(phi), r * sinf(phi));
+}
+
+inline float concentric_disc_pdf() {
+    return 1.0f / pi;
+}
+
 }
 
 #endif

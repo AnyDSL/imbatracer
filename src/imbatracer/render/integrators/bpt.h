@@ -55,7 +55,7 @@ public:
         else
             state_out.dVC = sample.cos_out / (sample.pdf_emit_w * pdf_lightpick);
 
-        state_out.is_finite = true; // TODO take value from lightsource
+        state_out.is_finite = l->is_finite();
     }
 
 private:

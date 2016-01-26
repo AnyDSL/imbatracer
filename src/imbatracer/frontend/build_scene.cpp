@@ -299,7 +299,7 @@ bool build_scene(const Path& path, Scene& scene) {
         return false;
     }
 
-    //scene.lights.emplace_back(new DirectionalLight(normalize(float3(0.7f, -1.0f, -1.001f)), float4(2.5f)));
+    scene.lights.emplace_back(new DirectionalLight(normalize(float3(0.7f, -1.0f, -1.001f)), float4(2.5f), scene.sphere));
     //scene.lights.emplace_back(new PointLight(float3(-10.0f, 193.f, -4.5f), float4(100000.5f)));
     //scene.lights.emplace_back(new PointLight(float3(9.0f, 3.0f, 6.0f), float4(500.0f)));
     //scene.lights.emplace_back(new PointLight(float3(0.0f, 0.8f, 1.0f), float4(200.0f)));
@@ -344,6 +344,17 @@ bool build_scene(const Path& path, Scene& scene) {
         scene.nodes = nodes;
         scene.tris = tris;
     }
+
+    // Compute bounding sphere.
+    BBox mesh_bb = BBox::empty();
+    for (size_t i = 0; i < scene.mesh.vertex_count(); i++) {
+        const float3 v = truncate(scene.mesh.vertices()[i]);
+        mesh_bb.extend(v);
+    }
+    const float r_sqr = lensqr(mesh_bb.max - mesh_bb.min) * 0.5f;
+    scene.sphere.inv_radius_sqr = 1.0f / r_sqr;
+    scene.sphere.radius = sqrtf(r_sqr);
+    scene.sphere.center = (mesh_bb.max - mesh_bb.min) * 0.5f;
 
     std::cout << "[7/7] Moving the scene to the device..." << std::flush;
     scene.nodes.upload();

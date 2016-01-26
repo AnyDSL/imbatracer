@@ -36,6 +36,8 @@ struct Scene {
     ThorinArray<char> mask_buffer;
 
     Mesh mesh;
+
+    BoundingSphere sphere;
 };
 
 }
