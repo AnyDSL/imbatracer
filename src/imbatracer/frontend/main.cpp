@@ -1,5 +1,7 @@
+#include "cmd_line.h"
 #include "build_scene.h"
 #include "render_window.h"
+
 #include "../render/render.h"
 #include "../render/scene.h"
 
@@ -74,41 +76,38 @@ private:
     PerspectiveCamera& cam_;
 };
 
-int main(int argc, char** argv) {
+int main(int argc, const char* argv[]) {
     std::cout << "Imbatracer - A ray-tracer written with Impala" << std::endl;
 
-    if (argc != 2 && argc != 3) {
-        std::cout << "USAGE: imbatracer file.obj [-b]" << std::endl;
-        return 1;
-    }
-
-    constexpr int width = 512;
-    constexpr int height = 512;
-    constexpr int spp = 1;
+    UserSettings settings;
+    if (!parse_cmd_line(argc, argv, settings))
+        return 0;
 
     Scene scene;
-    if (!build_scene(Path(argv[1]), scene)) {
+    if (!build_scene(Path(settings.input_file), scene)) {
         std::cerr << "ERROR: Scene could not be built" << std::endl;
         return 1;
     }
 
     std::cout << "The scene has been loaded successfully." << std::endl;
 
-    PerspectiveCamera cam(width, height, 60.0f);
+    PerspectiveCamera cam(settings.width, settings.height, 60.0f);
     CameraControl ctrl(cam);
 
-    if (argc == 3) {
+    if (settings.algorithm == UserSettings::BPT) {
         using IntegratorType = imba::BidirPathTracer;
-        IntegratorType integrator(scene, cam, spp);
+        IntegratorType integrator(scene, cam, 1);
 
-        RenderWindow wnd(width, height, spp, integrator, ctrl);
+        RenderWindow wnd(settings, integrator, ctrl);
+        wnd.render_loop();
+    } else if (settings.algorithm == UserSettings::PT) {
+        using IntegratorType = PathTracer;
+        IntegratorType integrator(scene, cam, 1);
+
+        RenderWindow wnd(settings, integrator, ctrl);
         wnd.render_loop();
     } else {
-        using IntegratorType = PathTracer;
-        IntegratorType integrator(scene, cam, spp);
-
-        RenderWindow wnd(width, height, spp, integrator, ctrl);
-        wnd.render_loop();
+        std::cout << "VCM not yet implemented." << std::endl;
     }
 
     return 0;

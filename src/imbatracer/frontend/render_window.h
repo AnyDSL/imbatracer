@@ -2,6 +2,9 @@
 #define IMBA_RENDER_WINDOW_H
 
 #include <SDL.h>
+
+#include "cmd_line.h"
+
 #include "../render/render.h"
 #include "../render/integrators/pt.h"
 #include "../render/integrators/bpt.h"
@@ -21,7 +24,7 @@ public:
 
 class RenderWindow {
 public:
-    RenderWindow(int width, int height, int spp, Integrator& r, InputController& ctrl);
+    RenderWindow(const UserSettings& settings, Integrator& r, InputController& ctrl);
     ~RenderWindow();
 
     void render_loop();
@@ -39,8 +42,14 @@ private:
     InputController& ctrl_;
 
     float mouse_speed_;
-    int spp_;
     int frames_;
+
+    bool use_sdl_;
+    int max_samples_;
+    float max_time_sec_;
+
+    std::string output_file_;
+    std::string algname_;
 };
 
 } // namespace imba

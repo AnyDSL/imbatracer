@@ -2,6 +2,7 @@
 #include <cassert>
 #include <fstream>
 #include <sstream>
+#include <chrono>
 
 #include <unistd.h>
 #include <png.h>
@@ -12,67 +13,92 @@ namespace imba {
 
 constexpr float gamma = 1.0f / 2.0f;
 
-RenderWindow::RenderWindow(int width, int height, int spp, Integrator& r, InputController& ctrl)
-    : accum_buffer_(width, height)
+RenderWindow::RenderWindow(const UserSettings& settings, Integrator& r, InputController& ctrl)
+    : accum_buffer_(settings.width, settings.height)
     , integrator_(r)
     , ctrl_(ctrl)
-    , spp_(spp)
     , mouse_speed_(0.01f)
+    , use_sdl_(!settings.background)
+    , max_samples_(settings.max_samples)
+    , max_time_sec_(settings.max_time_sec)
+    , output_file_(settings.output_file)
+    , algname_(settings.algorithm == UserSettings::PT ? "Path Tracing" :
+             (settings.algorithm == UserSettings::BPT ? "Bidirectional Path Tracing" : "Vertex Connection and Merging"))
 {
-    SDL_Init(SDL_INIT_VIDEO);
-    SDL_WM_SetCaption("Imbatracer", NULL);
-    SDL_EnableKeyRepeat(SDL_DEFAULT_REPEAT_DELAY, SDL_DEFAULT_REPEAT_INTERVAL);
-    screen_ = SDL_SetVideoMode(width, height, 32, SDL_DOUBLEBUF);
+    if (use_sdl_) {
+        SDL_Init(SDL_INIT_VIDEO);
+        SDL_WM_SetCaption("Imbatracer", NULL);
+        SDL_EnableKeyRepeat(SDL_DEFAULT_REPEAT_DELAY, SDL_DEFAULT_REPEAT_INTERVAL);
+        screen_ = SDL_SetVideoMode(settings.width, settings.height, 32, SDL_DOUBLEBUF);
+    }
+
     clear();
 }
 
 RenderWindow::~RenderWindow() {
-    SDL_Quit();
+    if (use_sdl_)
+        SDL_Quit();
 }
 
 void RenderWindow::render_loop() {
     // Flush input events (discard first mouse move event)
-    handle_events(true);
+    if (use_sdl_)
+        handle_events(true);
 
-    bool done = false;
-    int frames = 0;
     long ticks = SDL_GetTicks();
     long t = ticks;
 
-    while (!done) {
-        t = SDL_GetTicks();
+    std::chrono::high_resolution_clock clock;
+    auto start_time = clock.now();
 
-        if (t - ticks > 5000) {
-            std::cout << 1000.0 * frames / (t - ticks) << " frames per second"
-                      << ", " << spp_ << " samples per pixel, "
-                      << (t - ticks) / frames << "ms per frame" << std::endl;
-            frames = 0;
-            ticks = t;
+    bool done = false;
+    int msg_counter = 1;
+    int msg_interval_ms = 1000;
+
+    while (!done) {
+        auto cur_time = clock.now();
+        unsigned int elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(cur_time - start_time).count();
+
+        if (elapsed_ms > msg_counter * msg_interval_ms) {
+            std::cout << frames_ << " samples done, "
+                      << 1000.0 * frames_ / static_cast<float>(elapsed_ms) << " frames per second, "
+                      << static_cast<float>(elapsed_ms) / frames_ << "ms per frame, "
+                      << "algorithm: " << algname_ << std::endl;
+            msg_counter++;
         }
 
         render();
-        done = handle_events(false);
 
-        frames++;
+        if (use_sdl_)
+            done = handle_events(false);
+
+        if (frames_ + 1 > max_samples_ || elapsed_ms / 1000.0f > max_time_sec_) {
+            done = true;
+        }
+
+        if (done == true)
+            std::cout << "Done after " << elapsed_ms / 1000.0f << " seconds, "
+                      << frames_ << " samples" << std::endl;
     }
 
-    std::stringstream file_name;
-    file_name << "render_" << spp_ * frames_ << "_samples.png";
-    write_image(file_name.str().c_str());
+    write_image(output_file_.c_str());
 }
 
 void RenderWindow::render() {
     integrator_.render(accum_buffer_);
     frames_++;
 
+    if (!use_sdl_)
+        return;
+
     SDL_LockSurface(screen_);
 
     const int r = screen_->format->Rshift / 8;
     const int g = screen_->format->Gshift / 8;
     const int b = screen_->format->Bshift / 8;
-    const float weight = 1.0f / (spp_ * frames_);
+    const float weight = 1.0f / (frames_);
 
-#pragma omp parallel for
+    #pragma omp parallel for
     for (int y = 0; y < screen_->h; y++) {
         unsigned char* row = (unsigned char*)screen_->pixels + screen_->pitch * y;
         const float4* accum_row = accum_buffer_.row(y);
@@ -184,7 +210,7 @@ bool RenderWindow::write_image(const char* file_name) {
 
     row.reset(new png_byte[4 * accum_buffer_.width()]);
 
-    const float weight = 1.0f / (spp_ * frames_);
+    const float weight = 1.0f / (frames_);
     for (int y = 0; y < accum_buffer_.height(); y++) {
         const float4* accum_row = accum_buffer_.row(y);
         png_bytep img_row = row.get();
