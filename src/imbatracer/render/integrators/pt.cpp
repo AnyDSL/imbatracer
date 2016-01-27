@@ -9,6 +9,39 @@
 
 namespace imba {
 
+inline void PathTracer::compute_direct_illum(const Intersection& isect, PTState& state, RayQueue<PTState>& ray_out_shadow) {
+    const float offset = 0.001f;
+
+    RNG& rng = state.rng;
+
+    // Generate the shadow ray (sample one point on one lightsource)
+    const auto ls = scene_.lights[rng.random_int(0, scene_.lights.size())].get();
+    const float pdf = scene_.lights.size();
+    const auto sample = ls->sample_direct(isect.pos, rng);
+    assert_normalized(sample.dir);
+
+    // Ensure that the incoming and outgoing directions are on the same side of the surface.
+    if (dot(isect.geom_normal, sample.dir) *
+        dot(isect.geom_normal, isect.out_dir) <= 0.0f)
+        return;
+
+    Ray ray {
+        { isect.pos.x, isect.pos.y, isect.pos.z, offset },
+        { sample.dir.x, sample.dir.y, sample.dir.z, sample.distance - offset }
+    };
+
+    // Compute the values stored in the ray state.
+    float pdf_dir, pdf_rev;
+    const float4 brdf = evaluate_material(isect.mat, isect, sample.dir, false, pdf_dir, pdf_rev);
+
+    // Update the current state of this path.
+    PTState s = state;
+    s.throughput *= brdf * sample.radiance * pdf;
+
+    // Push the shadow ray into the queue.
+    ray_out_shadow.push(ray, s);
+}
+
 void PathTracer::process_primary_rays(RayQueue<PTState>& ray_in, RayQueue<PTState>& ray_out, RayQueue<PTState>& ray_out_shadow, Image& out) {
     PTState* states = ray_in.states();
     Hit* hits = ray_in.hits();
@@ -51,7 +84,7 @@ void PathTracer::process_primary_rays(RayQueue<PTState>& ray_in, RayQueue<PTStat
             continue;
         }
 
-        compute_direct_illum(rng, isect, states[i], ray_out_shadow);
+        compute_direct_illum(isect, states[i], ray_out_shadow);
 
         // Continue the path using russian roulette.
         const float4 srgb(0.2126f, 0.7152f, 0.0722f, 0.0f);

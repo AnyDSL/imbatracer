@@ -57,38 +57,6 @@ protected:
             pos, w_out, hits[i].tmax, normal, uv_coords, geom_normal, mat.get()
         };
     }
-
-    template<typename StateType>
-    inline void compute_direct_illum(RNG& rng, const Intersection& isect, const StateType& state, RayQueue<StateType>& ray_out_shadow) {
-        const float offset = 0.001f;
-
-        // Generate the shadow ray (sample one point on one lightsource)
-        const auto ls = scene_.lights[rng.random_int(0, scene_.lights.size())].get();
-        const float pdf = scene_.lights.size();
-        const auto sample = ls->sample_direct(isect.pos, rng);
-        assert_normalized(sample.dir);
-
-        // Ensure that the incoming and outgoing directions are on the same side of the surface.
-        if (dot(isect.geom_normal, sample.dir) *
-            dot(isect.geom_normal, isect.out_dir) <= 0.0f)
-            return;
-
-        Ray ray {
-            { isect.pos.x, isect.pos.y, isect.pos.z, offset },
-            { sample.dir.x, sample.dir.y, sample.dir.z, sample.distance - offset }
-        };
-
-        // Compute the values stored in the ray state.
-        float pdf_dir, pdf_rev;
-        const float4 brdf = evaluate_material(isect.mat, isect, sample.dir, false, pdf_dir, pdf_rev);
-
-        // Update the current state of this path.
-        StateType s = state;
-        s.throughput *= brdf * sample.radiance * pdf;
-
-        // Push the shadow ray into the queue.
-        ray_out_shadow.push(ray, s);
-    }
 };
 
 }
