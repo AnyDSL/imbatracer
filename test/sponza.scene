@@ -1,0 +1,5 @@
+mesh sponza_scaled.obj
+
+pos  -1.84  1.93  -0.045
+dir  13  -7  -0.5
+up   0 1 0

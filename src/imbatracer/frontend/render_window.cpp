@@ -2,7 +2,6 @@
 #include <cassert>
 #include <fstream>
 #include <sstream>
-#include <chrono>
 
 #include <unistd.h>
 #include <png.h>
@@ -45,26 +44,20 @@ void RenderWindow::render_loop() {
     if (use_sdl_)
         handle_events(true);
 
-    long ticks = SDL_GetTicks();
-    long t = ticks;
-
     std::chrono::high_resolution_clock clock;
-    auto start_time = clock.now();
 
     bool done = false;
-    int msg_counter = 1;
-    int msg_interval_ms = 1000;
 
     while (!done) {
         auto cur_time = clock.now();
-        unsigned int elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(cur_time - start_time).count();
+        unsigned int elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(cur_time - start_time_).count();
 
-        if (elapsed_ms > msg_counter * msg_interval_ms) {
-            std::cout << frames_ << " samples done, "
+        if (elapsed_ms > msg_counter_ * msg_interval_ms) {
+            std::cout << frames_ << " samples, "
                       << 1000.0 * frames_ / static_cast<float>(elapsed_ms) << " frames per second, "
-                      << static_cast<float>(elapsed_ms) / frames_ << "ms per frame, "
-                      << "algorithm: " << algname_ << std::endl;
-            msg_counter++;
+                      << static_cast<float>(elapsed_ms) / frames_ << "ms per frame"
+                      << std::endl;
+            msg_counter_++;
         }
 
         render();
@@ -127,14 +120,15 @@ bool RenderWindow::handle_events(bool flush) {
         switch (event.type) {
             case SDL_KEYDOWN:
                 switch (event.key.keysym.sym) {
-                    case SDLK_UP:       update |= ctrl_.key_press(Key::UP);    break;
-                    case SDLK_DOWN:     update |= ctrl_.key_press(Key::DOWN);  break;
-                    case SDLK_LEFT:     update |= ctrl_.key_press(Key::LEFT);  break;
-                    case SDLK_RIGHT:    update |= ctrl_.key_press(Key::RIGHT); break;
-                    case SDLK_KP_PLUS:  update |= ctrl_.key_press(Key::PLUS);  break;
-                    case SDLK_KP_MINUS: update |= ctrl_.key_press(Key::MINUS); break;
-                    case SDLK_SPACE:    update |= ctrl_.key_press(Key::SPACE); break;
-                    case SDLK_ESCAPE:   return true;
+                    case SDLK_UP:        update |= ctrl_.key_press(Key::UP);        break;
+                    case SDLK_DOWN:      update |= ctrl_.key_press(Key::DOWN);      break;
+                    case SDLK_LEFT:      update |= ctrl_.key_press(Key::LEFT);      break;
+                    case SDLK_RIGHT:     update |= ctrl_.key_press(Key::RIGHT);     break;
+                    case SDLK_KP_PLUS:   update |= ctrl_.key_press(Key::PLUS);      break;
+                    case SDLK_KP_MINUS:  update |= ctrl_.key_press(Key::MINUS);     break;
+                    case SDLK_SPACE:     update |= ctrl_.key_press(Key::SPACE);     break;
+                    case SDLK_BACKSPACE: update |= ctrl_.key_press(Key::BACKSPACE); break;
+                    case SDLK_ESCAPE:    return true;
                     default: break;
                 }
                 break;
@@ -159,14 +153,20 @@ bool RenderWindow::handle_events(bool flush) {
 }
 
 void RenderWindow::clear() {
-    frames_ = 0;
-#pragma omp parallel for
+    // Clear the buffer
+    #pragma omp parallel for
     for (int y = 0; y < accum_buffer_.height(); y++) {
         float4* accum_row = accum_buffer_.row(y);
         for (int x = 0; x < accum_buffer_.width(); x++) {
             accum_row[x] = float4(0.0);
         }
     }
+
+    // Reset number of samples and start time
+    frames_ = 0;
+    std::chrono::high_resolution_clock clock;
+    start_time_ = clock.now();
+    msg_counter_ = 1;
 }
 
 static void write_to_stream(png_structp png_ptr, png_bytep data, png_size_t length) {

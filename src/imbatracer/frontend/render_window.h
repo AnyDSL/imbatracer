@@ -2,6 +2,7 @@
 #define IMBA_RENDER_WINDOW_H
 
 #include <SDL.h>
+#include <chrono>
 
 #include "cmd_line.h"
 
@@ -12,7 +13,7 @@
 namespace imba {
 
 enum class Key {
-    LEFT, RIGHT, UP, DOWN, PLUS, MINUS, SPACE
+    LEFT, RIGHT, UP, DOWN, PLUS, MINUS, SPACE, BACKSPACE
 };
 
 class InputController {
@@ -42,7 +43,11 @@ private:
     InputController& ctrl_;
 
     float mouse_speed_;
+
     int frames_;
+    std::chrono::high_resolution_clock::time_point start_time_;
+    int msg_counter_;
+    static constexpr int msg_interval_ms = 1000;
 
     bool use_sdl_;
     int max_samples_;

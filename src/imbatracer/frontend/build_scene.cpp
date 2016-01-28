@@ -3,6 +3,7 @@
 #include <cstdlib>
 #include <locale>
 #include <memory>
+#include <fstream>
 
 #include "build_scene.h"
 #include "../loaders/loaders.h"
@@ -248,11 +249,72 @@ void create_mesh(const obj::File& obj_file, Scene& scene) {
     }
 }
 
-bool build_scene(const Path& path, Scene& scene) {
+bool parse_scene_file(const Path& path, Scene& scene, std::string& obj_filename, float3& cam_pos, float3& cam_dir, float3& cam_up) {
+    std::ifstream stream(path);
+
+    std::string cmd;
+
+    bool pos_given = false;
+    bool dir_given = false;
+    bool up_given = false;
+
+    while (stream >> cmd) {
+        if (cmd == "pos") {
+            if (!(stream >> cam_pos.x) ||
+                !(stream >> cam_pos.y) ||
+                !(stream >> cam_pos.z)) {
+                std::cout << " Unexpected EOF in camera position" << std::endl;
+                return false;
+            }
+            pos_given = true;
+        } else if (cmd == "dir") {
+            if (!(stream >> cam_dir.x) ||
+                !(stream >> cam_dir.y) ||
+                !(stream >> cam_dir.z)) {
+                std::cout << " Unexpected EOF in camera direction" << std::endl;
+                return false;
+            }
+            dir_given = true;
+        } else if (cmd == "up") {
+            if (!(stream >> cam_up.x) ||
+                !(stream >> cam_up.y) ||
+                !(stream >> cam_up.z)) {
+                std::cout << " Unexpected EOF in camera up vector" << std::endl;
+                return false;
+            }
+            up_given = true;
+        } else if (cmd == "mesh") {
+            if (obj_filename != "") {
+                std::cout << " Multiple .obj files in one scene are not supported yet." << std::endl;
+                return false;
+            }
+
+            // Mesh file is the entire remainder of this line (can include whitespace)
+            //std::getline(stream, obj_filename);
+            if (!(stream >> obj_filename)) {
+                std::cout << " Error reading the obj filename" << std::endl;
+                return false;
+            }
+        }
+    }
+
+    return obj_filename != "" && pos_given && dir_given && up_given;
+}
+
+bool build_scene(const Path& path, Scene& scene, float3& cam_pos, float3& cam_dir, float3& cam_up) {
+    std::string obj_filename;
+    std::cout << "[1/8] Parsing Scene File..." << std::flush;
+    if (!parse_scene_file(path, scene, obj_filename, cam_pos, cam_dir, cam_up)) {
+        std::cout << " FAILED" << std::endl;
+        return false;
+    }
+    std::cout << std::endl;
+
+    Path obj_path(path.base_name() + '/' + obj_filename);
     obj::File obj_file;
 
-    std::cout << "[1/7] Loading OBJ..." << std::flush;
-    if (!load_obj(path, obj_file)) {
+    std::cout << "[2/8] Loading OBJ..." << std::flush;
+    if (!load_obj(obj_path, obj_file)) {
         std::cout << " FAILED" << std::endl;
         return false;
     }
@@ -261,24 +323,24 @@ bool build_scene(const Path& path, Scene& scene) {
     obj::MaterialLib mtl_lib;
 
     // Parse the associated MTL files
-    std::cout << "[2/7] Loading MTLs..." << std::flush;
+    std::cout << "[3/8] Loading MTLs..." << std::flush;
     for (auto& lib : obj_file.mtl_libs) {
-        if (!load_mtl(path.base_name() + "/" + lib, mtl_lib)) {
+        if (!load_mtl(obj_path.base_name() + "/" + lib, mtl_lib)) {
             std::cout << " FAILED" << std::endl;
             return false;
         }
     }
     std::cout << std::endl;
 
-    std::cout << "[3/7] Converting materials..." << std::endl;
-    convert_materials(path, obj_file, mtl_lib, scene);
+    std::cout << "[4/8] Converting materials..." << std::endl;
+    convert_materials(obj_path, obj_file, mtl_lib, scene);
 
     // Create a scene from the OBJ file.
-    std::cout << "[4/7] Creating scene..." << std::endl;
+    std::cout << "[5/8] Creating scene..." << std::endl;
     create_mesh(obj_file, scene);
 
     // Check for invalid normals
-    std::cout << "[5/7] Validating scene..." << std::endl;
+    std::cout << "[6/8] Validating scene..." << std::endl;
 
     bool bad_normals = false;
     auto normals = scene.mesh.attribute<float3>(MeshAttributes::normals);
@@ -332,7 +394,7 @@ bool build_scene(const Path& path, Scene& scene) {
             scene.indices[i] = scene.mesh.indices()[i];
     }
 
-    std::cout << "[6/7] Building acceleration structure..." << std::endl;
+    std::cout << "[7/8] Building acceleration structure..." << std::endl;
     {
         std::vector<::Node> nodes;
         std::vector<::Vec4> tris;
@@ -356,7 +418,7 @@ bool build_scene(const Path& path, Scene& scene) {
     scene.sphere.radius = radius;
     scene.sphere.center = (mesh_bb.max + mesh_bb.min) * 0.5f;
 
-    std::cout << "[7/7] Moving the scene to the device..." << std::flush;
+    std::cout << "[8/8] Moving the scene to the device..." << std::flush;
     scene.nodes.upload();
     scene.tris.upload();
     scene.masks.upload();

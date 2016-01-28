@@ -13,7 +13,7 @@
 
 namespace imba {
 
-bool build_scene(const Path& path, Scene& scene);
+bool build_scene(const Path& path, Scene& scene, float3& cam_pos, float3& cam_dir, float3& cam_up);
 
 }
 

@@ -9,38 +9,26 @@ using namespace imba;
 
 class CameraControl : public InputController {
 public:
-    CameraControl(PerspectiveCamera& cam)
-        : cam_(cam), speed_(0.1f)
+    CameraControl(PerspectiveCamera& cam, float3& cam_pos, float3& cam_dir, float3& cam_up)
+        : cam_(cam), speed_(0.1f), org_pos_(cam_pos), org_dir_(cam_dir), org_up_(cam_up)
     {
         reset();
     }
 
     void reset() {
-        // sponza
-        //setup(float3(-184.0f, 193.f, -4.5f), float3(-171.081f, 186.426f, -4.96049f) - float3(-184.244f, 193.221f, -4.445f), float3(0.0f, 1.0f, 0.0f));
-        // sponza small
-        //setup(float3(-184.0f, 193.f, -4.5f) * 0.01f, float3(-171.081f, 186.426f, -4.96049f) * 0.01f - float3(-184.244f, 193.221f, -4.445f) * 0.01f, float3(0.0f, 1.0f, 0.0f));
-        // cornell
-        setup(float3(0.0f, 0.9f, 2.5f), float3(0.0f, 0.0f, -1.0f), float3(0.0f, 1.0f, 0.0f));
-        // cornell low
-        //setup(float3(0.0f, 0.8f, 2.2f), float3(0.0f, 0.0f, -1.0f), float3(0.0f, 1.0f, 0.0f));
-        // sponza parts
-        //setup(float3(-5, 0.0f, 0.0f), normalize(float3(1.0f, 0.0f, 0.0f)), float3(0.0f, 1.0f, 0.0f));
-        // Test transparency
-        //setup(float3(10, 0.0f, 0.0f), normalize(float3(-1.0f, 0.0f, 0.0f)), float3(0.0f, 1.0f, 0.0f));
-        // san miguel
-        //setup(float3(11.0f, 1.8f, 6.0f), normalize(float3(1.0f, -0.2f, 1.0f)), float3(0.0f, 1.0f, 0.0f));
+        setup(org_pos_, normalize(org_dir_), normalize(org_up_));
     }
 
     bool key_press(Key k) override {
         switch (k) {
-            case Key::UP:     eye_ = eye_ + dir_ * speed_;   break;
-            case Key::DOWN:   eye_ = eye_ - dir_ * speed_;   break;
-            case Key::LEFT:   eye_ = eye_ - right_ * speed_; break;
-            case Key::RIGHT:  eye_ = eye_ + right_ * speed_; break;
-            case Key::SPACE:  reset(); break;
-            case Key::PLUS:   speed_ *= 1.1f; return false;
-            case Key::MINUS:  speed_ /= 1.1f; return false;
+            case Key::UP:         eye_ = eye_ + dir_ * speed_;   break;
+            case Key::DOWN:       eye_ = eye_ - dir_ * speed_;   break;
+            case Key::LEFT:       eye_ = eye_ - right_ * speed_; break;
+            case Key::RIGHT:      eye_ = eye_ + right_ * speed_; break;
+            case Key::SPACE:      reset(); break;
+            case Key::PLUS:       speed_ *= 1.1f; return false;
+            case Key::MINUS:      speed_ /= 1.1f; return false;
+            case Key::BACKSPACE:  print_cam(); return false;
         }
         cam_.move(eye_, dir_, up_);
         return true;
@@ -70,9 +58,18 @@ private:
         cam_.move(eye_, dir_, up_);
     }
 
+    void print_cam() {
+        std::cout << "----------------------------------" << std::endl
+                  << "pos  " << eye_.x << "  " << eye_.y << "  " << eye_.z << std::endl
+                  << "dir  " << dir_.x << "  " << dir_.y << "  " << dir_.z << std::endl
+                  << "up   " << up_.x  << "  " << up_.y  << "  " << up_.z  << std::endl
+                  << "----------------------------------" << std::endl;
+    }
+
     float speed_;
     float3 eye_;
     float3 dir_, up_, right_;
+    float3 org_pos_, org_dir_, org_up_;
     PerspectiveCamera& cam_;
 };
 
@@ -84,7 +81,8 @@ int main(int argc, const char* argv[]) {
         return 0;
 
     Scene scene;
-    if (!build_scene(Path(settings.input_file), scene)) {
+    float3 cam_pos, cam_dir, cam_up;
+    if (!build_scene(Path(settings.input_file), scene, cam_pos, cam_dir, cam_up)) {
         std::cerr << "ERROR: Scene could not be built" << std::endl;
         return 1;
     }
@@ -92,7 +90,7 @@ int main(int argc, const char* argv[]) {
     std::cout << "The scene has been loaded successfully." << std::endl;
 
     PerspectiveCamera cam(settings.width, settings.height, 60.0f);
-    CameraControl ctrl(cam);
+    CameraControl ctrl(cam, cam_pos, cam_dir, cam_up);
 
     if (settings.algorithm == UserSettings::BPT) {
         using IntegratorType = imba::BidirPathTracer;
