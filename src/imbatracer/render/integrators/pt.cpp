@@ -9,9 +9,9 @@
 
 namespace imba {
 
-inline void PathTracer::compute_direct_illum(const Intersection& isect, PTState& state, RayQueue<PTState>& ray_out_shadow) {
-    const float offset = 0.001f;
+constexpr float offset = 0.0001f;
 
+inline void PathTracer::compute_direct_illum(const Intersection& isect, PTState& state, RayQueue<PTState>& ray_out_shadow) {
     RNG& rng = state.rng;
 
     // Generate the shadow ray (sample one point on one lightsource)
@@ -47,8 +47,6 @@ void PathTracer::process_primary_rays(RayQueue<PTState>& ray_in, RayQueue<PTStat
     Hit* hits = ray_in.hits();
     Ray* rays = ray_in.rays();
     int ray_count = ray_in.size();
-
-    const float offset = 0.001f;
 
     #pragma omp parallel for
     for (int i = 0; i < ray_count; ++i) {

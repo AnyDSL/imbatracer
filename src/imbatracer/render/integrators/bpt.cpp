@@ -9,7 +9,7 @@
 
 namespace imba {
 
-static const float offset = 0.001f;
+static const float offset = 0.0001f;
 
 void BidirPathTracer::render(Image& img) {
     reset_buffers();
