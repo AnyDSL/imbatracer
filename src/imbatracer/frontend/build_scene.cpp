@@ -295,6 +295,44 @@ bool parse_scene_file(const Path& path, Scene& scene, std::string& obj_filename,
                 std::cout << " Error reading the obj filename" << std::endl;
                 return false;
             }
+        } else if (cmd == "dir_light") {
+            float3 dir;
+            float3 intensity;
+
+            if (!(stream >> dir.x) ||
+                !(stream >> dir.y) ||
+                !(stream >> dir.z)) {
+                std::cout << " Unexpected EOF in directional light direction" << std::endl;
+                return false;
+            }
+
+            if (!(stream >> intensity.x) ||
+                !(stream >> intensity.y) ||
+                !(stream >> intensity.z)) {
+                std::cout << " Unexpected EOF in directional light intensity" << std::endl;
+                return false;
+            }
+
+            scene.lights.emplace_back(new DirectionalLight(normalize(dir), float4(intensity, 1.0f), scene.sphere));
+        } else if (cmd == "point_light") {
+            float3 pos;
+            float3 intensity;
+
+            if (!(stream >> pos.x) ||
+                !(stream >> pos.y) ||
+                !(stream >> pos.z)) {
+                std::cout << " Unexpected EOF in point light position" << std::endl;
+                return false;
+            }
+
+            if (!(stream >> intensity.x) ||
+                !(stream >> intensity.y) ||
+                !(stream >> intensity.z)) {
+                std::cout << " Unexpected EOF in point light intensity" << std::endl;
+                return false;
+            }
+
+            scene.lights.emplace_back(new PointLight(pos, float4(intensity, 1.0f)));
         }
     }
 
@@ -360,12 +398,6 @@ bool build_scene(const Path& path, Scene& scene, float3& cam_pos, float3& cam_di
         std::cout << " There is no triangle in the scene." << std::endl;
         return false;
     }
-
-    //scene.lights.emplace_back(new DirectionalLight(normalize(float3(0.7f, -1.0f, -1.001f)), float4(2.5f), scene.sphere));
-    //scene.lights.emplace_back(new PointLight(float3(-10.0f, 193.f, -4.5f), float4(100000.5f)));
-    //scene.lights.emplace_back(new PointLight(float3(9.0f, 3.0f, 6.0f), float4(500.0f)));
-    //scene.lights.emplace_back(new PointLight(float3(0.0f, 0.8f, 1.0f), float4(200.0f)));
-    //scene.lights.emplace_back(new PointLight(float3(0.0f, 1.8f, 0.0f), float4(5.0f)));
 
     if (scene.lights.empty()) {
         std::cout << "  There are no lights in the scene." << std::endl;
