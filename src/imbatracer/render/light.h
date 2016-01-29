@@ -85,14 +85,20 @@ public:
         const float cos_out = dot(normal_, -1.0f * sample.dir);
 
         // directions form the opposite side of the light have zero intensity
-        if (cos_out > 0.0f && cos_out < 1.0f)
+        if (cos_out > 0.0f && cos_out < 1.0f) {
             sample.radiance = intensity_ * cos_out * (area_ / distsq);
-        else
+
+            sample.cos_out      = cos_out;
+            sample.pdf_emit_w   = (cos_out * 1.0f / pi) / area_;
+            sample.pdf_direct_w = 1.0f / area_ * distsq / cos_out;
+        } else {
             sample.radiance = float4(0.0f);
 
-        sample.cos_out      = cos_out;
-        sample.pdf_emit_w   = (cos_out * 1.0f / pi) / area_;
-        sample.pdf_direct_w = 1.0f / area_ * distsq / cos_out;
+            // Prevent nans in the integrator
+            sample.cos_out      = 1.0f;
+            sample.pdf_emit_w   = 1.0f;
+            sample.pdf_direct_w = 1.0f;
+        }
 
         return sample;
     }
@@ -122,8 +128,12 @@ public:
     virtual float4 radiance(const float3& out_dir, float& pdf_direct_a, float& pdf_emit_w) override {
         const float cos_theta_o = dot(normal_, out_dir);
 
-        if (cos_theta_o <= 0.0f)
+        if (cos_theta_o <= 0.0f) {
+            // set pdf to 1 to prevent nans
+            pdf_direct_a = 1.0f;
+            pdf_emit_w = 1.0f;
             return float4(0.0f);
+        }
 
         pdf_direct_a = 1.0f / area_;
         pdf_emit_w   = 1.0f / area_ * cos_hemisphere_pdf(normal_, out_dir);

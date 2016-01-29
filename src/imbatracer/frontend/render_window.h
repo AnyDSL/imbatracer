@@ -47,7 +47,7 @@ private:
     int frames_;
     std::chrono::high_resolution_clock::time_point start_time_;
     int msg_counter_;
-    static constexpr int msg_interval_ms = 1000;
+    static constexpr int msg_interval_ms = 10000;
 
     bool use_sdl_;
     int max_samples_;

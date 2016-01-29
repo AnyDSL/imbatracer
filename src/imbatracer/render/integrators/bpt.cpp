@@ -251,15 +251,17 @@ void BidirPathTracer::process_camera_rays(RayQueue<BPTState>& rays_in, RayQueue<
             const float pdf_di = pdf_direct_a * pdf_lightpick;
             const float pdf_e = pdf_emit_w * pdf_lightpick;
 
-            if (!is_black(radiance)) {
-                const float mis_weight_camera = pdf_di * states[i].dVCM + pdf_e * states[i].dVC;
+            const float mis_weight_camera = pdf_di * states[i].dVCM + pdf_e * states[i].dVC;
 
-                if (states[i].path_length > 1) {
-                    float4 color = states[i].throughput * radiance * 1.0f / (mis_weight_camera + 1.0f);
-                    img.pixels()[states[i].pixel_id] += color;
-                } else
-                    img.pixels()[states[i].pixel_id] += radiance; // Light directly visible, no weighting required.
-            }
+            if (states[i].path_length > 1) {
+                float4 color = states[i].throughput * radiance * 1.0f / (mis_weight_camera + 1.0f);
+
+                if (isnan(color.x), isnan(color.y), isnan(color.z))
+                    printf("nan rnd hit: %f %f %f %f\n", pdf_di, pdf_e, mis_weight_camera, radiance.x);
+
+                img.pixels()[states[i].pixel_id] += color;
+            } else
+                img.pixels()[states[i].pixel_id] += radiance; // Light directly visible, no weighting required.
         }
 
         // Compute direct illumination.
@@ -352,6 +354,9 @@ void BidirPathTracer::direct_illum(BPTState& cam_state, const Intersection& isec
     BPTState s = cam_state;
     s.throughput *= mis_weight * bsdf * sample.radiance * inv_pdf_lightpick;
 
+    if (isnan(s.throughput.x), isnan(s.throughput.y), isnan(s.throughput.z))
+        printf("nan di: %f %f %f %f\n", sample.pdf_direct_w, sample.pdf_emit_w, sample.radiance.x, sample.cos_out);
+
     rays_out_shadow.push(ray, s);
 }
 
@@ -417,6 +422,9 @@ void BidirPathTracer::process_shadow_rays(RayQueue<BPTState>& rays_in, Image& im
         if (hits[i].tri_id < 0) {
             assert(states[i].pixel_id >= 0 && states[i].pixel_id < img.width() * img.height() && "Write outside of image detected. (BPT::process_shadow_rays)");
             img.pixels()[states[i].pixel_id] += states[i].throughput;
+
+            if (isnan(states[i].throughput.x), isnan(states[i].throughput.y), isnan(states[i].throughput.z))
+                printf("nan\n");
         }
     }
 }
