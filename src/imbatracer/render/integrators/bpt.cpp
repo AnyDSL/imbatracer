@@ -209,6 +209,9 @@ void BidirPathTracer::connect_to_camera(const BPTState& light_state, const Inter
     // Contribution is divided by the number of samples (light_path_count_) and the factor that converts the (divided) pdf from surface area to image plane area.
     state.throughput *= mis_weight * mat_clr * img_to_surf / (light_path_count_ * cos_theta_o);
 
+    if (isnan(state.throughput.x), isnan(state.throughput.y), isnan(state.throughput.z))
+        printf("nan lt\n");
+
     Ray ray {
         { isect.pos.x, isect.pos.y, isect.pos.z, offset },
         { dir_to_cam.x, dir_to_cam.y, dir_to_cam.z, dist_to_cam - offset }
@@ -349,7 +352,8 @@ void BidirPathTracer::direct_illum(BPTState& cam_state, const Intersection& isec
     s.throughput *= mis_weight * bsdf * sample.radiance * inv_pdf_lightpick;
 
     if (isnan(s.throughput.x), isnan(s.throughput.y), isnan(s.throughput.z))
-        printf("nan di: %f %f %f %f\n", sample.pdf_direct_w, sample.pdf_emit_w, sample.radiance.x, sample.cos_out);
+        printf("nan di: %f %f %f %f || %f %f %f %f\n", sample.pdf_direct_w, sample.pdf_emit_w, sample.radiance.x, sample.cos_out,
+            cam_state.dVCM, cam_state.dVC, pdf_forward, pdf_reverse);
 
     rays_out_shadow.push(ray, s);
 }
@@ -396,6 +400,9 @@ void BidirPathTracer::connect(BPTState& cam_state, const Intersection& isect, Ra
 
         BPTState s = cam_state;
         s.throughput *= mis_weight * geom_term * bsdf_cam * bsdf_light * light_vertex.throughput;
+
+        if (isnan(s.throughput.x), isnan(s.throughput.y), isnan(s.throughput.z))
+            printf("nan connect %f %f %f %f %f %f %f\n", mis_weight, pdf_cam_a, pdf_light_a, geom_term, bsdf_light.x, bsdf_cam.x, light_vertex.throughput.x);
 
         Ray ray {
             { isect.pos.x, isect.pos.y, isect.pos.z, offset },

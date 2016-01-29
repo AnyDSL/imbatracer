@@ -259,8 +259,10 @@ public:
     EmissiveMaterial(const float4& color) : color_(color), Material(emissive, true) { }
 
     inline float4 sample(const Intersection& isect, RNG& rng, float3& in_dir, bool adjoint, float& pdf, bool& specular) {
-        pdf = 1.0f; // prevent nans
         specular = true;
+
+        pdf = 1.0f; // prevent nans
+        in_dir = float3(1.0f, 0.0f, 0.0f);
         return float4(0.0f);
     }
 
