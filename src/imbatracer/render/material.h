@@ -259,13 +259,7 @@ public:
     EmissiveMaterial(const float4& color) : color_(color), Material(emissive, true) { }
 
     inline float4 sample(const Intersection& isect, RNG& rng, float3& in_dir, bool adjoint, float& pdf, bool& specular) {
-        /*// uniform sample the hemisphere
-        DirectionSample hemi_sample = sample_cos_hemisphere(isect.normal, rng.random_float(), rng.random_float());
-        in_dir = hemi_sample.dir;
-        pdf = hemi_sample.pdf;
-        specular = false;
-        return float4(0.0f) * (1.0f / pi);*/
-        pdf = 0.0f;
+        pdf = 1.0f; // prevent nans
         specular = true;
         return float4(0.0f);
     }

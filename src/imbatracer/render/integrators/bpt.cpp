@@ -137,9 +137,6 @@ void BidirPathTracer::process_light_rays(RayQueue<BPTState>& rays_in, RayQueue<B
             bool is_specular;
             float4 mat_clr = sample_material(isect.mat, isect, rng, sample_dir, true, pdf_dir_w, is_specular);
 
-            if (is_black(mat_clr))
-                continue; // do not bother to shoot a ray if the throughput is (less than) zero.
-
             float pdf_rev_w = pdf_material(isect.mat, isect, isect.out_dir);
             float cos_theta_o = fabsf(dot(sample_dir, isect.normal));
 
@@ -281,9 +278,6 @@ void BidirPathTracer::process_camera_rays(RayQueue<BPTState>& rays_in, RayQueue<
             float3 sample_dir;
             bool is_specular;
             float4 bsdf = sample_material(isect.mat, isect, rng, sample_dir, false, pdf_dir_w, is_specular);
-
-            if (is_black(bsdf))
-                continue; // necessary to prevent nans if no direction was sampled
 
             float pdf_rev_w = pdf_dir_w;
             if (!is_specular) // cannot evaluate reverse pdf of specular surfaces (but is the same as forward due to symmetry)
