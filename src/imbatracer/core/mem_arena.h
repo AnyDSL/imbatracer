@@ -32,6 +32,11 @@ public:
 #endif
     }
 
+    // Copying and moving are not supported.
+    MemoryArena& operator= (MemoryArena&) = delete;
+    MemoryArena(MemoryArena&) = delete;
+    MemoryArena(MemoryArena&&) = delete;
+
     void allocate_block() {
         blocks_.emplace_back(new char[block_size]);
 
