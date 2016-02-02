@@ -73,7 +73,7 @@ private:
     PerspectiveCamera& cam_;
 };
 
-int main(int argc, const char* argv[]) {
+int main(int argc, char* argv[]) {
     std::cout << "Imbatracer - A ray-tracer written with Impala" << std::endl;
 
     UserSettings settings;

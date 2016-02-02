@@ -48,7 +48,7 @@ inline void print_help() {
 
 namespace {
     template<typename T>
-    inline bool parse_argument(int i, int argc, const char* argv[], T& val) {
+    inline bool parse_argument(int i, int argc, char* argv[], T& val) {
         if (i >= argc) {
             std::cout << "Too few arguments." << std::endl;
             return false;
@@ -68,7 +68,7 @@ namespace {
 }
 
 /// Parses the command line arguments. Returns true if the renderer should run, false if not.
-inline bool parse_cmd_line(int argc, const char* argv[], UserSettings& settings) {
+inline bool parse_cmd_line(int argc, char* argv[], UserSettings& settings) {
     settings = UserSettings(); // Start with the default settings.
 
     if (argc < 2) {
