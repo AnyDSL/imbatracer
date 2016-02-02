@@ -92,8 +92,10 @@ public:
             clr = sampler_->sample(isect.uv);
         }
 
-        if (dot(in_dir, isect.geom_normal) * dot(isect.out_dir, isect.geom_normal) <= 0.0f)
+        if (dot(in_dir, isect.geom_normal) * dot(isect.out_dir, isect.geom_normal) <= 0.0f) {
+            pdf_dir = pdf_rev = 1.0f; // Set to one to prevent nans
             return float4(0.0f);
+        }
 
         pdf_dir = (1.0f / pi) * std::max(0.0f, dot(isect.normal, in_dir));
         pdf_rev = (1.0f / pi) * std::max(0.0f, dot(isect.normal, isect.out_dir));
@@ -172,7 +174,7 @@ public:
     }
 
     inline float4 eval(const Intersection& isect, const float3& in_dir, bool adjoint, float& pdf_dir, float& pdf_rev) {
-        pdf_rev = pdf_dir = 0.0f;
+        pdf_rev = pdf_dir = 1.0f;  // set to one to prevent nans (value does not matter because it is multiplied by zero)
         return float4(0.0f);
     }
 
@@ -239,7 +241,7 @@ public:
     }
 
     inline float4 eval(const Intersection& isect, const float3& in_dir, bool adjoint, float& pdf_dir, float& pdf_rev) {
-        pdf_rev = pdf_dir = 0.0f;
+        pdf_rev = pdf_dir = 1.0f; // set to one to prevent nans (value does not matter because it is multiplied by zero)
         return float4(0.0f);
     }
 
@@ -267,7 +269,7 @@ public:
     }
 
     inline float4 eval(const Intersection& isect, const float3& in_dir, bool adjoint, float& pdf_dir, float& pdf_rev) {
-        pdf_rev = pdf_dir = 1.0f;
+        pdf_rev = pdf_dir = 1.0f;  // set to one to prevent nans (value does not matter because it is multiplied by zero)
         return float4(0.0f);
     }
 
