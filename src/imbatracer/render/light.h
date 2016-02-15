@@ -73,7 +73,7 @@ public:
 
         // sample a point on the light source
         float u, v;
-        uniform_sample_triangle(rng.random_float(), rng.random_float(), u, v);
+        sample_uniform_triangle(rng.random_float(), rng.random_float(), u, v);
         const float3 pos = u * p0_ + v * p1_ + (1.0f - u - v) * p2_;
 
         // compute distance and shadow ray direction
@@ -108,7 +108,7 @@ public:
 
         // Sample a point on the light source
         float u, v;
-        uniform_sample_triangle(rng.random_float(), rng.random_float(), u, v);
+        sample_uniform_triangle(rng.random_float(), rng.random_float(), u, v);
         sample.pos = u * p0_ + v * p1_ + (1.0f - u - v) * p2_;
 
         // Sample an outgoing direction
