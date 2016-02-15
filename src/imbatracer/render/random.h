@@ -7,6 +7,8 @@
 
 namespace imba {
 
+/// Small and fast random number generator based on MWC64X
+/// http://cas.ee.ic.ac.uk/people/dt10/research/rngs-gpu-mwc64x.html
 class RNG {
 public:
     RNG(uint64_t seed = 0) : state_(seed) {}
