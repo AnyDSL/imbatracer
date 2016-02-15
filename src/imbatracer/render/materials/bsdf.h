@@ -2,39 +2,41 @@
 #define IMBA_BSDF_H
 
 #include "../../core/float4.h"
-#include "../../core/mem_arena.h"
 
+#include "../mem_arena.h"
 #include "../random.h"
 #include "../intersection.h"
 
+#include <cassert>
+
 namespace imba {
+
+enum BxDFFlags {
+    BSDF_REFLECTION      = 1 << 0,
+    BSDF_TRANSMISSION    = 1 << 1,
+
+    BSDF_DIFFUSE         = 1 << 2,
+    BSDF_GLOSSY          = 1 << 3,
+    BSDF_SPECULAR        = 1 << 4,
+
+    BSDF_ALLTYPES        = BSDF_DIFFUSE | BSDF_GLOSSY | BSDF_SPECULAR,
+
+    BSDF_ALL_REFLECTION   = BSDF_REFLECTION   | BSDF_ALLTYPES,
+    BSDF_ALL_TRANSMISSION = BSDF_TRANSMISSION | BSDF_ALLTYPES,
+
+    BSDF_ALL = BSDF_REFLECTION | BSDF_TRANSMISSION | BSDF_ALLTYPES
+};
 
 /// Base class for all BRDF and BTDF classes.
 /// Defines the common interface that all of them support.
 /// All direction vectors are in shading space, which means the normal is aligned with the z-axis.
 class BxDF {
 public:
-    enum Flags {
-        Reflection      = 1 << 0,
-        Transmission    = 1 << 1,
+    const BxDFFlags flags;
 
-        Diffuse         = 1 << 2,
-        Glossy          = 1 << 3,
-        Specular        = 1 << 4,
+    BxDF(BxDFFlags f) : flags(f) {}
 
-        AllTypes        = Diffuse | Glossy | Specular,
-
-        AllReflection   = Reflection   | AllTypes,
-        AllTransmission = Transmission | AllTypes,
-
-        All = Reflection | Transmission | AllTypes
-    };
-
-    const Flags flags;
-
-    BxDF(Flags f) : flags(f) {}
-
-    bool matches_flags(Flags f) const { return (flags & f) == f; }
+    bool matches_flags(BxDFFlags f) const { return (flags & f) == flags; }
 
     virtual float4 eval(const float3& out_dir, const float3& in_dir) const = 0;
 
@@ -70,21 +72,6 @@ inline float sin_phi(const float3& dir) {
     return clamp(dir.y / st, -1.0f, 1.0f);
 }
 
-/// Computes an orthogonal local coordinate system.
-inline void local_coordinates(const float3& normal, float3& tangent_out, float3& binormal_out) {
-    const int id0  = (fabsf(normal.x) > fabsf(normal.y)) ? 0 : 1;
-    const int id1  = (fabsf(normal.x) > fabsf(normal.y)) ? 1 : 0;
-    const float sig = (fabsf(normal.x) > fabsf(normal.y)) ? -1.f : 1.f;
-
-    const float inv_len = 1.f / (normal[id0] * normal[id0] + normal.z * normal.z);
-
-    tangent_out[id0] = normal.z * sig * inv_len;
-    tangent_out[id1] = 0.f;
-    tangent_out.z   = normal[id0] * -1.f * sig * inv_len;
-
-    binormal_out = cross(normal, tangent_out);
-}
-
 /// Combines multiple BRDFs and BTDFs into a single BSDF.
 class BSDF {
 public:
@@ -99,18 +86,18 @@ public:
         bxdfs_[num_bxdfs_++] = b;
     }
 
-    void count() const { return num_bxdfs_; }
+    int count() const { return num_bxdfs_; }
 
-    void count(BxDF::Flags flags) {
-        nr = 0;
+    int count(BxDFFlags flags) const {
+        int nr = 0;
         for (int i = 0; i < count(); ++i) {
-            if (bxdfs_[i].matches_flags(flags))
+            if (bxdfs_[i]->matches_flags(flags))
                 nr++;
         }
         return nr;
     }
 
-    float4 eval(const float3& out_dir, const float3& in_dir, BxDF::Flags flags) const {
+    float4 eval(const float3& out_dir, const float3& in_dir, BxDFFlags flags) const {
         float3 local_out = world_to_local(out_dir);
         float3 local_in = world_to_local(in_dir);
 
@@ -118,11 +105,11 @@ public:
         // We follow the approach from PBRT and use the geometric normal to decide whether to evaluate
         // the BRDF (reflection) or the BTDF (transmission.)
         if (dot(in_dir, isect_.geom_normal) * dot(out_dir, isect_.geom_normal) <= 0.0f)
-            flags = flags & ~BxDF::Reflection; // in and out are on different sides: ignore reflection
+            flags = BxDFFlags(flags & ~BSDF_REFLECTION); // in and out are on different sides: ignore reflection
         else
-            flags = flags & ~BxDF::Transmission; // in and out are on the same side: ignore transmission
+            flags = BxDFFlags(flags & ~BSDF_TRANSMISSION); // in and out are on the same side: ignore transmission
 
-        float4 res = 0.0f;
+        float4 res(0.0f);
         for (int i = 0; i < num_bxdfs_; ++i)
             if (bxdfs_[i]->matches_flags(flags))
                 res += bxdfs_[i]->eval(local_out, local_in);
@@ -130,7 +117,7 @@ public:
     }
 
     float4 sample(const float3& out_dir, float3& in_dir, float rnd_num_component, float rnd_num_1, float rnd_num_2,
-                  BxDF::Flags flags, BxDF::Flags& sampled_flags, float& pdf) const {
+                  BxDFFlags flags, BxDFFlags& sampled_flags, float& pdf) const {
         // Choose a BxDF to sample from all BxDFs that match the given flags.
         int num_matching_bxdf = count(flags);
         if (num_matching_bxdf == 0) {
@@ -138,12 +125,12 @@ public:
             return float4(0.0f);
         }
 
-        int chosen_i = min(static_cast<int>(rnd_num_component * num_matching_bxdf), num_matching_bxdf - 1);
+        int chosen_i = std::min(static_cast<int>(rnd_num_component * num_matching_bxdf), num_matching_bxdf - 1);
 
         BxDF* chosen_bxdf = nullptr;
         int counter = 0;
         for (int i = 0; i < count(); ++i) {
-            if (bxdfs_[i].matches_flags(flags) && counter++ == chosen_i) {
+            if (bxdfs_[i]->matches_flags(flags) && counter++ == chosen_i) {
                 chosen_bxdf = bxdfs_[i];
             }
         }
@@ -162,9 +149,9 @@ public:
 
         // Add the pdfs of all other matching BxDFs as well,
         // except if we sampled from a delta destribution, because we represent delta distributions with a pdf value of one.
-        if (!(sampled_flags & BxDF::Flags::Specular) && num_matching_bxdf > 1) {
+        if (!(sampled_flags & BSDF_SPECULAR) && num_matching_bxdf > 1) {
             for (int i = 0; i < count(); ++i) {
-                if (i != chosen_i && bxdfs_[i].matches_flags(flags)) {
+                if (i != chosen_i && bxdfs_[i]->matches_flags(flags)) {
                     pdf += bxdfs_[i]->pdf(local_out, local_in);
                 }
             }
@@ -174,14 +161,14 @@ public:
 
         // Compute the BxDF value unless it was represented by a delta distribution.
         // Once more, we take all matching BxDFs into account.
-        if (!(sampled_flags & BxDF::Flags::Specular)) {
+        if (!(sampled_flags & BSDF_SPECULAR)) {
             // Basically the same as eval, but without calculating the local coordinates again
             // and without recalculating the value of the sampled BxDF.
 
             if (dot(in_dir, isect_.geom_normal) * dot(out_dir, isect_.geom_normal) <= 0.0f)
-                flags = flags & ~BxDF::Reflection; // in and out are on different sides: ignore reflection
+                flags = BxDFFlags(flags & ~BSDF_REFLECTION); // in and out are on different sides: ignore reflection
             else
-                flags = flags & ~BxDF::Transmission; // in and out are on the same side: ignore transmission
+                flags = BxDFFlags(flags & ~BSDF_TRANSMISSION); // in and out are on the same side: ignore transmission
 
             for (int i = 0; i < num_bxdfs_; ++i)
                 if (i != chosen_i && bxdfs_[i]->matches_flags(flags))
@@ -192,8 +179,8 @@ public:
     }
 
     /// Computes the pdf of sampling the given incoming direction, taking into account only BxDFs with the given flags.
-    float pdf(const float3& out_dir, const float3& in_dir, BxDF::Flags flags = BxDF::Flags::All) {
-        if (flags & BxDF::Flags::Specular)
+    float pdf(const float3& out_dir, const float3& in_dir, BxDFFlags flags = BSDF_ALL) const {
+        if (flags & BSDF_SPECULAR)
             return 0.0f;
 
         int num_matching_bxdf = count(flags);
@@ -205,7 +192,7 @@ public:
 
         float pdf = 0.0f;
         for (int i = 0; i < count(); ++i) {
-            if (i != chosen_i && bxdfs_[i].matches_flags(flags)) {
+            if (bxdfs_[i]->matches_flags(flags)) {
                 pdf += bxdfs_[i]->pdf(local_out, local_in);
             }
         }
@@ -214,20 +201,20 @@ public:
         return pdf;
     }
 
-    float3 world_to_local(const float3& dir) {
+    float3 world_to_local(const float3& dir) const {
         return float3(dot(binormal_, dir),
                       dot(tangent_, dir),
-                      dot(isect_, dir));
+                      dot(isect_.normal, dir));
     }
 
-    float3 local_to_world(const float3& dir) {
+    float3 local_to_world(const float3& dir) const {
         return float3(binormal_.x * dir.x + tangent_.x * dir.y + isect_.normal.x * dir.z,
                       binormal_.y * dir.x + tangent_.y * dir.y + isect_.normal.y * dir.z,
                       binormal_.z * dir.x + tangent_.z * dir.y + isect_.normal.z * dir.z);
     }
 
 private:
-    const Intersection& isect_;
+    Intersection isect_;
     float3 tangent_;
     float3 binormal_;
 
@@ -235,12 +222,6 @@ private:
     int num_bxdfs_;
     BxDF* bxdfs_[MAX_BXDFS];
 };
-
-/// Convenience function for BxDF and BSDF memory allocation. Increases readability of code.
-template<typename T>
-inline T* new_bxdf(MemoryArena& mem_arena) {
-    return mem_arena.alloc<T>()
-}
 
 }
 

@@ -47,7 +47,9 @@ struct CompareIndex {
     }
 };
 
-void convert_materials(const Path& path, const obj::File& obj_file, const obj::MaterialLib& mtl_lib, Scene& scene) {
+using MtlLightBuffer = std::unordered_map<int, float4>;
+
+void convert_materials(const Path& path, const obj::File& obj_file, const obj::MaterialLib& mtl_lib, Scene& scene, MtlLightBuffer& mtl_to_light_intensity) {
     MaskBuffer masks;
 
     std::unordered_map<std::string, int> tex_map;
@@ -77,7 +79,7 @@ void convert_materials(const Path& path, const obj::File& obj_file, const obj::M
     std::unordered_map<int, int> mask_map;
 
     // Add a dummy material, for objects that have no material
-    scene.materials.push_back(std::unique_ptr<LambertMaterial>(new LambertMaterial));
+    scene.materials.push_back(std::unique_ptr<DiffuseMaterial>(new DiffuseMaterial));
     masks.add_desc();
 
     for (int i = 1; i < obj_file.materials.size(); i++) {
@@ -87,7 +89,7 @@ void convert_materials(const Path& path, const obj::File& obj_file, const obj::M
         int mask_id = -1;
         if (it == mtl_lib.end()) {
             // Add a dummy material in this case
-            scene.materials.push_back(std::unique_ptr<LambertMaterial>(new LambertMaterial));
+            scene.materials.push_back(std::unique_ptr<DiffuseMaterial>(new DiffuseMaterial));
         } else {
             const obj::Material& mat = it->second;
 
@@ -101,27 +103,30 @@ void convert_materials(const Path& path, const obj::File& obj_file, const obj::M
                 map_ka = mat.map_ka;
             }
 
-            bool is_emissive = !mat.map_ke.empty() || (mat.ke.x > 0.0f && mat.ke.y > 0.0f && mat.ke.z > 0.0f);
+            // We do not support textured light sources yet.
+            bool is_emissive = /*!mat.map_ke.empty() || */(mat.ke.x > 0.0f && mat.ke.y > 0.0f && mat.ke.z > 0.0f);
 
-            if (mat.illum == 5)
-                scene.materials.push_back(std::unique_ptr<MirrorMaterial>(new MirrorMaterial(1.0f, mat.ns, mat.ks)));
-            else if (mat.illum == 7) ///* HACK !!! */ || mat.ni != 0)
-                scene.materials.push_back(std::unique_ptr<GlassMaterial>(new GlassMaterial(mat.ni, /* HACK !!! mat.kd*/ mat.tf, mat.ks)));
-            else if (is_emissive) {
-                scene.materials.push_back(std::unique_ptr<EmissiveMaterial>(new EmissiveMaterial(float4(mat.ke.x, mat.ke.y, mat.ke.z, 1.0f))));
-            } else {
+            if (is_emissive)
+                mtl_to_light_intensity.insert(std::make_pair(scene.materials.size(), float4(mat.ke, 1.0f)));
+
+            //if (mat.illum == 5)
+            //    scene.materials.push_back(std::unique_ptr<MirrorMaterial>(new MirrorMaterial(1.0f, mat.ns, mat.ks)));
+            //else if (mat.illum == 7) ///* HACK !!! */ || mat.ni != 0)
+             //   scene.materials.push_back(std::unique_ptr<GlassMaterial>(new GlassMaterial(mat.ni, /* HACK !!! mat.kd*/ mat.tf, mat.ks)));
+            //else
+            {
                 Material* mtl;
                 if (!mat.map_kd.empty()) {
                     const std::string img_file = path.base_name() + "/" + mat.map_kd;
 
                     int sampler_id = load_texture(img_file);
                     if (sampler_id < 0) {
-                        mtl = new LambertMaterial(float4(1.0f, 0.0f, 1.0f, 1.0f));
+                        mtl = new DiffuseMaterial(float4(1.0f, 0.0f, 1.0f, 1.0f));
                     } else {
-                        mtl = new LambertMaterial(scene.textures[sampler_id].get());
+                        mtl = new DiffuseMaterial(scene.textures[sampler_id].get());
                     }
                 } else {
-                    mtl = new LambertMaterial(float4(mat.kd.x, mat.kd.y, mat.kd.z, 1.0f));
+                    mtl = new DiffuseMaterial(float4(mat.kd.x, mat.kd.y, mat.kd.z, 1.0f));
                 }
 
                 scene.materials.push_back(std::unique_ptr<Material>(mtl));
@@ -154,7 +159,7 @@ void convert_materials(const Path& path, const obj::File& obj_file, const obj::M
     memcpy(scene.mask_buffer.begin(), masks.buffer(), masks.buffer_size());
 }
 
-void create_mesh(const obj::File& obj_file, Scene& scene) {
+void create_mesh(const obj::File& obj_file, Scene& scene, MtlLightBuffer& mtl_to_light_intensity) {
     // Add attributes for texture coordinates and normals
     scene.mesh.add_attribute(Mesh::ATTR_FLOAT2);
     scene.mesh.add_attribute(Mesh::ATTR_FLOAT3);
@@ -184,17 +189,18 @@ void create_mesh(const obj::File& obj_file, Scene& scene) {
                     const int next = mapping[face.indices[i + 1]];
                     triangles.emplace_back(v0, prev, next, face.material);
 
-                    auto mat = scene.materials[face.material].get();
-                    if (mat->kind == Material::emissive) {
+                    auto iter = mtl_to_light_intensity.find(face.material);
+                    if (iter != mtl_to_light_intensity.end()) {
+                        auto mat = scene.materials[face.material].get();
+
                         auto p0 = obj_file.vertices[face.indices[0].v];
                         auto p1 = obj_file.vertices[face.indices[i].v];
                         auto p2 = obj_file.vertices[face.indices[i+1].v];
 
                         // Create a light source for this emissive object.
-                        scene.lights.push_back(std::unique_ptr<TriangleLight>(new TriangleLight(static_cast<EmissiveMaterial*>(mat)->color(),
-                            float3(p0.x, p0.y, p0.z), float3(p1.x, p1.y, p1.z), float3(p2.x, p2.y, p2.z))));
+                        scene.lights.push_back(std::unique_ptr<TriangleLight>(new TriangleLight(iter->second, p0, p1, p2)));
 
-                        static_cast<EmissiveMaterial*>(mat)->set_light(scene.lights.back().get());
+                        mat->set_light(scene.lights.back().get());
                     }
 
                     prev = next;
@@ -370,12 +376,15 @@ bool build_scene(const Path& path, Scene& scene, float3& cam_pos, float3& cam_di
     }
     std::cout << std::endl;
 
+    // Store the light intensities read from the materials. Used to create the actual light sources once the geometry is known.
+    MtlLightBuffer mtl_to_light_intensity;
+
     std::cout << "[4/8] Converting materials..." << std::endl;
-    convert_materials(obj_path, obj_file, mtl_lib, scene);
+    convert_materials(obj_path, obj_file, mtl_lib, scene, mtl_to_light_intensity);
 
     // Create a scene from the OBJ file.
     std::cout << "[5/8] Creating scene..." << std::endl;
-    create_mesh(obj_file, scene);
+    create_mesh(obj_file, scene, mtl_to_light_intensity);
 
     // Check for invalid normals
     std::cout << "[6/8] Validating scene..." << std::endl;

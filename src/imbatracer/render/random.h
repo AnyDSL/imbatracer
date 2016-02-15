@@ -45,6 +45,21 @@ struct DirectionSample {
     DirectionSample(float3 dir, float pdf) : dir(dir), pdf(pdf) {}
 };
 
+/// Computes an orthogonal local coordinate system.
+inline void local_coordinates(const float3& normal, float3& tangent_out, float3& binormal_out) {
+    const int id0  = (fabsf(normal.x) > fabsf(normal.y)) ? 0 : 1;
+    const int id1  = (fabsf(normal.x) > fabsf(normal.y)) ? 1 : 0;
+    const float sig = (fabsf(normal.x) > fabsf(normal.y)) ? -1.f : 1.f;
+
+    const float inv_len = 1.f / (normal[id0] * normal[id0] + normal.z * normal.z);
+
+    tangent_out[id0] = normal.z * sig * inv_len;
+    tangent_out[id1] = 0.f;
+    tangent_out.z   = normal[id0] * -1.f * sig * inv_len;
+
+    binormal_out = cross(normal, tangent_out);
+}
+
 inline DirectionSample sample_cos_hemisphere(float u1, float u2) {
     const float3 local_dir(
         cosf(2.f * pi * u1) * sqrtf(1 - u2),

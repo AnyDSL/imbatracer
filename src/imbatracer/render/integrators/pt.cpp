@@ -7,16 +7,18 @@
 #include <cassert>
 #include <random>
 
+#include <omp.h>
+
 namespace imba {
 
 constexpr float offset = 0.0001f;
 
-inline void PathTracer::compute_direct_illum(const Intersection& isect, PTState& state, RayQueue<PTState>& ray_out_shadow) {
+inline void PathTracer::compute_direct_illum(const Intersection& isect, PTState& state, RayQueue<PTState>& ray_out_shadow, MemoryArena& bsdf_mem_arena) {
     RNG& rng = state.rng;
 
     // Generate the shadow ray (sample one point on one lightsource)
     const auto ls = scene_.lights[rng.random_int(0, scene_.lights.size())].get();
-    const float pdf = scene_.lights.size();
+    const float pdf_inv_lightpick = scene_.lights.size();
     const auto sample = ls->sample_direct(isect.pos, rng);
     assert_normalized(sample.dir);
 
@@ -31,12 +33,12 @@ inline void PathTracer::compute_direct_illum(const Intersection& isect, PTState&
     };
 
     // Compute the values stored in the ray state.
-    float pdf_dir, pdf_rev;
-    const float4 brdf = evaluate_material(isect.mat, isect, sample.dir, false, pdf_dir, pdf_rev);
+    auto bsdf = isect.mat->get_bsdf(isect, bsdf_mem_arena);
+    auto bsdf_value = bsdf->eval(isect.out_dir, sample.dir, BSDF_ALL);
 
     // Update the current state of this path.
     PTState s = state;
-    s.throughput *= brdf * sample.radiance * pdf;
+    s.throughput *= bsdf_value * dot(isect.normal, sample.dir) * sample.radiance * pdf_inv_lightpick;
 
     // Push the shadow ray into the queue.
     ray_out_shadow.push(ray, s);
@@ -50,6 +52,10 @@ void PathTracer::process_primary_rays(RayQueue<PTState>& ray_in, RayQueue<PTStat
 
     #pragma omp parallel for
     for (int i = 0; i < ray_count; ++i) {
+        // Create a thread_local memory arena that is used to store the BSDF objects
+        // of all intersections that one thread processes.
+        thread_local MemoryArena bsdf_mem_arena(3200000);
+
         if (hits[i].tri_id < 0)
             continue;
 
@@ -57,32 +63,22 @@ void PathTracer::process_primary_rays(RayQueue<PTState>& ray_in, RayQueue<PTStat
 
         auto isect = calculate_intersection(hits, rays, i);
 
-        if (isect.mat->kind == Material::emissive) {
-            // If an emissive object is hit after a specular bounce or as the first intersection along the path, add its contribution.
+        if (isect.mat->light()) {
+            // If a light source is hit after a specular bounce or as the first intersection along the path, add its contribution.
             // otherwise the light has to be ignored because it was already sampled as direct illumination.
-            if (states[i].bounces == 0) {
-                EmissiveMaterial* em = static_cast<EmissiveMaterial*>(isect.mat);
-                float4 color = em->color();
+            if (states[i].bounces == 0 || states[i].last_specular) {
+                auto light_source = isect.mat->light();
+                float pdf_direct_a, pdf_emit_w;
+                auto li = light_source->radiance(isect.out_dir, pdf_direct_a, pdf_emit_w);
 
-                // Add contribution to the pixel which this ray belongs to.
-                out.pixels()[states[i].pixel_id] += color;
-            } else if (states[i].last_specular) {
-                EmissiveMaterial* em = static_cast<EmissiveMaterial*>(isect.mat);
-
-                float cos_light = fabsf(dot(isect.normal, -1.0f * isect.out_dir));
-                if (cos_light < 1.0f) {  // Only add contribution from the side of the light that the normal is on.
-                    float4 color = states[i].throughput * em->color();
-
-                    // Add contribution to the pixel which this ray belongs to.
-                    out.pixels()[states[i].pixel_id] += color;
-                }
+                out.pixels()[states[i].pixel_id] += states[i].throughput * li;
             }
 
             // Do not continue the path after hitting a light source.
             continue;
         }
 
-        compute_direct_illum(isect, states[i], ray_out_shadow);
+        compute_direct_illum(isect, states[i], ray_out_shadow, bsdf_mem_arena);
 
         // Continue the path using russian roulette.
         const float4 srgb(0.2126f, 0.7152f, 0.0722f, 0.0f);
@@ -94,16 +90,18 @@ void PathTracer::process_primary_rays(RayQueue<PTState>& ray_in, RayQueue<PTStat
             // sample brdf
             float pdf;
             float3 sample_dir;
-            bool specular;
+            BxDFFlags sampled_flags;
+            auto bsdf = isect.mat->get_bsdf(isect, bsdf_mem_arena);
+            auto bsdf_value = bsdf->sample(isect.out_dir, sample_dir, rng.random_float(), rng.random_float(), rng.random_float(),
+                                           BSDF_ALL, sampled_flags, pdf);
 
-            const float4 brdf = sample_material(isect.mat, isect, rng, sample_dir, false, pdf, specular);
             const float cos_term = fabsf(dot(isect.normal, sample_dir));
 
             PTState s = states[i];
-            s.throughput *= brdf / rrprob;
+            s.throughput *= bsdf_value * cos_term / (pdf * rrprob);
 
             s.bounces++;
-            s.last_specular = specular;
+            s.last_specular = sampled_flags & BSDF_SPECULAR;
 
             Ray ray {
                 { isect.pos.x, isect.pos.y, isect.pos.z, offset },

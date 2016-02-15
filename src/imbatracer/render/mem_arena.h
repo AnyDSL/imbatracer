@@ -3,22 +3,24 @@
 
 #include <cstdint>
 #include <vector>
+#include <stdio.h>
 
 namespace imba {
+
+//#define DEBUG_MEM_ARENA
 
 /// Allocates large blocks of memory that can be used for "allocation" of many smaller chunks
 /// for example to allocate memory for BSDF objects.
 /// The blocks are kept in memory until the entire MemoryArena is destroyed.
 class MemoryArena {
 public:
-    MemoryArena(size_t block_size = 32768)
-        : block_size_(block_size), current_block_(0)
+    MemoryArena(size_t block_size = 32768000)
+        : block_size_(block_size), cur_block_(0)
     {
-        allocate_block();
-
 #ifdef DEBUG_MEM_ARENA
-        printf("Memory arena created.\n");
+        printf("Memory arena created. Block size %d \n", block_size);
 #endif
+        allocate_block();
     }
 
     ~MemoryArena() {
@@ -38,10 +40,10 @@ public:
     MemoryArena(MemoryArena&&) = delete;
 
     void allocate_block() {
-        blocks_.emplace_back(new char[block_size]);
+        blocks_.emplace_back(new char[block_size_]);
 
 #ifdef DEBUG_MEM_ARENA
-        printf("Memory arena allocated a new block of size %d.\n", block_size);
+        printf("Memory arena allocated a new block of size %d.\n", block_size_);
 #endif
     }
 
@@ -50,14 +52,18 @@ public:
     void free_all() {
         cur_block_ = 0;
         cur_block_offset_ = 0;
+
+#ifdef DEBUG_MEM_ARENA
+        printf("Memory arena freed all blocks.\n");
+#endif
     }
 
     /// Creates a new object of type T, using the memory blocks that were already allocated.
     /// Memory is only allocated if there is not enough room in the last block. In that case, an entire new block is allocated and added.
-    template <typename T>
-    T* alloc() {
+    template <typename T, typename... Args>
+    T* alloc(Args&&... args) {
         // Round up chunk size for alignment
-        size = sizeof(T);
+        size_t size = sizeof(T);
         size = (size + 0xf) & (~0xf); // 16 byte alignment
 
         if (cur_block_offset_ + size > block_size_) {
@@ -70,15 +76,15 @@ public:
             cur_block_ = blocks_.size() - 1;
         }
 
-        current_block_ += size;
+        cur_block_offset_ += size;
 
         T* res = reinterpret_cast<T*>(blocks_[cur_block_]);
-        new (res) T; // Use the placement operator new to call the constructor of T
+        new (res) T(std::forward<Args>(args)...); // Use the placement operator new to call the constructor of T
         return res;
     }
 
 private:
-    size_t block_size_;
+    const size_t block_size_;
     size_t cur_block_;
     size_t cur_block_offset_;
     std::vector<char *> blocks_;

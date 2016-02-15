@@ -2,8 +2,9 @@
 #define IMBA_LIGHT_H
 
 #include "../core/float3.h"
-#include "material.h"
+#include "random.h"
 #include <cfloat>
+#include <memory>
 
 namespace imba {
 
@@ -64,6 +65,7 @@ public:
         normal_ = cross(p1 - p0, p2 - p0);
         area_   = length(normal_) * 0.5f;
         normal_ = normalize(normal_);
+        local_coordinates(normal_, tangent_, binormal_);
     }
 
     inline float area() const { return area_; }
@@ -112,10 +114,11 @@ public:
         sample.pos = u * p0_ + v * p1_ + (1.0f - u - v) * p2_;
 
         // Sample an outgoing direction
-        DirectionSample dir_sample = sample_cos_hemisphere(normal_, rng.random_float(), rng.random_float());
-        float cos_out = dot(dir_sample.dir, normal_);
+        DirectionSample dir_sample = sample_cos_hemisphere(rng.random_float(), rng.random_float());
+        auto world_dir = local_to_world(dir_sample.dir);
+        float cos_out = dir_sample.dir.z;
 
-        sample.dir      = dir_sample.dir;
+        sample.dir      = world_dir;
         sample.radiance = intensity_ * area_ * pi; // The cosine cancels out with the pdf
 
         sample.cos_out      = cos_out;
@@ -136,14 +139,29 @@ public:
         }
 
         pdf_direct_a = 1.0f / area_;
-        pdf_emit_w   = 1.0f / area_ * cos_hemisphere_pdf(normal_, out_dir);
+        auto local_out_dir = world_to_local(out_dir);
+        pdf_emit_w   = 1.0f / area_ * cos_hemisphere_pdf(local_out_dir);
 
         return intensity_;
+    }
+
+    float3 world_to_local(const float3& dir) const {
+        return float3(dot(binormal_, dir),
+                      dot(tangent_, dir),
+                      dot(normal_, dir));
+    }
+
+    float3 local_to_world(const float3& dir) const {
+        return float3(binormal_.x * dir.x + tangent_.x * dir.y + normal_.x * dir.z,
+                      binormal_.y * dir.x + tangent_.y * dir.y + normal_.y * dir.z,
+                      binormal_.z * dir.x + tangent_.z * dir.y + normal_.z * dir.z);
     }
 
 private:
     float3 p0_, p1_, p2_;
     float3 normal_;
+    float3 tangent_;
+    float3 binormal_;
     float4 intensity_;
     float area_;
 };

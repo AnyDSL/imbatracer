@@ -92,13 +92,13 @@ int main(int argc, char* argv[]) {
     PerspectiveCamera cam(settings.width, settings.height, 60.0f);
     CameraControl ctrl(cam, cam_pos, cam_dir, cam_up);
 
-    if (settings.algorithm == UserSettings::BPT) {
+    /*if (settings.algorithm == UserSettings::BPT) {
         using IntegratorType = imba::BidirPathTracer;
         IntegratorType integrator(scene, cam, 1);
 
         RenderWindow wnd(settings, integrator, ctrl);
         wnd.render_loop();
-    } else if (settings.algorithm == UserSettings::PT) {
+    } else*/ if (settings.algorithm == UserSettings::PT) {
         using IntegratorType = PathTracer;
         IntegratorType integrator(scene, cam, 1);
 

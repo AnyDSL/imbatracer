@@ -1,7 +1,7 @@
 #ifndef IMBA_SCENE_H
 #define IMBA_SCENE_H
 
-#include "material.h"
+#include "materials/materials.h"
 #include "light.h"
 #include "thorin_mem.h"
 
