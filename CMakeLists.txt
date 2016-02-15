@@ -1,6 +1,6 @@
 project(IMBATRACER)
 
-cmake_minimum_required(VERSION 2.4)
+cmake_minimum_required(VERSION 3.0)
 
 include(CheckCXXCompilerFlag)
 CHECK_CXX_COMPILER_FLAG("-std=c++11" COMPILER_SUPPORTS_CXX11)
