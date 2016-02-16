@@ -57,6 +57,8 @@ inline void local_coordinates(const float3& normal, float3& tangent_out, float3&
     tangent_out[id1] = 0.f;
     tangent_out.z   = normal[id0] * -1.f * sig * inv_len;
 
+    tangent_out = normalize(tangent_out);
+
     binormal_out = cross(normal, tangent_out);
 }
 

@@ -76,9 +76,10 @@ public:
             cur_block_ = blocks_.size() - 1;
         }
 
+        size_t offset = cur_block_offset_;
         cur_block_offset_ += size;
 
-        T* res = reinterpret_cast<T*>(blocks_[cur_block_]);
+        T* res = reinterpret_cast<T*>(blocks_[cur_block_] + offset);
         new (res) T(std::forward<Args>(args)...); // Use the placement operator new to call the constructor of T
         return res;
     }

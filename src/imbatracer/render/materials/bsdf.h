@@ -7,6 +7,8 @@
 #include "../random.h"
 #include "../intersection.h"
 
+#include "fresnel.h"
+
 #include <cassert>
 
 namespace imba {
@@ -141,7 +143,7 @@ public:
 
         float4 value = chosen_bxdf->sample(local_out, local_in, rnd_num_1, rnd_num_2, pdf);
 
-        if (pdf == 0.0f)
+        if (pdf == 0.0f || is_black(value))
             return float4(0.0f);
 
         sampled_flags = chosen_bxdf->flags;
@@ -214,7 +216,8 @@ public:
     }
 
 private:
-    Intersection isect_;
+
+    const Intersection isect_;
     float3 tangent_;
     float3 binormal_;
 

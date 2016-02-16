@@ -41,7 +41,6 @@ public:
 
         auto bsdf = mem_arena.alloc<BSDF>(isect);
         auto brdf = mem_arena.alloc<Lambertian>(color);
-
         bsdf->add(brdf);
 
         return bsdf;
@@ -50,6 +49,48 @@ public:
 private:
     float4 color_;
     TextureSampler* sampler_;
+};
+
+/// Simple mirror with perfect specular reflection.
+class MirrorMaterial : public Material {
+public:
+    MirrorMaterial(float eta, float kappa, const float4& scale)
+        : fresnel_(eta, kappa), scale_(scale) {}
+
+    virtual BSDF* get_bsdf(const Intersection& isect, MemoryArena& mem_arena) const override {
+        auto bsdf = mem_arena.alloc<BSDF>(isect);
+        auto brdf = mem_arena.alloc<SpecularReflection>(scale_, fresnel_);
+        bsdf->add(brdf);
+        return bsdf;
+    }
+
+private:
+    FresnelConductor fresnel_;
+    float4 scale_;
+};
+
+/// Simple glass material
+class GlassMaterial : public Material {
+public:
+    GlassMaterial(float eta, const float4& transmittance, const float4& reflectance)
+        : eta_(eta), transmittance_(transmittance), reflectance_(reflectance), fresnel_(1.0f, eta) {}
+
+    virtual BSDF* get_bsdf(const Intersection& isect, MemoryArena& mem_arena) const override {
+        auto bsdf = mem_arena.alloc<BSDF>(isect);
+        auto brdf = mem_arena.alloc<SpecularReflection>(reflectance_, fresnel_);
+        auto btdf = mem_arena.alloc<SpecularTransmission>(eta_, 1.0f, transmittance_);
+
+        bsdf->add(brdf);
+        bsdf->add(btdf);
+
+        return bsdf;
+    }
+
+private:
+    float eta_;
+    float4 transmittance_;
+    float4 reflectance_;
+    FresnelDielectric fresnel_;
 };
 
 }

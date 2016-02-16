@@ -109,12 +109,11 @@ void convert_materials(const Path& path, const obj::File& obj_file, const obj::M
             if (is_emissive)
                 mtl_to_light_intensity.insert(std::make_pair(scene.materials.size(), float4(mat.ke, 1.0f)));
 
-            //if (mat.illum == 5)
-            //    scene.materials.push_back(std::unique_ptr<MirrorMaterial>(new MirrorMaterial(1.0f, mat.ns, mat.ks)));
-            //else if (mat.illum == 7) ///* HACK !!! */ || mat.ni != 0)
-             //   scene.materials.push_back(std::unique_ptr<GlassMaterial>(new GlassMaterial(mat.ni, /* HACK !!! mat.kd*/ mat.tf, mat.ks)));
-            //else
-            {
+            if (mat.illum == 5)
+                scene.materials.push_back(std::unique_ptr<MirrorMaterial>(new MirrorMaterial(1.0f, mat.ns, float4(mat.ks, 1.0f))));
+            else if (mat.illum == 7) ///* HACK !!! */ || mat.ni != 0)
+                scene.materials.push_back(std::unique_ptr<GlassMaterial>(new GlassMaterial(mat.ni, /* HACK !!! mat.kd*/ float4(mat.tf, 1.0f), float4(mat.ks, 1.0f))));
+            else {
                 Material* mtl;
                 if (!mat.map_kd.empty()) {
                     const std::string img_file = path.base_name() + "/" + mat.map_kd;

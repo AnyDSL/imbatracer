@@ -55,13 +55,14 @@ void PathTracer::process_primary_rays(RayQueue<PTState>& ray_in, RayQueue<PTStat
         // Create a thread_local memory arena that is used to store the BSDF objects
         // of all intersections that one thread processes.
         thread_local MemoryArena bsdf_mem_arena(3200000);
+        bsdf_mem_arena.free_all();
 
         if (hits[i].tri_id < 0)
             continue;
 
         RNG& rng = states[i].rng;
 
-        auto isect = calculate_intersection(hits, rays, i);
+        const auto isect = calculate_intersection(hits, rays, i);
 
         if (isect.mat->light()) {
             // If a light source is hit after a specular bounce or as the first intersection along the path, add its contribution.
@@ -91,9 +92,13 @@ void PathTracer::process_primary_rays(RayQueue<PTState>& ray_in, RayQueue<PTStat
             float pdf;
             float3 sample_dir;
             BxDFFlags sampled_flags;
+
             auto bsdf = isect.mat->get_bsdf(isect, bsdf_mem_arena);
             auto bsdf_value = bsdf->sample(isect.out_dir, sample_dir, rng.random_float(), rng.random_float(), rng.random_float(),
                                            BSDF_ALL, sampled_flags, pdf);
+
+            if (is_black(bsdf_value) || pdf == 0.0f)
+                continue;
 
             const float cos_term = fabsf(dot(isect.normal, sample_dir));
 
@@ -127,6 +132,9 @@ void PathTracer::process_shadow_rays(RayQueue<PTState>& ray_in, Image& out) {
             float4 color = states[i].throughput;
             // Add contribution to the pixel which this ray belongs to.
             out.pixels()[states[i].pixel_id] += color;
+
+            if (isnan(color.x))
+                printf("nan\n");
         }
     }
 }
