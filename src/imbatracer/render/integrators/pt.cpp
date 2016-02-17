@@ -74,7 +74,7 @@ void PathTracer::process_primary_rays(RayQueue<PTState>& ray_in, RayQueue<PTStat
 
         // Continue the path using russian roulette.
         const float4 srgb(0.2126f, 0.7152f, 0.0722f, 0.0f);
-        const float kill_prob = dot(states[i].throughput, srgb) * 100.0f;
+        const float kill_prob = dot(states[i].throughput, srgb) * 10.0f;
         const float rrprob = std::min(1.0f, kill_prob);
         const float u_rr = rng.random_float();
         const int max_recursion = 32; // prevent havoc
@@ -122,9 +122,6 @@ void PathTracer::process_shadow_rays(RayQueue<PTState>& ray_in, Image& out) {
             float4 color = states[i].throughput;
             // Add contribution to the pixel which this ray belongs to.
             out.pixels()[states[i].pixel_id] += color;
-
-            if (isnan(color.x))
-                printf("nan\n");
         }
     }
 }

@@ -106,7 +106,8 @@ public:
         // Some care has to be taken when using shading normals to prevent light leaks and dark spots.
         // We follow the approach from PBRT and use the geometric normal to decide whether to evaluate
         // the BRDF (reflection) or the BTDF (transmission.)
-        if (dot(in_dir, isect_.geom_normal) * dot(out_dir, isect_.geom_normal) <= 0.0f)
+        if (dot(in_dir, isect_.geom_normal) * dot(out_dir, isect_.geom_normal) <= 0.0f ||
+            dot(in_dir, isect_.normal)      * dot(out_dir, isect_.normal)      <= 0.0f)
             flags = BxDFFlags(flags & ~BSDF_REFLECTION); // in and out are on different sides: ignore reflection
         else
             flags = BxDFFlags(flags & ~BSDF_TRANSMISSION); // in and out are on the same side: ignore transmission
