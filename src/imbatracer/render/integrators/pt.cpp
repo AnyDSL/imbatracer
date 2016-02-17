@@ -13,7 +13,7 @@ namespace imba {
 
 constexpr float offset = 0.0001f;
 
-inline void PathTracer::compute_direct_illum(const Intersection& isect, PTState& state, RayQueue<PTState>& ray_out_shadow, MemoryArena& bsdf_mem_arena) {
+inline void PathTracer::compute_direct_illum(const Intersection& isect, PTState& state, RayQueue<PTState>& ray_out_shadow, BSDF* bsdf) {
     RNG& rng = state.rng;
 
     // Generate the shadow ray (sample one point on one lightsource)
@@ -22,23 +22,16 @@ inline void PathTracer::compute_direct_illum(const Intersection& isect, PTState&
     const auto sample = ls->sample_direct(isect.pos, rng);
     assert_normalized(sample.dir);
 
-    // Ensure that the incoming and outgoing directions are on the same side of the surface.
-    if (dot(isect.geom_normal, sample.dir) *
-        dot(isect.geom_normal, isect.out_dir) <= 0.0f)
-        return;
-
     Ray ray {
         { isect.pos.x, isect.pos.y, isect.pos.z, offset },
         { sample.dir.x, sample.dir.y, sample.dir.z, sample.distance - offset }
     };
 
-    // Compute the values stored in the ray state.
-    auto bsdf = isect.mat->get_bsdf(isect, bsdf_mem_arena);
     auto bsdf_value = bsdf->eval(isect.out_dir, sample.dir, BSDF_ALL);
 
     // Update the current state of this path.
     PTState s = state;
-    s.throughput *= bsdf_value * dot(isect.normal, sample.dir) * sample.radiance * pdf_inv_lightpick;
+    s.throughput *= bsdf_value * fabsf(dot(isect.normal, sample.dir)) * sample.radiance * pdf_inv_lightpick;
 
     // Push the shadow ray into the queue.
     ray_out_shadow.push(ray, s);
@@ -52,13 +45,13 @@ void PathTracer::process_primary_rays(RayQueue<PTState>& ray_in, RayQueue<PTStat
 
     #pragma omp parallel for
     for (int i = 0; i < ray_count; ++i) {
+        if (hits[i].tri_id < 0)
+            continue;
+
         // Create a thread_local memory arena that is used to store the BSDF objects
         // of all intersections that one thread processes.
         thread_local MemoryArena bsdf_mem_arena(3200000);
         bsdf_mem_arena.free_all();
-
-        if (hits[i].tri_id < 0)
-            continue;
 
         RNG& rng = states[i].rng;
 
@@ -76,7 +69,8 @@ void PathTracer::process_primary_rays(RayQueue<PTState>& ray_in, RayQueue<PTStat
             }
         }
 
-        compute_direct_illum(isect, states[i], ray_out_shadow, bsdf_mem_arena);
+        auto bsdf = isect.mat->get_bsdf(isect, bsdf_mem_arena);
+        compute_direct_illum(isect, states[i], ray_out_shadow, bsdf);
 
         // Continue the path using russian roulette.
         const float4 srgb(0.2126f, 0.7152f, 0.0722f, 0.0f);
@@ -90,11 +84,10 @@ void PathTracer::process_primary_rays(RayQueue<PTState>& ray_in, RayQueue<PTStat
             float3 sample_dir;
             BxDFFlags sampled_flags;
 
-            auto bsdf = isect.mat->get_bsdf(isect, bsdf_mem_arena);
             auto bsdf_value = bsdf->sample(isect.out_dir, sample_dir, rng.random_float(), rng.random_float(), rng.random_float(),
                                            BSDF_ALL, sampled_flags, pdf);
 
-            if (is_black(bsdf_value) || pdf == 0.0f)
+            if (pdf == 0.0f)
                 continue;
 
             const float cos_term = fabsf(dot(isect.normal, sample_dir));
