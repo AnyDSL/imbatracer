@@ -158,9 +158,10 @@ public:
                     pdf += bxdfs_[i]->pdf(local_out, local_in);
                 }
             }
-
-            pdf /= num_matching_bxdf;
         }
+
+        if (num_matching_bxdf > 1)
+            pdf /= num_matching_bxdf;
 
         // Compute the BxDF value unless it was represented by a delta distribution.
         // Once more, we take all matching BxDFs into account.

@@ -41,7 +41,7 @@ public:
         pdf = 1.0f;
         float fr = fresnel_.eval(cos_theta(out_dir));
 
-        return sqr(eta_trans) / sqr(eta_in) * (1.0f - fr) * scale_ / fabsf(cos_theta(in_dir));  // TODO we need to consider adjoint here.
+        return /*sqr(eta_trans) / sqr(eta_in) **/ (1.0f - fr) * scale_ / fabsf(cos_theta(in_dir));  // TODO we need to consider adjoint here.
     }
 
     virtual float pdf(const float3& out_dir, const float3& in_dir) const {
