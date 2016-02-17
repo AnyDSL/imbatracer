@@ -74,9 +74,6 @@ void PathTracer::process_primary_rays(RayQueue<PTState>& ray_in, RayQueue<PTStat
 
                 out.pixels()[states[i].pixel_id] += states[i].throughput * li;
             }
-
-            // Do not continue the path after hitting a light source.
-            continue;
         }
 
         compute_direct_illum(isect, states[i], ray_out_shadow, bsdf_mem_arena);

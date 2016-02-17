@@ -27,9 +27,9 @@ add_library(imba_render
             render/camera.h
             render/integrators/integrator.h
             render/integrators/pt.cpp
-            #render/integrators/bpt.cpp
+            render/integrators/bpt.cpp
             render/integrators/pt.h
-            #render/integrators/bpt.h
+            render/integrators/bpt.h
             #render/integrators/vcm.cpp
             render/ray_queue.h
             render/random.h

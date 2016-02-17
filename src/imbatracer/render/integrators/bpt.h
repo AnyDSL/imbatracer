@@ -164,9 +164,9 @@ private:
     void trace_light_paths();
     void trace_camera_paths(Image& img);
 
-    void connect_to_camera(const BPTState& light_state, const Intersection& isect, RayQueue<BPTState>& rays_out_shadow);
-    void direct_illum(BPTState& cam_state, const Intersection& isect, RayQueue<BPTState>& rays_out_shadow);
-    void connect(BPTState& cam_state, const Intersection& isect, RayQueue<BPTState>& rays_out_shadow);
+    void connect_to_camera(const BPTState& light_state, const Intersection& isect, BSDF* bsdf, RayQueue<BPTState>& rays_out_shadow);
+    void direct_illum(BPTState& cam_state, const Intersection& isect, BSDF* bsdf, RayQueue<BPTState>& rays_out_shadow);
+    void connect(BPTState& cam_state, const Intersection& isect, BSDF* bsdf, MemoryArena& bsdf_arena, RayQueue<BPTState>& rays_out_shadow);
 };
 
 } // namespace imba

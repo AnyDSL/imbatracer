@@ -182,24 +182,19 @@ public:
 
     /// Computes the pdf of sampling the given incoming direction, taking into account only BxDFs with the given flags.
     float pdf(const float3& out_dir, const float3& in_dir, BxDFFlags flags = BSDF_ALL) const {
-        if (flags & BSDF_SPECULAR)
-            return 0.0f;
-
-        int num_matching_bxdf = count(flags);
-        if (num_matching_bxdf <= 0)
-            return 0.0f;
-
         float3 local_out = world_to_local(out_dir);
         float3 local_in = world_to_local(in_dir);
 
         float pdf = 0.0f;
+        int num_matching_bxdf = 0;
         for (int i = 0; i < count(); ++i) {
             if (bxdfs_[i]->matches_flags(flags)) {
                 pdf += bxdfs_[i]->pdf(local_out, local_in);
+                ++num_matching_bxdf;
             }
         }
 
-        pdf /= num_matching_bxdf;
+        pdf = num_matching_bxdf > 0 ? pdf / num_matching_bxdf : 0.0f;
         return pdf;
     }
 
