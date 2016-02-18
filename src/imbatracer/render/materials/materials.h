@@ -93,6 +93,38 @@ private:
     FresnelDielectric fresnel_;
 };
 
+class PhongMaterial : public Material {
+public:
+    PhongMaterial(float exponent, const float4& specular_color, const float4& diffuse_color)
+        : exponent_(exponent), specular_color_(specular_color), diffuse_color_(diffuse_color), diff_sampler_(nullptr)
+    {}
+
+    PhongMaterial(float exponent, const float4& specular_color, TextureSampler* diff_sampler)
+        : exponent_(exponent), specular_color_(specular_color), diffuse_color_(0.0f), diff_sampler_(diff_sampler)
+    {}
+
+    virtual BSDF* get_bsdf(const Intersection& isect, MemoryArena& mem_arena) const override {
+        float4 diff_color = diffuse_color_;
+        if (diff_sampler_)
+            diff_color = diff_sampler_->sample(isect.uv);
+
+        auto bsdf = mem_arena.alloc<BSDF>(isect);
+        auto spec_brdf = mem_arena.alloc<Phong>(specular_color_, exponent_);
+        auto diff_brdf = mem_arena.alloc<Lambertian>(diff_color);
+
+        bsdf->add(spec_brdf);
+        bsdf->add(diff_brdf);
+
+        return bsdf;
+    }
+
+private:
+    float exponent_;
+    float4 specular_color_;
+    float4 diffuse_color_;
+    TextureSampler* diff_sampler_;
+};
+
 }
 
 #endif

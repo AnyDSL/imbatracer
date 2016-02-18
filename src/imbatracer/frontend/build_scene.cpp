@@ -104,7 +104,9 @@ void convert_materials(const Path& path, const obj::File& obj_file, const obj::M
             }
 
             // We do not support textured light sources yet.
-            bool is_emissive = /*!mat.map_ke.empty() || */(mat.ke.x > 0.0f && mat.ke.y > 0.0f && mat.ke.z > 0.0f);
+            bool is_emissive = /*!mat.map_ke.empty() || */(mat.ke.x > 0.0f || mat.ke.y > 0.0f || mat.ke.z > 0.0f);
+
+            bool is_phong = /*!mat.map_ks.empty() ||*/(mat.ks.x > 0.0f || mat.ks.y > 0.0f || mat.ks.z > 0.0f);
 
             if (is_emissive)
                 mtl_to_light_intensity.insert(std::make_pair(scene.materials.size(), float4(mat.ke, 1.0f)));
@@ -113,7 +115,23 @@ void convert_materials(const Path& path, const obj::File& obj_file, const obj::M
                 scene.materials.push_back(std::unique_ptr<MirrorMaterial>(new MirrorMaterial(1.0f, mat.ns, float4(mat.ks, 1.0f))));
             else if (mat.illum == 7) ///* HACK !!! */ || mat.ni != 0)
                 scene.materials.push_back(std::unique_ptr<GlassMaterial>(new GlassMaterial(mat.ni, /* HACK !!! mat.kd*/ float4(mat.tf, 1.0f), float4(mat.ks, 1.0f))));
-            else {
+            else if (is_phong){
+                Material* mtl;
+                if (!mat.map_kd.empty()) {
+                    const std::string img_file = path.base_name() + "/" + mat.map_kd;
+
+                    int sampler_id = load_texture(img_file);
+                    if (sampler_id < 0) {
+                        mtl = new PhongMaterial(mat.ns, float4(mat.ks, 1.0f), float4(1.0f, 0.0f, 1.0f, 1.0f));
+                    } else {
+                        mtl = new PhongMaterial(mat.ns, float4(mat.ks, 1.0f), scene.textures[sampler_id].get());
+                    }
+                } else {
+                    mtl = new PhongMaterial(mat.ns, float4(mat.ks, 1.0f), float4(mat.kd, 1.0f));
+                }
+
+                scene.materials.push_back(std::unique_ptr<Material>(mtl));
+            } else {
                 Material* mtl;
                 if (!mat.map_kd.empty()) {
                     const std::string img_file = path.base_name() + "/" + mat.map_kd;
@@ -125,7 +143,7 @@ void convert_materials(const Path& path, const obj::File& obj_file, const obj::M
                         mtl = new DiffuseMaterial(scene.textures[sampler_id].get());
                     }
                 } else {
-                    mtl = new DiffuseMaterial(float4(mat.kd.x, mat.kd.y, mat.kd.z, 1.0f));
+                    mtl = new DiffuseMaterial(float4(mat.kd, 1.0f));
                 }
 
                 scene.materials.push_back(std::unique_ptr<Material>(mtl));

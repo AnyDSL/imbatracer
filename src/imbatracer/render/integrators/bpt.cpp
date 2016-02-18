@@ -145,6 +145,9 @@ void BidirPathTracer::process_light_rays(RayQueue<BPTState>& rays_in, RayQueue<B
             auto bsdf_value = bsdf->sample(isect.out_dir, sample_dir, rng.random_float(), rng.random_float(), rng.random_float(),
                                            BSDF_ALL, sampled_flags, pdf_dir_w);
 
+            if (sampled_flags == 0)
+                continue;
+
             bool is_specular = sampled_flags & BSDF_SPECULAR;
 
             float pdf_rev_w = bsdf->pdf(sample_dir, isect.out_dir);
@@ -297,6 +300,9 @@ void BidirPathTracer::process_camera_rays(RayQueue<BPTState>& rays_in, RayQueue<
 
             bool is_specular = sampled_flags & BSDF_SPECULAR;
             float cos_theta_i = fabsf(dot(sample_dir, isect.normal));
+
+            if (sampled_flags == 0)
+                continue;
 
             float pdf_rev_w = pdf_dir_w;
             if (!is_specular) // cannot evaluate reverse pdf of specular surfaces (but is the same as forward due to symmetry)

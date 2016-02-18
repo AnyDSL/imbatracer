@@ -87,7 +87,7 @@ void PathTracer::process_primary_rays(RayQueue<PTState>& ray_in, RayQueue<PTStat
             auto bsdf_value = bsdf->sample(isect.out_dir, sample_dir, rng.random_float(), rng.random_float(), rng.random_float(),
                                            BSDF_ALL, sampled_flags, pdf);
 
-            if (pdf == 0.0f)
+            if (pdf <= 0.0001f)
                 continue;
 
             const float cos_term = fabsf(dot(isect.normal, sample_dir));
@@ -122,6 +122,9 @@ void PathTracer::process_shadow_rays(RayQueue<PTState>& ray_in, Image& out) {
             float4 color = states[i].throughput;
             // Add contribution to the pixel which this ray belongs to.
             out.pixels()[states[i].pixel_id] += color;
+
+            if (isnan(color.x))
+                printf("NaN\n");
         }
     }
 }

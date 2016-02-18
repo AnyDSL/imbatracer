@@ -75,6 +75,24 @@ inline float cos_hemisphere_pdf(const float3& dir) {
     return std::max(0.0f, dir.z) * 1.0f / pi;
 }
 
+inline DirectionSample sample_power_cos_hemisphere(float power, float u1, float u2) {
+    const float phi = pi * 2.0f * u1;
+    const float cos_t = powf(u2, 1.0f / (power + 1.0f));
+    const float sin_t = sqrtf(1.0f - sqr(cos_t)); // cos_t cannot be >= 1
+
+    const float3 local_dir(
+        cosf(phi) * sin_t,
+        sinf(phi) * sin_t,
+        cos_t
+        );
+
+    return DirectionSample(local_dir, (power + 1.0f) * powf(cos_t, power) * 1.0f / (2.0f * pi));
+}
+
+inline float power_cos_hemisphere_pdf(float power, const float3& dir) {
+    return dir.z > 0.0f ? ((power + 1.0f) * powf(dir.z, power) * 1.0f / (2.0f * pi)) : 0.0f;
+}
+
 inline DirectionSample sample_uniform_hemisphere(float u1, float u2) {
     const float phi = 2.f * pi * u1;
 

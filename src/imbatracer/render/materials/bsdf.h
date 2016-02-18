@@ -29,6 +29,10 @@ enum BxDFFlags {
     BSDF_ALL = BSDF_REFLECTION | BSDF_TRANSMISSION | BSDF_ALLTYPES
 };
 
+inline bool same_hemisphere(const float3& out_dir, const float3& in_dir) {
+    return out_dir.z * in_dir.z > 0.0f;
+}
+
 /// Base class for all BRDF and BTDF classes.
 /// Defines the common interface that all of them support.
 /// All direction vectors are in shading space, which means the normal is aligned with the z-axis.
@@ -48,17 +52,21 @@ public:
         in_dir = ds.dir;
         pdf = ds.pdf;
 
+        // If the out direction is on the other side (according to the normal)
+        // we need to flip the sampled direction as well.
+        if (out_dir.z < 0.0f) in_dir.z = -in_dir.z;
+
         return eval(out_dir, in_dir);
     }
 
     virtual float pdf(const float3& out_dir, const float3& in_dir) const {
-        return cos_hemisphere_pdf(in_dir);
+        return same_hemisphere(out_dir, in_dir) ? cos_hemisphere_pdf(in_dir) : 0.0f;
     }
 };
 
-
 // Functions that compute angles in the shading coordinate system.
 inline float cos_theta(const float3& dir) { return dir.z; }
+inline float abs_cos_theta(const float3& dir) { return fabsf(dir.z); }
 inline float sin_theta_sqr(const float3& dir) { return std::max(0.0f, 1.0f - sqr(cos_theta(dir))); }
 inline float sin_theta(const float3& dir) { return sqrtf(sin_theta_sqr(dir)); }
 
@@ -144,8 +152,10 @@ public:
 
         float4 value = chosen_bxdf->sample(local_out, local_in, rnd_num_1, rnd_num_2, pdf);
 
-        if (pdf == 0.0f || is_black(value))
+        if (pdf == 0.0f) {
+            sampled_flags = BxDFFlags(0);
             return float4(0.0f);
+        }
 
         sampled_flags = chosen_bxdf->flags;
         in_dir = local_to_world(local_in);
@@ -169,7 +179,8 @@ public:
             // Basically the same as eval, but without calculating the local coordinates again
             // and without recalculating the value of the sampled BxDF.
 
-            if (dot(in_dir, isect_.geom_normal) * dot(out_dir, isect_.geom_normal) <= 0.0f)
+            if (dot(in_dir, isect_.geom_normal) * dot(out_dir, isect_.geom_normal) <= 0.0f ||
+                dot(in_dir, isect_.normal)      * dot(out_dir, isect_.normal)      <= 0.0f)
                 flags = BxDFFlags(flags & ~BSDF_REFLECTION); // in and out are on different sides: ignore reflection
             else
                 flags = BxDFFlags(flags & ~BSDF_TRANSMISSION); // in and out are on the same side: ignore transmission
@@ -213,8 +224,7 @@ public:
     }
 
 private:
-
-    const Intersection isect_;
+    const Intersection& isect_;
     float3 tangent_;
     float3 binormal_;
 
