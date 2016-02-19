@@ -122,12 +122,12 @@ void convert_materials(const Path& path, const obj::File& obj_file, const obj::M
 
                     int sampler_id = load_texture(img_file);
                     if (sampler_id < 0) {
-                        mtl = new PhongMaterial(mat.ns, float4(mat.ks, 1.0f), float4(1.0f, 0.0f, 1.0f, 1.0f));
+                        mtl = new GlossyMaterial(mat.ns, float4(mat.ks, 1.0f), float4(1.0f, 0.0f, 1.0f, 1.0f));
                     } else {
-                        mtl = new PhongMaterial(mat.ns, float4(mat.ks, 1.0f), scene.textures[sampler_id].get());
+                        mtl = new GlossyMaterial(mat.ns, float4(mat.ks, 1.0f), scene.textures[sampler_id].get());
                     }
                 } else {
-                    mtl = new PhongMaterial(mat.ns, float4(mat.ks, 1.0f), float4(mat.kd, 1.0f));
+                    mtl = new GlossyMaterial(mat.ns, float4(mat.ks, 1.0f), float4(mat.kd, 1.0f));
                 }
 
                 scene.materials.push_back(std::unique_ptr<Material>(mtl));

@@ -93,13 +93,13 @@ private:
     FresnelDielectric fresnel_;
 };
 
-class PhongMaterial : public Material {
+class GlossyMaterial : public Material {
 public:
-    PhongMaterial(float exponent, const float4& specular_color, const float4& diffuse_color)
+    GlossyMaterial(float exponent, const float4& specular_color, const float4& diffuse_color)
         : exponent_(exponent), specular_color_(specular_color), diffuse_color_(diffuse_color), diff_sampler_(nullptr)
     {}
 
-    PhongMaterial(float exponent, const float4& specular_color, TextureSampler* diff_sampler)
+    GlossyMaterial(float exponent, const float4& specular_color, TextureSampler* diff_sampler)
         : exponent_(exponent), specular_color_(specular_color), diffuse_color_(0.0f), diff_sampler_(diff_sampler)
     {}
 
@@ -109,7 +109,6 @@ public:
             diff_color = diff_sampler_->sample(isect.uv);
 
         auto bsdf = mem_arena.alloc<BSDF>(isect);
-        //auto spec_brdf = mem_arena.alloc<Phong>(specular_color_, exponent_);
 
         auto fresnel = mem_arena.alloc<FresnelConductor>(1.0f, exponent_);
         auto spec_brdf = mem_arena.alloc<CookTorrance>(specular_color_, fresnel, exponent_);
