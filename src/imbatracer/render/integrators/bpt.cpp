@@ -166,7 +166,10 @@ void BidirPathTracer::process_light_rays(RayQueue<BPTState>& rays_in, RayQueue<B
                 s.dVCM = 1.0f / (pdf_dir_w * rrprob);
             }
 
-            s.throughput *= bsdf_value * cos_theta_i / (rrprob * pdf_dir_w);
+            float adjoint_cos_term = fabsf(dot(isect.out_dir, isect.normal)) * fabsf(dot(sample_dir, isect.geom_normal)) /
+                                     fabsf(dot(isect.out_dir, isect.geom_normal));
+
+            s.throughput *= bsdf_value * adjoint_cos_term / (rrprob * pdf_dir_w);
             s.path_length++;
             s.continue_prob = rrprob;
 
@@ -200,7 +203,10 @@ void BidirPathTracer::connect_to_camera(const BPTState& light_state, const Inter
     float dist_to_cam = sqrt(dist_to_cam_sqr);
     dir_to_cam = dir_to_cam / dist_to_cam;
 
-    const float cos_theta_o = fabsf(dot(isect.normal, dir_to_cam));
+    float cos_theta_o = fabsf(dot(isect.normal, dir_to_cam));
+
+    cos_theta_o = fabsf(dot(isect.out_dir, isect.normal)) * fabsf(dot(dir_to_cam, isect.geom_normal)) /
+                  fabsf(dot(isect.out_dir, isect.geom_normal));
 
     // Evaluate the material and compute the pdf values.
     auto bsdf_value = bsdf->eval(isect.out_dir, dir_to_cam, BSDF_ALL);
@@ -404,7 +410,10 @@ void BidirPathTracer::connect(BPTState& cam_state, const Intersection& isect, BS
         const float pdf_cam_a = pdf_cam_f * cos_theta_light / connect_dist_sq;
         const float pdf_light_a = pdf_light_f * cos_theta_cam / connect_dist_sq;
 
-        float geom_term = cos_theta_cam * cos_theta_light / connect_dist_sq;
+        float cos_theta_light_adjoint = fabsf(dot(light_vertex.isect.out_dir, light_vertex.isect.normal)) * fabsf(dot(-connect_dir, light_vertex.isect.geom_normal)) /
+                                        fabsf(dot(light_vertex.isect.out_dir, light_vertex.isect.geom_normal));
+
+        float geom_term = cos_theta_cam * cos_theta_light_adjoint / connect_dist_sq;
         geom_term = std::max(0.0f, geom_term);
 
         // Compute the full MIS weight from the partial weights and pdfs.
