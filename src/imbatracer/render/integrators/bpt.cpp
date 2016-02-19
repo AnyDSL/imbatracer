@@ -11,11 +11,19 @@ namespace imba {
 
 static const float offset = 0.00001f;
 
+//#define BPT_PATHTRACING_ONLY
+//#define BPT_LIGHTTRACING_ONLY
+
 void BidirPathTracer::render(Image& img) {
     reset_buffers();
 
+#ifndef BPT_PATHTRACING_ONLY
     trace_light_paths();
+#endif
+
+#ifndef BPT_LIGHTTRACING_ONLY
     trace_camera_paths(img);
+#endif
 
     // Merge light and camera images.
     for (int i = 0; i < width_ * height_; ++i)
@@ -23,12 +31,9 @@ void BidirPathTracer::render(Image& img) {
 }
 
 void BidirPathTracer::reset_buffers() {
-    for (auto& p : light_paths_) {
-        for (auto& s : p) {
-            s.reserve(MAX_LIGHT_PATH_LEN);
-            s.clear();
-        }
-    }
+#ifndef BPT_LIGHTTRACING_ONLY
+    light_paths_.reset();
+#endif
 
     for (int i = 0; i < width_ * height_; ++i)
         light_image_.pixels()[i] = float4(0.0f);
@@ -90,6 +95,64 @@ void BidirPathTracer::trace_camera_paths(Image& img) {
     }
 }
 
+void bounce(BPTState& state, const Intersection& isect, BSDF* bsdf, RayQueue<BPTState>& rays_out, bool adjoint, int max_length) {
+    if (state.path_length >= max_length)
+        return;
+
+    RNG& rng = state.rng;
+
+    float rr_pdf;
+    if (!russian_roulette(state.throughput, rng.random_float(), rr_pdf))
+        return;
+
+    float pdf_dir_w;
+    float3 sample_dir;
+    BxDFFlags sampled_flags;
+    auto bsdf_value = bsdf->sample(isect.out_dir, sample_dir, rng.random_float(), rng.random_float(), rng.random_float(),
+                                   BSDF_ALL, sampled_flags, pdf_dir_w);
+
+    if (sampled_flags == 0)
+        return;
+
+    bool is_specular = sampled_flags & BSDF_SPECULAR;
+
+    float pdf_rev_w = pdf_dir_w;
+    if (!is_specular) // cannot evaluate reverse pdf of specular surfaces (but is the same as forward due to symmetry)
+        pdf_rev_w = bsdf->pdf(sample_dir, isect.out_dir);
+
+    float cos_theta_i = fabsf(dot(sample_dir, isect.normal));
+
+    BPTState s = state;
+    if (is_specular) {
+        s.dVCM = 0.0f;
+        s.dVC *= cos_theta_i;
+    } else {
+        s.dVC = cos_theta_i / (pdf_dir_w * rr_pdf) *
+                (s.dVC * pdf_rev_w * rr_pdf + s.dVCM);
+
+        s.dVCM = 1.0f / (pdf_dir_w * rr_pdf);
+    }
+
+    float adjoint_cos_term;
+
+    if (adjoint)
+        adjoint_cos_term = fabsf(dot(isect.out_dir, isect.normal)) * fabsf(dot(sample_dir, isect.geom_normal)) /
+                           fabsf(dot(isect.out_dir, isect.geom_normal));
+    else
+        adjoint_cos_term = fabsf(dot(sample_dir, isect.normal));
+
+    s.throughput *= bsdf_value * adjoint_cos_term / (rr_pdf * pdf_dir_w);
+    s.path_length++;
+    s.continue_prob = rr_pdf;
+
+    Ray ray {
+        { isect.pos.x, isect.pos.y, isect.pos.z, offset },
+        { sample_dir.x, sample_dir.y, sample_dir.z, FLT_MAX }
+    };
+
+    rays_out.push(ray, s);
+}
+
 void BidirPathTracer::process_light_rays(RayQueue<BPTState>& rays_in, RayQueue<BPTState>& rays_out, RayQueue<BPTState>& ray_out_shadow) {
     int ray_count = rays_in.size();
     BPTState* states = rays_in.states();
@@ -103,7 +166,7 @@ void BidirPathTracer::process_light_rays(RayQueue<BPTState>& rays_in, RayQueue<B
 
         // Create a thread_local memory arena that is used to store the BSDF objects
         // of all intersections that one thread processes.
-        thread_local MemoryArena bsdf_mem_arena(3200000);
+        thread_local MemoryArena bsdf_mem_arena(512);
         bsdf_mem_arena.free_all();
 
         RNG& rng = states[i].rng;
@@ -120,66 +183,21 @@ void BidirPathTracer::process_light_rays(RayQueue<BPTState>& rays_in, RayQueue<B
 
         auto bsdf = isect.mat->get_bsdf(isect, bsdf_mem_arena);
 
-        auto& light_path = light_paths_[states[i].pixel_id][states[i].sample_id];
         if (bsdf->count(BSDF_SPECULAR) != bsdf->count()) { // Do not store vertices on materials described by a delta distribution.
-            light_path.emplace_back(
-                isect,
-                states[i].throughput,
-                states[i].continue_prob,
-                states[i].dVC,
-                states[i].dVCM
-            );
+
+#ifndef BPT_LIGHTTRACING_ONLY
+            light_paths_.append(states[i].pixel_id,
+                                isect,
+                                states[i].throughput,
+                                states[i].continue_prob,
+                                states[i].dVC,
+                                states[i].dVCM);
+#endif
 
             connect_to_camera(states[i], isect, bsdf, ray_out_shadow);
         }
 
-        // Decide wether or not to continue this path using russian roulette and a fixed maximum length.
-        const float4 srgb(0.2126f, 0.7152f, 0.0722f, 0.0f);
-        const float kill_prob = dot(states[i].throughput, srgb) * 10.0f;
-        const float rrprob = std::min(1.0f, kill_prob);
-        const float u_rr = rng.random_float();
-        if (u_rr < rrprob && states[i].path_length < MAX_LIGHT_PATH_LEN){
-            float pdf_dir_w;
-            float3 sample_dir;
-            BxDFFlags sampled_flags;
-            auto bsdf_value = bsdf->sample(isect.out_dir, sample_dir, rng.random_float(), rng.random_float(), rng.random_float(),
-                                           BSDF_ALL, sampled_flags, pdf_dir_w);
-
-            if (sampled_flags == 0)
-                continue;
-
-            bool is_specular = sampled_flags & BSDF_SPECULAR;
-
-            float pdf_rev_w = bsdf->pdf(sample_dir, isect.out_dir);
-            float cos_theta_i = fabsf(dot(sample_dir, isect.normal));
-
-            float3 offset_pos = isect.pos;// + isect.normal * offset;
-
-            BPTState s = states[i];
-            if (is_specular) {
-                s.dVCM = 0.0f;
-                s.dVC *= cos_theta_i;
-            } else {
-                s.dVC = cos_theta_i / (pdf_dir_w * rrprob) *
-                        (s.dVC * pdf_rev_w * rrprob + s.dVCM);
-
-                s.dVCM = 1.0f / (pdf_dir_w * rrprob);
-            }
-
-            float adjoint_cos_term = fabsf(dot(isect.out_dir, isect.normal)) * fabsf(dot(sample_dir, isect.geom_normal)) /
-                                     fabsf(dot(isect.out_dir, isect.geom_normal));
-
-            s.throughput *= bsdf_value * adjoint_cos_term / (rrprob * pdf_dir_w);
-            s.path_length++;
-            s.continue_prob = rrprob;
-
-            Ray ray {
-                { offset_pos.x, offset_pos.y, offset_pos.z, offset },
-                { sample_dir.x, sample_dir.y, sample_dir.z, FLT_MAX }
-            };
-
-            rays_out.push(ray, s);
-        }
+        bounce(states[i], isect, bsdf, rays_out, true, MAX_LIGHT_PATH_LEN);
     }
 }
 
@@ -225,7 +243,12 @@ void BidirPathTracer::connect_to_camera(const BPTState& light_state, const Inter
     // Compute the MIS weight.
     const float pdf_cam = img_to_surf; // Pixel sampling pdf is one as pixel area is one by convention.
     const float mis_weight_light = pdf_cam / light_path_count_ * (light_state.dVCM + light_state.dVC * pdf_rev);
+
+#ifdef BPT_LIGHTTRACING_ONLY
+    const float mis_weight = 1.0f;
+#else
     const float mis_weight = 1.0f / (mis_weight_light + 1.0f);
+#endif
 
     // Contribution is divided by the number of samples (light_path_count_) and the factor that converts the (divided) pdf from surface area to image plane area.
     state.throughput *= mis_weight * bsdf_value * img_to_surf / light_path_count_;
@@ -278,7 +301,9 @@ void BidirPathTracer::process_camera_rays(RayQueue<BPTState>& rays_in, RayQueue<
 
             if (states[i].path_length > 1) {
                 float4 color = states[i].throughput * radiance * 1.0f / (mis_weight_camera + 1.0f);
+#ifndef BPT_PATHTRACING_ONLY
                 img.pixels()[states[i].pixel_id] += color;
+#endif
             } else
                 img.pixels()[states[i].pixel_id] += radiance; // Light directly visible, no weighting required.
         }
@@ -288,54 +313,14 @@ void BidirPathTracer::process_camera_rays(RayQueue<BPTState>& rays_in, RayQueue<
         // Compute direct illumination.
         direct_illum(states[i], isect, bsdf, ray_out_shadow);
 
+#ifndef BPT_PATHTRACING_ONLY
         // Connect to light path vertices.
         connect(states[i], isect, bsdf, bsdf_mem_arena, ray_out_shadow);
+#endif
 
         // Continue the path using russian roulette.
-        const float4 srgb(0.2126f, 0.7152f, 0.0722f, 0.0f);
-        const float kill_prob = dot(states[i].throughput, srgb) * 10.0f;
-        const float rrprob = std::min(1.0f, kill_prob);
-        const float u_rr = rng.random_float();
-        const int max_recursion = 32; // prevent havoc
-        if (u_rr < rrprob && states[i].path_length < max_recursion) {
-            float pdf_dir_w;
-            float3 sample_dir;
-            BxDFFlags sampled_flags;
-            auto bsdf_value = bsdf->sample(isect.out_dir, sample_dir, rng.random_float(), rng.random_float(), rng.random_float(),
-                                           BSDF_ALL, sampled_flags, pdf_dir_w);
-
-            bool is_specular = sampled_flags & BSDF_SPECULAR;
-            float cos_theta_i = fabsf(dot(sample_dir, isect.normal));
-
-            if (sampled_flags == 0)
-                continue;
-
-            float pdf_rev_w = pdf_dir_w;
-            if (!is_specular) // cannot evaluate reverse pdf of specular surfaces (but is the same as forward due to symmetry)
-                pdf_rev_w = bsdf->pdf(sample_dir, isect.out_dir);
-
-            BPTState s = states[i];
-            if (is_specular) {
-                s.dVCM = 0.0f;
-                s.dVC *= cos_theta_i;
-            } else {
-                s.dVC = cos_theta_i / (pdf_dir_w * rrprob) *
-                        (s.dVC * pdf_rev_w * rrprob + s.dVCM);
-
-                s.dVCM = 1.0f / (pdf_dir_w * rrprob);
-            }
-
-            s.throughput *= bsdf_value * cos_theta_i / (rrprob * pdf_dir_w);
-            s.path_length++;
-            s.continue_prob = rrprob;
-
-            Ray ray {
-                { isect.pos.x, isect.pos.y, isect.pos.z, offset },
-                { sample_dir.x, sample_dir.y, sample_dir.z, FLT_MAX }
-            };
-
-            rays_out.push(ray, s);
-        }
+        const int max_recursion = 32;
+        bounce(states[i], isect, bsdf, rays_out, false, max_recursion);
     }
 }
 
@@ -369,7 +354,11 @@ void BidirPathTracer::direct_illum(BPTState& cam_state, const Intersection& isec
     const float mis_weight_camera = sample.pdf_emit_w * cos_theta_i / (sample.pdf_direct_w * cos_theta_o) *
                                     (cam_state.dVCM + cam_state.dVC * pdf_reverse);
 
+#ifndef BPT_PATHTRACING_ONLY
     const float mis_weight = 1.0f / (mis_weight_camera + 1.0f + mis_weight_light);
+#else
+    const float mis_weight = 1.0f;
+#endif
 
     BPTState s = cam_state;
     s.throughput *= mis_weight * bsdf_value * cos_theta_i * sample.radiance * inv_pdf_lightpick;
@@ -378,8 +367,10 @@ void BidirPathTracer::direct_illum(BPTState& cam_state, const Intersection& isec
 }
 
 void BidirPathTracer::connect(BPTState& cam_state, const Intersection& isect, BSDF* bsdf_cam, MemoryArena& bsdf_arena, RayQueue<BPTState>& rays_out_shadow) {
-    auto& light_path = light_paths_[cam_state.pixel_id][cam_state.sample_id];
-    for (auto& light_vertex : light_path) {
+    auto& light_path = light_paths_.get_path(cam_state.pixel_id);
+    const int path_len = light_paths_.get_path_len(cam_state.pixel_id);
+    for (int i = 0; i < path_len; ++i) {
+        auto& light_vertex = light_path[i];
         auto light_bsdf = light_vertex.isect.mat->get_bsdf(light_vertex.isect, bsdf_arena);
 
         // Compute connection direction and distance.

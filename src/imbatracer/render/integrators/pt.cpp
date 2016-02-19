@@ -38,6 +38,10 @@ inline void PathTracer::compute_direct_illum(const Intersection& isect, PTState&
 inline void PathTracer::bounce(const Intersection& isect, PTState& state, RayQueue<PTState>& ray_out, BSDF* bsdf) {
     RNG& rng = state.rng;
 
+    const int max_recursion = 32; // prevent havoc
+    if (state.bounces >= max_recursion)
+        return;
+
     float rr_pdf;
     if (!russian_roulette(state.throughput, rng.random_float(), rr_pdf))
         return;
@@ -79,7 +83,7 @@ void PathTracer::process_primary_rays(RayQueue<PTState>& ray_in, RayQueue<PTStat
 
         // Create a thread_local memory arena that is used to store the BSDF objects
         // of all intersections that one thread processes.
-        thread_local MemoryArena bsdf_mem_arena(3200000);
+        thread_local MemoryArena bsdf_mem_arena(512);
         bsdf_mem_arena.free_all();
 
         RNG& rng = states[i].rng;
@@ -100,10 +104,6 @@ void PathTracer::process_primary_rays(RayQueue<PTState>& ray_in, RayQueue<PTStat
 
         auto bsdf = isect.mat->get_bsdf(isect, bsdf_mem_arena);
         compute_direct_illum(isect, states[i], ray_out_shadow, bsdf);
-
-        const int max_recursion = 32; // prevent havoc
-        if (states[i].bounces >= max_recursion)
-            continue;
 
         bounce(isect, states[i], ray_out, bsdf);
     }

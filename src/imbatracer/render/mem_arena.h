@@ -14,7 +14,7 @@ namespace imba {
 /// The blocks are kept in memory until the entire MemoryArena is destroyed.
 class MemoryArena {
 public:
-    MemoryArena(size_t block_size = 32768000)
+    MemoryArena(size_t block_size = 512)
         : block_size_(block_size), cur_block_(0)
     {
 #ifdef DEBUG_MEM_ARENA
@@ -52,10 +52,6 @@ public:
     void free_all() {
         cur_block_ = 0;
         cur_block_offset_ = 0;
-
-#ifdef DEBUG_MEM_ARENA
-        printf("Memory arena freed all blocks.\n");
-#endif
     }
 
     /// Creates a new object of type T, using the memory blocks that were already allocated.

@@ -96,6 +96,71 @@ private:
     const float light_path_count_;
 };
 
+struct LightPathVertex {
+    Intersection isect;
+    float4 throughput;
+
+    float continue_prob;
+
+    // partial weights for MIS, see VCM technical report
+    float dVC;
+    float dVCM;
+
+    LightPathVertex(Intersection isect, float4 tp, float continue_prob, float dVC, float dVCM)
+        : isect(isect), throughput(tp), continue_prob(continue_prob), dVC(dVC), dVCM(dVCM)
+    {}
+
+    LightPathVertex() {}
+};
+
+using LightPath = std::vector<LightPathVertex>;
+
+class LightPathContainer {
+public:
+    LightPathContainer(int max_len, int max_path_count)
+        : max_len_(max_len), max_path_count_(max_path_count),
+          light_paths_(max_path_count), light_path_lengths_(max_path_count)
+    {
+        for (auto& v : light_paths_) {
+            v.resize(max_len);
+        }
+    }
+
+    ~LightPathContainer() {}
+
+    LightPathContainer(const LightPathContainer&) = delete;
+    LightPathContainer& operator= (const LightPathContainer&) = delete;
+    LightPathContainer(LightPathContainer&&) = delete;
+    LightPathContainer& operator= (LightPathContainer&&) = delete;
+
+    void reset() {
+        std::fill(light_path_lengths_.begin(), light_path_lengths_.end(), 0);
+    }
+
+    int get_path_len(int pixel_index) const {
+        return light_path_lengths_[pixel_index];
+    }
+
+    const LightPath& get_path(int pixel_index) const {
+        return light_paths_[pixel_index];
+    }
+
+    template<typename... Args>
+    void append(int pixel_index, Args&&... args) {
+        light_paths_[pixel_index][get_path_len(pixel_index)] = LightPathVertex(std::forward<Args>(args)...);
+        ++light_path_lengths_[pixel_index];
+
+        assert(get_path_len(pixel_index) <= max_len_);
+    }
+
+private:
+    int max_len_;
+    int max_path_count_;
+
+    std::vector<LightPath> light_paths_;
+    std::vector<int> light_path_lengths_;
+};
+
 // bidirectional path tracing
 class BidirPathTracer : public Integrator {
     static constexpr int TARGET_RAY_COUNT = 64 * 1000;
@@ -111,14 +176,9 @@ public:
           primary_rays_{ RayQueue<BPTState>(TARGET_RAY_COUNT), RayQueue<BPTState>(TARGET_RAY_COUNT)},
           shadow_rays_(TARGET_RAY_COUNT * (MAX_LIGHT_PATH_LEN + 1)),
           light_image_(width_, height_),
-          light_path_count_(width_ * height_)
+          light_path_count_(width_ * height_),
+          light_paths_(MAX_LIGHT_PATH_LEN, width_ * height_)
     {
-        light_paths_.resize(width_ * height_);
-        for (auto& p : light_paths_) {
-            p.resize(n_samples_);
-            for (auto& s : p) s.reserve(MAX_LIGHT_PATH_LEN);
-        }
-
         camera_sampler_.set_target(TARGET_RAY_COUNT);
         light_sampler_.set_target(TARGET_RAY_COUNT);
     }
@@ -133,21 +193,7 @@ private:
     BPTLightRayGen light_sampler_;
     BPTCameraRayGen camera_sampler_;
 
-    struct LightPathVertex {
-        Intersection isect;
-        float4 throughput;
-
-        float continue_prob;
-
-        // partial weights for MIS, see VCM technical report
-        float dVC;
-        float dVCM;
-
-        LightPathVertex(Intersection isect, float4 tp, float continue_prob, float dVC, float dVCM)
-            : isect(isect), throughput(tp), continue_prob(continue_prob), dVC(dVC), dVCM(dVCM)
-        {}
-    };
-    std::vector<std::vector<std::vector<LightPathVertex>>> light_paths_;
+    LightPathContainer light_paths_;
 
     void reset_buffers();
 
