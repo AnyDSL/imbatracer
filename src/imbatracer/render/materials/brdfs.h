@@ -138,6 +138,86 @@ private:
     float param_b_;
 };
 
+/// Cook Torrance microfacet BRDF with Blinn distribution.
+class CookTorrance : public BxDF {
+public:
+    CookTorrance(const float4& reflectance, Fresnel* fresnel, float exponent)
+        : BxDF(BxDFFlags(BSDF_GLOSSY | BSDF_REFLECTION)),
+          reflectance_(reflectance),
+          fresnel_(fresnel),
+          exponent_(exponent)
+    {}
+
+    virtual float4 eval(const float3& out_dir, const float3& in_dir) const override {
+        if (abs_cos_theta(out_dir) == 0.0f || abs_cos_theta(in_dir) == 0.0f)
+            return float4(0.0f);
+
+        auto half_dir = normalize(in_dir + out_dir);
+        float cos_half = dot(in_dir, half_dir);
+
+        auto fr = fresnel_->eval(cos_half);
+
+        return (reflectance_ * blinn_distribution(half_dir) * geom_attenuation(out_dir, in_dir, half_dir) * fr)
+                /
+               (4.0f * abs_cos_theta(in_dir) * abs_cos_theta(out_dir));
+    }
+
+    virtual float4 sample(const float3& out_dir, float3& in_dir, float rnd_num_1, float rnd_num_2, float& pdf) const override {
+        sample_blinn_distribution(out_dir, in_dir, rnd_num_1, rnd_num_2, pdf);
+        return same_hemisphere(out_dir, in_dir) ? eval(out_dir, in_dir) : float4(0.0f);
+    }
+
+    virtual float pdf(const float3& out_dir, const float3& in_dir) const override {
+        return same_hemisphere(out_dir, in_dir) ? blinn_distribution_pdf(out_dir, in_dir) : 0.0f;
+    }
+
+private:
+    Fresnel* fresnel_;
+    float4 reflectance_;
+    float exponent_;
+
+    float geom_attenuation(const float3& out_dir, const float3& in_dir, const float3 half_dir) const {
+        auto out_dot_half = dot(out_dir, half_dir);
+        return std::min(1.0f, std::min(
+            2.0f * abs_cos_theta(half_dir) * abs_cos_theta(out_dir) / out_dot_half,
+            2.0f * abs_cos_theta(half_dir) * abs_cos_theta(in_dir)  / out_dot_half));
+    }
+
+    float blinn_distribution(const float3& half_dir) const {
+        return (exponent_ + 2.0f) / (2.0f * pi) * powf(abs_cos_theta(half_dir), exponent_);
+    }
+
+    void sample_blinn_distribution(const float3& out_dir, float3& in_dir, float rnd_num_1, float rnd_num_2, float& pdf) const {
+        // Compute the direction.
+        float c_theta = powf(rnd_num_1, 1.0f / (exponent_ + 1.0f));
+        float s_theta = sqrtf(std::max(0.0f, 1.0f - sqr(c_theta)));
+        float phi = rnd_num_2 * 2.0f * pi;
+        auto half_dir = spherical_dir(s_theta, c_theta, phi);
+
+        // Flip if outgoing direction is on the opposite side of the face.
+        if (!same_hemisphere(out_dir, half_dir)) half_dir = -half_dir;
+
+        // Reflect outgoing direction about the half vector to obtain the incoming direction.
+        in_dir = -out_dir + 2.0f * dot(out_dir, half_dir) * half_dir;
+
+        if (dot(out_dir, half_dir) <= 0.0f)
+            pdf = 0.0f;
+        else {
+            pdf = (exponent_ + 1.0f) * powf(c_theta, exponent_) / (2.0f * pi * 4.0f * dot(out_dir, half_dir));
+        }
+    }
+
+    float blinn_distribution_pdf(const float3& out_dir, const float3& in_dir) const {
+        auto half_dir = normalize(in_dir + out_dir);
+
+        if (dot(out_dir, half_dir) <= 0.0f)
+            return 0.0f;
+        else {
+            return (exponent_ + 1.0f) * powf(abs_cos_theta(half_dir), exponent_) / (2.0f * pi * 4.0f * dot(out_dir, half_dir));
+        }
+    }
+};
+
 }
 
 #endif

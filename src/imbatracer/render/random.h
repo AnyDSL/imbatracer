@@ -62,12 +62,14 @@ inline void local_coordinates(const float3& normal, float3& tangent_out, float3&
     binormal_out = cross(normal, tangent_out);
 }
 
-inline DirectionSample sample_cos_hemisphere(float u1, float u2) {
-    const float3 local_dir(
-        cosf(2.f * pi * u1) * sqrtf(1 - u2),
-        sinf(2.f * pi * u1) * sqrtf(1 - u2),
-        sqrtf(u2));
+inline float3 spherical_dir(float sintheta, float costheta, float phi) {
+    return float3(sintheta * cosf(phi),
+                  sintheta * sinf(phi),
+                  costheta);
+}
 
+inline DirectionSample sample_cos_hemisphere(float u1, float u2) {
+    const float3 local_dir = spherical_dir(sqrtf(1 - u2), sqrtf(u2), 2.f * pi * u1);
     return DirectionSample(local_dir, local_dir.z * 1.0f / pi);
 }
 
@@ -80,11 +82,7 @@ inline DirectionSample sample_power_cos_hemisphere(float power, float u1, float 
     const float cos_t = powf(u2, 1.0f / (power + 1.0f));
     const float sin_t = sqrtf(1.0f - sqr(cos_t)); // cos_t cannot be >= 1
 
-    const float3 local_dir(
-        cosf(phi) * sin_t,
-        sinf(phi) * sin_t,
-        cos_t
-        );
+    const float3 local_dir = spherical_dir(sin_t, cos_t, phi);
 
     return DirectionSample(local_dir, (power + 1.0f) * powf(cos_t, power) * 1.0f / (2.0f * pi));
 }

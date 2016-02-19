@@ -109,7 +109,11 @@ public:
             diff_color = diff_sampler_->sample(isect.uv);
 
         auto bsdf = mem_arena.alloc<BSDF>(isect);
-        auto spec_brdf = mem_arena.alloc<Phong>(specular_color_, exponent_);
+        //auto spec_brdf = mem_arena.alloc<Phong>(specular_color_, exponent_);
+
+        auto fresnel = mem_arena.alloc<FresnelConductor>(1.0f, exponent_);
+        auto spec_brdf = mem_arena.alloc<CookTorrance>(specular_color_, fresnel, exponent_);
+
         auto diff_brdf = mem_arena.alloc<Lambertian>(diff_color);
 
         bsdf->add(spec_brdf);
