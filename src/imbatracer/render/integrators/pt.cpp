@@ -7,8 +7,6 @@
 #include <cassert>
 #include <random>
 
-#include <omp.h>
-
 namespace imba {
 
 constexpr float offset = 0.0001f;
@@ -35,6 +33,37 @@ inline void PathTracer::compute_direct_illum(const Intersection& isect, PTState&
 
     // Push the shadow ray into the queue.
     ray_out_shadow.push(ray, s);
+}
+
+inline void PathTracer::bounce(const Intersection& isect, PTState& state, RayQueue<PTState>& ray_out, BSDF* bsdf) {
+    RNG& rng = state.rng;
+
+    float rr_pdf;
+    if (!russian_roulette(state.throughput, rng.random_float(), rr_pdf))
+        return;
+
+    float pdf;
+    float3 sample_dir;
+    BxDFFlags sampled_flags;
+    auto bsdf_value = bsdf->sample(isect.out_dir, sample_dir, rng.random_float(), rng.random_float(), rng.random_float(),
+                                   BSDF_ALL, sampled_flags, pdf);
+
+    if (pdf <= 0.0001f)
+        return;
+
+    const float cos_term = fabsf(dot(isect.normal, sample_dir));
+
+    PTState s = state;
+    s.throughput *= bsdf_value * cos_term / (pdf * rr_pdf);
+    s.bounces++;
+    s.last_specular = sampled_flags & BSDF_SPECULAR;
+
+    Ray ray {
+        { isect.pos.x, isect.pos.y, isect.pos.z, offset },
+        { sample_dir.x, sample_dir.y, sample_dir.z, FLT_MAX }
+    };
+
+    ray_out.push(ray, s);
 }
 
 void PathTracer::process_primary_rays(RayQueue<PTState>& ray_in, RayQueue<PTState>& ray_out, RayQueue<PTState>& ray_out_shadow, Image& out) {
@@ -72,39 +101,11 @@ void PathTracer::process_primary_rays(RayQueue<PTState>& ray_in, RayQueue<PTStat
         auto bsdf = isect.mat->get_bsdf(isect, bsdf_mem_arena);
         compute_direct_illum(isect, states[i], ray_out_shadow, bsdf);
 
-        // Continue the path using russian roulette.
-        const float4 srgb(0.2126f, 0.7152f, 0.0722f, 0.0f);
-        const float kill_prob = dot(states[i].throughput, srgb) * 10.0f;
-        const float rrprob = std::min(1.0f, kill_prob);
-        const float u_rr = rng.random_float();
         const int max_recursion = 32; // prevent havoc
-        if (u_rr < rrprob && states[i].bounces < max_recursion) {
-            // sample brdf
-            float pdf;
-            float3 sample_dir;
-            BxDFFlags sampled_flags;
+        if (states[i].bounces >= max_recursion)
+            continue;
 
-            auto bsdf_value = bsdf->sample(isect.out_dir, sample_dir, rng.random_float(), rng.random_float(), rng.random_float(),
-                                           BSDF_ALL, sampled_flags, pdf);
-
-            if (pdf <= 0.0001f)
-                continue;
-
-            const float cos_term = fabsf(dot(isect.normal, sample_dir));
-
-            PTState s = states[i];
-            s.throughput *= bsdf_value * cos_term / (pdf * rrprob);
-
-            s.bounces++;
-            s.last_specular = sampled_flags & BSDF_SPECULAR;
-
-            Ray ray {
-                { isect.pos.x, isect.pos.y, isect.pos.z, offset },
-                { sample_dir.x, sample_dir.y, sample_dir.z, FLT_MAX }
-            };
-
-            ray_out.push(ray, s);
-        }
+        bounce(isect, states[i], ray_out, bsdf);
     }
 }
 
@@ -122,9 +123,6 @@ void PathTracer::process_shadow_rays(RayQueue<PTState>& ray_in, Image& out) {
             float4 color = states[i].throughput;
             // Add contribution to the pixel which this ray belongs to.
             out.pixels()[states[i].pixel_id] += color;
-
-            if (isnan(color.x))
-                printf("NaN\n");
         }
     }
 }

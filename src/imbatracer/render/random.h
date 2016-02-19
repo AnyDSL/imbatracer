@@ -47,17 +47,15 @@ struct DirectionSample {
 
 /// Computes an orthogonal local coordinate system.
 inline void local_coordinates(const float3& normal, float3& tangent_out, float3& binormal_out) {
-    const int id0  = (fabsf(normal.x) > fabsf(normal.y)) ? 0 : 1;
-    const int id1  = (fabsf(normal.x) > fabsf(normal.y)) ? 1 : 0;
+    const int   id0 = (fabsf(normal.x) > fabsf(normal.y)) ?    0 : 1;
+    const int   id1 = (fabsf(normal.x) > fabsf(normal.y)) ?    1 : 0;
     const float sig = (fabsf(normal.x) > fabsf(normal.y)) ? -1.f : 1.f;
 
-    const float inv_len = 1.f / (normal[id0] * normal[id0] + normal.z * normal.z);
+    const float inv_len = 1.f / sqrtf(sqr(normal[id0]) + sqr(normal.z));
 
     tangent_out[id0] = normal.z * sig * inv_len;
     tangent_out[id1] = 0.f;
     tangent_out.z   = normal[id0] * -1.f * sig * inv_len;
-
-    tangent_out = normalize(tangent_out);
 
     binormal_out = cross(normal, tangent_out);
 }
@@ -94,10 +92,7 @@ inline float power_cos_hemisphere_pdf(float power, const float3& dir) {
 inline DirectionSample sample_uniform_hemisphere(float u1, float u2) {
     const float phi = 2.f * pi * u1;
 
-    const float3 local_dir(
-        cosf(phi) * sqrtf(1.0f - u2 * u2),
-        sinf(phi) * sqrtf(1.0f - u2 * u2),
-        u2);
+    const float3 local_dir = spherical_dir(sqrtf(1.0f - u2 * u2), u2, phi);
 
     return DirectionSample(local_dir, 1.0f / (2.0f * pi));
 }
@@ -116,11 +111,9 @@ inline DirectionSample sample_uniform_sphere(float u1, float u2) {
     const float a = 2.0f * pi * u1;
     const float b = 2.0f * sqrtf(u2 - sqr(u2));
 
-    const float3 dir(cosf(a) * b,
-        sinf(a) * b,
-        1.0f - 2.0f * u2);
+    const float3 local_dir = spherical_dir(b, 1.0f - 2.0f * u2, a);
 
-    return DirectionSample(dir, 1.0f / (4.0f * pi));
+    return DirectionSample(local_dir, 1.0f / (4.0f * pi));
 }
 
 inline float uniform_sphere_pdf() {
@@ -162,6 +155,14 @@ inline float2 sample_concentric_disc(float u1, float u2) {
 
 inline float concentric_disc_pdf() {
     return 1.0f / pi;
+}
+
+inline bool russian_roulette(const float4& throughput, float rnd_num, float& pdf) {
+    const float4 srgb(0.2126f, 0.7152f, 0.0722f, 0.0f);
+    const float kill_prob = dot(throughput, srgb) * 2.0f;
+    pdf = std::min(1.0f, kill_prob);
+
+    return rnd_num < pdf;
 }
 
 }
