@@ -201,7 +201,7 @@ private:
         in_dir = -out_dir + 2.0f * dot(out_dir, half_dir) * half_dir;
 
         if (dot(out_dir, half_dir) <= 0.0f)
-            pdf = 0.0f;
+            pdf = 1.0f; // Correct pdf would be zero. Because the value is zero in this case as well, that would generate a NaN, so we use one instead.
         else {
             pdf = (exponent_ + 1.0f) * powf(c_theta, exponent_) / (2.0f * pi * 4.0f * dot(out_dir, half_dir));
         }
