@@ -130,12 +130,12 @@ void bounce(BPTState& state, const Intersection& isect, BSDF* bsdf, RayQueue<BPT
     BPTState s = state;
     if (is_specular) {
         s.dVCM = 0.0f;
-        s.dVC *= mis_heuristic(cos_theta_i);
+        s.dVC *= mis_heuristic_bpt(cos_theta_i);
     } else {
-        s.dVC = mis_heuristic(cos_theta_i / (pdf_dir_w * rr_pdf)) *
-                (s.dVC * mis_heuristic(pdf_rev_w * rr_pdf) + s.dVCM);
+        s.dVC = mis_heuristic_bpt(cos_theta_i / (pdf_dir_w * rr_pdf)) *
+                (s.dVC * mis_heuristic_bpt(pdf_rev_w * rr_pdf) + s.dVCM);
 
-        s.dVCM = mis_heuristic(1.0f / (pdf_dir_w * rr_pdf));
+        s.dVCM = mis_heuristic_bpt(1.0f / (pdf_dir_w * rr_pdf));
     }
 
     float adjoint_cos_term;
@@ -180,10 +180,10 @@ void BidirPathTracer::process_light_rays(RayQueue<BPTState>& rays_in, RayQueue<B
 
         // Complete calculation of the partial weights.
         if (states[i].path_length > 1 || states[i].is_finite)
-            states[i].dVCM *= mis_heuristic(sqr(isect.distance));
+            states[i].dVCM *= mis_heuristic_bpt(sqr(isect.distance));
 
-        states[i].dVCM *= 1.0f / mis_heuristic(cos_theta_i);
-        states[i].dVC  *= 1.0f / mis_heuristic(cos_theta_i);
+        states[i].dVCM *= 1.0f / mis_heuristic_bpt(cos_theta_i);
+        states[i].dVC  *= 1.0f / mis_heuristic_bpt(cos_theta_i);
 
         auto bsdf = isect.mat->get_bsdf(isect, bsdf_mem_arena);
 
@@ -243,7 +243,7 @@ void BidirPathTracer::connect_to_camera(const BPTState& light_state, const Inter
 
     // Compute the MIS weight.
     const float pdf_cam = img_to_surf; // Pixel sampling pdf is one as pixel area is one by convention.
-    const float mis_weight_light = mis_heuristic(pdf_cam / light_path_count_) * (light_state.dVCM + light_state.dVC * mis_heuristic(pdf_rev));
+    const float mis_weight_light = mis_heuristic_bpt(pdf_cam / light_path_count_) * (light_state.dVCM + light_state.dVC * mis_heuristic_bpt(pdf_rev));
 
 #ifdef BPT_LIGHTTRACING_ONLY
     const float mis_weight = 1.0f;
@@ -285,8 +285,8 @@ void BidirPathTracer::process_camera_rays(RayQueue<BPTState>& rays_in, RayQueue<
         float cos_theta_o = fabsf(dot(isect.out_dir, isect.normal));
 
         // Complete computation of partial MIS weights.
-        states[i].dVCM *= mis_heuristic(sqr(isect.distance)) / mis_heuristic(cos_theta_o); // convert divided pdf from solid angle to area
-        states[i].dVC *= 1.0f / mis_heuristic(cos_theta_o);
+        states[i].dVCM *= mis_heuristic_bpt(sqr(isect.distance)) / mis_heuristic_bpt(cos_theta_o); // convert divided pdf from solid angle to area
+        states[i].dVC *= 1.0f / mis_heuristic_bpt(cos_theta_o);
 
         if (isect.mat->light()) {
             auto light_source = isect.mat->light();
@@ -299,7 +299,7 @@ void BidirPathTracer::process_camera_rays(RayQueue<BPTState>& rays_in, RayQueue<
             const float pdf_di = pdf_direct_a * pdf_lightpick;
             const float pdf_e = pdf_emit_w * pdf_lightpick;
 
-            const float mis_weight_camera = mis_heuristic(pdf_di) * states[i].dVCM + mis_heuristic(pdf_e) * states[i].dVC;
+            const float mis_weight_camera = mis_heuristic_bpt(pdf_di) * states[i].dVCM + mis_heuristic_bpt(pdf_e) * states[i].dVC;
 
             if (states[i].path_length > 1) {
                 float4 color = states[i].throughput * radiance * 1.0f / (mis_weight_camera + 1.0f);
@@ -351,9 +351,9 @@ void BidirPathTracer::direct_illum(BPTState& cam_state, const Intersection& isec
     const float pdf_reverse = cam_state.continue_prob * pdf_rev_w;
 
     // Compute full MIS weights for camera and light.
-    const float mis_weight_light = mis_heuristic(pdf_forward * inv_pdf_lightpick / sample.pdf_direct_w);
-    const float mis_weight_camera = mis_heuristic(sample.pdf_emit_w * cos_theta_i / (sample.pdf_direct_w * cos_theta_o)) *
-                                    (cam_state.dVCM + cam_state.dVC * mis_heuristic(pdf_reverse));
+    const float mis_weight_light = mis_heuristic_bpt(pdf_forward * inv_pdf_lightpick / sample.pdf_direct_w);
+    const float mis_weight_camera = mis_heuristic_bpt(sample.pdf_emit_w * cos_theta_i / (sample.pdf_direct_w * cos_theta_o)) *
+                                    (cam_state.dVCM + cam_state.dVC * mis_heuristic_bpt(pdf_reverse));
 
 #ifndef BPT_PATHTRACING_ONLY
     const float mis_weight = 1.0f / (mis_weight_camera + 1.0f + mis_weight_light);
@@ -409,8 +409,8 @@ void BidirPathTracer::connect(BPTState& cam_state, const Intersection& isect, BS
         const float pdf_light_a = pdf_light_f * cos_theta_cam / connect_dist_sq;
 
         // Compute the full MIS weight from the partial weights and pdfs.
-        const float mis_weight_light = mis_heuristic(pdf_cam_a) * (light_vertex.dVCM + light_vertex.dVC * mis_heuristic(pdf_light_r));
-        const float mis_weight_camera = mis_heuristic(pdf_light_a) * (cam_state.dVCM + cam_state.dVC * mis_heuristic(pdf_cam_r));
+        const float mis_weight_light = mis_heuristic_bpt(pdf_cam_a) * (light_vertex.dVCM + light_vertex.dVC * mis_heuristic_bpt(pdf_light_r));
+        const float mis_weight_camera = mis_heuristic_bpt(pdf_light_a) * (cam_state.dVCM + cam_state.dVC * mis_heuristic_bpt(pdf_cam_r));
 
         const float mis_weight = 1.0f / (mis_weight_camera + 1.0f + mis_weight_light);
 
@@ -434,7 +434,6 @@ void BidirPathTracer::process_shadow_rays(RayQueue<BPTState>& rays_in, Image& im
 
     for (int i = 0; i < ray_count; ++i) {
         if (hits[i].tri_id < 0) {
-            assert(states[i].pixel_id >= 0 && states[i].pixel_id < img.width() * img.height() && "Write outside of image detected. (BPT::process_shadow_rays)");
             img.pixels()[states[i].pixel_id] += states[i].throughput;
         }
     }

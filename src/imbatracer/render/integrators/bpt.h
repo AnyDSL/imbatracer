@@ -20,7 +20,7 @@ struct BPTState : RayState {
     float dVCM;
 };
 
-inline float mis_heuristic(float a) {
+inline float mis_heuristic_bpt(float a) {
     return powf(a, 2.0f);
 }
 
@@ -52,12 +52,12 @@ public:
         state_out.path_length = 1;
         state_out.continue_prob = 1.0f;
 
-        state_out.dVCM = mis_heuristic(sample.pdf_direct_a / sample.pdf_emit_w); // pdf_lightpick cancels out
+        state_out.dVCM = mis_heuristic_bpt(sample.pdf_direct_a / sample.pdf_emit_w); // pdf_lightpick cancels out
 
         if (l->is_delta())
             state_out.dVC = 0.0f;
         else
-            state_out.dVC = mis_heuristic(sample.cos_out / (sample.pdf_emit_w * pdf_lightpick));
+            state_out.dVC = mis_heuristic_bpt(sample.cos_out / (sample.pdf_emit_w * pdf_lightpick));
 
         state_out.is_finite = l->is_finite();
     }
@@ -92,7 +92,7 @@ public:
         const float pdf_cam_w = sqr(cam_.image_plane_dist() / cos_theta_o) / cos_theta_o;
 
         state_out.dVC = 0.0f;
-        state_out.dVCM = mis_heuristic(light_path_count_ / pdf_cam_w);
+        state_out.dVCM = mis_heuristic_bpt(light_path_count_ / pdf_cam_w);
     }
 
 private:
@@ -100,7 +100,7 @@ private:
     const float light_path_count_;
 };
 
-struct LightPathVertex {
+struct BPTLightPathVertex {
     Intersection isect;
     float4 throughput;
 
@@ -110,18 +110,18 @@ struct LightPathVertex {
     float dVC;
     float dVCM;
 
-    LightPathVertex(Intersection isect, float4 tp, float continue_prob, float dVC, float dVCM)
+    BPTLightPathVertex(Intersection isect, float4 tp, float continue_prob, float dVC, float dVCM)
         : isect(isect), throughput(tp), continue_prob(continue_prob), dVC(dVC), dVCM(dVCM)
     {}
 
-    LightPathVertex() {}
+    BPTLightPathVertex() {}
 };
 
-using LightPath = std::vector<LightPathVertex>;
+using BPTLightPath = std::vector<BPTLightPathVertex>;
 
-class LightPathContainer {
+class BPTLightPathContainer {
 public:
-    LightPathContainer(int max_len, int max_path_count)
+    BPTLightPathContainer(int max_len, int max_path_count)
         : max_len_(max_len), max_path_count_(max_path_count),
           light_paths_(max_path_count), light_path_lengths_(max_path_count)
     {
@@ -130,12 +130,12 @@ public:
         }
     }
 
-    ~LightPathContainer() {}
+    ~BPTLightPathContainer() {}
 
-    LightPathContainer(const LightPathContainer&) = delete;
-    LightPathContainer& operator= (const LightPathContainer&) = delete;
-    LightPathContainer(LightPathContainer&&) = delete;
-    LightPathContainer& operator= (LightPathContainer&&) = delete;
+    BPTLightPathContainer(const BPTLightPathContainer&) = delete;
+    BPTLightPathContainer& operator= (const BPTLightPathContainer&) = delete;
+    BPTLightPathContainer(BPTLightPathContainer&&) = delete;
+    BPTLightPathContainer& operator= (BPTLightPathContainer&&) = delete;
 
     void reset() {
         std::fill(light_path_lengths_.begin(), light_path_lengths_.end(), 0);
@@ -145,13 +145,13 @@ public:
         return light_path_lengths_[pixel_index];
     }
 
-    const LightPath& get_path(int pixel_index) const {
+    const BPTLightPath& get_path(int pixel_index) const {
         return light_paths_[pixel_index];
     }
 
     template<typename... Args>
     void append(int pixel_index, Args&&... args) {
-        light_paths_[pixel_index][get_path_len(pixel_index)] = LightPathVertex(std::forward<Args>(args)...);
+        light_paths_[pixel_index][get_path_len(pixel_index)] = BPTLightPathVertex(std::forward<Args>(args)...);
         ++light_path_lengths_[pixel_index];
 
         assert(get_path_len(pixel_index) <= max_len_);
@@ -161,8 +161,10 @@ private:
     int max_len_;
     int max_path_count_;
 
-    std::vector<LightPath> light_paths_;
+    std::vector<BPTLightPath> light_paths_;
     std::vector<int> light_path_lengths_;
+
+    friend class PhotonIterator;
 };
 
 // bidirectional path tracing
@@ -198,7 +200,7 @@ private:
     BPTLightRayGen light_sampler_;
     BPTCameraRayGen camera_sampler_;
 
-    LightPathContainer light_paths_;
+    BPTLightPathContainer light_paths_;
 
     void reset_buffers();
 

@@ -93,7 +93,7 @@ int main(int argc, char* argv[]) {
     CameraControl ctrl(cam, cam_pos, cam_dir, cam_up);
 
     if (settings.algorithm == UserSettings::BPT) {
-        using IntegratorType = imba::BidirPathTracer;
+        using IntegratorType = BidirPathTracer;
         IntegratorType integrator(scene, cam, 1);
 
         RenderWindow wnd(settings, integrator, ctrl);
@@ -105,7 +105,11 @@ int main(int argc, char* argv[]) {
         RenderWindow wnd(settings, integrator, ctrl);
         wnd.render_loop();
     } else {
-        std::cout << "VCM not yet implemented." << std::endl;
+        using IntegratorType = VCMIntegrator;
+        IntegratorType integrator(scene, cam, 1);
+
+        RenderWindow wnd(settings, integrator, ctrl);
+        wnd.render_loop();
     }
 
     return 0;

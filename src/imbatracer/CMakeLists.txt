@@ -30,7 +30,8 @@ add_library(imba_render
             render/integrators/bpt.cpp
             render/integrators/pt.h
             render/integrators/bpt.h
-            #render/integrators/vcm.cpp
+            render/integrators/vcm.h
+            render/integrators/vcm.cpp
             render/ray_queue.h
             render/random.h
             render/material.h
@@ -38,7 +39,9 @@ add_library(imba_render
             render/mem_arena.h
             render/scene.h
             render/thorin_mem.h
-            render/texture_sampler.h)
+            render/texture_sampler.h
+
+            rangesearch/rangesearch.h)
 
 add_executable(imbatracer
                frontend/main.cpp
