@@ -95,6 +95,14 @@ void BidirPathTracer::trace_camera_paths(Image& img) {
     }
 }
 
+/// Computes the cosine term for adjoint BSDFs that use shading normals.
+///
+/// This function has to be used for all BSDFs during particle tracing to prevent brighness discontinuities.
+/// See Veach's PhD thesis for more details.
+inline float shading_normal_adjoint(const float3& normal, const float3& geom_normal, const float3& out_dir, const float3& in_dir) {
+    return fabsf(dot(out_dir, normal)) * fabsf(dot(in_dir, geom_normal)) / fabsf(dot(out_dir, geom_normal));
+}
+
 void bounce(BPTState& state, const Intersection& isect, BSDF* bsdf, RayQueue<BPTState>& rays_out, bool adjoint, int max_length) {
     if (state.path_length >= max_length)
         return;
@@ -111,9 +119,6 @@ void bounce(BPTState& state, const Intersection& isect, BSDF* bsdf, RayQueue<BPT
     auto bsdf_value = bsdf->sample(isect.out_dir, sample_dir, rng.random_float(), rng.random_float(), rng.random_float(),
                                    BSDF_ALL, sampled_flags, pdf_dir_w);
 
-    if (sampled_flags == 0)
-        return;
-
     bool is_specular = sampled_flags & BSDF_SPECULAR;
 
     float pdf_rev_w = pdf_dir_w;
@@ -125,19 +130,18 @@ void bounce(BPTState& state, const Intersection& isect, BSDF* bsdf, RayQueue<BPT
     BPTState s = state;
     if (is_specular) {
         s.dVCM = 0.0f;
-        s.dVC *= cos_theta_i;
+        s.dVC *= mis_heuristic(cos_theta_i);
     } else {
-        s.dVC = cos_theta_i / (pdf_dir_w * rr_pdf) *
-                (s.dVC * pdf_rev_w * rr_pdf + s.dVCM);
+        s.dVC = mis_heuristic(cos_theta_i / (pdf_dir_w * rr_pdf)) *
+                (s.dVC * mis_heuristic(pdf_rev_w * rr_pdf) + s.dVCM);
 
-        s.dVCM = 1.0f / (pdf_dir_w * rr_pdf);
+        s.dVCM = mis_heuristic(1.0f / (pdf_dir_w * rr_pdf));
     }
 
     float adjoint_cos_term;
 
     if (adjoint)
-        adjoint_cos_term = fabsf(dot(isect.out_dir, isect.normal)) * fabsf(dot(sample_dir, isect.geom_normal)) /
-                           fabsf(dot(isect.out_dir, isect.geom_normal));
+        adjoint_cos_term = shading_normal_adjoint(isect.normal, isect.geom_normal, isect.out_dir, sample_dir);
     else
         adjoint_cos_term = fabsf(dot(sample_dir, isect.normal));
 
@@ -176,10 +180,10 @@ void BidirPathTracer::process_light_rays(RayQueue<BPTState>& rays_in, RayQueue<B
 
         // Complete calculation of the partial weights.
         if (states[i].path_length > 1 || states[i].is_finite)
-            states[i].dVCM *= sqr(isect.distance);
+            states[i].dVCM *= mis_heuristic(sqr(isect.distance));
 
-        states[i].dVCM *= 1.0f / cos_theta_i;
-        states[i].dVC  *= 1.0f / cos_theta_i;
+        states[i].dVCM *= 1.0f / mis_heuristic(cos_theta_i);
+        states[i].dVC  *= 1.0f / mis_heuristic(cos_theta_i);
 
         auto bsdf = isect.mat->get_bsdf(isect, bsdf_mem_arena);
 
@@ -221,10 +225,9 @@ void BidirPathTracer::connect_to_camera(const BPTState& light_state, const Inter
     float dist_to_cam = sqrt(dist_to_cam_sqr);
     dir_to_cam = dir_to_cam / dist_to_cam;
 
-    float cos_theta_o = fabsf(dot(isect.normal, dir_to_cam));
-
-    cos_theta_o = fabsf(dot(isect.out_dir, isect.normal)) * fabsf(dot(dir_to_cam, isect.geom_normal)) /
-                  fabsf(dot(isect.out_dir, isect.geom_normal));
+    const float cos_theta_i = fabsf(dot(cam_.dir(), -dir_to_cam));
+    //float cos_theta_o = fabsf(dot(isect.normal, dir_to_cam));
+    const float cos_theta_o = shading_normal_adjoint(isect.normal, isect.geom_normal, isect.out_dir, dir_to_cam);
 
     // Evaluate the material and compute the pdf values.
     auto bsdf_value = bsdf->eval(isect.out_dir, dir_to_cam, BSDF_ALL);
@@ -234,15 +237,13 @@ void BidirPathTracer::connect_to_camera(const BPTState& light_state, const Inter
     const float pdf_rev = pdf_rev_w * light_state.continue_prob;
 
     // Compute conversion factor from surface area to image plane and vice versa.
-    const float cos_theta_i = fabsf(dot(cam_.dir(), -dir_to_cam));
-    const float dist_pixel_to_cam = cam_.image_plane_dist() / cos_theta_i;
-    const float img_to_solid_angle = sqr(dist_pixel_to_cam) / cos_theta_i;
-    const float img_to_surf = img_to_solid_angle * cos_theta_o / dist_to_cam_sqr;
+    const float img_to_surf = (sqr(cam_.image_plane_dist()) * cos_theta_o) /
+                              (dist_to_cam_sqr * cos_theta_i * sqr(cos_theta_i));
     const float surf_to_img = 1.0f / img_to_surf;
 
     // Compute the MIS weight.
     const float pdf_cam = img_to_surf; // Pixel sampling pdf is one as pixel area is one by convention.
-    const float mis_weight_light = pdf_cam / light_path_count_ * (light_state.dVCM + light_state.dVC * pdf_rev);
+    const float mis_weight_light = mis_heuristic(pdf_cam / light_path_count_) * (light_state.dVCM + light_state.dVC * mis_heuristic(pdf_rev));
 
 #ifdef BPT_LIGHTTRACING_ONLY
     const float mis_weight = 1.0f;
@@ -251,6 +252,7 @@ void BidirPathTracer::connect_to_camera(const BPTState& light_state, const Inter
 #endif
 
     // Contribution is divided by the number of samples (light_path_count_) and the factor that converts the (divided) pdf from surface area to image plane area.
+    // The cosine term is already included in the img_to_surf term.
     state.throughput *= mis_weight * bsdf_value * img_to_surf / light_path_count_;
 
     Ray ray {
@@ -283,8 +285,8 @@ void BidirPathTracer::process_camera_rays(RayQueue<BPTState>& rays_in, RayQueue<
         float cos_theta_o = fabsf(dot(isect.out_dir, isect.normal));
 
         // Complete computation of partial MIS weights.
-        states[i].dVCM *= sqr(isect.distance) / cos_theta_o; // convert divided pdf from solid angle to area
-        states[i].dVC *= 1.0f / cos_theta_o;
+        states[i].dVCM *= mis_heuristic(sqr(isect.distance)) / mis_heuristic(cos_theta_o); // convert divided pdf from solid angle to area
+        states[i].dVC *= 1.0f / mis_heuristic(cos_theta_o);
 
         if (isect.mat->light()) {
             auto light_source = isect.mat->light();
@@ -297,7 +299,7 @@ void BidirPathTracer::process_camera_rays(RayQueue<BPTState>& rays_in, RayQueue<
             const float pdf_di = pdf_direct_a * pdf_lightpick;
             const float pdf_e = pdf_emit_w * pdf_lightpick;
 
-            const float mis_weight_camera = pdf_di * states[i].dVCM + pdf_e * states[i].dVC;
+            const float mis_weight_camera = mis_heuristic(pdf_di) * states[i].dVCM + mis_heuristic(pdf_e) * states[i].dVC;
 
             if (states[i].path_length > 1) {
                 float4 color = states[i].throughput * radiance * 1.0f / (mis_weight_camera + 1.0f);
@@ -319,8 +321,7 @@ void BidirPathTracer::process_camera_rays(RayQueue<BPTState>& rays_in, RayQueue<
 #endif
 
         // Continue the path using russian roulette.
-        const int max_recursion = 32;
-        bounce(states[i], isect, bsdf, rays_out, false, max_recursion);
+        bounce(states[i], isect, bsdf, rays_out, false, MAX_CAMERA_PATH_LEN);
     }
 }
 
@@ -350,9 +351,9 @@ void BidirPathTracer::direct_illum(BPTState& cam_state, const Intersection& isec
     const float pdf_reverse = cam_state.continue_prob * pdf_rev_w;
 
     // Compute full MIS weights for camera and light.
-    const float mis_weight_light = pdf_forward * inv_pdf_lightpick / sample.pdf_direct_w;
-    const float mis_weight_camera = sample.pdf_emit_w * cos_theta_i / (sample.pdf_direct_w * cos_theta_o) *
-                                    (cam_state.dVCM + cam_state.dVC * pdf_reverse);
+    const float mis_weight_light = mis_heuristic(pdf_forward * inv_pdf_lightpick / sample.pdf_direct_w);
+    const float mis_weight_camera = mis_heuristic(sample.pdf_emit_w * cos_theta_i / (sample.pdf_direct_w * cos_theta_o)) *
+                                    (cam_state.dVCM + cam_state.dVC * mis_heuristic(pdf_reverse));
 
 #ifndef BPT_PATHTRACING_ONLY
     const float mis_weight = 1.0f / (mis_weight_camera + 1.0f + mis_weight_light);
@@ -380,16 +381,22 @@ void BidirPathTracer::connect(BPTState& cam_state, const Intersection& isect, BS
         connect_dir *= 1.0f / connect_dist;
 
         // Evaluate the bsdf at the camera vertex.
-        const float cos_theta_cam = dot(isect.normal, connect_dir);
         auto bsdf_value_cam = bsdf_cam->eval(isect.out_dir, connect_dir, BSDF_ALL);
         float pdf_dir_cam_w = bsdf_cam->pdf(isect.out_dir, connect_dir);
         float pdf_rev_cam_w = bsdf_cam->pdf(connect_dir, isect.out_dir);
 
         // Evaluate the bsdf at the light vertex.
-        const float cos_theta_light = dot(light_vertex.isect.normal, -connect_dir);
         auto bsdf_value_light = light_bsdf->eval(light_vertex.isect.out_dir, -connect_dir, BSDF_ALL);
         float pdf_dir_light_w = light_bsdf->pdf(light_vertex.isect.out_dir, -connect_dir);
         float pdf_rev_light_w = light_bsdf->pdf(-connect_dir, light_vertex.isect.out_dir);
+
+        // Compute the cosine terms. We need to use the adjoint for the light vertex BSDF.
+        const float cos_theta_cam = dot(isect.normal, connect_dir);
+        const float cos_theta_light = shading_normal_adjoint(light_vertex.isect.normal, light_vertex.isect.geom_normal,
+                                                             light_vertex.isect.out_dir, -connect_dir);
+
+        float geom_term = cos_theta_cam * cos_theta_light / connect_dist_sq;
+        geom_term = std::max(0.0f, geom_term);
 
         // Compute and convert the pdfs
         const float pdf_cam_f = pdf_dir_cam_w * cam_state.continue_prob;
@@ -401,15 +408,9 @@ void BidirPathTracer::connect(BPTState& cam_state, const Intersection& isect, BS
         const float pdf_cam_a = pdf_cam_f * cos_theta_light / connect_dist_sq;
         const float pdf_light_a = pdf_light_f * cos_theta_cam / connect_dist_sq;
 
-        float cos_theta_light_adjoint = fabsf(dot(light_vertex.isect.out_dir, light_vertex.isect.normal)) * fabsf(dot(-connect_dir, light_vertex.isect.geom_normal)) /
-                                        fabsf(dot(light_vertex.isect.out_dir, light_vertex.isect.geom_normal));
-
-        float geom_term = cos_theta_cam * cos_theta_light_adjoint / connect_dist_sq;
-        geom_term = std::max(0.0f, geom_term);
-
         // Compute the full MIS weight from the partial weights and pdfs.
-        const float mis_weight_light = pdf_cam_a * (light_vertex.dVCM + light_vertex.dVC * pdf_light_r);
-        const float mis_weight_camera = pdf_light_a * (cam_state.dVCM + cam_state.dVC * pdf_cam_r);
+        const float mis_weight_light = mis_heuristic(pdf_cam_a) * (light_vertex.dVCM + light_vertex.dVC * mis_heuristic(pdf_light_r));
+        const float mis_weight_camera = mis_heuristic(pdf_light_a) * (cam_state.dVCM + cam_state.dVC * mis_heuristic(pdf_cam_r));
 
         const float mis_weight = 1.0f / (mis_weight_camera + 1.0f + mis_weight_light);
 

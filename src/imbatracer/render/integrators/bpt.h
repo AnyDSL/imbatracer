@@ -20,6 +20,10 @@ struct BPTState : RayState {
     float dVCM;
 };
 
+inline float mis_heuristic(float a) {
+    return powf(a, 2.0f);
+}
+
 // Ray generator for light sources. Samples a point and a direction on a lightsource for every pixel sample.
 class BPTLightRayGen : public PixelRayGen<BPTState> {
 public:
@@ -48,12 +52,12 @@ public:
         state_out.path_length = 1;
         state_out.continue_prob = 1.0f;
 
-        state_out.dVCM = sample.pdf_direct_a / sample.pdf_emit_w; // pdf_lightpick cancels out
+        state_out.dVCM = mis_heuristic(sample.pdf_direct_a / sample.pdf_emit_w); // pdf_lightpick cancels out
 
         if (l->is_delta())
             state_out.dVC = 0.0f;
         else
-            state_out.dVC = sample.cos_out / (sample.pdf_emit_w * pdf_lightpick);
+            state_out.dVC = mis_heuristic(sample.cos_out / (sample.pdf_emit_w * pdf_lightpick));
 
         state_out.is_finite = l->is_finite();
     }
@@ -88,7 +92,7 @@ public:
         const float pdf_cam_w = sqr(cam_.image_plane_dist() / cos_theta_o) / cos_theta_o;
 
         state_out.dVC = 0.0f;
-        state_out.dVCM = light_path_count_ / pdf_cam_w;
+        state_out.dVCM = mis_heuristic(light_path_count_ / pdf_cam_w);
     }
 
 private:
@@ -164,7 +168,8 @@ private:
 // bidirectional path tracing
 class BidirPathTracer : public Integrator {
     static constexpr int TARGET_RAY_COUNT = 64 * 1000;
-    static constexpr int MAX_LIGHT_PATH_LEN = 8;
+    static constexpr int MAX_LIGHT_PATH_LEN = 5;
+    static constexpr int MAX_CAMERA_PATH_LEN = 8;
 public:
     BidirPathTracer(Scene& scene, PerspectiveCamera& cam, int spp)
         : Integrator(scene, cam, spp),
