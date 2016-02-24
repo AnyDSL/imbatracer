@@ -24,7 +24,7 @@ struct VCMState : RayState {
 };
 
 inline float mis_heuristic(float a) {
-    return powf(a, 2.0f);
+    return a;
 }
 
 // Ray generator for light sources. Samples a point and a direction on a lightsource for every pixel sample.
@@ -62,11 +62,16 @@ public:
         else
             state_out.dVC = mis_heuristic(sample.cos_out / (sample.pdf_emit_w * pdf_lightpick));
 
+        state_out.dVM = state_out.dVC * mis_weight_vc_;
+
         state_out.is_finite = l->is_finite();
     }
 
+    void set_mis_weight_vc(float w) { mis_weight_vc_ = w; }
+
 private:
     LightContainer& lights_;
+    float mis_weight_vc_;
 };
 
 /// Generates camera rays for VCM.
@@ -95,6 +100,7 @@ public:
         const float pdf_cam_w = sqr(cam_.image_plane_dist() / cos_theta_o) / cos_theta_o;
 
         state_out.dVC = 0.0f;
+        state_out.dVM = 0.0f;
         state_out.dVCM = mis_heuristic(light_path_count_ / pdf_cam_w);
     }
 
@@ -131,20 +137,27 @@ class LightPathContainer;
 /// Iterator class for iterating over all the photons in a LightPathContainer
 class PhotonIterator {
 public:
-    PhotonIterator(const LightPathContainer& cont) : cont_(cont), cur_path_(0), cur_vertex_(0) {}
-    PhotonIterator(const LightPathContainer& cont, int path, int vertex) : cont_(cont), cur_path_(path), cur_vertex_(vertex) {}
+    PhotonIterator(const LightPathContainer* cont = nullptr) : cont_(cont), cur_path_(0), cur_vertex_(0), is_end_(false) {}
+    PhotonIterator(const LightPathContainer* cont, bool is_end) : cont_(cont), cur_path_(0), cur_vertex_(0), is_end_(is_end) {}
+    PhotonIterator(const LightPathContainer* cont, int path, int vertex) : cont_(cont), cur_path_(path), cur_vertex_(vertex), is_end_(false) {}
 
     const LightPathVertex& operator* () const;
+    const LightPathVertex* operator-> () const;
     PhotonIterator& operator++ ();
 
     bool operator!= (const PhotonIterator& r) const {
-        return cur_path_ != r.cur_path_ || cur_vertex_ != r.cur_vertex_;
+        return !(*this == r);
+    }
+
+    bool operator== (const PhotonIterator& r) const {
+        return ((!r.is_end_ && !is_end_) && (r.cur_path_ == cur_path_ && r.cur_vertex_ == cur_vertex_)) || (r.is_end_ && is_end_);
     }
 
 private:
-    const LightPathContainer& cont_;
+    const LightPathContainer* cont_;
     int cur_path_;
     int cur_vertex_;
+    bool is_end_;
 };
 
 class LightPathContainer {
@@ -186,11 +199,18 @@ public:
     }
 
     PhotonIterator begin() {
-        return PhotonIterator(*this);
+        return PhotonIterator(this);
     }
 
     PhotonIterator end() {
-        return PhotonIterator(*this, light_paths_.size(), light_path_lengths_.back());
+        return PhotonIterator(this, true);
+    }
+
+    int size() {
+        int counter = 0;
+        for (PhotonIterator it = begin(); it != end(); ++it)
+            counter++;
+        return counter;
     }
 
 private:
@@ -204,13 +224,21 @@ private:
 };
 
 inline const LightPathVertex& PhotonIterator::operator* () const {
-    return cont_.light_paths_[cur_path_][cur_vertex_];
+    return cont_->light_paths_[cur_path_][cur_vertex_];
+}
+
+inline const LightPathVertex* PhotonIterator::operator-> () const {
+    return &(cont_->light_paths_[cur_path_][cur_vertex_]);
 }
 
 inline PhotonIterator& PhotonIterator::operator++ () {
-    auto maxlen = cont_.get_path_len(cur_path_);
+    if (is_end_)
+        return *this;
+
+    auto maxlen = cont_->get_path_len(cur_path_);
     if (++cur_vertex_ >= maxlen) {
-        ++cur_path_;
+        if (++cur_path_ >= cont_->max_path_count_)
+            is_end_ = true;
         cur_vertex_ = 0;
     }
     return *this;
@@ -222,7 +250,7 @@ class VCMIntegrator : public Integrator {
     static constexpr int MAX_LIGHT_PATH_LEN = 5;
     static constexpr int MAX_CAMERA_PATH_LEN = 8;
 public:
-    VCMIntegrator(Scene& scene, PerspectiveCamera& cam, int spp)
+    VCMIntegrator(Scene& scene, PerspectiveCamera& cam, int spp, float base_radius=0.003f, float radius_alpha=0.75f)
         : Integrator(scene, cam, spp),
           width_(cam.width()),
           height_(cam.height()),
@@ -232,19 +260,39 @@ public:
           primary_rays_{ RayQueue<VCMState>(TARGET_RAY_COUNT), RayQueue<VCMState>(TARGET_RAY_COUNT)},
           shadow_rays_(TARGET_RAY_COUNT * (MAX_LIGHT_PATH_LEN + 1)),
           light_image_(width_, height_),
+          pm_image_(width_, height_),
           light_path_count_(width_ * height_),
-          light_paths_(MAX_LIGHT_PATH_LEN, width_ * height_)
+          light_paths_(MAX_LIGHT_PATH_LEN, width_ * height_),
+          pm_radius_(base_radius),
+          base_radius_(base_radius),
+          radius_alpha_(radius_alpha),
+          cur_iteration_(0)
     {
         camera_sampler_.set_target(TARGET_RAY_COUNT);
         light_sampler_.set_target(TARGET_RAY_COUNT);
+        photon_grid_.reserve(width_ * height_);
     }
 
     virtual void render(Image& out) override;
+    virtual void reset() override {
+        pm_radius_ = base_radius_ * scene_.sphere.radius;
+        cur_iteration_ = 0;
+    }
 
 private:
     int width_, height_;
     int n_samples_;
     float light_path_count_;
+
+    float base_radius_;
+    float radius_alpha_;
+
+    // Data for the current iteration
+    int cur_iteration_;
+    float pm_radius_;
+    float vm_normalization_;
+    float mis_weight_vc_;
+    float mis_weight_vm_;
 
     VCMLightRayGen light_sampler_;
     VCMCameraRayGen camera_sampler_;
@@ -258,8 +306,9 @@ private:
     RayQueue<VCMState> light_rays_[2];
 
     Image light_image_;
+    Image pm_image_;
 
-    HashGrid<LightPathVertex> photon_grid_;
+    HashGrid<PhotonIterator> photon_grid_;
 
     void process_light_rays(RayQueue<VCMState>& rays_in, RayQueue<VCMState>& rays_out, RayQueue<VCMState>& rays_out_shadow);
     void process_camera_rays(RayQueue<VCMState>& rays_in, RayQueue<VCMState>& rays_out, RayQueue<VCMState>& shadow_rays, Image& img);
@@ -268,9 +317,13 @@ private:
     void trace_light_paths();
     void trace_camera_paths(Image& img);
 
-    void connect_to_camera(const VCMState& light_state, const Intersection& isect, BSDF* bsdf, RayQueue<VCMState>& rays_out_shadow);
+    void connect_to_camera(const VCMState& light_state, const Intersection& isect, const BSDF* bsdf, RayQueue<VCMState>& rays_out_shadow);
+
     void direct_illum(VCMState& cam_state, const Intersection& isect, BSDF* bsdf, RayQueue<VCMState>& rays_out_shadow);
     void connect(VCMState& cam_state, const Intersection& isect, BSDF* bsdf, MemoryArena& bsdf_arena, RayQueue<VCMState>& rays_out_shadow);
+    void vertex_merging(const VCMState& state, const Intersection& isect, const BSDF* bsdf, Image& img);
+
+    void bounce(VCMState& state, const Intersection& isect, BSDF* bsdf, RayQueue<VCMState>& rays_out, bool adjoint, int max_length);
 };
 
 } // namespace imba

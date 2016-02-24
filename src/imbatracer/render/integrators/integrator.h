@@ -20,6 +20,7 @@ public:
     {}
 
     virtual void render(Image& out) = 0;
+    virtual void reset() {}
 
 protected:
     Scene& scene_;

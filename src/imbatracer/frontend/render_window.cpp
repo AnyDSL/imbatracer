@@ -167,6 +167,8 @@ void RenderWindow::clear() {
     std::chrono::high_resolution_clock clock;
     start_time_ = clock.now();
     msg_counter_ = 1;
+
+    integrator_.reset();
 }
 
 static void write_to_stream(png_structp png_ptr, png_bytep data, png_size_t length) {

@@ -24,7 +24,7 @@ public:
         cell_ends_.resize(num_cells);
     }
 
-    void build(const Iter& photons_begin, const Iter& photons_end, int photon_count, float radius) {
+    void build(const Iter& photons_begin, const Iter& photons_end, float radius) {
         radius_        = radius;
         radius_sqr_    = sqr(radius_);
         cell_size_     = radius_ * 2.f;
@@ -33,12 +33,14 @@ public:
         bbox_min_ = float3( 1e36f);
         bbox_max_ = float3(-1e36f);
 
+        int photon_count = 0;
         for(Iter it = photons_begin; it != photons_end; ++it) {
             const float3 &pos = it->position();
             for(int j=0; j<3; j++) {
                 bbox_max_[j] = std::max(bbox_max_[j], pos[j]);
                 bbox_min_[j] = std::min(bbox_min_[j], pos[j]);
             }
+            ++photon_count;
         }
 
         indices_.resize(photon_count);
@@ -66,8 +68,8 @@ public:
         }
     }
 
-    template<typename Fnc>
-    void process(Fnc& process_func, const float3& query_pos) {
+    template<typename Container>
+    void process(Container& output, const float3& query_pos) {
         const float3 dist_min = query_pos - bbox_min_;
         const float3 dist_max = bbox_max_ - query_pos;
 
@@ -109,10 +111,10 @@ public:
             for(; active_range.x < active_range.y; active_range.x++)
             {
                 const Iter particle_idx = indices_[active_range.x];
-                const float distSqr = (query_pos - particle_idx->position()).lensqr();
+                const float distSqr = lensqr(query_pos - particle_idx->position());
 
                 if(distSqr <= radius_sqr_)
-                    process_func(*particle_idx);
+                    output.push_back(particle_idx);
             }
         }
     }

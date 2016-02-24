@@ -276,7 +276,7 @@ void BidirPathTracer::process_camera_rays(RayQueue<BPTState>& rays_in, RayQueue<
 
         // Create a thread_local memory arena that is used to store the BSDF objects
         // of all intersections that one thread processes.
-        thread_local MemoryArena bsdf_mem_arena(3200000);
+        thread_local MemoryArena bsdf_mem_arena(512);
         bsdf_mem_arena.free_all();
 
         RNG& rng = states[i].rng;

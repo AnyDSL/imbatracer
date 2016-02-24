@@ -26,7 +26,9 @@ enum BxDFFlags {
     BSDF_ALL_REFLECTION   = BSDF_REFLECTION   | BSDF_ALLTYPES,
     BSDF_ALL_TRANSMISSION = BSDF_TRANSMISSION | BSDF_ALLTYPES,
 
-    BSDF_ALL = BSDF_REFLECTION | BSDF_TRANSMISSION | BSDF_ALLTYPES
+    BSDF_ALL = BSDF_REFLECTION | BSDF_TRANSMISSION | BSDF_ALLTYPES,
+
+    BSDF_NON_SPECULAR = BSDF_REFLECTION | BSDF_TRANSMISSION | BSDF_DIFFUSE | BSDF_GLOSSY
 };
 
 inline bool same_hemisphere(const float3& out_dir, const float3& in_dir) {
@@ -107,7 +109,7 @@ public:
         return nr;
     }
 
-    float4 eval(const float3& out_dir, const float3& in_dir, BxDFFlags flags) const {
+    float4 eval(const float3& out_dir, const float3& in_dir, BxDFFlags flags = BSDF_ALL) const {
         float3 local_out = world_to_local(out_dir);
         float3 local_in = world_to_local(in_dir);
 

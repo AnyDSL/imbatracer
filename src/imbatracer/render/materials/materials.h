@@ -21,6 +21,8 @@ public:
     /// If the material is attached to a light source, this returns the lightsource, otherwise nullptr.
     inline Light* light() { return light_; }
 
+    virtual bool is_specular() { return false; }
+
 private:
     Light* light_;
 };
@@ -64,6 +66,8 @@ public:
         return bsdf;
     }
 
+    virtual bool is_specular() override { return true; }
+
 private:
     FresnelConductor fresnel_;
     float4 scale_;
@@ -85,6 +89,8 @@ public:
 
         return bsdf;
     }
+
+    virtual bool is_specular() override { return true; }
 
 private:
     float eta_;
