@@ -17,6 +17,11 @@ static const float offset = 0.00001f;
 void BidirPathTracer::render(Image& img) {
     reset_buffers();
 
+    cur_iteration_++;
+
+    pm_radius_ = base_radius_;
+    pm_radius_ = std::max(pm_radius_, 1e-7f); // ensure numerical stability
+
 #ifndef BPT_PATHTRACING_ONLY
     trace_light_paths();
 #endif
@@ -187,7 +192,7 @@ void BidirPathTracer::process_light_rays(RayQueue<BPTState>& rays_in, RayQueue<B
 
         auto bsdf = isect.mat->get_bsdf(isect, bsdf_mem_arena);
 
-        if (bsdf->count(BSDF_SPECULAR) != bsdf->count()) { // Do not store vertices on materials described by a delta distribution.
+        if (!isect.mat->is_specular()) { // Do not store vertices on materials described by a delta distribution.
 
 #ifndef BPT_LIGHTTRACING_ONLY
             light_paths_.append(states[i].pixel_id,
@@ -312,13 +317,15 @@ void BidirPathTracer::process_camera_rays(RayQueue<BPTState>& rays_in, RayQueue<
 
         auto bsdf = isect.mat->get_bsdf(isect, bsdf_mem_arena);
 
-        // Compute direct illumination.
-        direct_illum(states[i], isect, bsdf, ray_out_shadow);
+        if (!isect.mat->is_specular()) {
+            // Compute direct illumination.
+            direct_illum(states[i], isect, bsdf, ray_out_shadow);
 
 #ifndef BPT_PATHTRACING_ONLY
-        // Connect to light path vertices.
-        connect(states[i], isect, bsdf, bsdf_mem_arena, ray_out_shadow);
+            // Connect to light path vertices.
+            connect(states[i], isect, bsdf, bsdf_mem_arena, ray_out_shadow);
 #endif
+        }
 
         // Continue the path using russian roulette.
         bounce(states[i], isect, bsdf, rays_out, false, MAX_CAMERA_PATH_LEN);
@@ -379,6 +386,13 @@ void BidirPathTracer::connect(BPTState& cam_state, const Intersection& isect, BS
         const float connect_dist_sq = lensqr(connect_dir);
         const float connect_dist = std::sqrt(connect_dist_sq);
         connect_dir *= 1.0f / connect_dist;
+
+        if (connect_dist < pm_radius_) {
+            // If two points are too close to each other, connecting them might create an overly bright pixel
+            // that will only go away after a lot of samples. Those points usually lie on the same surface and should have a
+            // cosine term of zero, thus we can ignore them.
+            return;
+        }
 
         // Evaluate the bsdf at the camera vertex.
         auto bsdf_value_cam = bsdf_cam->eval(isect.out_dir, connect_dir, BSDF_ALL);

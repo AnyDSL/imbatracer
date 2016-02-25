@@ -173,7 +173,7 @@ class BidirPathTracer : public Integrator {
     static constexpr int MAX_LIGHT_PATH_LEN = 5;
     static constexpr int MAX_CAMERA_PATH_LEN = 8;
 public:
-    BidirPathTracer(Scene& scene, PerspectiveCamera& cam, int spp)
+    BidirPathTracer(Scene& scene, PerspectiveCamera& cam, int spp, float base_radius=0.1f, float radius_alpha=0.75f)
         : Integrator(scene, cam, spp),
           width_(cam.width()),
           height_(cam.height()),
@@ -184,7 +184,11 @@ public:
           shadow_rays_(TARGET_RAY_COUNT * (MAX_LIGHT_PATH_LEN + 1)),
           light_image_(width_, height_),
           light_path_count_(width_ * height_),
-          light_paths_(MAX_LIGHT_PATH_LEN, width_ * height_)
+          light_paths_(MAX_LIGHT_PATH_LEN, width_ * height_),
+          pm_radius_(base_radius),
+          base_radius_(base_radius * scene_.sphere.radius),
+          radius_alpha_(radius_alpha),
+          cur_iteration_(0)
     {
         camera_sampler_.set_target(TARGET_RAY_COUNT);
         light_sampler_.set_target(TARGET_RAY_COUNT);
@@ -192,10 +196,23 @@ public:
 
     virtual void render(Image& out) override;
 
+    virtual void reset() override {
+        pm_radius_ = base_radius_ * scene_.sphere.radius;
+        cur_iteration_ = 0;
+    }
+
 private:
     int width_, height_;
     int n_samples_;
     float light_path_count_;
+
+    float base_radius_;
+    float radius_alpha_;
+
+    // Data for the current iteration
+    int cur_iteration_;
+    float pm_radius_;
+    float vm_normalization_;
 
     BPTLightRayGen light_sampler_;
     BPTCameraRayGen camera_sampler_;
