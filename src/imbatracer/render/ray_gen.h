@@ -64,6 +64,7 @@ public:
             seed = 33 * seed ^ i;
             seed = 33 * seed ^ i;
             state.rng = RNG(seed);
+            state.rng.discard((seed % 5) + 16 + pixel_idx % 5);
             sample_pixel(x, y, ray, state);
 
             out.push(ray, state);
