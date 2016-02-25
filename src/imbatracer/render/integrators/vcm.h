@@ -137,9 +137,8 @@ class LightPathContainer;
 /// Iterator class for iterating over all the photons in a LightPathContainer
 class PhotonIterator {
 public:
-    PhotonIterator(const LightPathContainer* cont = nullptr) : cont_(cont), cur_path_(0), cur_vertex_(0), is_end_(false) {}
-    PhotonIterator(const LightPathContainer* cont, bool is_end) : cont_(cont), cur_path_(0), cur_vertex_(0), is_end_(is_end) {}
-    PhotonIterator(const LightPathContainer* cont, int path, int vertex) : cont_(cont), cur_path_(path), cur_vertex_(vertex), is_end_(false) {}
+    PhotonIterator() : cont_(nullptr), cur_path_(-1), cur_vertex_(-1), is_end_(true) {}
+    PhotonIterator(const LightPathContainer* cont, bool is_end = false);
 
     const LightPathVertex& operator* () const;
     const LightPathVertex* operator-> () const;
@@ -224,10 +223,15 @@ private:
 };
 
 inline const LightPathVertex& PhotonIterator::operator* () const {
+    assert(!is_end_);
+    assert(cur_path_ < cont_->light_paths_.size() && cur_vertex_ < cont_->get_path_len(cur_path_));
     return cont_->light_paths_[cur_path_][cur_vertex_];
 }
 
 inline const LightPathVertex* PhotonIterator::operator-> () const {
+    assert(!is_end_);
+    assert(cur_path_ < cont_->light_paths_.size());
+    assert(cur_vertex_ < cont_->get_path_len(cur_path_));
     return &(cont_->light_paths_[cur_path_][cur_vertex_]);
 }
 
@@ -237,11 +241,25 @@ inline PhotonIterator& PhotonIterator::operator++ () {
 
     auto maxlen = cont_->get_path_len(cur_path_);
     if (++cur_vertex_ >= maxlen) {
-        if (++cur_path_ >= cont_->max_path_count_)
+        // Skip empty paths
+        while (++cur_path_ < cont_->max_path_count_ && cont_->get_path_len(cur_path_) <= 0) ;
+
+        if (cur_path_ >= cont_->max_path_count_)
             is_end_ = true;
+
         cur_vertex_ = 0;
     }
     return *this;
+}
+
+inline PhotonIterator::PhotonIterator(const LightPathContainer* cont, bool is_end) : cont_(cont), cur_path_(0), cur_vertex_(0), is_end_(is_end) {
+    if (!is_end) {
+        while (cur_path_ < cont_->max_path_count_ && cont_->get_path_len(cur_path_) <= 0)
+            ++cur_path_;
+
+        if (cur_path_ >= cont_->max_path_count_)
+            is_end_ = true;
+    }
 }
 
 // bidirectional path tracing

@@ -17,8 +17,10 @@ public:
     PTCameraRayGen(PerspectiveCamera& cam, int spp) : PixelRayGen<PTState>(cam.width(), cam.height(), spp), cam_(cam) { }
 
     virtual void sample_pixel(int x, int y, ::Ray& ray_out, PTState& state_out) override {
-        const float sample_x = static_cast<float>(x) + state_out.rng.random_float();
-        const float sample_y = static_cast<float>(y) + state_out.rng.random_float();
+        float u1 = state_out.rng.random_float();
+        float u2 = state_out.rng.random_float();
+        const float sample_x = static_cast<float>(x) + u1;
+        const float sample_y = static_cast<float>(y) + u2;
 
         ray_out = cam_.generate_ray(sample_x, sample_y);
 

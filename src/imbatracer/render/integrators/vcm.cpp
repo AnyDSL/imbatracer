@@ -6,9 +6,11 @@
 #include <cfloat>
 #include <cassert>
 #include <cmath>
+#include <chrono>
 
 namespace imba {
 
+//static int64_t photon_time = 0;
 static const float offset = 0.00001f;
 
 //#define VCM_PATHTRACING_ONLY
@@ -90,6 +92,7 @@ void VCMIntegrator::trace_light_paths() {
         std::swap(in_queue, out_queue);
     }
 
+    photon_grid_.reserve(width_ * height_);
     photon_grid_.build(light_paths_.begin(), light_paths_.end(), pm_radius_);
 }
 
@@ -119,6 +122,7 @@ void VCMIntegrator::trace_camera_paths(Image& img) {
         }
 
         std::swap(in_queue, out_queue);
+        //printf("Photon time: %dms\n", photon_time);
     }
 }
 
@@ -368,7 +372,8 @@ void VCMIntegrator::process_camera_rays(RayQueue<VCMState>& rays_in, RayQueue<VC
 
 #ifndef VCM_PATHTRACING_ONLY
         // Connect to light path vertices.
-        connect(states[i], isect, bsdf, bsdf_mem_arena, ray_out_shadow);
+        if (!isect.mat->is_specular())
+            connect(states[i], isect, bsdf, bsdf_mem_arena, ray_out_shadow);
 #endif
 
 #ifndef VCM_BIDIRPATHTRACING_ONLY
@@ -488,10 +493,13 @@ void VCMIntegrator::vertex_merging(const VCMState& state, const Intersection& is
         return;
 
     static thread_local std::vector<PhotonIterator> photons;
-    photons.reserve(256);
+    photons.reserve(width_ * height_);
     photons.clear();
 
+    //auto t0 = std::chrono::high_resolution_clock::now();
     photon_grid_.process(photons, isect.pos);
+    //auto t1 = std::chrono::high_resolution_clock::now();
+    //photon_time += std::chrono::duration_cast<std::chrono::milliseconds>(t1 - t0).count();
 
     float4 contrib(0.0f);
     for (PhotonIterator p : photons) {

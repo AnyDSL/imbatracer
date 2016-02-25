@@ -27,6 +27,11 @@ public:
         return MWC64X() % (max - min) + min;
     }
 
+    void discard(int n) {
+        for (int i = 0; i < n; ++i)
+            MWC64X();
+    }
+
 private:
     uint64_t state_;
 
