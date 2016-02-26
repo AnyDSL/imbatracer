@@ -282,6 +282,10 @@ bool parse_scene_file(const Path& path, Scene& scene, std::string& obj_filename,
     bool up_given = false;
 
     while (stream >> cmd) {
+        if (cmd[0] == '#') {
+            // Ignore comments
+            stream.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+        }
         if (cmd == "pos") {
             if (!(stream >> cam_pos.x) ||
                 !(stream >> cam_pos.y) ||
