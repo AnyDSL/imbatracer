@@ -21,11 +21,26 @@ public:
         if (u < 0.0f) u += 1.0f;
         if (v < 0.0f) v += 1.0f;
 
-        int col = u * (img_.width() - 1);
-        int row = v * (img_.height() - 1);
-        row = (img_.height() - 1) - row;
+        u = u * static_cast<float>(img_.width() - 1);
+        v = (1.0f - v) * static_cast<float>(img_.height()) + v - 1.0f;
 
-        return img_(col, row);
+        float col, row;
+        float u_fract = modff(u, &col);
+        float v_fract = modff(v, &row);
+
+        int below = (row + 1) >= img_.height() ? 0 : row + 1;
+        int right = (col + 1) >= img_.width() ? 0 : col + 1;
+
+        auto top_left  = img_(col, row);
+        auto bot_left  = img_(col, below);
+        auto top_right = img_(right, row);
+        auto bot_right = img_(right, below);
+
+        auto interp_top = lerp(top_left, top_right, u_fract);
+        auto interp_bot = lerp(bot_left, bot_right, u_fract);
+        auto interp = lerp(interp_top, interp_bot, v_fract);
+
+        return interp;
     }
 
     const Image& image() const { return img_; }
