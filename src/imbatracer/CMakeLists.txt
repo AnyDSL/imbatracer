@@ -54,7 +54,7 @@ target_link_libraries(imbatracer
                       imba_render
                       imba_core
                       imba_loaders
-                      ${SDL_LIBRARY}
+                      ${SDL2_LIBRARY}
                       ${PNG_LIBRARIES}
                       ${TRAVERSAL_LIBRARY}
                       ${THORIN_RUNTIME_LIBRARY}

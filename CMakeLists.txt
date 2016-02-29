@@ -2,6 +2,8 @@ project(IMBATRACER)
 
 cmake_minimum_required(VERSION 3.0)
 
+set(CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake/modules)
+
 include(CheckCXXCompilerFlag)
 CHECK_CXX_COMPILER_FLAG("-std=c++11" COMPILER_SUPPORTS_CXX11)
 CHECK_CXX_COMPILER_FLAG("-std=c++0x" COMPILER_SUPPORTS_CXX0X)
@@ -26,9 +28,9 @@ find_package(Threads REQUIRED)
 find_package(PNG REQUIRED)
 include_directories(${PNG_INCLUDE_DIRS})
 
-# SDL
-find_package(SDL REQUIRED)
-include_directories(${SDL_INCLUDE_DIR})
+# SDL2
+find_package(SDL2 REQUIRED)
+include_directories(${SDL2_INCLUDE_DIR})
 
 # Traversal
 find_package(Traversal REQUIRED)

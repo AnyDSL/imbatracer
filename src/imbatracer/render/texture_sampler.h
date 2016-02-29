@@ -18,29 +18,29 @@ public:
     float4 sample(float2 uv) {
         float u = clamp(uv.x - (int)uv.x, -1.0f, 1.0f);
         float v = clamp(uv.y - (int)uv.y, -1.0f, 1.0f);
-        if (u < 0.0f) u += 1.0f;
-        if (v < 0.0f) v += 1.0f;
+        u += u < 0.0f ? 1.0f : 0.0f;
+        v += v < 0.0f ? 1.0f : 0.0f;
 
-        u = u * static_cast<float>(img_.width() - 1);
-        v = (1.0f - v) * static_cast<float>(img_.height()) + v - 1.0f;
+        const float kx = u * (img_.width()  - 1);
+        const float ky = v * (img_.height() - 1);
 
-        float col, row;
-        float u_fract = modff(u, &col);
-        float v_fract = modff(v, &row);
+        const int x0 = (int)kx;
+        const int y0 = (int)ky;
+        const int x1 = (x0 + 1) % img_.width();
+        const int y1 = (y0 + 1) % img_.height();
 
-        int below = (row + 1) >= img_.height() ? 0 : row + 1;
-        int right = (col + 1) >= img_.width() ? 0 : col + 1;
+        const float gx = kx - floorf(kx);
+        const float gy = ky - floorf(ky);
+        const float hx = 1.0f - gx;
+        const float hy = 1.0f - gy;
 
-        auto top_left  = img_(col, row);
-        auto bot_left  = img_(col, below);
-        auto top_right = img_(right, row);
-        auto bot_right = img_(right, below);
+        const float4 i00 = img_(x0, y0);
+        const float4 i10 = img_(x1, y0);
+        const float4 i01 = img_(x0, y1);
+        const float4 i11 = img_(x1, y1);
 
-        auto interp_top = lerp(top_left, top_right, u_fract);
-        auto interp_bot = lerp(bot_left, bot_right, u_fract);
-        auto interp = lerp(interp_top, interp_bot, v_fract);
-
-        return interp;
+        return hy * (hx * i00 + gx * i10) +
+               gy * (hx * i01 + gx * i11);
     }
 
     const Image& image() const { return img_; }
