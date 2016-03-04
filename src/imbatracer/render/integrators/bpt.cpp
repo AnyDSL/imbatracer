@@ -175,7 +175,11 @@ void BidirPathTracer::process_light_rays(RayQueue<BPTState>& rays_in, RayQueue<B
 
         // Create a thread_local memory arena that is used to store the BSDF objects
         // of all intersections that one thread processes.
+        #if defined(__APPLE__) && defined(__clang__) || defined(_MSC_VER)
+        MemoryArena bsdf_mem_arena(512);
+        #else
         thread_local MemoryArena bsdf_mem_arena(512);
+        #endif
         bsdf_mem_arena.free_all();
 
         RNG& rng = states[i].rng;
@@ -281,7 +285,11 @@ void BidirPathTracer::process_camera_rays(RayQueue<BPTState>& rays_in, RayQueue<
 
         // Create a thread_local memory arena that is used to store the BSDF objects
         // of all intersections that one thread processes.
+        #if defined(__APPLE__) && defined(__clang__) || defined(_MSC_VER)
+        MemoryArena bsdf_mem_arena(512);
+        #else
         thread_local MemoryArena bsdf_mem_arena(512);
+        #endif
         bsdf_mem_arena.free_all();
 
         RNG& rng = states[i].rng;

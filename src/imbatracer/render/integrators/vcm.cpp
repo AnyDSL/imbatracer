@@ -216,7 +216,11 @@ void VCMIntegrator::process_light_rays(RayQueue<VCMState>& rays_in, RayQueue<VCM
 
         // Create a thread_local memory arena that is used to store the BSDF objects
         // of all intersections that one thread processes.
+        #if defined(__APPLE__) && defined(__clang__) || defined(_MSC_VER)
+        MemoryArena bsdf_mem_arena(512);
+        #else
         thread_local MemoryArena bsdf_mem_arena(512);
+        #endif
         bsdf_mem_arena.free_all();
 
         RNG& rng = states[i].rng;
@@ -326,7 +330,11 @@ void VCMIntegrator::process_camera_rays(RayQueue<VCMState>& rays_in, RayQueue<VC
 
         // Create a thread_local memory arena that is used to store the BSDF objects
         // of all intersections that one thread processes.
+        #if defined(__APPLE__) && defined(__clang__) || defined(_MSC_VER)
+        MemoryArena bsdf_mem_arena(512);
+        #else
         thread_local MemoryArena bsdf_mem_arena(512);
+        #endif
         bsdf_mem_arena.free_all();
 
         RNG& rng = states[i].rng;
@@ -499,7 +507,11 @@ void VCMIntegrator::vertex_merging(const VCMState& state, const Intersection& is
     if (!bsdf->count(BSDF_NON_SPECULAR))
         return;
 
+    #if defined(__APPLE__) && defined(__clang__) || defined(_MSC_VER)
+    static std::vector<PhotonIterator> photons;
+    #else
     static thread_local std::vector<PhotonIterator> photons;
+    #endif
     photons.reserve(width_ * height_);
     photons.clear();
 

@@ -40,7 +40,6 @@ add_library(imba_render
             render/scene.h
             render/thorin_mem.h
             render/texture_sampler.h
-
             rangesearch/rangesearch.h)
 
 add_executable(imbatracer
@@ -54,7 +53,7 @@ target_link_libraries(imbatracer
                       imba_render
                       imba_core
                       imba_loaders
-                      ${SDL2_LIBRARY}
+                      ${SDL2_LIBRARIES}
                       ${PNG_LIBRARIES}
                       ${TRAVERSAL_LIBRARY}
                       ${THORIN_RUNTIME_LIBRARY}
