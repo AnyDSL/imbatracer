@@ -17,62 +17,60 @@ RenderWindow::RenderWindow(const UserSettings& settings, Integrator& r, InputCon
     , integrator_(r)
     , ctrl_(ctrl)
     , mouse_speed_(0.01f)
-    , use_sdl_(!settings.background)
+    , window_(nullptr)
     , max_samples_(settings.max_samples)
     , max_time_sec_(settings.max_time_sec)
     , output_file_(settings.output_file)
     , algname_(settings.algorithm == UserSettings::PT ? "Path Tracing" :
              (settings.algorithm == UserSettings::BPT ? "Bidirectional Path Tracing" : "Vertex Connection and Merging"))
 {
-    if (use_sdl_) {
+    if (!settings.background) {
         SDL_Init(SDL_INIT_VIDEO);
-        SDL_WM_SetCaption("Imbatracer", NULL);
-        SDL_EnableKeyRepeat(SDL_DEFAULT_REPEAT_DELAY, SDL_DEFAULT_REPEAT_INTERVAL);
-        screen_ = SDL_SetVideoMode(settings.width, settings.height, 32, SDL_DOUBLEBUF);
+        window_ = SDL_CreateWindow("Imbatracer", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, settings.width, settings.height, 0);
     }
 
     clear();
 }
 
 RenderWindow::~RenderWindow() {
-    if (use_sdl_)
+    if (window_) {
+        SDL_DestroyWindow(window_);
         SDL_Quit();
+    }
 }
 
 void RenderWindow::render_loop() {
     // Flush input events (discard first mouse move event)
-    if (use_sdl_)
-        handle_events(true);
+    if (window_) handle_events(true);
 
-    std::chrono::high_resolution_clock clock;
+    typedef std::chrono::high_resolution_clock clock_type;
+    std::chrono::time_point<clock_type> msg_time = clock_type::now();
+    std::chrono::time_point<clock_type> cur_time = msg_time;
 
-    bool done = false;
-
-    while (!done) {
-        auto cur_time = clock.now();
-        unsigned int elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(cur_time - start_time_).count();
-
-        if (elapsed_ms > msg_counter_ * msg_interval_ms) {
+    while (true) {
+        auto elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(cur_time - start_time_).count();
+        auto msg_ms = std::chrono::duration_cast<std::chrono::milliseconds>(cur_time - msg_time).count();
+        if (msg_ms > msg_interval_ms && frames_ > 0) {
             std::cout << frames_ << " samples, "
                       << 1000.0 * frames_ / static_cast<float>(elapsed_ms) << " frames per second, "
                       << static_cast<float>(elapsed_ms) / frames_ << "ms per frame"
                       << std::endl;
-            msg_counter_++;
+            msg_time = cur_time;
         }
 
         render();
 
-        if (use_sdl_)
-            done = handle_events(false);
+        if ((window_ && handle_events(false)) ||
+            frames_ + 1 > max_samples_ ||
+            elapsed_ms / 1000.0f > max_time_sec_)
+            break;
 
-        if (frames_ + 1 > max_samples_ || elapsed_ms / 1000.0f > max_time_sec_) {
-            done = true;
-        }
-
-        if (done == true)
-            std::cout << "Done after " << elapsed_ms / 1000.0f << " seconds, "
-                      << frames_ << " samples" << std::endl;
+        cur_time = clock_type::now();
     }
+
+    auto elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(cur_time - start_time_).count();
+    std::cout << "Done after " << elapsed_ms / 1000.0f << " seconds, "
+              << frames_ << " samples" << std::endl;
 
     write_image(output_file_.c_str());
 }
@@ -81,30 +79,30 @@ void RenderWindow::render() {
     integrator_.render(accum_buffer_);
     frames_++;
 
-    if (!use_sdl_)
-        return;
+    if (!window_) return;
 
-    SDL_LockSurface(screen_);
+    SDL_Surface* surface = SDL_GetWindowSurface(window_);
+    SDL_LockSurface(surface);
 
-    const int r = screen_->format->Rshift / 8;
-    const int g = screen_->format->Gshift / 8;
-    const int b = screen_->format->Bshift / 8;
+    const int r = surface->format->Rshift / 8;
+    const int g = surface->format->Gshift / 8;
+    const int b = surface->format->Bshift / 8;
     const float weight = 1.0f / (frames_);
 
     #pragma omp parallel for
-    for (int y = 0; y < screen_->h; y++) {
-        unsigned char* row = (unsigned char*)screen_->pixels + screen_->pitch * y;
+    for (int y = 0; y < surface->h; y++) {
+        unsigned char* row = (unsigned char*)surface->pixels + surface->pitch * y;
         const float4* accum_row = accum_buffer_.row(y);
 
-        for (int x = 0; x < screen_->w; x++) {
+        for (int x = 0; x < surface->w; x++) {
             row[x * 4 + r] = 255.0f * clamp(powf(accum_row[x].x * weight, gamma), 0.0f, 1.0f);
             row[x * 4 + g] = 255.0f * clamp(powf(accum_row[x].y * weight, gamma), 0.0f, 1.0f);
             row[x * 4 + b] = 255.0f * clamp(powf(accum_row[x].z * weight, gamma), 0.0f, 1.0f);
         }
     }
 
-    SDL_UnlockSurface(screen_);
-    SDL_Flip(screen_);
+    SDL_UnlockSurface(surface);
+    SDL_UpdateWindowSurface(window_);
 }
 
 bool RenderWindow::handle_events(bool flush) {

@@ -5,17 +5,22 @@
 #include "random.h"
 #include <cfloat>
 #include <random>
+#include <functional>
 
 namespace imba {
 
+template <typename StateType>
 class RayGen {
 public:
-    virtual ~RayGen() {}
+    typedef std::function<void (int, int, ::Ray&, StateType&)> SamplePixelFn;
+    virtual void fill_queue(RayQueue<StateType>&, SamplePixelFn) = 0;
+    virtual void start_frame() = 0;
+    virtual int rays_left() const = 0;
 };
 
 /// Base class for all classes that generate rays per pixel (camera, lights)
-template<typename StateType>
-class PixelRayGen : public RayGen {
+template <typename StateType>
+class PixelRayGen : public RayGen<StateType> {
 public:
     PixelRayGen(int w, int h, int spp)
         : width_(w), height_(h), n_samples_(spp)
@@ -25,17 +30,16 @@ public:
     int height() { return height_; }
     int num_samples() { return n_samples_; }
 
-    void set_target(int count) { target_ = count; }
-    void start_frame() { next_pixel_ = 0; }
+    virtual void start_frame() { next_pixel_ = 0; }
 
-    int rays_left() const { return (n_samples_ * width_ * height_) - next_pixel_; }
+    virtual int rays_left() const { return (n_samples_ * width_ * height_) - next_pixel_; }
 
-    void fill_queue(RayQueue<StateType>& out) {
+    virtual void fill_queue(RayQueue<StateType>& out, typename RayGen<StateType>::SamplePixelFn sample_pixel) override {
         // only generate at most n samples per pixel
         if (next_pixel_ >= n_samples_ * width_ * height_) return;
 
         // calculate how many rays are needed to fill the queue
-        int count = target_ - out.size();
+        int count = out.capacity() - out.size();
         if (count <= 0) return;
 
         // make sure that no pixel is sampled more than n_samples_ times
@@ -78,13 +82,9 @@ public:
 
 protected:
     int next_pixel_;
-    int target_;
-
     int width_;
     int height_;
     int n_samples_;
-
-    virtual void sample_pixel(int x, int y, ::Ray& ray_out, StateType& state_out) = 0;
 };
 
 } // namespace imba

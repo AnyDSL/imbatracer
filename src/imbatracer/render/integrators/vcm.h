@@ -2,7 +2,7 @@
 #define IMBA_VCM_H
 
 #include "integrator.h"
-
+#include "../ray_gen.h"
 #include "../../rangesearch/rangesearch.h"
 
 namespace imba {
@@ -21,92 +21,6 @@ struct VCMState : RayState {
     float dVC;
     float dVCM;
     float dVM;
-};
-
-inline float mis_heuristic(float a) {
-    return a;
-}
-
-// Ray generator for light sources. Samples a point and a direction on a lightsource for every pixel sample.
-class VCMLightRayGen : public PixelRayGen<VCMState> {
-public:
-    VCMLightRayGen(int w, int h, int n, LightContainer& lights) : PixelRayGen<VCMState>(w, h, n), lights_(lights) { }
-
-    virtual void sample_pixel(int x, int y, ::Ray& ray_out, VCMState& state_out) override {
-        const float offset = 0.0001f;
-
-        // randomly choose one light source to sample
-        int i = state_out.rng.random_int(0, lights_.size());
-        auto& l = lights_[i];
-        float pdf_lightpick = 1.0f / lights_.size();
-
-        Light::EmitSample sample = l->sample_emit(state_out.rng);
-        ray_out.org.x = sample.pos.x;
-        ray_out.org.y = sample.pos.y;
-        ray_out.org.z = sample.pos.z;
-        ray_out.org.w = offset;
-
-        ray_out.dir.x = sample.dir.x;
-        ray_out.dir.y = sample.dir.y;
-        ray_out.dir.z = sample.dir.z;
-        ray_out.dir.w = FLT_MAX;
-
-        state_out.throughput = sample.radiance / pdf_lightpick;
-        state_out.path_length = 1;
-        state_out.continue_prob = 1.0f;
-
-        state_out.dVCM = mis_heuristic(sample.pdf_direct_a / sample.pdf_emit_w); // pdf_lightpick cancels out
-
-        if (l->is_delta())
-            state_out.dVC = 0.0f;
-        else
-            state_out.dVC = mis_heuristic(sample.cos_out / (sample.pdf_emit_w * pdf_lightpick));
-
-        state_out.dVM = state_out.dVC * mis_weight_vc_;
-
-        state_out.is_finite = l->is_finite();
-    }
-
-    void set_mis_weight_vc(float w) { mis_weight_vc_ = w; }
-
-private:
-    LightContainer& lights_;
-    float mis_weight_vc_;
-};
-
-/// Generates camera rays for VCM.
-class VCMCameraRayGen : public PixelRayGen<VCMState> {
-public:
-    VCMCameraRayGen(PerspectiveCamera& cam, int spp)
-        : PixelRayGen<VCMState>(cam.width(), cam.height(), spp), cam_(cam), light_path_count_(cam.width() * cam.height())
-    {}
-
-    virtual void sample_pixel(int x, int y, ::Ray& ray_out, VCMState& state_out) override {
-        // Sample a ray from the camera.
-        const float sample_x = static_cast<float>(x) + state_out.rng.random_float();
-        const float sample_y = static_cast<float>(y) + state_out.rng.random_float();
-
-        ray_out = cam_.generate_ray(sample_x, sample_y);
-
-        state_out.throughput = float4(1.0f);
-        state_out.path_length = 1;
-        state_out.continue_prob = 1.0f;
-
-        const float3 dir(ray_out.dir.x, ray_out.dir.y, ray_out.dir.z);
-
-        // PDF on image plane is 1. We need to convert this from image plane area to solid angle.
-        const float cos_theta_o = dot(dir, cam_.dir());
-        assert(cos_theta_o > 0.0f);
-        const float pdf_cam_w = sqr(cam_.image_plane_dist() / cos_theta_o) / cos_theta_o;
-
-        state_out.dVC = 0.0f;
-        state_out.dVM = 0.0f;
-        state_out.dVCM = mis_heuristic(light_path_count_ / pdf_cam_w);
-    }
-
-private:
-    PerspectiveCamera& cam_;
-    const float light_path_count_;
 };
 
 struct LightPathVertex {
@@ -264,17 +178,15 @@ inline PhotonIterator::PhotonIterator(const LightPathContainer* cont, bool is_en
 
 // bidirectional path tracing
 class VCMIntegrator : public Integrator {
-    static constexpr int TARGET_RAY_COUNT = 64 * 1000;
-    static constexpr int MAX_LIGHT_PATH_LEN = 8;
+    static constexpr int TARGET_RAY_COUNT = 1 << 20;
+    static constexpr int MAX_LIGHT_PATH_LEN = 5;
     static constexpr int MAX_CAMERA_PATH_LEN = 8;
 public:
-    VCMIntegrator(Scene& scene, PerspectiveCamera& cam, int spp, float base_radius=0.003f, float radius_alpha=0.75f)
-        : Integrator(scene, cam, spp),
+    VCMIntegrator(Scene& scene, PerspectiveCamera& cam, RayGen<VCMState>& ray_gen, float base_radius=0.003f, float radius_alpha=0.75f)
+        : Integrator(scene, cam),
           width_(cam.width()),
           height_(cam.height()),
-          n_samples_(spp),
-          light_sampler_(width_, height_, n_samples_, scene.lights),
-          camera_sampler_(cam, spp),
+          ray_gen_(ray_gen),
           primary_rays_{ RayQueue<VCMState>(TARGET_RAY_COUNT), RayQueue<VCMState>(TARGET_RAY_COUNT)},
           shadow_rays_(TARGET_RAY_COUNT * (MAX_LIGHT_PATH_LEN + 1)),
           light_image_(width_, height_),
@@ -286,8 +198,6 @@ public:
           radius_alpha_(radius_alpha),
           cur_iteration_(0)
     {
-        camera_sampler_.set_target(TARGET_RAY_COUNT);
-        light_sampler_.set_target(TARGET_RAY_COUNT);
         photon_grid_.reserve(width_ * height_);
     }
 
@@ -299,7 +209,6 @@ public:
 
 private:
     int width_, height_;
-    int n_samples_;
     float light_path_count_;
 
     float base_radius_;
@@ -312,9 +221,7 @@ private:
     float mis_weight_vc_;
     float mis_weight_vm_;
 
-    VCMLightRayGen light_sampler_;
-    VCMCameraRayGen camera_sampler_;
-
+    RayGen<VCMState>& ray_gen_;
     LightPathContainer light_paths_;
 
     void reset_buffers();

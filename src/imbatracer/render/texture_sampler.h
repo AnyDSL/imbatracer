@@ -18,14 +18,29 @@ public:
     float4 sample(float2 uv) {
         float u = clamp(uv.x - (int)uv.x, -1.0f, 1.0f);
         float v = clamp(uv.y - (int)uv.y, -1.0f, 1.0f);
-        if (u < 0.0f) u += 1.0f;
-        if (v < 0.0f) v += 1.0f;
+        u += u < 0.0f ? 1.0f : 0.0f;
+        v += v < 0.0f ? 1.0f : 0.0f;
 
-        int col = u * (img_.width() - 1);
-        int row = v * (img_.height() - 1);
-        row = (img_.height() - 1) - row;
+        const float kx = u * (img_.width()  - 1);
+        const float ky = v * (img_.height() - 1);
 
-        return img_(col, row);
+        const int x0 = (int)kx;
+        const int y0 = (int)ky;
+        const int x1 = (x0 + 1) % img_.width();
+        const int y1 = (y0 + 1) % img_.height();
+
+        const float gx = kx - floorf(kx);
+        const float gy = ky - floorf(ky);
+        const float hx = 1.0f - gx;
+        const float hy = 1.0f - gy;
+
+        const float4 i00 = img_(x0, y0);
+        const float4 i10 = img_(x1, y0);
+        const float4 i01 = img_(x0, y1);
+        const float4 i11 = img_(x1, y1);
+
+        return hy * (hx * i00 + gx * i10) +
+               gy * (hx * i01 + gx * i11);
     }
 
     const Image& image() const { return img_; }

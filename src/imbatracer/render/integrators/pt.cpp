@@ -12,7 +12,7 @@ namespace imba {
 
 constexpr float offset = 0.0001f;
 
-inline void PathTracer::compute_direct_illum(const Intersection& isect, PTState& state, RayQueue<PTState>& ray_out_shadow, BSDF* bsdf) {
+void PathTracer::compute_direct_illum(const Intersection& isect, PTState& state, RayQueue<PTState>& ray_out_shadow, BSDF* bsdf) {
     RNG& rng = state.rng;
 
     // Generate the shadow ray (sample one point on one lightsource)
@@ -36,7 +36,7 @@ inline void PathTracer::compute_direct_illum(const Intersection& isect, PTState&
     ray_out_shadow.push(ray, s);
 }
 
-inline void PathTracer::bounce(const Intersection& isect, PTState& state, RayQueue<PTState>& ray_out, BSDF* bsdf) {
+void PathTracer::bounce(const Intersection& isect, PTState& state, RayQueue<PTState>& ray_out, BSDF* bsdf) {
     RNG& rng = state.rng;
 
     const int max_recursion = 32; // prevent havoc
@@ -84,7 +84,11 @@ void PathTracer::process_primary_rays(RayQueue<PTState>& ray_in, RayQueue<PTStat
 
             // Create a thread_local memory arena that is used to store the BSDF objects
             // of all intersections that one thread processes.
+            #if defined(__APPLE__) && defined(__clang__) || defined(_MSC_VER)
+            MemoryArena bsdf_mem_arena(512);
+            #else
             thread_local MemoryArena bsdf_mem_arena(512);
+            #endif
             bsdf_mem_arena.free_all();
 
             RNG& rng = states[i].rng;
@@ -135,8 +139,7 @@ void PathTracer::render(Image& out) {
 /*
 
     // Create the initial set of camera rays.
-    auto camera = ray_gen_;
-    camera.start_frame();
+    ray_gen_.start_frame();
 
     int in_queue = 0;
     int out_queue = 1;
@@ -151,9 +154,25 @@ void PathTracer::render(Image& out) {
     static int64_t traversal_calls = 0;
 
     while(true) {
+<<<<<<< HEAD
         auto t0 = std::chrono::high_resolution_clock::now();
 
         camera.fill_queue(primary_rays_[in_queue]);
+=======
+        // Generate new rays
+        ray_gen_.fill_queue(primary_rays_[in_queue], [this] (int x, int y, ::Ray& ray_out, PTState& state_out) {
+            float u1 = state_out.rng.random_float();
+            float u2 = state_out.rng.random_float();
+            const float sample_x = static_cast<float>(x) + u1;
+            const float sample_y = static_cast<float>(y) + u2;
+
+            ray_out = cam_.generate_ray(sample_x, sample_y);
+
+            state_out.throughput = float4(1.0f);
+            state_out.bounces = 0;
+            state_out.last_specular = false;
+        });
+>>>>>>> master
 
         auto t1 = std::chrono::high_resolution_clock::now();
         raygen_time += std::chrono::duration_cast<std::chrono::milliseconds>(t1 - t0).count();
@@ -226,3 +245,4 @@ void PathTracer::render(Image& out) {
 }
 
 } // namespace imba
+

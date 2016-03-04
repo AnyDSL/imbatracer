@@ -2,6 +2,7 @@
 #define IMBA_IMAGE_H
 
 #include <vector>
+#include <cstring>
 
 #include "float4.h"
 
@@ -30,6 +31,10 @@ public:
         width_ = width;
         height_ = height;
         pixels_.resize(width_ * height_);
+    }
+
+    void clear() {
+        std::memset(pixels_.data(), 0, sizeof(float4) * pixels_.size());
     }
 
 private:

@@ -17,7 +17,7 @@ public:
         return float4(0.0f);
     }
 
-    virtual float4 sample(const float3& out_dir, float3& in_dir, float rnd_num_1, float rnd_num_2, float& pdf) const {
+    virtual float4 sample(const float3& out_dir, float3& in_dir, float rnd_num_1, float rnd_num_2, float& pdf) const override {
         pdf = 1.0f;
 
         // Compute optical densities depending on whether the ray is coming from the outside or the inside.
@@ -47,7 +47,7 @@ public:
         return /*sqr(eta_trans) / sqr(eta_in) **/ (1.0f - fr) * scale_ / fabsf(cos_theta(in_dir));  // TODO we need to consider adjoint here.
     }
 
-    virtual float pdf(const float3& out_dir, const float3& in_dir) const {
+    virtual float pdf(const float3& out_dir, const float3& in_dir) const override {
         return 0.0f; // Probability between any two randomly choosen directions is zero due to the delta distribution.
     }
 

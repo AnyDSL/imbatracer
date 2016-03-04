@@ -1,7 +1,7 @@
 #ifndef IMBA_RENDER_WINDOW_H
 #define IMBA_RENDER_WINDOW_H
 
-#include <SDL.h>
+#include <SDL2/SDL.h>
 #include <chrono>
 
 #include "cmd_line.h"
@@ -39,7 +39,7 @@ private:
     bool write_image(const char* filename);
 
     Image accum_buffer_;
-    SDL_Surface* screen_;
+    SDL_Window* window_;
     Integrator& integrator_;
     InputController& ctrl_;
 
@@ -50,7 +50,6 @@ private:
     int msg_counter_;
     static constexpr int msg_interval_ms = 10000;
 
-    bool use_sdl_;
     int max_samples_;
     float max_time_sec_;
 

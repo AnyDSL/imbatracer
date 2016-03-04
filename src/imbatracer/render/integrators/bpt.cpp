@@ -14,6 +14,10 @@ static const float offset = 0.00001f;
 //#define BPT_PATHTRACING_ONLY
 //#define BPT_LIGHTTRACING_ONLY
 
+inline float mis_heuristic_bpt(float a) {
+    return powf(a, 2.0f);
+}
+
 void BidirPathTracer::render(Image& img) {
     reset_buffers();
 
@@ -45,13 +49,43 @@ void BidirPathTracer::reset_buffers() {
 }
 
 void BidirPathTracer::trace_light_paths() {
-    light_sampler_.start_frame();
+    ray_gen_.start_frame();
 
     int in_queue = 0;
     int out_queue = 1;
 
     while(true) {
-        light_sampler_.fill_queue(primary_rays_[in_queue]);
+        // Generate rays from the light sources
+        ray_gen_.fill_queue(primary_rays_[in_queue], [this] (int x, int y, ::Ray& ray_out, BPTState& state_out) {
+            // randomly choose one light source to sample
+            int i = state_out.rng.random_int(0, scene_.lights.size());
+            auto& l = scene_.lights[i];
+            float pdf_lightpick = 1.0f / scene_.lights.size();
+
+            Light::EmitSample sample = l->sample_emit(state_out.rng);
+            ray_out.org.x = sample.pos.x;
+            ray_out.org.y = sample.pos.y;
+            ray_out.org.z = sample.pos.z;
+            ray_out.org.w = offset;
+
+            ray_out.dir.x = sample.dir.x;
+            ray_out.dir.y = sample.dir.y;
+            ray_out.dir.z = sample.dir.z;
+            ray_out.dir.w = FLT_MAX;
+
+            state_out.throughput = sample.radiance / pdf_lightpick;
+            state_out.path_length = 1;
+            state_out.continue_prob = 1.0f;
+
+            state_out.dVCM = mis_heuristic_bpt(sample.pdf_direct_a / sample.pdf_emit_w); // pdf_lightpick cancels out
+
+            if (l->is_delta())
+                state_out.dVC = 0.0f;
+            else
+                state_out.dVC = mis_heuristic_bpt(sample.cos_out / (sample.pdf_emit_w * pdf_lightpick));
+
+            state_out.is_finite = l->is_finite();
+        });
 
         if (primary_rays_[in_queue].size() <= 0)
             break;
@@ -73,14 +107,34 @@ void BidirPathTracer::trace_light_paths() {
 
 void BidirPathTracer::trace_camera_paths(Image& img) {
     // Create the initial set of camera rays.
-    auto camera = camera_sampler_;
-    camera.start_frame();
+    ray_gen_.start_frame();
 
     int in_queue = 0;
     int out_queue = 1;
 
     while(true) {
-        camera.fill_queue(primary_rays_[in_queue]);
+        // Generates rays from the camera
+        ray_gen_.fill_queue(primary_rays_[in_queue], [this] (int x, int y, ::Ray& ray_out, BPTState& state_out) {
+            // Sample a ray from the camera.
+            const float sample_x = static_cast<float>(x) + state_out.rng.random_float();
+            const float sample_y = static_cast<float>(y) + state_out.rng.random_float();
+
+            ray_out = cam_.generate_ray(sample_x, sample_y);
+
+            state_out.throughput = float4(1.0f);
+            state_out.path_length = 1;
+            state_out.continue_prob = 1.0f;
+
+            const float3 dir(ray_out.dir.x, ray_out.dir.y, ray_out.dir.z);
+
+            // PDF on image plane is 1. We need to convert this from image plane area to solid angle.
+            const float cos_theta_o = dot(dir, cam_.dir());
+            assert(cos_theta_o > 0.0f);
+            const float pdf_cam_w = sqr(cam_.image_plane_dist() / cos_theta_o) / cos_theta_o;
+
+            state_out.dVC = 0.0f;
+            state_out.dVCM = mis_heuristic_bpt(light_path_count_ / pdf_cam_w);
+        });
 
         if (primary_rays_[in_queue].size() <= 0)
             break;
@@ -108,7 +162,8 @@ inline float shading_normal_adjoint(const float3& normal, const float3& geom_nor
     return fabsf(dot(out_dir, normal)) * fabsf(dot(in_dir, geom_normal)) / fabsf(dot(out_dir, geom_normal));
 }
 
-void bounce(BPTState& state, const Intersection& isect, BSDF* bsdf, RayQueue<BPTState>& rays_out, bool adjoint, int max_length) {
+template <bool adjoint>
+void bounce(BPTState& state, const Intersection& isect, BSDF* bsdf, RayQueue<BPTState>& rays_out, int max_length) {
     if (state.path_length >= max_length)
         return;
 
@@ -130,7 +185,7 @@ void bounce(BPTState& state, const Intersection& isect, BSDF* bsdf, RayQueue<BPT
     if (!is_specular) // cannot evaluate reverse pdf of specular surfaces (but is the same as forward due to symmetry)
         pdf_rev_w = bsdf->pdf(sample_dir, isect.out_dir);
 
-    float cos_theta_i = fabsf(dot(sample_dir, isect.normal));
+    const float cos_theta_i = adjoint ? shading_normal_adjoint(isect.normal, isect.geom_normal, isect.out_dir, sample_dir) : fabsf(dot(sample_dir, isect.normal));
 
     BPTState s = state;
     if (is_specular) {
@@ -143,14 +198,7 @@ void bounce(BPTState& state, const Intersection& isect, BSDF* bsdf, RayQueue<BPT
         s.dVCM = mis_heuristic_bpt(1.0f / (pdf_dir_w * rr_pdf));
     }
 
-    float adjoint_cos_term;
-
-    if (adjoint)
-        adjoint_cos_term = shading_normal_adjoint(isect.normal, isect.geom_normal, isect.out_dir, sample_dir);
-    else
-        adjoint_cos_term = fabsf(dot(sample_dir, isect.normal));
-
-    s.throughput *= bsdf_value * adjoint_cos_term / (rr_pdf * pdf_dir_w);
+    s.throughput *= bsdf_value * cos_theta_i / (rr_pdf * pdf_dir_w);
     s.path_length++;
     s.continue_prob = rr_pdf;
 
@@ -175,20 +223,24 @@ void BidirPathTracer::process_light_rays(RayQueue<BPTState>& rays_in, RayQueue<B
 
         // Create a thread_local memory arena that is used to store the BSDF objects
         // of all intersections that one thread processes.
+        #if defined(__APPLE__) && defined(__clang__) || defined(_MSC_VER)
+        MemoryArena bsdf_mem_arena(512);
+        #else
         thread_local MemoryArena bsdf_mem_arena(512);
+        #endif
         bsdf_mem_arena.free_all();
 
         RNG& rng = states[i].rng;
 
         Intersection isect = calculate_intersection(hits, rays, i);
-        float cos_theta_i = fabsf(dot(isect.out_dir, isect.normal));
+        float cos_theta_o = fabsf(dot(isect.out_dir, isect.normal));
 
         // Complete calculation of the partial weights.
         if (states[i].path_length > 1 || states[i].is_finite)
             states[i].dVCM *= mis_heuristic_bpt(sqr(isect.distance));
 
-        states[i].dVCM *= 1.0f / mis_heuristic_bpt(cos_theta_i);
-        states[i].dVC  *= 1.0f / mis_heuristic_bpt(cos_theta_i);
+        states[i].dVCM *= 1.0f / mis_heuristic_bpt(cos_theta_o);
+        states[i].dVC  *= 1.0f / mis_heuristic_bpt(cos_theta_o);
 
         auto bsdf = isect.mat->get_bsdf(isect, bsdf_mem_arena);
 
@@ -206,7 +258,7 @@ void BidirPathTracer::process_light_rays(RayQueue<BPTState>& rays_in, RayQueue<B
             connect_to_camera(states[i], isect, bsdf, ray_out_shadow);
         }
 
-        bounce(states[i], isect, bsdf, rays_out, true, MAX_LIGHT_PATH_LEN);
+        bounce<true>(states[i], isect, bsdf, rays_out, MAX_LIGHT_PATH_LEN);
     }
 }
 
@@ -281,7 +333,11 @@ void BidirPathTracer::process_camera_rays(RayQueue<BPTState>& rays_in, RayQueue<
 
         // Create a thread_local memory arena that is used to store the BSDF objects
         // of all intersections that one thread processes.
+        #if defined(__APPLE__) && defined(__clang__) || defined(_MSC_VER)
+        MemoryArena bsdf_mem_arena(512);
+        #else
         thread_local MemoryArena bsdf_mem_arena(512);
+        #endif
         bsdf_mem_arena.free_all();
 
         RNG& rng = states[i].rng;
@@ -328,7 +384,7 @@ void BidirPathTracer::process_camera_rays(RayQueue<BPTState>& rays_in, RayQueue<
         }
 
         // Continue the path using russian roulette.
-        bounce(states[i], isect, bsdf, rays_out, false, MAX_CAMERA_PATH_LEN);
+        bounce<false>(states[i], isect, bsdf, rays_out, MAX_CAMERA_PATH_LEN);
     }
 }
 
@@ -454,3 +510,4 @@ void BidirPathTracer::process_shadow_rays(RayQueue<BPTState>& rays_in, Image& im
 }
 
 } // namespace imba
+

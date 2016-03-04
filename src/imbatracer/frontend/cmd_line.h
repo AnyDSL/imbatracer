@@ -34,7 +34,7 @@ struct UserSettings {
 };
 
 inline void print_help() {
-    std::cout << "Usage: imbatracer <input_file.obj> [-q | -s <max_samples> | -t <max_time_seconds> |" << std::endl
+    std::cout << "Usage: imbatracer <input_file.scene> [-q | -s <max_samples> | -t <max_time_seconds> |" << std::endl
               << "                                    -a <algorithm> | -w <width> | -h <height> | <output_file.png> ]"
               << std::endl << std::endl
               << "    -q  Quiet mode, render in background without SDL preview." << std::endl
