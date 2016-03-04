@@ -7,9 +7,6 @@
 #include "cmd_line.h"
 
 #include "../render/render.h"
-#include "../render/integrators/pt.h"
-#include "../render/integrators/bpt.h"
-#include "../render/integrators/vcm.h"
 
 namespace imba {
 

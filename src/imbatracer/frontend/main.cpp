@@ -6,6 +6,9 @@
 #include "../render/scene.h"
 #include "../render/ray_gen.h"
 
+#include "../render/integrators/pt.h"
+#include "../render/integrators/vcm.h"
+
 using namespace imba;
 
 class CameraControl : public InputController {
@@ -94,8 +97,8 @@ int main(int argc, char* argv[]) {
     CameraControl ctrl(cam, cam_pos, cam_dir, cam_up);
 
     if (settings.algorithm == UserSettings::BPT) {
-        PixelRayGen<BPTState> ray_gen(settings.width, settings.height, 1);
-        BidirPathTracer integrator(scene, cam, ray_gen);
+        PixelRayGen<VCMState> ray_gen(settings.width, settings.height, 1);
+        BPT integrator(scene, cam, ray_gen);
 
         RenderWindow wnd(settings, integrator, ctrl);
         wnd.render_loop();
@@ -107,7 +110,7 @@ int main(int argc, char* argv[]) {
         wnd.render_loop();
     } else {
         PixelRayGen<VCMState> ray_gen(settings.width, settings.height, 1);
-        VCMIntegrator integrator(scene, cam, ray_gen);
+        VCM integrator(scene, cam, ray_gen);
 
         RenderWindow wnd(settings, integrator, ctrl);
         wnd.render_loop();

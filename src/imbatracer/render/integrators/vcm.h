@@ -177,6 +177,7 @@ inline PhotonIterator::PhotonIterator(const LightPathContainer* cont, bool is_en
 }
 
 // bidirectional path tracing
+template<bool bpt_only>
 class VCMIntegrator : public Integrator {
     static constexpr int TARGET_RAY_COUNT = 1 << 20;
     static constexpr int MAX_LIGHT_PATH_LEN = 5;
@@ -250,6 +251,9 @@ private:
 
     void bounce(VCMState& state, const Intersection& isect, BSDF* bsdf, RayQueue<VCMState>& rays_out, bool adjoint, int max_length);
 };
+
+using VCM = VCMIntegrator<false>;
+using BPT = VCMIntegrator<true>;
 
 } // namespace imba
 

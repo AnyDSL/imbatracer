@@ -15,14 +15,14 @@ static const float offset = 0.00001f;
 
 //#define VCM_PATHTRACING_ONLY
 //#define VCM_LIGHTTRACING_ONLY
-//#define VCM_BIDIRPATHTRACING_ONLY
 //#define VCM_PROGRESSIVEPM_ONLY
 
 inline float mis_heuristic(float a) {
     return a;
 }
 
-void VCMIntegrator::render(Image& img) {
+template<bool bpt_only>
+void VCMIntegrator<bpt_only>::render(Image& img) {
     reset_buffers();
 
     cur_iteration_++;
@@ -36,11 +36,10 @@ void VCMIntegrator::render(Image& img) {
     const float etaVCM = pi * sqr(pm_radius_) * light_path_count_;
     mis_weight_vc_ = mis_heuristic(1.0f / etaVCM);
 
-#ifndef VCM_BIDIRPATHTRACING_ONLY
-    mis_weight_vm_ = mis_heuristic(etaVCM);
-#else
-    mis_weight_vm_ = 0.0f;
-#endif
+    if (!bpt_only)
+        mis_weight_vm_ = mis_heuristic(etaVCM);
+    else
+        mis_weight_vm_ = 0.0f;
 
 #ifndef VCM_PATHTRACING_ONLY
     trace_light_paths();
@@ -57,7 +56,8 @@ void VCMIntegrator::render(Image& img) {
     }
 }
 
-void VCMIntegrator::reset_buffers() {
+template<bool bpt_only>
+void VCMIntegrator<bpt_only>::reset_buffers() {
 #ifndef VCM_LIGHTTRACING_ONLY
     light_paths_.reset();
 #endif
@@ -68,7 +68,8 @@ void VCMIntegrator::reset_buffers() {
     }
 }
 
-void VCMIntegrator::trace_light_paths() {
+template<bool bpt_only>
+void VCMIntegrator<bpt_only>::trace_light_paths() {
     ray_gen_.start_frame();
 
     int in_queue = 0;
@@ -129,7 +130,8 @@ void VCMIntegrator::trace_light_paths() {
     photon_grid_.build(light_paths_.begin(), light_paths_.end(), pm_radius_);
 }
 
-void VCMIntegrator::trace_camera_paths(Image& img) {
+template<bool bpt_only>
+void VCMIntegrator<bpt_only>::trace_camera_paths(Image& img) {
     // Create the initial set of camera rays.
     ray_gen_.start_frame();
 
@@ -187,7 +189,8 @@ inline float shading_normal_adjoint(const float3& normal, const float3& geom_nor
     return fabsf(dot(out_dir, normal)) * fabsf(dot(in_dir, geom_normal)) / fabsf(dot(out_dir, geom_normal));
 }
 
-void VCMIntegrator::bounce(VCMState& state, const Intersection& isect, BSDF* bsdf, RayQueue<VCMState>& rays_out, bool adjoint, int max_length) {
+template<bool bpt_only>
+void VCMIntegrator<bpt_only>::bounce(VCMState& state, const Intersection& isect, BSDF* bsdf, RayQueue<VCMState>& rays_out, bool adjoint, int max_length) {
     if (state.path_length >= max_length)
         return;
 
@@ -256,7 +259,8 @@ void VCMIntegrator::bounce(VCMState& state, const Intersection& isect, BSDF* bsd
     rays_out.push(ray, s);
 }
 
-void VCMIntegrator::process_light_rays(RayQueue<VCMState>& rays_in, RayQueue<VCMState>& rays_out, RayQueue<VCMState>& ray_out_shadow) {
+template<bool bpt_only>
+void VCMIntegrator<bpt_only>::process_light_rays(RayQueue<VCMState>& rays_in, RayQueue<VCMState>& rays_out, RayQueue<VCMState>& ray_out_shadow) {
     int ray_count = rays_in.size();
     VCMState* states = rays_in.states();
     const Hit* hits = rays_in.hits();
@@ -312,7 +316,8 @@ void VCMIntegrator::process_light_rays(RayQueue<VCMState>& rays_in, RayQueue<VCM
     }
 }
 
-void VCMIntegrator::connect_to_camera(const VCMState& light_state, const Intersection& isect,
+template<bool bpt_only>
+void VCMIntegrator<bpt_only>::connect_to_camera(const VCMState& light_state, const Intersection& isect,
                                       const BSDF* bsdf, RayQueue<VCMState>& ray_out_shadow) {
     float3 dir_to_cam = cam_.pos() - isect.pos;
 
@@ -370,7 +375,8 @@ void VCMIntegrator::connect_to_camera(const VCMState& light_state, const Interse
     ray_out_shadow.push(ray, state);
 }
 
-void VCMIntegrator::process_camera_rays(RayQueue<VCMState>& rays_in, RayQueue<VCMState>& rays_out, RayQueue<VCMState>& ray_out_shadow, Image& img) {
+template<bool bpt_only>
+void VCMIntegrator<bpt_only>::process_camera_rays(RayQueue<VCMState>& rays_in, RayQueue<VCMState>& rays_out, RayQueue<VCMState>& ray_out_shadow, Image& img) {
     int ray_count = rays_in.size();
     VCMState* states = rays_in.states();
     const Hit* hits = rays_in.hits();
@@ -437,18 +443,19 @@ void VCMIntegrator::process_camera_rays(RayQueue<VCMState>& rays_in, RayQueue<VC
             connect(states[i], isect, bsdf, bsdf_mem_arena, ray_out_shadow);
 #endif
 
-#ifndef VCM_BIDIRPATHTRACING_ONLY
-        progressive_photon_mapping_step:
-        if (!isect.mat->is_specular())
-            vertex_merging(states[i], isect, bsdf, img);
-#endif
+        if (!bpt_only) {
+            progressive_photon_mapping_step:
+            if (!isect.mat->is_specular())
+                vertex_merging(states[i], isect, bsdf, img);
+        }
 
         // Continue the path using russian roulette.
         bounce(states[i], isect, bsdf, rays_out, false, MAX_CAMERA_PATH_LEN);
     }
 }
 
-void VCMIntegrator::direct_illum(VCMState& cam_state, const Intersection& isect, BSDF* bsdf, RayQueue<VCMState>& rays_out_shadow) {
+template<bool bpt_only>
+void VCMIntegrator<bpt_only>::direct_illum(VCMState& cam_state, const Intersection& isect, BSDF* bsdf, RayQueue<VCMState>& rays_out_shadow) {
     RNG& rng = cam_state.rng;
 
     // Generate the shadow ray (sample one point on one lightsource)
@@ -490,7 +497,8 @@ void VCMIntegrator::direct_illum(VCMState& cam_state, const Intersection& isect,
     rays_out_shadow.push(ray, s);
 }
 
-void VCMIntegrator::connect(VCMState& cam_state, const Intersection& isect, BSDF* bsdf_cam, MemoryArena& bsdf_arena, RayQueue<VCMState>& rays_out_shadow) {
+template<bool bpt_only>
+void VCMIntegrator<bpt_only>::connect(VCMState& cam_state, const Intersection& isect, BSDF* bsdf_cam, MemoryArena& bsdf_arena, RayQueue<VCMState>& rays_out_shadow) {
     auto& light_path = light_paths_.get_path(cam_state.pixel_id);
     const int path_len = light_paths_.get_path_len(cam_state.pixel_id);
     for (int i = 0; i < path_len; ++i) {
@@ -556,7 +564,8 @@ void VCMIntegrator::connect(VCMState& cam_state, const Intersection& isect, BSDF
     }
 }
 
-void VCMIntegrator::vertex_merging(const VCMState& state, const Intersection& isect, const BSDF* bsdf, Image& img) {
+template<bool bpt_only>
+void VCMIntegrator<bpt_only>::vertex_merging(const VCMState& state, const Intersection& isect, const BSDF* bsdf, Image& img) {
     if (!bsdf->count(BSDF_NON_SPECULAR))
         return;
 
@@ -599,7 +608,8 @@ void VCMIntegrator::vertex_merging(const VCMState& state, const Intersection& is
     pm_image_.pixels()[state.pixel_id] += state.throughput * contrib * vm_normalization_;
 }
 
-void VCMIntegrator::process_shadow_rays(RayQueue<VCMState>& rays_in, Image& img) {
+template<bool bpt_only>
+void VCMIntegrator<bpt_only>::process_shadow_rays(RayQueue<VCMState>& rays_in, Image& img) {
     int ray_count = rays_in.size();
     const VCMState* states = rays_in.states();
     const Hit* hits = rays_in.hits();
@@ -610,6 +620,15 @@ void VCMIntegrator::process_shadow_rays(RayQueue<VCMState>& rays_in, Image& img)
             img.pixels()[states[i].pixel_id] += states[i].throughput;
         }
     }
+}
+
+
+void tmp() {
+    Scene scene;
+    PerspectiveCamera cam(0,0,0.0f);
+    PixelRayGen<VCMState> ray_gen(1, 1, 1);
+    VCMIntegrator<true> tmp1(scene, cam, ray_gen);
+    VCMIntegrator<false> tmp2(scene, cam, ray_gen);
 }
 
 } // namespace imba
