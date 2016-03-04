@@ -23,7 +23,7 @@ template <typename StateType>
 class PixelRayGen : public RayGen<StateType> {
 public:
     PixelRayGen(int w, int h, int spp)
-        : width_(w), height_(h), n_samples_(spp)
+        : width_(w), height_(h), n_samples_(spp), next_pixel_(0)
     {}
 
     int width() { return width_; }

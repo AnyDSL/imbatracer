@@ -135,7 +135,19 @@ void PathTracer::process_shadow_rays(RayQueue<PTState>& ray_in, Image& out) {
 }
 
 void PathTracer::render(Image& out) {
-    scheduler_.run_iteration(out, this, &PathTracer::process_shadow_rays, &PathTracer::process_primary_rays);
+    scheduler_.run_iteration(out, this, &PathTracer::process_shadow_rays, &PathTracer::process_primary_rays,
+        [this] (int x, int y, ::Ray& ray_out, PTState& state_out) {
+            float u1 = state_out.rng.random_float();
+            float u2 = state_out.rng.random_float();
+            const float sample_x = static_cast<float>(x) + u1;
+            const float sample_y = static_cast<float>(y) + u2;
+
+            ray_out = cam_.generate_ray(sample_x, sample_y);
+
+            state_out.throughput = float4(1.0f);
+            state_out.bounces = 0;
+            state_out.last_specular = false;
+        });
 /*
 
     // Create the initial set of camera rays.

@@ -20,7 +20,7 @@ public:
     PathTracer(Scene& scene, PerspectiveCamera& cam, RayGen<PTState>& ray_gen)
         : Integrator(scene, cam)
         , ray_gen_(ray_gen)
-        , scheduler_(ray_gen_, scene_)
+        , scheduler_(ray_gen, scene_)
     {}
 
     virtual void render(Image& out) override;
