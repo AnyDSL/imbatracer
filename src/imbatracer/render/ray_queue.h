@@ -52,18 +52,6 @@ public:
         return *this;
     }
 
-    /*
-    void resize(int capacity, ThorinArray<::Node>* nodes, ThorinArray<Vec4>* tris) {
-        assert(nodes && tris && "No acceleration structure data passed to the RayQueue");
-
-        nodes_ = nodes;
-        tris_ = tris;
-        ray_buffer_ = ThorinArray<::Ray>(capacity);
-        hit_buffer_ = ThorinArray<::Hit>(capacity);
-        state_buffer_.resize(capacity);
-        last_ = -1;
-    }*/
-
     int size() const { return last_ + 1; }
 
     ::Ray* rays() {

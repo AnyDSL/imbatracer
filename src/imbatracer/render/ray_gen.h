@@ -28,6 +28,8 @@ public:
     void set_target(int count) { target_ = count; }
     void start_frame() { next_pixel_ = 0; }
 
+    int rays_left() const { return (n_samples_ * width_ * height_) - next_pixel_; }
+
     void fill_queue(RayQueue<StateType>& out) {
         // only generate at most n samples per pixel
         if (next_pixel_ >= n_samples_ * width_ * height_) return;

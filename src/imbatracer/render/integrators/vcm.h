@@ -265,7 +265,7 @@ inline PhotonIterator::PhotonIterator(const LightPathContainer* cont, bool is_en
 // bidirectional path tracing
 class VCMIntegrator : public Integrator {
     static constexpr int TARGET_RAY_COUNT = 64 * 1000;
-    static constexpr int MAX_LIGHT_PATH_LEN = 5;
+    static constexpr int MAX_LIGHT_PATH_LEN = 8;
     static constexpr int MAX_CAMERA_PATH_LEN = 8;
 public:
     VCMIntegrator(Scene& scene, PerspectiveCamera& cam, int spp, float base_radius=0.003f, float radius_alpha=0.75f)

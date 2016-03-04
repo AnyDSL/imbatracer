@@ -21,19 +21,19 @@ using std::size_t;
 */
 
 namespace imba {
-    
+
 template <typename T>
 class ThorinArray {
 public:
     ThorinArray() {}
-    
+
     ThorinArray(int64_t size)
         : host_array(size)
 #ifndef NO_COPY
         , device_array(thorin::Platform::TRAVERSAL_PLATFORM, thorin::Device(TRAVERSAL_DEVICE), size)
 #endif
     {}
-    
+
     ThorinArray(const std::vector<T>& rhs)
         : host_array(rhs.size())
 #ifndef NO_COPY
@@ -42,10 +42,10 @@ public:
     {
         std::copy(rhs.begin(), rhs.end(), host_array.begin());
     }
-    
+
     ThorinArray(ThorinArray&& other) = default;
     ThorinArray& operator = (ThorinArray&& other) = default;
-    
+
     ThorinArray(const ThorinArray&) = delete;
     ThorinArray& operator = (const ThorinArray&) = delete;
 
@@ -58,17 +58,17 @@ public:
         thorin::copy(host_array, device_array, count);
 #endif
     }
-    
+
     // Downloads the data from the device to the host.
     void download(int count) {
 #ifndef NO_COPY
         thorin::copy(device_array, host_array, count);
 #endif
     }
-    
+
     T* begin() { return host_array.begin(); }
     const T* begin() const { return host_array.begin(); }
-    
+
     T* end() { return host_array.end(); }
     const T* end() const { return host_array.end(); }
 
@@ -82,12 +82,12 @@ public:
     T* device_data() { return device_array.data(); }
     const T* device_data() const { return device_array.data(); }
 #endif
-    
+
     int64_t size() const { return host_array.size(); }
 
     const T& operator [] (int i) const { return host_array[i]; }
     T& operator [] (int i) { return host_array[i]; }
-    
+
 private:
 #ifndef NO_COPY
     thorin::Array<T> device_array;
