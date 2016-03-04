@@ -68,9 +68,6 @@ public:
 
     float2 world_to_raster(const float3& world_pos) const {
         float3 t = transform_point(world_to_raster_, world_pos);
-
-        //printf("%f %f %f to %f %f \n", world_pos.x, world_pos.y, world_pos.z, t.y, t.x);
-
         return float2(t.y, t.x);
     }
 

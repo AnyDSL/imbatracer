@@ -29,8 +29,7 @@ public:
 
     RayQueue(int capacity)
         : ray_buffer_(capacity), hit_buffer_(capacity), state_buffer_(capacity), last_(-1)
-    {
-    }
+    {}
 
     RayQueue(const RayQueue<StateType>&) = delete;
     RayQueue& operator= (const RayQueue<StateType>&) = delete;
@@ -40,8 +39,7 @@ public:
           hit_buffer_(std::move(rhs.hit_buffer_)),
           state_buffer_(std::move(rhs.state_buffer_)),
           last_(rhs.last_.load())
-    {
-    }
+    {}
 
     RayQueue& operator= (RayQueue<StateType>&& rhs) {
         ray_buffer_ = std::move(rhs.ray_buffer_);
@@ -52,19 +50,15 @@ public:
         return *this;
     }
 
-    /*
-    void resize(int capacity, ThorinArray<::Node>* nodes, ThorinArray<Vec4>* tris) {
-        assert(nodes && tris && "No acceleration structure data passed to the RayQueue");
-
-        nodes_ = nodes;
-        tris_ = tris;
+    void resize(int capacity) {
         ray_buffer_ = ThorinArray<::Ray>(capacity);
         hit_buffer_ = ThorinArray<::Hit>(capacity);
         state_buffer_.resize(capacity);
         last_ = -1;
-    }*/
+    }
 
     int size() const { return last_ + 1; }
+    int capacity() const { return state_buffer_.size(); }
 
     ::Ray* rays() {
         return ray_buffer_.host_data();

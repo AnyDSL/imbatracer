@@ -11,7 +11,7 @@ namespace imba {
 
 constexpr float offset = 0.0001f;
 
-inline void PathTracer::compute_direct_illum(const Intersection& isect, PTState& state, RayQueue<PTState>& ray_out_shadow, BSDF* bsdf) {
+void PathTracer::compute_direct_illum(const Intersection& isect, PTState& state, RayQueue<PTState>& ray_out_shadow, BSDF* bsdf) {
     RNG& rng = state.rng;
 
     // Generate the shadow ray (sample one point on one lightsource)
@@ -35,7 +35,7 @@ inline void PathTracer::compute_direct_illum(const Intersection& isect, PTState&
     ray_out_shadow.push(ray, s);
 }
 
-inline void PathTracer::bounce(const Intersection& isect, PTState& state, RayQueue<PTState>& ray_out, BSDF* bsdf) {
+void PathTracer::bounce(const Intersection& isect, PTState& state, RayQueue<PTState>& ray_out, BSDF* bsdf) {
     RNG& rng = state.rng;
 
     const int max_recursion = 32; // prevent havoc
@@ -133,14 +133,25 @@ void PathTracer::process_shadow_rays(RayQueue<PTState>& ray_in, Image& out) {
 
 void PathTracer::render(Image& out) {
     // Create the initial set of camera rays.
-    auto camera = ray_gen_;
-    camera.start_frame();
+    ray_gen_.start_frame();
 
     int in_queue = 0;
     int out_queue = 1;
 
     while(true) {
-        camera.fill_queue(primary_rays_[in_queue]);
+        // Generate new rays
+        ray_gen_.fill_queue(primary_rays_[in_queue], [this] (int x, int y, ::Ray& ray_out, PTState& state_out) {
+            float u1 = state_out.rng.random_float();
+            float u2 = state_out.rng.random_float();
+            const float sample_x = static_cast<float>(x) + u1;
+            const float sample_y = static_cast<float>(y) + u2;
+
+            ray_out = cam_.generate_ray(sample_x, sample_y);
+
+            state_out.throughput = float4(1.0f);
+            state_out.bounces = 0;
+            state_out.last_specular = false;
+        });
 
         if (primary_rays_[in_queue].size() <= 0)
             break;
@@ -161,3 +172,4 @@ void PathTracer::render(Image& out) {
 }
 
 } // namespace imba
+

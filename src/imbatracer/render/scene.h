@@ -11,8 +11,6 @@
 
 namespace imba {
 
-class RayGen;
-
 struct MeshAttributes {
     enum {
         texcoords = 0,
