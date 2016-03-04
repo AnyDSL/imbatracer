@@ -162,7 +162,8 @@ inline float shading_normal_adjoint(const float3& normal, const float3& geom_nor
     return fabsf(dot(out_dir, normal)) * fabsf(dot(in_dir, geom_normal)) / fabsf(dot(out_dir, geom_normal));
 }
 
-inline void bounce(BPTState& state, const Intersection& isect, BSDF* bsdf, RayQueue<BPTState>& rays_out, bool adjoint, int max_length) {
+template <bool adjoint>
+void bounce(BPTState& state, const Intersection& isect, BSDF* bsdf, RayQueue<BPTState>& rays_out, int max_length) {
     if (state.path_length >= max_length)
         return;
 
@@ -184,7 +185,7 @@ inline void bounce(BPTState& state, const Intersection& isect, BSDF* bsdf, RayQu
     if (!is_specular) // cannot evaluate reverse pdf of specular surfaces (but is the same as forward due to symmetry)
         pdf_rev_w = bsdf->pdf(sample_dir, isect.out_dir);
 
-    float cos_theta_i = fabsf(dot(sample_dir, isect.normal));
+    const float cos_theta_i = adjoint ? shading_normal_adjoint(isect.normal, isect.geom_normal, isect.out_dir, sample_dir) : fabsf(dot(sample_dir, isect.normal));
 
     BPTState s = state;
     if (is_specular) {
@@ -197,14 +198,7 @@ inline void bounce(BPTState& state, const Intersection& isect, BSDF* bsdf, RayQu
         s.dVCM = mis_heuristic_bpt(1.0f / (pdf_dir_w * rr_pdf));
     }
 
-    float adjoint_cos_term;
-
-    if (adjoint)
-        adjoint_cos_term = shading_normal_adjoint(isect.normal, isect.geom_normal, isect.out_dir, sample_dir);
-    else
-        adjoint_cos_term = fabsf(dot(sample_dir, isect.normal));
-
-    s.throughput *= bsdf_value * adjoint_cos_term / (rr_pdf * pdf_dir_w);
+    s.throughput *= bsdf_value * cos_theta_i / (rr_pdf * pdf_dir_w);
     s.path_length++;
     s.continue_prob = rr_pdf;
 
@@ -239,14 +233,14 @@ void BidirPathTracer::process_light_rays(RayQueue<BPTState>& rays_in, RayQueue<B
         RNG& rng = states[i].rng;
 
         Intersection isect = calculate_intersection(hits, rays, i);
-        float cos_theta_i = fabsf(dot(isect.out_dir, isect.normal));
+        float cos_theta_o = fabsf(dot(isect.out_dir, isect.normal));
 
         // Complete calculation of the partial weights.
         if (states[i].path_length > 1 || states[i].is_finite)
             states[i].dVCM *= mis_heuristic_bpt(sqr(isect.distance));
 
-        states[i].dVCM *= 1.0f / mis_heuristic_bpt(cos_theta_i);
-        states[i].dVC  *= 1.0f / mis_heuristic_bpt(cos_theta_i);
+        states[i].dVCM *= 1.0f / mis_heuristic_bpt(cos_theta_o);
+        states[i].dVC  *= 1.0f / mis_heuristic_bpt(cos_theta_o);
 
         auto bsdf = isect.mat->get_bsdf(isect, bsdf_mem_arena);
 
@@ -264,7 +258,7 @@ void BidirPathTracer::process_light_rays(RayQueue<BPTState>& rays_in, RayQueue<B
             connect_to_camera(states[i], isect, bsdf, ray_out_shadow);
         }
 
-        bounce(states[i], isect, bsdf, rays_out, true, MAX_LIGHT_PATH_LEN);
+        bounce<true>(states[i], isect, bsdf, rays_out, MAX_LIGHT_PATH_LEN);
     }
 }
 
@@ -390,7 +384,7 @@ void BidirPathTracer::process_camera_rays(RayQueue<BPTState>& rays_in, RayQueue<
         }
 
         // Continue the path using russian roulette.
-        bounce(states[i], isect, bsdf, rays_out, false, MAX_CAMERA_PATH_LEN);
+        bounce<false>(states[i], isect, bsdf, rays_out, MAX_CAMERA_PATH_LEN);
     }
 }
 

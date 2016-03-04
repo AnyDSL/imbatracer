@@ -503,6 +503,13 @@ void VCMIntegrator::connect(VCMState& cam_state, const Intersection& isect, BSDF
         const float connect_dist = std::sqrt(connect_dist_sq);
         connect_dir *= 1.0f / connect_dist;
 
+        if (connect_dist < pm_radius_) {
+            // If two points are too close to each other, connecting them might create an overly bright pixel
+            // that will only go away after a lot of samples. Those points usually lie on the same surface and should have a
+            // cosine term of zero, thus we can ignore them.
+            return;
+        }
+
         // Evaluate the bsdf at the camera vertex.
         auto bsdf_value_cam = bsdf_cam->eval(isect.out_dir, connect_dir, BSDF_ALL);
         float pdf_dir_cam_w = bsdf_cam->pdf(isect.out_dir, connect_dir);
