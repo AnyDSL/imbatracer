@@ -3,6 +3,8 @@
 #include "../../core/common.h"
 #include "../random.h"
 
+#include "tbb/enumerable_thread_specific.h"
+
 #include <cfloat>
 #include <cassert>
 #include <random>
@@ -11,6 +13,9 @@
 namespace imba {
 
 constexpr float offset = 0.0001f;
+
+using ThreadLocalMemArena = tbb::enumerable_thread_specific<MemoryArena, tbb::cache_aligned_allocator<MemoryArena>, tbb::ets_key_per_instance>;
+extern ThreadLocalMemArena bsdf_memory_arenas; // Defined in vcm.cpp
 
 void PathTracer::compute_direct_illum(const Intersection& isect, PTState& state, RayQueue<PTState>& ray_out_shadow, BSDF* bsdf) {
     RNG& rng = state.rng;
@@ -78,21 +83,15 @@ void PathTracer::process_primary_rays(RayQueue<PTState>& ray_in, RayQueue<PTStat
     int ray_count = ray_in.size();
 
     tbb::parallel_for(tbb::blocked_range<size_t>(0, ray_count), [this, states, hits, rays, &ray_out, &ray_out_shadow, &out] (const tbb::blocked_range<size_t>& range) {
+        auto& bsdf_mem_arena = bsdf_memory_arenas.local();
+
         for (size_t i = range.begin(); i != range.end(); ++i) {
             if (hits[i].tri_id < 0)
                 continue;
 
-            // Create a thread_local memory arena that is used to store the BSDF objects
-            // of all intersections that one thread processes.
-            #if defined(__APPLE__) && defined(__clang__) || defined(_MSC_VER)
-            MemoryArena bsdf_mem_arena(512);
-            #else
-            thread_local MemoryArena bsdf_mem_arena(512);
-            #endif
             bsdf_mem_arena.free_all();
 
             RNG& rng = states[i].rng;
-
             const auto isect = calculate_intersection(hits, rays, i);
 
             if (isect.mat->light()) {

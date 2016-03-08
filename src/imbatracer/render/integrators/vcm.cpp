@@ -13,6 +13,14 @@ namespace imba {
 //static int64_t photon_time = 0;
 static const float offset = 0.00001f;
 
+using ThreadLocalMemArena =
+    tbb::enumerable_thread_specific<MemoryArena, tbb::cache_aligned_allocator<MemoryArena>, tbb::ets_key_per_instance>;
+ThreadLocalMemArena bsdf_memory_arenas;
+
+using ThreadLocalPhotonContainer =
+    tbb::enumerable_thread_specific<std::vector<PhotonIterator>, tbb::cache_aligned_allocator<std::vector<PhotonIterator>>, tbb::ets_key_per_instance>;
+ThreadLocalPhotonContainer photon_containers;
+
 inline float mis_heuristic(float a) {
     return a;
 }
@@ -215,21 +223,15 @@ void VCMIntegrator<bpt_only, ppm_only, lt_only, pt_only>::process_light_rays(Ray
     const Ray* rays = rays_in.rays();
 
     tbb::parallel_for(tbb::blocked_range<size_t>(0, ray_count), [this, states, hits, rays, &rays_out, &ray_out_shadow] (const tbb::blocked_range<size_t>& range) {
+        auto& bsdf_mem_arena = bsdf_memory_arenas.local();
+
         for (size_t i = range.begin(); i != range.end(); ++i) {
             if (hits[i].tri_id < 0)
                 continue;
 
-            // Create a thread_local memory arena that is used to store the BSDF objects
-            // of all intersections that one thread processes.
-            #if defined(__APPLE__) && defined(__clang__) || defined(_MSC_VER)
-            MemoryArena bsdf_mem_arena(512);
-            #else
-            thread_local MemoryArena bsdf_mem_arena(512);
-            #endif
             bsdf_mem_arena.free_all();
 
             RNG& rng = states[i].rng;
-
             Intersection isect = calculate_intersection(hits, rays, i);
             float cos_theta_i = fabsf(dot(isect.out_dir, isect.normal));
 
@@ -325,21 +327,15 @@ void VCMIntegrator<bpt_only, ppm_only, lt_only, pt_only>::process_camera_rays(Ra
     const Ray* rays = rays_in.rays();
 
     tbb::parallel_for(tbb::blocked_range<size_t>(0, ray_count), [this, states, hits, rays, &rays_out, &ray_out_shadow, &img] (const tbb::blocked_range<size_t>& range) {
+        auto& bsdf_mem_arena = bsdf_memory_arenas.local();
+
         for (size_t i = range.begin(); i != range.end(); ++i) {
             if (hits[i].tri_id < 0)
                 continue;
 
-            // Create a thread_local memory arena that is used to store the BSDF objects
-            // of all intersections that one thread processes.
-            #if defined(__APPLE__) && defined(__clang__) || defined(_MSC_VER)
-            MemoryArena bsdf_mem_arena(512);
-            #else
-            thread_local MemoryArena bsdf_mem_arena(512);
-            #endif
             bsdf_mem_arena.free_all();
 
             RNG& rng = states[i].rng;
-
             Intersection isect = calculate_intersection(hits, rays, i);
             float cos_theta_o = fabsf(dot(isect.out_dir, isect.normal));
 
@@ -509,11 +505,7 @@ void VCMIntegrator<bpt_only, ppm_only, lt_only, pt_only>::vertex_merging(const V
     if (!bsdf->count(BSDF_NON_SPECULAR))
         return;
 
-    #if defined(__APPLE__) && defined(__clang__) || defined(_MSC_VER)
-    static std::vector<PhotonIterator> photons;
-    #else
-    static thread_local std::vector<PhotonIterator> photons;
-    #endif
+    auto& photons = photon_containers.local();
     photons.reserve(width_ * height_);
     photons.clear();
 
