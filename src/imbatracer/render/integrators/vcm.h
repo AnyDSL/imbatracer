@@ -2,6 +2,7 @@
 #define IMBA_VCM_H
 
 #include "integrator.h"
+#include "../ray_scheduler.h"
 #include "../ray_gen.h"
 #include "../../rangesearch/rangesearch.h"
 
@@ -184,20 +185,21 @@ class VCMIntegrator : public Integrator {
     static constexpr int MAX_CAMERA_PATH_LEN = 8;
 public:
     VCMIntegrator(Scene& scene, PerspectiveCamera& cam, RayGen<VCMState>& ray_gen, float base_radius=0.003f, float radius_alpha=0.75f)
-        : Integrator(scene, cam),
-          width_(cam.width()),
-          height_(cam.height()),
-          ray_gen_(ray_gen),
-          primary_rays_{ RayQueue<VCMState>(TARGET_RAY_COUNT), RayQueue<VCMState>(TARGET_RAY_COUNT)},
-          shadow_rays_(TARGET_RAY_COUNT * (MAX_LIGHT_PATH_LEN + 1)),
-          light_image_(width_, height_),
-          pm_image_(width_, height_),
-          light_path_count_(width_ * height_),
-          light_paths_(MAX_LIGHT_PATH_LEN, width_ * height_),
-          pm_radius_(base_radius),
-          base_radius_(base_radius),
-          radius_alpha_(radius_alpha),
-          cur_iteration_(0)
+        : Integrator(scene, cam)
+        , width_(cam.width())
+        , height_(cam.height())
+        , ray_gen_(ray_gen)
+        , primary_rays_{ RayQueue<VCMState>(TARGET_RAY_COUNT), RayQueue<VCMState>(TARGET_RAY_COUNT)}
+        , shadow_rays_(TARGET_RAY_COUNT * (MAX_LIGHT_PATH_LEN + 1))
+        , light_image_(width_, height_)
+        , pm_image_(width_, height_)
+        , light_path_count_(width_ * height_)
+        , light_paths_(MAX_LIGHT_PATH_LEN, width_ * height_)
+        , pm_radius_(base_radius)
+        , base_radius_(base_radius)
+        , radius_alpha_(radius_alpha)
+        , cur_iteration_(0)
+        , scheduler_(ray_gen, scene)
     {
         photon_grid_.reserve(width_ * height_);
     }
@@ -224,6 +226,7 @@ private:
 
     RayGen<VCMState>& ray_gen_;
     LightPathContainer light_paths_;
+    RayScheduler<VCMState, 8, 8, MAX_LIGHT_PATH_LEN> scheduler_;
 
     void reset_buffers();
 
@@ -236,7 +239,7 @@ private:
 
     HashGrid<PhotonIterator> photon_grid_;
 
-    void process_light_rays(RayQueue<VCMState>& rays_in, RayQueue<VCMState>& rays_out, RayQueue<VCMState>& rays_out_shadow);
+    void process_light_rays(RayQueue<VCMState>& rays_in, RayQueue<VCMState>& rays_out, RayQueue<VCMState>& rays_out_shadow, Image&);
     void process_camera_rays(RayQueue<VCMState>& rays_in, RayQueue<VCMState>& rays_out, RayQueue<VCMState>& shadow_rays, Image& img);
     void process_shadow_rays(RayQueue<VCMState>& rays_in, Image& img);
 
@@ -250,6 +253,9 @@ private:
     void vertex_merging(const VCMState& state, const Intersection& isect, const BSDF* bsdf, Image& img);
 
     void bounce(VCMState& state, const Intersection& isect, BSDF* bsdf, RayQueue<VCMState>& rays_out, bool adjoint, int max_length);
+
+    template<typename StateType, int queue_count, int shadow_queue_count, int max_shadow_rays_per_hit>
+    friend class RayScheduler;
 };
 
 using VCM    = VCMIntegrator<false, false, false, false>;

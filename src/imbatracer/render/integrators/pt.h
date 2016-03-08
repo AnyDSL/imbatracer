@@ -20,13 +20,13 @@ public:
     PathTracer(Scene& scene, PerspectiveCamera& cam, RayGen<PTState>& ray_gen)
         : Integrator(scene, cam)
         , ray_gen_(ray_gen)
-        , scheduler_(ray_gen, scene_)
+        , scheduler_(ray_gen, scene)
     {}
 
     virtual void render(Image& out) override;
 
 private:
-    RayScheduler<PTState, 16> scheduler_;
+    RayScheduler<PTState, 8, 8, 1> scheduler_;
     RayGen<PTState>&  ray_gen_;
 
     void process_shadow_rays(RayQueue<PTState>& ray_in, Image& out);
@@ -35,7 +35,7 @@ private:
     void compute_direct_illum(const Intersection& isect, PTState& state, RayQueue<PTState>& ray_out_shadow, BSDF* bsdf);
     void bounce(const Intersection& isect, PTState& state, RayQueue<PTState>& ray_out, BSDF* bsdf);
 
-    template<typename StateType, int queue_count>
+    template<typename StateType, int queue_count, int shadow_queue_count, int max_shadow_rays_per_hit>
     friend class RayScheduler;
 };
 

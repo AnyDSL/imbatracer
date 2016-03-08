@@ -102,7 +102,7 @@ private:
 };
 
 /// Schedules the processing of ray queues by the traversal and shading steps.
-template<typename StateType, int queue_count>
+template<typename StateType, int queue_count, int shadow_queue_count, int max_shadow_rays_per_hit>
 class RayScheduler {
     using SamplePixelFn = typename RayGen<StateType>::SamplePixelFn;
 public:
@@ -110,26 +110,30 @@ public:
         : ray_gen_(ray_gen)
         , scene_(scene)
         , queue_pool_(ray_gen.rays_left() / 4)
+        , shadow_queue_pool_(ray_gen.rays_left() / 4 * max_shadow_rays_per_hit)
     {
     }
 
     ~RayScheduler() {}
 
-    template<typename Obj, typename ShadowFunc, typename PrimaryFunc>
-    void run_iteration(Image& out, Obj* integrator, ShadowFunc process_shadow_rays, PrimaryFunc process_primary_rays, SamplePixelFn sample_fn) {
+    template<typename Obj>
+    void run_iteration(Image& out, Obj* integrator,
+                       void (Obj::*process_shadow_rays)(RayQueue<StateType>& ray_in, Image& out),
+                       void (Obj::*process_primary_rays)(RayQueue<StateType>& ray_in, RayQueue<StateType>& ray_out, RayQueue<StateType>& ray_out_shadow, Image& out),
+                       SamplePixelFn sample_fn) {
         ray_gen_.start_frame();
 
-        while(queue_pool_.has_nonempty() || queue_pool_.has_nonempty() || ray_gen_.rays_left() > 0) {
+        while(queue_pool_.has_nonempty() || shadow_queue_pool_.has_nonempty() || ray_gen_.rays_left() > 0) {
             // Traverse the next set of rays.
             // Prioritize shadow rays as they are faster to traverse.
-            auto q_ref = queue_pool_.claim_queue_with_tag(QUEUE_READY_FOR_SHADOW_TRAVERSAL);
+            auto q_ref = shadow_queue_pool_.claim_queue_with_tag(QUEUE_READY_FOR_SHADOW_TRAVERSAL);
             if (q_ref) {
                 q_ref->traverse_occluded(scene_);
 
-                integrator->process_shadow_rays(*q_ref, out);
+                (integrator->*process_shadow_rays)(*q_ref, out);
 
                 q_ref->clear();
-                queue_pool_.return_queue(q_ref, QUEUE_EMPTY);
+                shadow_queue_pool_.return_queue(q_ref, QUEUE_EMPTY);
 
                 continue;
             }
@@ -158,20 +162,21 @@ public:
 
             shading_tasks_.run([this, integrator, process_primary_rays, q_ref, &out] () {
                 auto q_out = queue_pool_.claim_queue_with_tag(QUEUE_EMPTY);
-                auto q_out_shadow = queue_pool_.claim_queue_with_tag(QUEUE_EMPTY); // TODO investigate how to be sure an empty shadow queue exists
+                auto q_out_shadow = shadow_queue_pool_.claim_queue_with_tag(QUEUE_EMPTY); // TODO investigate how to be sure an empty shadow queue exists
 
-                integrator->process_primary_rays(*q_ref, *q_out, *q_out_shadow, out);
+                (integrator->*process_primary_rays)(*q_ref, *q_out, *q_out_shadow, out);
 
                 q_ref->clear();
                 queue_pool_.return_queue(q_ref, QUEUE_EMPTY);
                 queue_pool_.return_queue(q_out, QUEUE_READY_FOR_TRAVERSAL);
-                queue_pool_.return_queue(q_out_shadow, QUEUE_READY_FOR_SHADOW_TRAVERSAL);
+                shadow_queue_pool_.return_queue(q_out_shadow, QUEUE_READY_FOR_SHADOW_TRAVERSAL);
             });
         }
     }
 
 private:
     RayQueuePool<StateType, queue_count> queue_pool_;
+    RayQueuePool<StateType, shadow_queue_count> shadow_queue_pool_;
 
     RayGen<StateType>& ray_gen_;
     Scene& scene_;

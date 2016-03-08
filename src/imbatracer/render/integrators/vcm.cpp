@@ -13,10 +13,6 @@ namespace imba {
 //static int64_t photon_time = 0;
 static const float offset = 0.00001f;
 
-//#define VCM_PATHTRACING_ONLY
-//#define VCM_LIGHTTRACING_ONLY
-//#define VCM_PROGRESSIVEPM_ONLY
-
 inline float mis_heuristic(float a) {
     return a;
 }
@@ -67,13 +63,10 @@ void VCMIntegrator<bpt_only, ppm_only, lt_only, pt_only>::reset_buffers() {
 
 template<bool bpt_only, bool ppm_only, bool lt_only, bool pt_only>
 void VCMIntegrator<bpt_only, ppm_only, lt_only, pt_only>::trace_light_paths() {
-    ray_gen_.start_frame();
-
-    int in_queue = 0;
-    int out_queue = 1;
-
-    while(true) {
-        ray_gen_.fill_queue(primary_rays_[in_queue], [this] (int x, int y, ::Ray& ray_out, VCMState& state_out) {
+    scheduler_.run_iteration(light_image_, this,
+        &VCMIntegrator<bpt_only, ppm_only, lt_only, pt_only>::process_shadow_rays,
+        &VCMIntegrator<bpt_only, ppm_only, lt_only, pt_only>::process_light_rays,
+        [this] (int x, int y, ::Ray& ray_out, VCMState& state_out) {
             // randomly choose one light source to sample
             int i = state_out.rng.random_int(0, scene_.lights.size());
             auto& l = scene_.lights[i];
@@ -106,37 +99,16 @@ void VCMIntegrator<bpt_only, ppm_only, lt_only, pt_only>::trace_light_paths() {
             state_out.is_finite = l->is_finite();
         });
 
-        if (primary_rays_[in_queue].size() <= 0)
-            break;
-
-        primary_rays_[in_queue].traverse(scene_);
-        process_light_rays(primary_rays_[in_queue], primary_rays_[out_queue], shadow_rays_);
-        primary_rays_[in_queue].clear();
-
-        // Processing primary rays creates new primary rays and some shadow rays.
-        if (shadow_rays_.size() > 0) {
-            shadow_rays_.traverse_occluded(scene_);
-            process_shadow_rays(shadow_rays_, light_image_);
-            shadow_rays_.clear();
-        }
-
-        std::swap(in_queue, out_queue);
-    }
-
     photon_grid_.reserve(width_ * height_);
     photon_grid_.build(light_paths_.begin(), light_paths_.end(), pm_radius_);
 }
 
 template<bool bpt_only, bool ppm_only, bool lt_only, bool pt_only>
 void VCMIntegrator<bpt_only, ppm_only, lt_only, pt_only>::trace_camera_paths(Image& img) {
-    // Create the initial set of camera rays.
-    ray_gen_.start_frame();
-
-    int in_queue = 0;
-    int out_queue = 1;
-
-    while(true) {
-        ray_gen_.fill_queue(primary_rays_[in_queue], [this] (int x, int y, ::Ray& ray_out, VCMState& state_out) {
+    scheduler_.run_iteration(img, this,
+        &VCMIntegrator<bpt_only, ppm_only, lt_only, pt_only>::process_shadow_rays,
+        &VCMIntegrator<bpt_only, ppm_only, lt_only, pt_only>::process_camera_rays,
+        [this] (int x, int y, ::Ray& ray_out, VCMState& state_out) {
             // Sample a ray from the camera.
             const float sample_x = static_cast<float>(x) + state_out.rng.random_float();
             const float sample_y = static_cast<float>(y) + state_out.rng.random_float();
@@ -158,24 +130,6 @@ void VCMIntegrator<bpt_only, ppm_only, lt_only, pt_only>::trace_camera_paths(Ima
             state_out.dVM = 0.0f;
             state_out.dVCM = mis_heuristic(light_path_count_ / pdf_cam_w);
         });
-
-        if (primary_rays_[in_queue].size() <= 0)
-            break;
-
-        primary_rays_[in_queue].traverse(scene_);
-        process_camera_rays(primary_rays_[in_queue], primary_rays_[out_queue], shadow_rays_, img);
-        primary_rays_[in_queue].clear();
-
-        // Processing primary rays creates new primary rays and some shadow rays.
-        if (shadow_rays_.size() > 0) {
-            shadow_rays_.traverse_occluded(scene_);
-            process_shadow_rays(shadow_rays_, img);
-            shadow_rays_.clear();
-        }
-
-        std::swap(in_queue, out_queue);
-        //printf("Photon time: %dms\n", photon_time);
-    }
 }
 
 /// Computes the cosine term for adjoint BSDFs that use shading normals.
@@ -254,7 +208,7 @@ void VCMIntegrator<bpt_only, ppm_only, lt_only, pt_only>::bounce(VCMState& state
 }
 
 template<bool bpt_only, bool ppm_only, bool lt_only, bool pt_only>
-void VCMIntegrator<bpt_only, ppm_only, lt_only, pt_only>::process_light_rays(RayQueue<VCMState>& rays_in, RayQueue<VCMState>& rays_out, RayQueue<VCMState>& ray_out_shadow) {
+void VCMIntegrator<bpt_only, ppm_only, lt_only, pt_only>::process_light_rays(RayQueue<VCMState>& rays_in, RayQueue<VCMState>& rays_out, RayQueue<VCMState>& ray_out_shadow, Image&) {
     int ray_count = rays_in.size();
     VCMState* states = rays_in.states();
     const Hit* hits = rays_in.hits();
