@@ -63,10 +63,8 @@ void VCMIntegrator<bpt_only, ppm_only, lt_only, pt_only>::reset_buffers() {
     if (!lt_only)
         light_paths_.reset();
 
-    for (int i = 0; i < width_ * height_; ++i) {
-        light_image_.pixels()[i] = float4(0.0f);
-        pm_image_.pixels()[i] = float4(0.0f);
-    }
+    light_image_.clear();
+    pm_image_.clear();
 }
 
 template<bool bpt_only, bool ppm_only, bool lt_only, bool pt_only>
@@ -160,7 +158,7 @@ void VCMIntegrator<bpt_only, ppm_only, lt_only, pt_only>::bounce(VCMState& state
         return;
 
     BxDFFlags flags = BSDF_ALL;
-    if (ppm_only && !adjoint) // For PPM: only sample specular scattering on the light path.
+    if (ppm_only && !adjoint) // For PPM: only sample specular scattering on the camera path.
         flags = BxDFFlags(BSDF_SPECULAR | BSDF_REFLECTION | BSDF_TRANSMISSION);
 
     float pdf_dir_w;
@@ -172,14 +170,14 @@ void VCMIntegrator<bpt_only, ppm_only, lt_only, pt_only>::bounce(VCMState& state
     bool is_specular = sampled_flags & BSDF_SPECULAR;
 
     // For PPM: don't store black photons.
-    if (ppm_only && sampled_flags == 0 || pdf_dir_w == 0.0f || is_black(bsdf_value))
+    if (ppm_only && (sampled_flags == 0 || pdf_dir_w == 0.0f || is_black(bsdf_value)))
         return;
 
     float pdf_rev_w = pdf_dir_w;
     if (!is_specular) // cannot evaluate reverse pdf of specular surfaces (but is the same as forward due to symmetry)
         pdf_rev_w = bsdf->pdf(sample_dir, isect.out_dir);
 
-    float cos_theta_i = fabsf(dot(sample_dir, isect.normal));
+    const float cos_theta_i = fabsf(dot(sample_dir, isect.normal));
 
     VCMState s = state;
     if (is_specular) {
@@ -196,12 +194,7 @@ void VCMIntegrator<bpt_only, ppm_only, lt_only, pt_only>::bounce(VCMState& state
         s.dVCM = mis_heuristic(1.0f / (pdf_dir_w * rr_pdf));
     }
 
-    float adjoint_cos_term;
-
-    if (adjoint)
-        adjoint_cos_term = shading_normal_adjoint(isect.normal, isect.geom_normal, isect.out_dir, sample_dir);
-    else
-        adjoint_cos_term = fabsf(dot(sample_dir, isect.normal));
+    const float adjoint_cos_term = adjoint ? shading_normal_adjoint(isect.normal, isect.geom_normal, isect.out_dir, sample_dir) : cos_theta_i;
 
     s.throughput *= bsdf_value * adjoint_cos_term / (rr_pdf * pdf_dir_w);
     s.path_length++;
@@ -342,11 +335,13 @@ void VCMIntegrator<bpt_only, ppm_only, lt_only, pt_only>::process_camera_rays(Ra
             auto bsdf = isect.mat->get_bsdf(isect, bsdf_mem_arena);
 
             if (ppm_only){
-                if (!isect.mat->is_specular())
+                if (!isect.mat->is_specular()) {
                     vertex_merging(states[i], isect, bsdf, img);
+                }
 
                 // Continue the path using russian roulette.
                 bounce(states[i], isect, bsdf, rays_out, false, MAX_CAMERA_PATH_LEN);
+                continue;
             }
 
             // Complete computation of partial MIS weights.
@@ -447,10 +442,10 @@ void VCMIntegrator<bpt_only, ppm_only, lt_only, pt_only>::connect(VCMState& cam_
         const float connect_dist = std::sqrt(connect_dist_sq);
         connect_dir *= 1.0f / connect_dist;
 
-        if (connect_dist < /*base_radius_*/0.01f) {
-            // If two points are too close to each other, connecting them might create an overly bright pixel
-            // that will only go away after a lot of samples. Those points usually lie on the same surface and should have a
-            // cosine term of zero, thus we can ignore them.
+        if (connect_dist < base_radius_) {
+            // If two points are too close to each other, they are either occluded or have cosine terms
+            // that are close to zero. Numerical inaccuracies might yield an overly bright pixel.
+            // The correct result is usually black or close to black so we just ignore those connections.
             return;
         }
 
