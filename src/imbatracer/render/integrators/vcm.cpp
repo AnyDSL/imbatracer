@@ -214,51 +214,52 @@ void VCMIntegrator<bpt_only, ppm_only, lt_only, pt_only>::process_light_rays(Ray
     const Hit* hits = rays_in.hits();
     const Ray* rays = rays_in.rays();
 
-    #pragma omp parallel for
-    for (int i = 0; i < ray_count; ++i) {
-        if (hits[i].tri_id < 0)
-            continue;
+    tbb::parallel_for(tbb::blocked_range<size_t>(0, ray_count), [this, states, hits, rays, &rays_out, &ray_out_shadow] (const tbb::blocked_range<size_t>& range) {
+        for (size_t i = range.begin(); i != range.end(); ++i) {
+            if (hits[i].tri_id < 0)
+                continue;
 
-        // Create a thread_local memory arena that is used to store the BSDF objects
-        // of all intersections that one thread processes.
-        #if defined(__APPLE__) && defined(__clang__) || defined(_MSC_VER)
-        MemoryArena bsdf_mem_arena(512);
-        #else
-        thread_local MemoryArena bsdf_mem_arena(512);
-        #endif
-        bsdf_mem_arena.free_all();
+            // Create a thread_local memory arena that is used to store the BSDF objects
+            // of all intersections that one thread processes.
+            #if defined(__APPLE__) && defined(__clang__) || defined(_MSC_VER)
+            MemoryArena bsdf_mem_arena(512);
+            #else
+            thread_local MemoryArena bsdf_mem_arena(512);
+            #endif
+            bsdf_mem_arena.free_all();
 
-        RNG& rng = states[i].rng;
+            RNG& rng = states[i].rng;
 
-        Intersection isect = calculate_intersection(hits, rays, i);
-        float cos_theta_i = fabsf(dot(isect.out_dir, isect.normal));
+            Intersection isect = calculate_intersection(hits, rays, i);
+            float cos_theta_i = fabsf(dot(isect.out_dir, isect.normal));
 
-        // Complete calculation of the partial weights.
-        if (states[i].path_length > 1 || states[i].is_finite)
-            states[i].dVCM *= mis_heuristic(sqr(isect.distance));
+            // Complete calculation of the partial weights.
+            if (states[i].path_length > 1 || states[i].is_finite)
+                states[i].dVCM *= mis_heuristic(sqr(isect.distance));
 
-        states[i].dVCM *= 1.0f / mis_heuristic(cos_theta_i);
-        states[i].dVC  *= 1.0f / mis_heuristic(cos_theta_i);
-        states[i].dVM  *= 1.0f / mis_heuristic(cos_theta_i);
+            states[i].dVCM *= 1.0f / mis_heuristic(cos_theta_i);
+            states[i].dVC  *= 1.0f / mis_heuristic(cos_theta_i);
+            states[i].dVM  *= 1.0f / mis_heuristic(cos_theta_i);
 
-        auto bsdf = isect.mat->get_bsdf(isect, bsdf_mem_arena);
+            auto bsdf = isect.mat->get_bsdf(isect, bsdf_mem_arena);
 
-        if (!isect.mat->is_specular()){// || bsdf->count(BSDF_NON_SPECULAR)) { // Do not store vertices on materials described by a delta distribution.
-            if (!lt_only)
-                light_paths_.append(states[i].pixel_id,
-                                    isect,
-                                    states[i].throughput,
-                                    states[i].continue_prob,
-                                    states[i].dVC,
-                                    states[i].dVCM,
-                                    states[i].dVM);
+            if (!isect.mat->is_specular()){// || bsdf->count(BSDF_NON_SPECULAR)) { // Do not store vertices on materials described by a delta distribution.
+                if (!lt_only)
+                    light_paths_.append(states[i].pixel_id,
+                                        isect,
+                                        states[i].throughput,
+                                        states[i].continue_prob,
+                                        states[i].dVC,
+                                        states[i].dVCM,
+                                        states[i].dVM);
 
-            if (!ppm_only)
-                connect_to_camera(states[i], isect, bsdf, ray_out_shadow);
+                if (!ppm_only)
+                    connect_to_camera(states[i], isect, bsdf, ray_out_shadow);
+            }
+
+            bounce(states[i], isect, bsdf, rays_out, true, MAX_LIGHT_PATH_LEN);
         }
-
-        bounce(states[i], isect, bsdf, rays_out, true, MAX_LIGHT_PATH_LEN);
-    }
+    });
 }
 
 template<bool bpt_only, bool ppm_only, bool lt_only, bool pt_only>
@@ -323,77 +324,78 @@ void VCMIntegrator<bpt_only, ppm_only, lt_only, pt_only>::process_camera_rays(Ra
     const Hit* hits = rays_in.hits();
     const Ray* rays = rays_in.rays();
 
-    #pragma omp parallel for
-    for (int i = 0; i < ray_count; ++i) {
-        if (hits[i].tri_id < 0)
-            continue;
+    tbb::parallel_for(tbb::blocked_range<size_t>(0, ray_count), [this, states, hits, rays, &rays_out, &ray_out_shadow, &img] (const tbb::blocked_range<size_t>& range) {
+        for (size_t i = range.begin(); i != range.end(); ++i) {
+            if (hits[i].tri_id < 0)
+                continue;
 
-        // Create a thread_local memory arena that is used to store the BSDF objects
-        // of all intersections that one thread processes.
-        #if defined(__APPLE__) && defined(__clang__) || defined(_MSC_VER)
-        MemoryArena bsdf_mem_arena(512);
-        #else
-        thread_local MemoryArena bsdf_mem_arena(512);
-        #endif
-        bsdf_mem_arena.free_all();
+            // Create a thread_local memory arena that is used to store the BSDF objects
+            // of all intersections that one thread processes.
+            #if defined(__APPLE__) && defined(__clang__) || defined(_MSC_VER)
+            MemoryArena bsdf_mem_arena(512);
+            #else
+            thread_local MemoryArena bsdf_mem_arena(512);
+            #endif
+            bsdf_mem_arena.free_all();
 
-        RNG& rng = states[i].rng;
+            RNG& rng = states[i].rng;
 
-        Intersection isect = calculate_intersection(hits, rays, i);
-        float cos_theta_o = fabsf(dot(isect.out_dir, isect.normal));
+            Intersection isect = calculate_intersection(hits, rays, i);
+            float cos_theta_o = fabsf(dot(isect.out_dir, isect.normal));
 
-        auto bsdf = isect.mat->get_bsdf(isect, bsdf_mem_arena);
+            auto bsdf = isect.mat->get_bsdf(isect, bsdf_mem_arena);
 
-        if (ppm_only){
-            if (!isect.mat->is_specular())
-                vertex_merging(states[i], isect, bsdf, img);
+            if (ppm_only){
+                if (!isect.mat->is_specular())
+                    vertex_merging(states[i], isect, bsdf, img);
+
+                // Continue the path using russian roulette.
+                bounce(states[i], isect, bsdf, rays_out, false, MAX_CAMERA_PATH_LEN);
+            }
+
+            // Complete computation of partial MIS weights.
+            states[i].dVCM *= mis_heuristic(sqr(isect.distance)) / mis_heuristic(cos_theta_o); // convert divided pdf from solid angle to area
+            states[i].dVC *= 1.0f / mis_heuristic(cos_theta_o);
+            states[i].dVM *= 1.0f / mis_heuristic(cos_theta_o);
+
+            if (isect.mat->light()) {
+                auto light_source = isect.mat->light();
+
+                // A light source was hit directly. Add the weighted contribution.
+                float pdf_lightpick = 1.0f / scene_.lights.size();
+                float pdf_direct_a, pdf_emit_w;
+                float4 radiance = light_source->radiance(isect.out_dir, pdf_direct_a, pdf_emit_w);
+
+                const float pdf_di = pdf_direct_a * pdf_lightpick;
+                const float pdf_e = pdf_emit_w * pdf_lightpick;
+
+                const float mis_weight_camera = mis_heuristic(pdf_di) * states[i].dVCM + mis_heuristic(pdf_e) * states[i].dVC;
+
+                if (states[i].path_length > 1) {
+                    float4 color = states[i].throughput * radiance * 1.0f / (mis_weight_camera + 1.0f);
+
+                    if (!pt_only)int a;
+                        img.pixels()[states[i].pixel_id] += color;
+                } else
+                    img.pixels()[states[i].pixel_id] += radiance; // Light directly visible, no weighting required.
+            }
+
+            // Compute direct illumination.
+            direct_illum(states[i], isect, bsdf, ray_out_shadow);
+
+            // Connect to light path vertices.
+            if (!pt_only && !isect.mat->is_specular())
+                connect(states[i], isect, bsdf, bsdf_mem_arena, ray_out_shadow);
+
+            if (!bpt_only) {
+                if (!isect.mat->is_specular())
+                    vertex_merging(states[i], isect, bsdf, img);
+            }
 
             // Continue the path using russian roulette.
             bounce(states[i], isect, bsdf, rays_out, false, MAX_CAMERA_PATH_LEN);
         }
-
-        // Complete computation of partial MIS weights.
-        states[i].dVCM *= mis_heuristic(sqr(isect.distance)) / mis_heuristic(cos_theta_o); // convert divided pdf from solid angle to area
-        states[i].dVC *= 1.0f / mis_heuristic(cos_theta_o);
-        states[i].dVM *= 1.0f / mis_heuristic(cos_theta_o);
-
-        if (isect.mat->light()) {
-            auto light_source = isect.mat->light();
-
-            // A light source was hit directly. Add the weighted contribution.
-            float pdf_lightpick = 1.0f / scene_.lights.size();
-            float pdf_direct_a, pdf_emit_w;
-            float4 radiance = light_source->radiance(isect.out_dir, pdf_direct_a, pdf_emit_w);
-
-            const float pdf_di = pdf_direct_a * pdf_lightpick;
-            const float pdf_e = pdf_emit_w * pdf_lightpick;
-
-            const float mis_weight_camera = mis_heuristic(pdf_di) * states[i].dVCM + mis_heuristic(pdf_e) * states[i].dVC;
-
-            if (states[i].path_length > 1) {
-                float4 color = states[i].throughput * radiance * 1.0f / (mis_weight_camera + 1.0f);
-
-                if (!pt_only)
-                    img.pixels()[states[i].pixel_id] += color;
-            } else
-                img.pixels()[states[i].pixel_id] += radiance; // Light directly visible, no weighting required.
-        }
-
-        // Compute direct illumination.
-        direct_illum(states[i], isect, bsdf, ray_out_shadow);
-
-        // Connect to light path vertices.
-        if (!pt_only && !isect.mat->is_specular())
-            connect(states[i], isect, bsdf, bsdf_mem_arena, ray_out_shadow);
-
-        if (!bpt_only) {
-            if (!isect.mat->is_specular())
-                vertex_merging(states[i], isect, bsdf, img);
-        }
-
-        // Continue the path using russian roulette.
-        bounce(states[i], isect, bsdf, rays_out, false, MAX_CAMERA_PATH_LEN);
-    }
+    });
 }
 
 template<bool bpt_only, bool ppm_only, bool lt_only, bool pt_only>
@@ -449,7 +451,7 @@ void VCMIntegrator<bpt_only, ppm_only, lt_only, pt_only>::connect(VCMState& cam_
         const float connect_dist = std::sqrt(connect_dist_sq);
         connect_dir *= 1.0f / connect_dist;
 
-        if (connect_dist < pm_radius_) {
+        if (connect_dist < /*base_radius_*/0.01f) {
             // If two points are too close to each other, connecting them might create an overly bright pixel
             // that will only go away after a lot of samples. Those points usually lie on the same surface and should have a
             // cosine term of zero, thus we can ignore them.
