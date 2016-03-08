@@ -21,8 +21,8 @@ inline float mis_heuristic(float a) {
     return a;
 }
 
-template<bool bpt_only>
-void VCMIntegrator<bpt_only>::render(Image& img) {
+template<bool bpt_only, bool ppm_only, bool lt_only, bool pt_only>
+void VCMIntegrator<bpt_only, ppm_only, lt_only, pt_only>::render(Image& img) {
     reset_buffers();
 
     cur_iteration_++;
@@ -41,13 +41,11 @@ void VCMIntegrator<bpt_only>::render(Image& img) {
     else
         mis_weight_vm_ = 0.0f;
 
-#ifndef VCM_PATHTRACING_ONLY
-    trace_light_paths();
-#endif
+    if (!pt_only)
+        trace_light_paths();
 
-#ifndef VCM_LIGHTTRACING_ONLY
-    trace_camera_paths(img);
-#endif
+    if (!lt_only)
+        trace_camera_paths(img);
 
     // Merge light and camera images.
     for (int i = 0; i < width_ * height_; ++i) {
@@ -56,11 +54,10 @@ void VCMIntegrator<bpt_only>::render(Image& img) {
     }
 }
 
-template<bool bpt_only>
-void VCMIntegrator<bpt_only>::reset_buffers() {
-#ifndef VCM_LIGHTTRACING_ONLY
-    light_paths_.reset();
-#endif
+template<bool bpt_only, bool ppm_only, bool lt_only, bool pt_only>
+void VCMIntegrator<bpt_only, ppm_only, lt_only, pt_only>::reset_buffers() {
+    if (!lt_only)
+        light_paths_.reset();
 
     for (int i = 0; i < width_ * height_; ++i) {
         light_image_.pixels()[i] = float4(0.0f);
@@ -68,8 +65,8 @@ void VCMIntegrator<bpt_only>::reset_buffers() {
     }
 }
 
-template<bool bpt_only>
-void VCMIntegrator<bpt_only>::trace_light_paths() {
+template<bool bpt_only, bool ppm_only, bool lt_only, bool pt_only>
+void VCMIntegrator<bpt_only, ppm_only, lt_only, pt_only>::trace_light_paths() {
     ray_gen_.start_frame();
 
     int in_queue = 0;
@@ -130,8 +127,8 @@ void VCMIntegrator<bpt_only>::trace_light_paths() {
     photon_grid_.build(light_paths_.begin(), light_paths_.end(), pm_radius_);
 }
 
-template<bool bpt_only>
-void VCMIntegrator<bpt_only>::trace_camera_paths(Image& img) {
+template<bool bpt_only, bool ppm_only, bool lt_only, bool pt_only>
+void VCMIntegrator<bpt_only, ppm_only, lt_only, pt_only>::trace_camera_paths(Image& img) {
     // Create the initial set of camera rays.
     ray_gen_.start_frame();
 
@@ -189,8 +186,8 @@ inline float shading_normal_adjoint(const float3& normal, const float3& geom_nor
     return fabsf(dot(out_dir, normal)) * fabsf(dot(in_dir, geom_normal)) / fabsf(dot(out_dir, geom_normal));
 }
 
-template<bool bpt_only>
-void VCMIntegrator<bpt_only>::bounce(VCMState& state, const Intersection& isect, BSDF* bsdf, RayQueue<VCMState>& rays_out, bool adjoint, int max_length) {
+template<bool bpt_only, bool ppm_only, bool lt_only, bool pt_only>
+void VCMIntegrator<bpt_only, ppm_only, lt_only, pt_only>::bounce(VCMState& state, const Intersection& isect, BSDF* bsdf, RayQueue<VCMState>& rays_out, bool adjoint, int max_length) {
     if (state.path_length >= max_length)
         return;
 
@@ -201,10 +198,8 @@ void VCMIntegrator<bpt_only>::bounce(VCMState& state, const Intersection& isect,
         return;
 
     BxDFFlags flags = BSDF_ALL;
-#ifdef VCM_PROGRESSIVEPM_ONLY
-    if (!adjoint) // For PPM: only sample specular scattering on the light path.
+    if (ppm_only && !adjoint) // For PPM: only sample specular scattering on the light path.
         flags = BxDFFlags(BSDF_SPECULAR | BSDF_REFLECTION | BSDF_TRANSMISSION);
-#endif
 
     float pdf_dir_w;
     float3 sample_dir;
@@ -214,10 +209,9 @@ void VCMIntegrator<bpt_only>::bounce(VCMState& state, const Intersection& isect,
 
     bool is_specular = sampled_flags & BSDF_SPECULAR;
 
-#ifdef VCM_PROGRESSIVEPM_ONLY
-    if (sampled_flags == 0 || pdf_dir_w == 0.0f || is_black(bsdf_value))
+    // For PPM: don't store black photons.
+    if (ppm_only && sampled_flags == 0 || pdf_dir_w == 0.0f || is_black(bsdf_value))
         return;
-#endif
 
     float pdf_rev_w = pdf_dir_w;
     if (!is_specular) // cannot evaluate reverse pdf of specular surfaces (but is the same as forward due to symmetry)
@@ -259,8 +253,8 @@ void VCMIntegrator<bpt_only>::bounce(VCMState& state, const Intersection& isect,
     rays_out.push(ray, s);
 }
 
-template<bool bpt_only>
-void VCMIntegrator<bpt_only>::process_light_rays(RayQueue<VCMState>& rays_in, RayQueue<VCMState>& rays_out, RayQueue<VCMState>& ray_out_shadow) {
+template<bool bpt_only, bool ppm_only, bool lt_only, bool pt_only>
+void VCMIntegrator<bpt_only, ppm_only, lt_only, pt_only>::process_light_rays(RayQueue<VCMState>& rays_in, RayQueue<VCMState>& rays_out, RayQueue<VCMState>& ray_out_shadow) {
     int ray_count = rays_in.size();
     VCMState* states = rays_in.states();
     const Hit* hits = rays_in.hits();
@@ -296,28 +290,25 @@ void VCMIntegrator<bpt_only>::process_light_rays(RayQueue<VCMState>& rays_in, Ra
         auto bsdf = isect.mat->get_bsdf(isect, bsdf_mem_arena);
 
         if (!isect.mat->is_specular()){// || bsdf->count(BSDF_NON_SPECULAR)) { // Do not store vertices on materials described by a delta distribution.
+            if (!lt_only)
+                light_paths_.append(states[i].pixel_id,
+                                    isect,
+                                    states[i].throughput,
+                                    states[i].continue_prob,
+                                    states[i].dVC,
+                                    states[i].dVCM,
+                                    states[i].dVM);
 
-#ifndef VCM_LIGHTTRACING_ONLY
-            light_paths_.append(states[i].pixel_id,
-                                isect,
-                                states[i].throughput,
-                                states[i].continue_prob,
-                                states[i].dVC,
-                                states[i].dVCM,
-                                states[i].dVM);
-#endif
-
-#ifndef VCM_PROGRESSIVEPM_ONLY
-            connect_to_camera(states[i], isect, bsdf, ray_out_shadow);
-#endif
+            if (!ppm_only)
+                connect_to_camera(states[i], isect, bsdf, ray_out_shadow);
         }
 
         bounce(states[i], isect, bsdf, rays_out, true, MAX_LIGHT_PATH_LEN);
     }
 }
 
-template<bool bpt_only>
-void VCMIntegrator<bpt_only>::connect_to_camera(const VCMState& light_state, const Intersection& isect,
+template<bool bpt_only, bool ppm_only, bool lt_only, bool pt_only>
+void VCMIntegrator<bpt_only, ppm_only, lt_only, pt_only>::connect_to_camera(const VCMState& light_state, const Intersection& isect,
                                       const BSDF* bsdf, RayQueue<VCMState>& ray_out_shadow) {
     float3 dir_to_cam = cam_.pos() - isect.pos;
 
@@ -357,11 +348,7 @@ void VCMIntegrator<bpt_only>::connect_to_camera(const VCMState& light_state, con
     const float pdf_cam = img_to_surf; // Pixel sampling pdf is one as pixel area is one by convention.
     const float mis_weight_light = mis_heuristic(pdf_cam / light_path_count_) * (mis_weight_vm_ + light_state.dVCM + light_state.dVC * mis_heuristic(pdf_rev));
 
-#ifdef VCM_LIGHTTRACING_ONLY
-    const float mis_weight = 1.0f;
-#else
-    const float mis_weight = 1.0f / (mis_weight_light + 1.0f);
-#endif
+    const float mis_weight = lt_only ? 1.0f : (1.0f / (mis_weight_light + 1.0f));
 
     // Contribution is divided by the number of samples (light_path_count_) and the factor that converts the (divided) pdf from surface area to image plane area.
     // The cosine term is already included in the img_to_surf term.
@@ -375,8 +362,8 @@ void VCMIntegrator<bpt_only>::connect_to_camera(const VCMState& light_state, con
     ray_out_shadow.push(ray, state);
 }
 
-template<bool bpt_only>
-void VCMIntegrator<bpt_only>::process_camera_rays(RayQueue<VCMState>& rays_in, RayQueue<VCMState>& rays_out, RayQueue<VCMState>& ray_out_shadow, Image& img) {
+template<bool bpt_only, bool ppm_only, bool lt_only, bool pt_only>
+void VCMIntegrator<bpt_only, ppm_only, lt_only, pt_only>::process_camera_rays(RayQueue<VCMState>& rays_in, RayQueue<VCMState>& rays_out, RayQueue<VCMState>& ray_out_shadow, Image& img) {
     int ray_count = rays_in.size();
     VCMState* states = rays_in.states();
     const Hit* hits = rays_in.hits();
@@ -403,9 +390,13 @@ void VCMIntegrator<bpt_only>::process_camera_rays(RayQueue<VCMState>& rays_in, R
 
         auto bsdf = isect.mat->get_bsdf(isect, bsdf_mem_arena);
 
-#ifdef VCM_PROGRESSIVEPM_ONLY
-        goto progressive_photon_mapping_step;
-#endif
+        if (ppm_only){
+            if (!isect.mat->is_specular())
+                vertex_merging(states[i], isect, bsdf, img);
+
+            // Continue the path using russian roulette.
+            bounce(states[i], isect, bsdf, rays_out, false, MAX_CAMERA_PATH_LEN);
+        }
 
         // Complete computation of partial MIS weights.
         states[i].dVCM *= mis_heuristic(sqr(isect.distance)) / mis_heuristic(cos_theta_o); // convert divided pdf from solid angle to area
@@ -427,9 +418,9 @@ void VCMIntegrator<bpt_only>::process_camera_rays(RayQueue<VCMState>& rays_in, R
 
             if (states[i].path_length > 1) {
                 float4 color = states[i].throughput * radiance * 1.0f / (mis_weight_camera + 1.0f);
-#ifndef VCM_PATHTRACING_ONLY
-                img.pixels()[states[i].pixel_id] += color;
-#endif
+
+                if (!pt_only)
+                    img.pixels()[states[i].pixel_id] += color;
             } else
                 img.pixels()[states[i].pixel_id] += radiance; // Light directly visible, no weighting required.
         }
@@ -437,14 +428,11 @@ void VCMIntegrator<bpt_only>::process_camera_rays(RayQueue<VCMState>& rays_in, R
         // Compute direct illumination.
         direct_illum(states[i], isect, bsdf, ray_out_shadow);
 
-#ifndef VCM_PATHTRACING_ONLY
         // Connect to light path vertices.
-        if (!isect.mat->is_specular())
+        if (!pt_only && !isect.mat->is_specular())
             connect(states[i], isect, bsdf, bsdf_mem_arena, ray_out_shadow);
-#endif
 
         if (!bpt_only) {
-            progressive_photon_mapping_step:
             if (!isect.mat->is_specular())
                 vertex_merging(states[i], isect, bsdf, img);
         }
@@ -454,8 +442,8 @@ void VCMIntegrator<bpt_only>::process_camera_rays(RayQueue<VCMState>& rays_in, R
     }
 }
 
-template<bool bpt_only>
-void VCMIntegrator<bpt_only>::direct_illum(VCMState& cam_state, const Intersection& isect, BSDF* bsdf, RayQueue<VCMState>& rays_out_shadow) {
+template<bool bpt_only, bool ppm_only, bool lt_only, bool pt_only>
+void VCMIntegrator<bpt_only, ppm_only, lt_only, pt_only>::direct_illum(VCMState& cam_state, const Intersection& isect, BSDF* bsdf, RayQueue<VCMState>& rays_out_shadow) {
     RNG& rng = cam_state.rng;
 
     // Generate the shadow ray (sample one point on one lightsource)
@@ -485,11 +473,7 @@ void VCMIntegrator<bpt_only>::direct_illum(VCMState& cam_state, const Intersecti
     const float mis_weight_camera = mis_heuristic(sample.pdf_emit_w * cos_theta_i / (sample.pdf_direct_w * cos_theta_o)) *
                                     (mis_weight_vm_ + cam_state.dVCM + cam_state.dVC * mis_heuristic(pdf_reverse));
 
-#ifndef VCM_PATHTRACING_ONLY
-    const float mis_weight = 1.0f / (mis_weight_camera + 1.0f + mis_weight_light);
-#else
-    const float mis_weight = 1.0f;
-#endif
+    const float mis_weight = pt_only ? 1.0f : (1.0f / (mis_weight_camera + 1.0f + mis_weight_light));
 
     VCMState s = cam_state;
     s.throughput *= mis_weight * bsdf_value * cos_theta_i * sample.radiance * inv_pdf_lightpick;
@@ -497,8 +481,8 @@ void VCMIntegrator<bpt_only>::direct_illum(VCMState& cam_state, const Intersecti
     rays_out_shadow.push(ray, s);
 }
 
-template<bool bpt_only>
-void VCMIntegrator<bpt_only>::connect(VCMState& cam_state, const Intersection& isect, BSDF* bsdf_cam, MemoryArena& bsdf_arena, RayQueue<VCMState>& rays_out_shadow) {
+template<bool bpt_only, bool ppm_only, bool lt_only, bool pt_only>
+void VCMIntegrator<bpt_only, ppm_only, lt_only, pt_only>::connect(VCMState& cam_state, const Intersection& isect, BSDF* bsdf_cam, MemoryArena& bsdf_arena, RayQueue<VCMState>& rays_out_shadow) {
     auto& light_path = light_paths_.get_path(cam_state.pixel_id);
     const int path_len = light_paths_.get_path_len(cam_state.pixel_id);
     for (int i = 0; i < path_len; ++i) {
@@ -564,8 +548,8 @@ void VCMIntegrator<bpt_only>::connect(VCMState& cam_state, const Intersection& i
     }
 }
 
-template<bool bpt_only>
-void VCMIntegrator<bpt_only>::vertex_merging(const VCMState& state, const Intersection& isect, const BSDF* bsdf, Image& img) {
+template<bool bpt_only, bool ppm_only, bool lt_only, bool pt_only>
+void VCMIntegrator<bpt_only, ppm_only, lt_only, pt_only>::vertex_merging(const VCMState& state, const Intersection& isect, const BSDF* bsdf, Image& img) {
     if (!bsdf->count(BSDF_NON_SPECULAR))
         return;
 
@@ -596,11 +580,7 @@ void VCMIntegrator<bpt_only>::vertex_merging(const VCMState& state, const Inters
         const float mis_weight_light = p->dVCM * mis_weight_vc_ + p->dVM * mis_heuristic(pdf_forward);
         const float mis_weight_camera = state.dVCM * mis_weight_vc_ + state.dVM * mis_heuristic(pdf_reverse);
 
-#ifndef VCM_PROGRESSIVEPM_ONLY
-        const float mis_weight = 1.0f / (mis_weight_light + 1.0f + mis_weight_camera);
-#else
-        const float mis_weight = 1.0f;
-#endif
+        const float mis_weight = ppm_only ? 1.0f : (1.0f / (mis_weight_light + 1.0f + mis_weight_camera));
 
         contrib += mis_weight * bsdf_value * p->throughput;
     }
@@ -608,8 +588,8 @@ void VCMIntegrator<bpt_only>::vertex_merging(const VCMState& state, const Inters
     pm_image_.pixels()[state.pixel_id] += state.throughput * contrib * vm_normalization_;
 }
 
-template<bool bpt_only>
-void VCMIntegrator<bpt_only>::process_shadow_rays(RayQueue<VCMState>& rays_in, Image& img) {
+template<bool bpt_only, bool ppm_only, bool lt_only, bool pt_only>
+void VCMIntegrator<bpt_only, ppm_only, lt_only, pt_only>::process_shadow_rays(RayQueue<VCMState>& rays_in, Image& img) {
     int ray_count = rays_in.size();
     const VCMState* states = rays_in.states();
     const Hit* hits = rays_in.hits();
@@ -622,13 +602,16 @@ void VCMIntegrator<bpt_only>::process_shadow_rays(RayQueue<VCMState>& rays_in, I
     }
 }
 
-
-void tmp() {
+// Prevents linker errors from defining member functions of a template class outside of the header.
+void dummy_func_to_prevent_linker_errors_dont_call() {
     Scene scene;
     PerspectiveCamera cam(0,0,0.0f);
     PixelRayGen<VCMState> ray_gen(1, 1, 1);
-    VCMIntegrator<true> tmp1(scene, cam, ray_gen);
-    VCMIntegrator<false> tmp2(scene, cam, ray_gen);
+    VCMIntegrator<false, false, false, false> tmp1(scene, cam, ray_gen);
+    VCMIntegrator<true , false, false, false> tmp2(scene, cam, ray_gen);
+    VCMIntegrator<false, true , false, false> tmp3(scene, cam, ray_gen);
+    VCMIntegrator<false, false, true , false> tmp4(scene, cam, ray_gen);
+    VCMIntegrator<false, false, false, true > tmp5(scene, cam, ray_gen);
 }
 
 } // namespace imba

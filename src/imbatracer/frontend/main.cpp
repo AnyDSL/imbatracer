@@ -96,25 +96,44 @@ int main(int argc, char* argv[]) {
     PerspectiveCamera cam(settings.width, settings.height, 60.0f);
     CameraControl ctrl(cam, cam_pos, cam_dir, cam_up);
 
-    if (settings.algorithm == UserSettings::BPT) {
-        PixelRayGen<VCMState> ray_gen(settings.width, settings.height, 1);
-        BPT integrator(scene, cam, ray_gen);
-
-        RenderWindow wnd(settings, integrator, ctrl);
-        wnd.render_loop();
-    } else if (settings.algorithm == UserSettings::PT) {
+    if (settings.algorithm == UserSettings::PT) {
         PixelRayGen<PTState> ray_gen(settings.width, settings.height, 1);
         PathTracer integrator(scene, cam, ray_gen);
 
         RenderWindow wnd(settings, integrator, ctrl);
         wnd.render_loop();
-    } else {
-        PixelRayGen<VCMState> ray_gen(settings.width, settings.height, 1);
-        VCM integrator(scene, cam, ray_gen);
 
-        RenderWindow wnd(settings, integrator, ctrl);
-        wnd.render_loop();
+        return 0;
     }
 
+    PixelRayGen<VCMState> ray_gen(settings.width, settings.height, 1);
+    Integrator* integrator;
+
+    switch (settings.algorithm) {
+    case UserSettings::BPT:
+        integrator = new BPT(scene, cam, ray_gen);
+        break;
+
+    case UserSettings::PPM:
+        integrator = new PPM(scene, cam, ray_gen);
+        break;
+
+    case UserSettings::LT:
+        integrator = new LT(scene, cam, ray_gen);
+        break;
+
+    case UserSettings::VCM_PT:
+        integrator = new VCM_PT(scene, cam, ray_gen);
+        break;
+
+    default:
+        integrator = new VCM(scene, cam, ray_gen);
+        break;
+    }
+
+    RenderWindow wnd(settings, *integrator, ctrl);
+    wnd.render_loop();
+
+    delete integrator;
     return 0;
 }

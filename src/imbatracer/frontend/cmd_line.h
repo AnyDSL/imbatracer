@@ -6,6 +6,7 @@
 #include <sstream>
 #include <cfloat>
 #include <climits>
+#include <unordered_map>
 
 namespace imba {
 
@@ -16,7 +17,10 @@ struct UserSettings {
     enum Algorithm {
         PT,
         BPT,
-        VCM
+        VCM,
+        PPM,
+        VCM_PT,
+        LT
     } algorithm;
 
     int width, height;
@@ -40,7 +44,7 @@ inline void print_help() {
               << "    -q  Quiet mode, render in background without SDL preview." << std::endl
               << "    -s  Number of samples per pixel to render (default: unlimited)" << std::endl
               << "    -t  Number of seconds to run the render algorithm (default: unlimited)" << std::endl
-              << "    -a  Selects which algorithm to use, 'pt', 'bpt', or 'vcm' (default: pt)" << std::endl
+              << "    -a  Selects which algorithm to use, 'pt', 'bpt', 'ppm', 'lt', 'vcm_pt', or 'vcm' (default: pt)" << std::endl
               << "    -w  Sets the horizontal resolution in pixels (default: 512)" << std::endl
               << "    -h  Sets the vertical resolution in pixels (default: 512)" << std::endl
               << "  If time (-t) and number of samples (-s) are both given, time has higher priority." << std::endl;
@@ -78,6 +82,15 @@ inline bool parse_cmd_line(int argc, char* argv[], UserSettings& settings) {
 
     settings.input_file = argv[1];
 
+    std::unordered_map<std::string, UserSettings::Algorithm> supported_algs = {
+        {"pt", UserSettings::PT},
+        {"bpt", UserSettings::BPT},
+        {"vcm", UserSettings::VCM},
+        {"lt", UserSettings::LT},
+        {"ppm", UserSettings::PPM},
+        {"vcm_pt", UserSettings::VCM_PT}
+    };
+
     for (int i = 2; i < argc; ++i) {
         std::string arg = argv[i];
 
@@ -93,16 +106,14 @@ inline bool parse_cmd_line(int argc, char* argv[], UserSettings& settings) {
                 return false;
             }
             std::string algname = argv[i];
-            if (algname == "pt")
-                settings.algorithm = UserSettings::PT;
-            else if (algname == "bpt")
-                settings.algorithm = UserSettings::BPT;
-            else if (algname == "vcm")
-                settings.algorithm = UserSettings::VCM;
-            else {
+
+            auto alg_iter = supported_algs.find(algname);
+            if (alg_iter == supported_algs.end()) {
                 std::cout << "Invalid algorithm name: " << algname
-                          << " Supported algorithms are: 'pt', 'bpt', and 'vcm'. Defaulting to 'pt'..." << std::endl;
+                          << " Supported algorithms are: 'pt', 'bpt', 'ppm', 'lt', 'vcm_pt', and 'vcm'. Defaulting to 'pt'..." << std::endl;
                 settings.algorithm = UserSettings::PT;
+            } else {
+                settings.algorithm = alg_iter->second;
             }
         } else if (arg == "-w") {
             parse_argument(++i, argc, argv, settings.width);
