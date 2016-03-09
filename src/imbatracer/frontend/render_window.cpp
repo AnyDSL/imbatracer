@@ -52,7 +52,7 @@ void RenderWindow::render_loop() {
         auto msg_ms = std::chrono::duration_cast<std::chrono::milliseconds>(cur_time - msg_time).count();
         if (msg_ms > msg_interval_ms && frames_ > 0) {
             std::cout << frames_ << " samples, "
-                      << 1000.0 * frames_ / static_cast<float>(elapsed_ms) << " frames per second, "
+                      << 1000.0f * frames_ / static_cast<float>(elapsed_ms) << " frames per second, "
                       << static_cast<float>(elapsed_ms) / frames_ << "ms per frame"
                       << std::endl;
             msg_time = cur_time;
@@ -70,7 +70,9 @@ void RenderWindow::render_loop() {
 
     auto elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(cur_time - start_time_).count();
     std::cout << "Done after " << elapsed_ms / 1000.0f << " seconds, "
-              << frames_ << " samples" << std::endl;
+              << frames_ << " samples @ "
+              << 1000.0f * frames_ / static_cast<float>(elapsed_ms) << " frames per second, "
+              << static_cast<float>(elapsed_ms) / frames_ << "ms per frame"  << std::endl;
 
     write_image(output_file_.c_str());
 }

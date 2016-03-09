@@ -189,8 +189,6 @@ public:
         , width_(cam.width())
         , height_(cam.height())
         , ray_gen_(ray_gen)
-        , primary_rays_{ RayQueue<VCMState>(TARGET_RAY_COUNT), RayQueue<VCMState>(TARGET_RAY_COUNT)}
-        , shadow_rays_(TARGET_RAY_COUNT * (MAX_LIGHT_PATH_LEN + 1))
         , light_image_(width_, height_)
         , pm_image_(width_, height_)
         , light_path_count_(width_ * height_)
@@ -229,10 +227,6 @@ private:
     RayScheduler<VCMState, 8, 8, MAX_LIGHT_PATH_LEN> scheduler_;
 
     void reset_buffers();
-
-    RayQueue<VCMState> primary_rays_[2];
-    RayQueue<VCMState> shadow_rays_;
-    RayQueue<VCMState> light_rays_[2];
 
     Image light_image_;
     Image pm_image_;

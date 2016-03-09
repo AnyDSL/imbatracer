@@ -20,6 +20,7 @@ public:
         float v = clamp(uv.y - (int)uv.y, -1.0f, 1.0f);
         u += u < 0.0f ? 1.0f : 0.0f;
         v += v < 0.0f ? 1.0f : 0.0f;
+        v = 1.0f - v;
 
         const float kx = u * (img_.width()  - 1);
         const float ky = v * (img_.height() - 1);
