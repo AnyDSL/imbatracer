@@ -13,13 +13,11 @@ namespace imba {
 //static int64_t photon_time = 0;
 static const float offset = 0.00001f;
 
-using ThreadLocalMemArena =
-    tbb::enumerable_thread_specific<MemoryArena, tbb::cache_aligned_allocator<MemoryArena>, tbb::ets_key_per_instance>;
-ThreadLocalMemArena bsdf_memory_arenas;
+using ThreadLocalMemArena = tbb::enumerable_thread_specific<MemoryArena, tbb::cache_aligned_allocator<MemoryArena>, tbb::ets_key_per_instance>;
+static ThreadLocalMemArena bsdf_memory_arenas;
 
-using ThreadLocalPhotonContainer =
-    tbb::enumerable_thread_specific<std::vector<PhotonIterator>, tbb::cache_aligned_allocator<std::vector<PhotonIterator>>, tbb::ets_key_per_instance>;
-ThreadLocalPhotonContainer photon_containers;
+using ThreadLocalPhotonContainer = tbb::enumerable_thread_specific<std::vector<PhotonIterator>, tbb::cache_aligned_allocator<std::vector<PhotonIterator>>, tbb::ets_key_per_instance>;
+static ThreadLocalPhotonContainer photon_containers;
 
 inline float mis_heuristic(float a) {
     return a;
