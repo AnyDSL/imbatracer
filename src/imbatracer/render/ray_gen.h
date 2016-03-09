@@ -15,7 +15,7 @@ public:
     typedef std::function<void (int, int, ::Ray&, StateType&)> SamplePixelFn;
     virtual void fill_queue(RayQueue<StateType>&, SamplePixelFn) = 0;
     virtual void start_frame() = 0;
-    virtual int rays_left() const = 0;
+    virtual bool is_empty() const = 0;
 };
 
 /// Base class for all classes that generate rays per pixel (camera, lights)
@@ -30,9 +30,9 @@ public:
     int height() { return height_; }
     int num_samples() { return n_samples_; }
 
-    virtual void start_frame() { next_pixel_ = 0; }
+    virtual void start_frame() override { next_pixel_ = 0; }
 
-    virtual int rays_left() const { return (n_samples_ * width_ * height_) - next_pixel_; }
+    virtual bool is_empty() const override { return next_pixel_ >= (n_samples_ * width_ * height_); }
 
     virtual void fill_queue(RayQueue<StateType>& out, typename RayGen<StateType>::SamplePixelFn sample_pixel) override {
         // only generate at most n samples per pixel
