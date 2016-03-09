@@ -74,6 +74,10 @@ inline float4 operator * (const float4& a, const float4& b) {
     return float4(a.x * b.x, a.y * b.y, a.z * b.z, a.w * b.w);
 }
 
+inline float4 abs(const float4& a) {
+    return float4(fabsf(a.x), fabsf(a.y), fabsf(a.z), fabsf(a.w));
+}
+
 inline float4 min(const float4& a, const float4& b) {
     return float4(a.x < b.x ? a.x : b.x,
                   a.y < b.y ? a.y : b.y,

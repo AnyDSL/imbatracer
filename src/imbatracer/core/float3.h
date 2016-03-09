@@ -85,6 +85,10 @@ inline float3 rotate(const float3& v, const float3& axis, float angle) {
                   p[3] * -q[2] + p[0] * -q[1] - p[1] * -q[0] + p[2] * q[3]);
 }
 
+inline float3 abs(const float3& a) {
+    return float3(fabsf(a.x), fabsf(a.y), fabsf(a.z));
+}
+
 inline float3 min(const float3& a, const float3& b) {
     return float3(a.x < b.x ? a.x : b.x,
                   a.y < b.y ? a.y : b.y,
