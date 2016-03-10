@@ -15,7 +15,7 @@ namespace imba {
 constexpr float offset = 0.0001f;
 
 using ThreadLocalMemArena = tbb::enumerable_thread_specific<MemoryArena, tbb::cache_aligned_allocator<MemoryArena>, tbb::ets_key_per_instance>;
-extern ThreadLocalMemArena bsdf_memory_arenas; // Defined in vcm.cpp
+static ThreadLocalMemArena bsdf_memory_arenas;
 
 void PathTracer::compute_direct_illum(const Intersection& isect, PTState& state, RayQueue<PTState>& ray_out_shadow, BSDF* bsdf) {
     RNG& rng = state.rng;

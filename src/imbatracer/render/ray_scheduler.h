@@ -105,14 +105,14 @@ private:
 template<typename StateType, int queue_count, int shadow_queue_count, int max_shadow_rays_per_hit>
 class RayScheduler {
     using SamplePixelFn = typename RayGen<StateType>::SamplePixelFn;
+    static constexpr int DEFAULT_QUEUE_SIZE = 1 << 18;
 public:
-    RayScheduler(RayGen<StateType>& ray_gen, Scene& scene)
+    RayScheduler(RayGen<StateType>& ray_gen, Scene& scene, int queue_size = DEFAULT_QUEUE_SIZE)
         : ray_gen_(ray_gen)
         , scene_(scene)
-        , queue_pool_(ray_gen.rays_left() / 4)
-        , shadow_queue_pool_(ray_gen.rays_left() / 4 * max_shadow_rays_per_hit)
-    {
-    }
+        , queue_pool_(queue_size)
+        , shadow_queue_pool_(queue_size * max_shadow_rays_per_hit)
+    {}
 
     ~RayScheduler() {}
 
@@ -123,7 +123,9 @@ public:
                        SamplePixelFn sample_fn) {
         ray_gen_.start_frame();
 
-        while(queue_pool_.has_nonempty() || shadow_queue_pool_.has_nonempty() || ray_gen_.rays_left() > 0) {
+        while (queue_pool_.has_nonempty() ||
+               shadow_queue_pool_.has_nonempty() ||
+               !ray_gen_.is_empty()) {
             // Traverse the next set of rays.
             // Prioritize shadow rays as they are faster to traverse.
             auto q_ref = shadow_queue_pool_.claim_queue_with_tag(QUEUE_READY_FOR_SHADOW_TRAVERSAL);
@@ -142,7 +144,7 @@ public:
             q_ref = queue_pool_.claim_queue_with_tag(QUEUE_READY_FOR_TRAVERSAL);
             if (!q_ref) {
                 // There is no queue of primary rays ready for traversal
-                if (ray_gen_.rays_left() > 0) {
+                if (!ray_gen_.is_empty()) {
                     q_ref = queue_pool_.claim_queue_with_tag(QUEUE_EMPTY);
                     if (q_ref) {
                         // We found an empty queue. Fill it with a set of rays from the ray generation (camera or light).

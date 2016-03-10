@@ -39,7 +39,6 @@ add_library(imba_render
             render/thorin_mem.h
             render/texture_sampler.h
             render/ray_scheduler.h
-            render/ray_scheduler.cpp
             rangesearch/rangesearch.h)
 
 add_executable(imbatracer
