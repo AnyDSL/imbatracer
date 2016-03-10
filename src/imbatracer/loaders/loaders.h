@@ -5,6 +5,9 @@
 #include "path.h"
 #include "load_obj.h"
 
+#include "../render/thorin_mem.h"
+#include "traversal.h"
+
 namespace imba {
 
 bool load_png(const Path&, Image&);
@@ -16,6 +19,9 @@ inline bool load_image(const Path& path, Image& image) {
     }
     return true;
 }
+
+bool load_accel(const std::string& filename, ThorinArray<Node>& nodes_ref, ThorinArray<Vec4>& tris_ref);
+bool store_accel(const std::string& filename, const ThorinArray<Node>& nodes, const ThorinArray<Vec4>& tris);
 
 } // namespace imba
 

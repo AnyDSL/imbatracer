@@ -272,7 +272,7 @@ void create_mesh(const obj::File& obj_file, Scene& scene, MtlLightBuffer& mtl_to
     }
 }
 
-bool parse_scene_file(const Path& path, Scene& scene, std::string& obj_filename, float3& cam_pos, float3& cam_dir, float3& cam_up) {
+bool parse_scene_file(const Path& path, Scene& scene, std::string& obj_filename, float3& cam_pos, float3& cam_dir, float3& cam_up, std::string& accel_filename) {
     std::ifstream stream(path);
 
     std::string cmd;
@@ -360,6 +360,18 @@ bool parse_scene_file(const Path& path, Scene& scene, std::string& obj_filename,
             }
 
             scene.lights.emplace_back(new PointLight(pos, float4(intensity, 1.0f)));
+        } else if (cmd == "accel") {
+            if (accel_filename != "") {
+                std::cout << " Multiple acceleration structure files in one scene are not supported." << std::endl;
+                return false;
+            }
+
+            // The BVH filename is the entire remainder of this line (can include whitespace)
+            //std::getline(stream, accel_filename);
+            if (!(stream >> accel_filename)) {
+                std::cout << " Error reading the acceleration structure filename" << std::endl;
+                return false;
+            }
         }
     }
 
@@ -368,8 +380,9 @@ bool parse_scene_file(const Path& path, Scene& scene, std::string& obj_filename,
 
 bool build_scene(const Path& path, Scene& scene, float3& cam_pos, float3& cam_dir, float3& cam_up) {
     std::string obj_filename;
+    std::string accel_filename;
     std::cout << "[1/8] Parsing Scene File..." << std::flush;
-    if (!parse_scene_file(path, scene, obj_filename, cam_pos, cam_dir, cam_up)) {
+    if (!parse_scene_file(path, scene, obj_filename, cam_pos, cam_dir, cam_up, accel_filename)) {
         std::cout << " FAILED" << std::endl;
         return false;
     }
@@ -456,8 +469,24 @@ bool build_scene(const Path& path, Scene& scene, float3& cam_pos, float3& cam_di
             scene.indices[i] = scene.mesh.indices()[i];
     }
 
-    std::cout << "[7/8] Building acceleration structure..." << std::endl;
-    {
+    bool accel_loaded = false;
+    if (accel_filename != "") {
+        std::cout << "[7/8] Loading acceleration structure from file..." << std::flush;
+
+        auto accel_path = path.base_name() + '/' + accel_filename;
+
+        if (!load_accel(accel_path, scene.nodes, scene.tris))
+            std::cout << " FAILED. Rebuilding..." << std::endl;
+        else {
+            accel_loaded = true;
+            std::cout << std::endl;
+        }
+    }
+
+    // If no bvh file was specified, or loading has failed, build a new one.
+    if (!accel_loaded) {
+        std::cout << "[7/8] Building acceleration structure..." << std::endl;
+
         std::vector<::Node> nodes;
         std::vector<::Vec4> tris;
         std::unique_ptr<Adapter> adapter = new_adapter(nodes, tris);

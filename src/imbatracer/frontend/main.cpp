@@ -2,6 +2,8 @@
 #include "build_scene.h"
 #include "render_window.h"
 
+#include "../loaders/loaders.h"
+
 #include "../render/render.h"
 #include "../render/scene.h"
 #include "../render/ray_gen.h"
@@ -89,6 +91,11 @@ int main(int argc, char* argv[]) {
     if (!build_scene(Path(settings.input_file), scene, cam_pos, cam_dir, cam_up)) {
         std::cerr << "ERROR: Scene could not be built" << std::endl;
         return 1;
+    }
+
+    if (settings.accel_output != "") {
+        if (!store_accel(settings.accel_output, scene.nodes, scene.tris))
+            std::cerr << "ERROR: Could not write acceleration structure data." << std::endl;
     }
 
     std::cout << "The scene has been loaded successfully." << std::endl;

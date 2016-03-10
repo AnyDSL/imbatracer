@@ -14,6 +14,8 @@ struct UserSettings {
     std::string input_file;
     std::string output_file;
 
+    std::string accel_output;
+
     enum Algorithm {
         PT,
         BPT,
@@ -31,7 +33,7 @@ struct UserSettings {
     bool background;
 
     UserSettings()
-        : input_file(""), output_file("render.png"), algorithm(PT),
+        : input_file(""), accel_output(""), output_file("render.png"), algorithm(PT),
           width(512), height(512), max_samples(INT_MAX), max_time_sec(FLT_MAX),
           background(false)
     {}
@@ -47,6 +49,7 @@ inline void print_help() {
               << "    -a  Selects which algorithm to use, 'pt', 'bpt', 'ppm', 'lt', 'vcm_pt', or 'vcm' (default: pt)" << std::endl
               << "    -w  Sets the horizontal resolution in pixels (default: 512)" << std::endl
               << "    -h  Sets the vertical resolution in pixels (default: 512)" << std::endl
+              << "    --write_accel <filename>  Writes the acceleration structure to the specified file." << std::endl
               << "  If time (-t) and number of samples (-s) are both given, time has higher priority." << std::endl;
 }
 
@@ -119,6 +122,13 @@ inline bool parse_cmd_line(int argc, char* argv[], UserSettings& settings) {
             parse_argument(++i, argc, argv, settings.width);
         } else if (arg == "-h") {
             parse_argument(++i, argc, argv, settings.height);
+        } else if (arg == "--write_accel"){
+            if (++i >= argc) {
+                std::cout << "Too few arguments." << std::endl;
+                return false;
+            }
+
+            settings.accel_output = argv[i];
         } else
             settings.output_file = arg;
     }

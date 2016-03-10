@@ -1,4 +1,5 @@
 mesh sponza_scaled.obj
+accel sponza.bvh
 
 pos  2.72536  0.0316374  -0.920422
 dir  0.893309  -0.411762  0.180144
