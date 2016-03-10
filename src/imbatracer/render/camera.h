@@ -36,7 +36,7 @@ public:
                                     float4(-right, -local_p.y),
                                     float4(  -dir, -local_p.z),
                                     float4(0.0f, 0.0f, 0.0f, 1.0f));
-        const float4x4 persp = perspective_matrix(fov_, near_plane, far_plane);
+        const float4x4 persp = perspective_matrix(fov_, width_ / height_, near_plane, far_plane);
         const float4x4 world_to_screen = persp * world_to_cam;
         const float4x4 screen_to_world = invert(world_to_screen);
 
