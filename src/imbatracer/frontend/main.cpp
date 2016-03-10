@@ -100,7 +100,7 @@ int main(int argc, char* argv[]) {
 
     std::cout << "The scene has been loaded successfully." << std::endl;
 
-    PerspectiveCamera cam(settings.width, settings.height, 60.0f);
+    PerspectiveCamera cam(settings.width, settings.height, settings.fov);
     CameraControl ctrl(cam, cam_pos, cam_dir, cam_up);
 
     if (settings.algorithm == UserSettings::PT) {

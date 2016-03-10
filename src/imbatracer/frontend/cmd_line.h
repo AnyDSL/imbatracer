@@ -32,10 +32,12 @@ struct UserSettings {
 
     bool background;
 
+    float fov;
+
     UserSettings()
         : input_file(""), accel_output(""), output_file("render.png"), algorithm(PT),
           width(512), height(512), max_samples(INT_MAX), max_time_sec(FLT_MAX),
-          background(false)
+          background(false), fov(60.0f)
     {}
 };
 
@@ -49,6 +51,7 @@ inline void print_help() {
               << "    -a  Selects which algorithm to use, 'pt', 'bpt', 'ppm', 'lt', 'vcm_pt', or 'vcm' (default: pt)" << std::endl
               << "    -w  Sets the horizontal resolution in pixels (default: 512)" << std::endl
               << "    -h  Sets the vertical resolution in pixels (default: 512)" << std::endl
+              << "    -f  Sets the horizontal field of view (default: 60)" << std::endl
               << "    --write_accel <filename>  Writes the acceleration structure to the specified file." << std::endl
               << "  If time (-t) and number of samples (-s) are both given, time has higher priority." << std::endl;
 }
@@ -129,6 +132,8 @@ inline bool parse_cmd_line(int argc, char* argv[], UserSettings& settings) {
             }
 
             settings.accel_output = argv[i];
+        } else if (arg == "-f") {
+            parse_argument(++i, argc, argv, settings.fov);
         } else
             settings.output_file = arg;
     }
