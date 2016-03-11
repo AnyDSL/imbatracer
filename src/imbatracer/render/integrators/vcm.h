@@ -181,8 +181,8 @@ inline PhotonIterator::PhotonIterator(const LightPathContainer* cont, bool is_en
 template<bool bpt_only, bool ppm_only, bool lt_only, bool pt_only>
 class VCMIntegrator : public Integrator {
     static constexpr int TARGET_RAY_COUNT = 1 << 20;
-    static constexpr int MAX_LIGHT_PATH_LEN = 5;
-    static constexpr int MAX_CAMERA_PATH_LEN = 8;
+    static constexpr int MAX_LIGHT_PATH_LEN = 8;
+    static constexpr int MAX_CAMERA_PATH_LEN = 16;
 public:
     VCMIntegrator(Scene& scene, PerspectiveCamera& cam, RayGen<VCMState>& ray_gen, float base_radius=0.003f, float radius_alpha=0.75f)
         : Integrator(scene, cam)
