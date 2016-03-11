@@ -15,52 +15,52 @@ bench_settings = [
         'args': []
     },
 
-    # {
-    #     'name': 'Cornell specular balls',
-    #     'scene': 'scenes/cornell/cornell_specular_front.scene',
-    #     'reference': 'references/ref_cornell_specular_front.png',
-    #     'width': 1024,
-    #     'height': 1024,
-    #     'base_filename': 'results/cornell_specular_front',
-    #     'args': []
-    # },
+    {
+        'name': 'Cornell specular balls',
+        'scene': 'scenes/cornell/cornell_specular_front.scene',
+        'reference': 'references/ref_cornell_specular_front.png',
+        'width': 1024,
+        'height': 1024,
+        'base_filename': 'results/cornell_specular_front',
+        'args': []
+    },
 
-    # {
-    #     'name': 'Cornell specular balls close',
-    #     'scene': 'scenes/cornell/cornell_specular.scene',
-    #     'reference': 'references/ref_cornell_specular.png',
-    #     'width': 1024,
-    #     'height': 1024,
-    #     'base_filename': 'results/cornell_specular',
-    #     'args': []
-    # },
+    {
+        'name': 'Cornell specular balls close',
+        'scene': 'scenes/cornell/cornell_specular.scene',
+        'reference': 'references/ref_cornell_specular.png',
+        'width': 1024,
+        'height': 1024,
+        'base_filename': 'results/cornell_specular',
+        'args': []
+    },
 
-    # {
-    #     'name': 'Cornell indirect',
-    #     'scene': 'scenes/cornell/cornell_indirect.scene',
-    #     'reference': 'references/ref_cornell_indirect.png',
-    #     'width': 1024,
-    #     'height': 1024,
-    #     'base_filename': 'results/cornell_indirect',
-    #     'args': []
-    # },
+    {
+        'name': 'Cornell indirect',
+        'scene': 'scenes/cornell/cornell_indirect.scene',
+        'reference': 'references/ref_cornell_indirect.png',
+        'width': 1024,
+        'height': 1024,
+        'base_filename': 'results/cornell_indirect',
+        'args': []
+    },
 
-    # {
-    #     'name': 'Cornell water',
-    #     'scene': 'scenes/cornell/cornell_water.scene',
-    #     'reference': 'references/ref_cornell_water.png',
-    #     'width': 1024,
-    #     'height': 1024,
-    #     'base_filename': 'results/cornell_water',
-    #     'args': []
-    # }
+    {
+        'name': 'Cornell water',
+        'scene': 'scenes/cornell/cornell_water.scene',
+        'reference': 'references/ref_cornell_water.png',
+        'width': 1024,
+        'height': 1024,
+        'base_filename': 'results/cornell_water',
+        'args': []
+    }
 ]
 
 alg_small = ['pt', 'bpt', 'vcm']
 alg_large = ['pt', 'bpt', 'vcm', 'lt', 'ppm']
 
-time_sec = 1
-algorithms = alg_small
+time_sec = 5
+algorithms = alg_large
 
 def run_benchmark(app, setting):
     results = ''
