@@ -3,6 +3,7 @@
 
 namespace imba {
 
+template<bool adjoint>
 class SpecularTransmission : public BxDF {
 public:
     SpecularTransmission(float eta_inside, float eta_outside, const float4& scale)
@@ -44,7 +45,11 @@ public:
 
         float fr = fresnel_.eval(cos_theta(out_dir));
 
-        return /*sqr(eta_trans) / sqr(eta_in) **/ (1.0f - fr) * scale_ / fabsf(cos_theta(in_dir));  // TODO we need to consider adjoint here.
+        float factor = 1.0f;
+        if (!adjoint)
+            factor = sqr(eta_trans) / sqr(eta_in);
+
+        return (1.0f - fr) * scale_ / fabsf(cos_theta(in_dir));
     }
 
     virtual float pdf(const float3& out_dir, const float3& in_dir) const override {

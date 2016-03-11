@@ -13,7 +13,7 @@ class Material {
 public:
     Material() : light_(nullptr) {}
 
-    virtual BSDF* get_bsdf(const Intersection& isect, MemoryArena& mem_arena) const = 0;
+    virtual BSDF* get_bsdf(const Intersection& isect, MemoryArena& mem_arena, bool adjoint=false) const = 0;
 
     /// Associates the material with a light source.
     inline void set_light(Light* l) { light_ = l; }
@@ -36,7 +36,7 @@ public:
     DiffuseMaterial(const float4& color) : color_(color), sampler_(nullptr) {}
     DiffuseMaterial(TextureSampler* sampler) : sampler_(sampler) {}
 
-    virtual BSDF* get_bsdf(const Intersection& isect, MemoryArena& mem_arena) const override {
+    virtual BSDF* get_bsdf(const Intersection& isect, MemoryArena& mem_arena, bool adjoint) const override {
         float4 color = color_;
         if (sampler_)
             color = sampler_->sample(isect.uv);
@@ -59,7 +59,7 @@ public:
     MirrorMaterial(float eta, float kappa, const float4& scale)
         : fresnel_(eta, kappa), scale_(scale) {}
 
-    virtual BSDF* get_bsdf(const Intersection& isect, MemoryArena& mem_arena) const override {
+    virtual BSDF* get_bsdf(const Intersection& isect, MemoryArena& mem_arena, bool adjoint) const override {
         auto bsdf = mem_arena.alloc<BSDF>(isect);
         auto brdf = mem_arena.alloc<SpecularReflection>(scale_, fresnel_);
         bsdf->add(brdf);
@@ -79,13 +79,19 @@ public:
     GlassMaterial(float eta, const float4& transmittance, const float4& reflectance)
         : eta_(eta), transmittance_(transmittance), reflectance_(reflectance), fresnel_(1.0f, eta) {}
 
-    virtual BSDF* get_bsdf(const Intersection& isect, MemoryArena& mem_arena) const override {
+    virtual BSDF* get_bsdf(const Intersection& isect, MemoryArena& mem_arena, bool adjoint) const override {
         auto bsdf = mem_arena.alloc<BSDF>(isect);
-        auto brdf = mem_arena.alloc<SpecularReflection>(reflectance_, fresnel_);
-        auto btdf = mem_arena.alloc<SpecularTransmission>(eta_, 1.0f, transmittance_);
 
+        auto brdf = mem_arena.alloc<SpecularReflection>(reflectance_, fresnel_);
         bsdf->add(brdf);
-        bsdf->add(btdf);
+
+        if (adjoint) {
+            auto btdf = mem_arena.alloc<SpecularTransmission<true>>(eta_, 1.0f, transmittance_);
+            bsdf->add(btdf);
+        } else {
+            auto btdf = mem_arena.alloc<SpecularTransmission<false>>(eta_, 1.0f, transmittance_);
+            bsdf->add(btdf);
+        }
 
         return bsdf;
     }
@@ -109,7 +115,7 @@ public:
         : exponent_(exponent), specular_color_(specular_color), diffuse_color_(0.0f), diff_sampler_(diff_sampler)
     {}
 
-    virtual BSDF* get_bsdf(const Intersection& isect, MemoryArena& mem_arena) const override {
+    virtual BSDF* get_bsdf(const Intersection& isect, MemoryArena& mem_arena, bool adjoint) const override {
         float4 diff_color = diffuse_color_;
         if (diff_sampler_)
             diff_color = diff_sampler_->sample(isect.uv);

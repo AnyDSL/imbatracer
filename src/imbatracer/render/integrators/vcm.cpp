@@ -179,7 +179,8 @@ void VCM_INTEGRATOR::bounce(VCMState& state, const Intersection& isect, BSDF* bs
     if (!is_specular) // cannot evaluate reverse pdf of specular surfaces (but is the same as forward due to symmetry)
         pdf_rev_w = bsdf->pdf(sample_dir, isect.out_dir);
 
-    const float cos_theta_i = fabsf(dot(sample_dir, isect.normal));
+    const float cos_theta_i = adjoint ? shading_normal_adjoint(isect.normal, isect.geom_normal, isect.out_dir, sample_dir)
+                                      : fabsf(dot(sample_dir, isect.normal));
 
     VCMState s = state;
     if (is_specular) {
@@ -196,9 +197,7 @@ void VCM_INTEGRATOR::bounce(VCMState& state, const Intersection& isect, BSDF* bs
         s.dVCM = mis_heuristic(1.0f / (pdf_dir_w * rr_pdf));
     }
 
-    const float adjoint_cos_term = adjoint ? shading_normal_adjoint(isect.normal, isect.geom_normal, isect.out_dir, sample_dir) : cos_theta_i;
-
-    s.throughput *= bsdf_value * adjoint_cos_term / (rr_pdf * pdf_dir_w);
+    s.throughput *= bsdf_value * cos_theta_i / (rr_pdf * pdf_dir_w);
     s.path_length++;
     s.continue_prob = rr_pdf;
 
@@ -228,19 +227,19 @@ void VCM_INTEGRATOR::process_light_rays(RayQueue<VCMState>& rays_in, RayQueue<VC
 
             RNG& rng = states[i].rng;
             Intersection isect = calculate_intersection(hits, rays, i);
-            float cos_theta_i = fabsf(dot(isect.out_dir, isect.normal));
+            float cos_theta_o = fabsf(dot(isect.out_dir, isect.normal));
 
             // Complete calculation of the partial weights.
             if (states[i].path_length > 1 || states[i].is_finite)
                 states[i].dVCM *= mis_heuristic(sqr(isect.distance));
 
-            states[i].dVCM *= 1.0f / mis_heuristic(cos_theta_i);
-            states[i].dVC  *= 1.0f / mis_heuristic(cos_theta_i);
-            states[i].dVM  *= 1.0f / mis_heuristic(cos_theta_i);
+            states[i].dVCM *= 1.0f / mis_heuristic(cos_theta_o);
+            states[i].dVC  *= 1.0f / mis_heuristic(cos_theta_o);
+            states[i].dVM  *= 1.0f / mis_heuristic(cos_theta_o);
 
-            auto bsdf = isect.mat->get_bsdf(isect, bsdf_mem_arena);
+            auto bsdf = isect.mat->get_bsdf(isect, bsdf_mem_arena, true);
 
-            if (!isect.mat->is_specular()){// || bsdf->count(BSDF_NON_SPECULAR)) { // Do not store vertices on materials described by a delta distribution.
+            if (!isect.mat->is_specular()){ // Do not store vertices on materials described by a delta distribution.
                 if (!lt_only)
                     light_paths_.append(states[i].pixel_id,
                                         isect,
@@ -436,7 +435,7 @@ void VCM_INTEGRATOR::connect(VCMState& cam_state, const Intersection& isect, BSD
     const int path_len = light_paths_.get_path_len(cam_state.pixel_id);
     for (int i = 0; i < path_len; ++i) {
         auto& light_vertex = light_path[i];
-        auto light_bsdf = light_vertex.isect.mat->get_bsdf(light_vertex.isect, bsdf_arena);
+        auto light_bsdf = light_vertex.isect.mat->get_bsdf(light_vertex.isect, bsdf_arena, true);
 
         // Compute connection direction and distance.
         float3 connect_dir = light_vertex.isect.pos - isect.pos;
