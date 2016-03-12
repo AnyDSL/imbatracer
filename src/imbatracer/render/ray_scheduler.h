@@ -3,8 +3,8 @@
 
 #include "ray_gen.h"
 
-#include "tbb/tbb.h"
-#include "tbb/task_group.h"
+#include <tbb/tbb.h>
+#include <tbb/task_group.h>
 
 #include <array>
 #include <atomic>

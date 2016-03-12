@@ -3,7 +3,7 @@
 #include "../../core/common.h"
 #include "../random.h"
 
-#include "tbb/enumerable_thread_specific.h"
+#include <tbb/enumerable_thread_specific.h>
 
 #include <cfloat>
 #include <cassert>
