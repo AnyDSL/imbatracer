@@ -6,9 +6,10 @@
 #include "tbb/tbb.h"
 #include "tbb/task_group.h"
 
-#include <list>
+#include <array>
 #include <atomic>
 #include <cassert>
+#include <list>
 
 namespace imba {
 
