@@ -119,8 +119,8 @@ public:
 
     template<typename Obj>
     void run_iteration(Image& out, Obj* integrator,
-                       void (Obj::*process_shadow_rays)(RayQueue<StateType>& ray_in, Image& out),
-                       void (Obj::*process_primary_rays)(RayQueue<StateType>& ray_in, RayQueue<StateType>& ray_out, RayQueue<StateType>& ray_out_shadow, Image& out),
+                       void (Obj::*process_shadow_rays)(RayQueue<StateType>&, Image&),
+                       void (Obj::*process_primary_rays)(RayQueue<StateType>&, RayQueue<StateType>&, RayQueue<StateType>&, Image&),
                        SamplePixelFn sample_fn) {
         ray_gen_.start_frame();
 
@@ -163,10 +163,10 @@ public:
             // Traverse the queue of primary rays.
             q_ref->traverse(scene_);
 
-            shading_tasks_.run([this, integrator, process_primary_rays, q_ref, &out] () {
-                auto q_out = queue_pool_.claim_queue_with_tag(QUEUE_EMPTY);
-                auto q_out_shadow = shadow_queue_pool_.claim_queue_with_tag(QUEUE_EMPTY); // TODO investigate how to be sure an empty shadow queue exists
+            auto q_out = queue_pool_.claim_queue_with_tag(QUEUE_EMPTY);
+            auto q_out_shadow = shadow_queue_pool_.claim_queue_with_tag(QUEUE_EMPTY);
 
+            shading_tasks_.run([this, integrator, process_primary_rays, q_ref, q_out, q_out_shadow, &out] () {
                 (integrator->*process_primary_rays)(*q_ref, *q_out, *q_out_shadow, out);
 
                 q_ref->clear();
@@ -175,6 +175,8 @@ public:
                 shadow_queue_pool_.return_queue(q_out_shadow, QUEUE_READY_FOR_SHADOW_TRAVERSAL);
             });
         }
+
+        shading_tasks_.wait();
     }
 
 private:
