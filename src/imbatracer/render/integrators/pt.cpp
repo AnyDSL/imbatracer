@@ -76,7 +76,7 @@ void PathTracer::bounce(const Intersection& isect, PTState& state, RayQueue<PTSt
     ray_out.push(ray, s);
 }
 
-void PathTracer::process_primary_rays(RayQueue<PTState>& ray_in, RayQueue<PTState>& ray_out, RayQueue<PTState>& ray_out_shadow, Image& out) {
+void PathTracer::process_primary_rays(RayQueue<PTState>& ray_in, RayQueue<PTState>& ray_out, RayQueue<PTState>& ray_out_shadow, AtomicImage& out) {
     PTState* states = ray_in.states();
     Hit* hits = ray_in.hits();
     Ray* rays = ray_in.rays();
@@ -114,7 +114,7 @@ void PathTracer::process_primary_rays(RayQueue<PTState>& ray_in, RayQueue<PTStat
     });
 }
 
-void PathTracer::process_shadow_rays(RayQueue<PTState>& ray_in, Image& out) {
+void PathTracer::process_shadow_rays(RayQueue<PTState>& ray_in, AtomicImage& out) {
     PTState* states = ray_in.states();
     Hit* hits = ray_in.hits();
     Ray* rays = ray_in.rays();
@@ -133,7 +133,7 @@ void PathTracer::process_shadow_rays(RayQueue<PTState>& ray_in, Image& out) {
     });
 }
 
-void PathTracer::render(Image& out) {
+void PathTracer::render(AtomicImage& out) {
     scheduler_.run_iteration(out, this, &PathTracer::process_shadow_rays, &PathTracer::process_primary_rays,
         [this] (int x, int y, ::Ray& ray_out, PTState& state_out) {
             float u1 = state_out.rng.random_float();

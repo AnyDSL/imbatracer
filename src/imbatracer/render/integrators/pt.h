@@ -23,14 +23,14 @@ public:
         , scheduler_(ray_gen, scene)
     {}
 
-    virtual void render(Image& out) override;
+    virtual void render(AtomicImage& out) override;
 
 private:
     RayScheduler<PTState, 8, 8, 1> scheduler_;
     RayGen<PTState>&  ray_gen_;
 
-    void process_shadow_rays(RayQueue<PTState>& ray_in, Image& out);
-    void process_primary_rays(RayQueue<PTState>& ray_in, RayQueue<PTState>& ray_out, RayQueue<PTState>& ray_out_shadow, Image& out);
+    void process_shadow_rays(RayQueue<PTState>& ray_in, AtomicImage& out);
+    void process_primary_rays(RayQueue<PTState>& ray_in, RayQueue<PTState>& ray_out, RayQueue<PTState>& ray_out_shadow, AtomicImage& out);
 
     void compute_direct_illum(const Intersection& isect, PTState& state, RayQueue<PTState>& ray_out_shadow, BSDF* bsdf);
     void bounce(const Intersection& isect, PTState& state, RayQueue<PTState>& ray_out, BSDF* bsdf);

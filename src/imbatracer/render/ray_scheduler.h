@@ -118,9 +118,9 @@ public:
     ~RayScheduler() {}
 
     template<typename Obj>
-    void run_iteration(Image& out, Obj* integrator,
-                       void (Obj::*process_shadow_rays)(RayQueue<StateType>&, Image&),
-                       void (Obj::*process_primary_rays)(RayQueue<StateType>&, RayQueue<StateType>&, RayQueue<StateType>&, Image&),
+    void run_iteration(AtomicImage& out, Obj* integrator,
+                       void (Obj::*process_shadow_rays)(RayQueue<StateType>&, AtomicImage&),
+                       void (Obj::*process_primary_rays)(RayQueue<StateType>&, RayQueue<StateType>&, RayQueue<StateType>&, AtomicImage&),
                        SamplePixelFn sample_fn) {
         ray_gen_.start_frame();
 

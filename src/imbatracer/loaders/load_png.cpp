@@ -58,7 +58,7 @@ bool load_png(const Path& path, Image& image) {
                color_type == PNG_COLOR_TYPE_GRAY_ALPHA) {
         png_set_gray_to_rgb(png_ptr);
     }
-    
+
     // Transform to 8 bit per channel
     if (bit_depth == 16)
         png_set_strip_16(png_ptr);

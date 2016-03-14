@@ -3,27 +3,69 @@
 
 #include <vector>
 #include <cstring>
+#include <atomic>
 
 #include "float4.h"
 
 namespace imba {
 
-class Image {
+/// Implementation of an atomic type for float4 that supports assignment and addition.
+class AtomicFloat4 {
 public:
-    Image() {}
-    Image(int w, int h)
+    std::atomic<float> x, y, z, w;
+
+    AtomicFloat4(const float4& a)
+        : x(a.x), y(a.y), z(a.z), w(a.w)
+    {}
+
+    AtomicFloat4() {}
+
+    operator float4() {
+        return float4(x, y, z, w);
+    }
+
+    AtomicFloat4& operator= (const float4& a) {
+        x.store(a.x);
+        y.store(a.y);
+        z.store(a.z);
+        w.store(a.w);
+    }
+
+    float4 operator+= (const float4& a) {
+        return float4(
+            atomic_add(x, a.x),
+            atomic_add(y, a.y),
+            atomic_add(z, a.z),
+            atomic_add(w, a.w));
+    }
+
+private:
+    float atomic_add(std::atomic<float>& a, float b) {
+        float old_val = a.load();
+        float desired_val = old_val + b;
+        while(!a.compare_exchange_weak(old_val, desired_val))
+            desired_val = old_val + b;
+        return desired_val;
+    }
+};
+
+template<typename T>
+class ImageBase {
+public:
+    ImageBase() {}
+    ImageBase(int w, int h)
         : pixels_(w * h), width_(w), height_(h)
     {}
 
-    const float4* pixels() const { return pixels_.data(); }
-    float4* pixels() { return pixels_.data(); }
+    const T* pixels() const { return pixels_.data(); }
+    T* pixels() { return pixels_.data(); }
 
-    const float4* row(int i)  const { return pixels() + i * width_; }
-    float4* row(int i) { return pixels() + i * width_; }
-    
-    const float4& operator () (int x, int y) const { return pixels_[y * width_ + x]; }
-    float4& operator () (int x, int y) { return pixels_[y * width_ + x]; }
-    
+    const T* row(int i)  const { return pixels() + i * width_; }
+    T* row(int i) { return pixels() + i * width_; }
+
+    const T& operator () (int x, int y) const { return pixels_[y * width_ + x]; }
+    T& operator () (int x, int y) { return pixels_[y * width_ + x]; }
+
     int width() const { return width_; }
     int height() const { return height_; }
 
@@ -34,13 +76,20 @@ public:
     }
 
     void clear() {
-        std::memset(pixels_.data(), 0, sizeof(float4) * pixels_.size());
+        //std::memset(pixels_.data(), 0, sizeof(float4) * pixels_.size());
+        for(auto& p : pixels_)
+            p = float4(0.0f);
     }
 
+    int size() { return width_ * height_; }
+
 private:
-    std::vector<float4> pixels_;
+    std::vector<T> pixels_;
     int width_, height_;
 };
+
+using Image = ImageBase<float4>;
+using AtomicImage = ImageBase<AtomicFloat4>;
 
 } // namespace imba
 

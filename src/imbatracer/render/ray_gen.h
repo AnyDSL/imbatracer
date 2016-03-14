@@ -16,6 +16,10 @@ public:
     virtual void fill_queue(RayQueue<StateType>&, SamplePixelFn) = 0;
     virtual void start_frame() = 0;
     virtual bool is_empty() const = 0;
+
+    virtual int width() const = 0;
+    virtual int height() const = 0;
+    virtual int num_samples() const = 0;
 };
 
 /// Base class for all classes that generate rays per pixel (camera, lights)
@@ -26,9 +30,9 @@ public:
         : width_(w), height_(h), n_samples_(spp), next_pixel_(0)
     {}
 
-    int width() { return width_; }
-    int height() { return height_; }
-    int num_samples() { return n_samples_; }
+    int width() const { return width_; }
+    int height() const { return height_; }
+    int num_samples() const { return n_samples_; }
 
     virtual void start_frame() override { next_pixel_ = 0; }
 

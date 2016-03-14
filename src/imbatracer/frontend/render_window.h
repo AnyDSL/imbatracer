@@ -23,7 +23,7 @@ public:
 
 class RenderWindow {
 public:
-    RenderWindow(const UserSettings& settings, Integrator& r, InputController& ctrl);
+    RenderWindow(const UserSettings& settings, Integrator& r, InputController& ctrl, int spp);
     ~RenderWindow();
 
     void render_loop();
@@ -35,7 +35,7 @@ private:
 
     bool write_image(const char* filename);
 
-    Image accum_buffer_;
+    AtomicImage accum_buffer_;
     SDL_Window* window_;
     Integrator& integrator_;
     InputController& ctrl_;
@@ -48,10 +48,10 @@ private:
     static constexpr int msg_interval_ms = 10000;
 
     int max_samples_;
+    int spp_;
     float max_time_sec_;
 
     std::string output_file_;
-    std::string algname_;
 };
 
 } // namespace imba

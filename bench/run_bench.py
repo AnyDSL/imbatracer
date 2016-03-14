@@ -58,9 +58,10 @@ bench_settings = [
 
 alg_small = ['pt', 'bpt', 'vcm']
 alg_large = ['pt', 'bpt', 'vcm', 'lt', 'ppm']
+alg_pt_only = ['pt']
 
 time_sec = 5
-algorithms = alg_large
+algorithms = alg_pt_only
 
 def run_benchmark(app, setting):
     results = ''

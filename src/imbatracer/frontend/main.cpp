@@ -13,6 +13,8 @@
 
 using namespace imba;
 
+static const int SAMPLES_PER_PIXEL = 10;
+
 class CameraControl : public InputController {
 public:
     CameraControl(PerspectiveCamera& cam, float3& cam_pos, float3& cam_dir, float3& cam_up)
@@ -104,16 +106,16 @@ int main(int argc, char* argv[]) {
     CameraControl ctrl(cam, cam_pos, cam_dir, cam_up);
 
     if (settings.algorithm == UserSettings::PT) {
-        PixelRayGen<PTState> ray_gen(settings.width, settings.height, 1);
+        PixelRayGen<PTState> ray_gen(settings.width, settings.height, SAMPLES_PER_PIXEL);
         PathTracer integrator(scene, cam, ray_gen);
 
-        RenderWindow wnd(settings, integrator, ctrl);
+        RenderWindow wnd(settings, integrator, ctrl, SAMPLES_PER_PIXEL);
         wnd.render_loop();
 
         return 0;
     }
 
-    PixelRayGen<VCMState> ray_gen(settings.width, settings.height, 1);
+    PixelRayGen<VCMState> ray_gen(settings.width, settings.height, SAMPLES_PER_PIXEL);
     Integrator* integrator;
 
     switch (settings.algorithm) {
@@ -138,7 +140,7 @@ int main(int argc, char* argv[]) {
         break;
     }
 
-    RenderWindow wnd(settings, *integrator, ctrl);
+    RenderWindow wnd(settings, *integrator, ctrl, SAMPLES_PER_PIXEL);
     wnd.render_loop();
 
     delete integrator;

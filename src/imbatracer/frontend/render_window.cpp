@@ -12,7 +12,7 @@ namespace imba {
 
 constexpr float gamma = 1.0f / 2.0f;
 
-RenderWindow::RenderWindow(const UserSettings& settings, Integrator& r, InputController& ctrl)
+RenderWindow::RenderWindow(const UserSettings& settings, Integrator& r, InputController& ctrl, int spp)
     : accum_buffer_(settings.width, settings.height)
     , integrator_(r)
     , ctrl_(ctrl)
@@ -21,8 +21,7 @@ RenderWindow::RenderWindow(const UserSettings& settings, Integrator& r, InputCon
     , max_samples_(settings.max_samples)
     , max_time_sec_(settings.max_time_sec)
     , output_file_(settings.output_file)
-    , algname_(settings.algorithm == UserSettings::PT ? "Path Tracing" :
-             (settings.algorithm == UserSettings::BPT ? "Bidirectional Path Tracing" : "Vertex Connection and Merging"))
+    , spp_(spp)
 {
     if (!settings.background) {
         SDL_Init(SDL_INIT_VIDEO);
@@ -70,7 +69,7 @@ void RenderWindow::render_loop() {
 
     auto elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(cur_time - start_time_).count();
     std::cout << "Done after " << elapsed_ms / 1000.0f << " seconds, "
-              << frames_ << " samples @ "
+              << frames_ * spp_ << " samples @ "
               << 1000.0f * frames_ / static_cast<float>(elapsed_ms) << " frames per second, "
               << static_cast<float>(elapsed_ms) / frames_ << "ms per frame"  << std::endl;
 
@@ -89,12 +88,12 @@ void RenderWindow::render() {
     const int r = surface->format->Rshift / 8;
     const int g = surface->format->Gshift / 8;
     const int b = surface->format->Bshift / 8;
-    const float weight = 1.0f / (frames_);
+    const float weight = 1.0f / (frames_ * spp_);
 
     #pragma omp parallel for
     for (int y = 0; y < surface->h; y++) {
         unsigned char* row = (unsigned char*)surface->pixels + surface->pitch * y;
-        const float4* accum_row = accum_buffer_.row(y);
+        const auto* accum_row = accum_buffer_.row(y);
 
         for (int x = 0; x < surface->w; x++) {
             row[x * 4 + r] = 255.0f * clamp(powf(accum_row[x].x * weight, gamma), 0.0f, 1.0f);
@@ -153,14 +152,7 @@ bool RenderWindow::handle_events(bool flush) {
 }
 
 void RenderWindow::clear() {
-    // Clear the buffer
-    #pragma omp parallel for
-    for (int y = 0; y < accum_buffer_.height(); y++) {
-        float4* accum_row = accum_buffer_.row(y);
-        for (int x = 0; x < accum_buffer_.width(); x++) {
-            accum_row[x] = float4(0.0);
-        }
-    }
+    accum_buffer_.clear();
 
     // Reset number of samples and start time
     frames_ = 0;
@@ -212,9 +204,9 @@ bool RenderWindow::write_image(const char* file_name) {
 
     row.reset(new png_byte[4 * accum_buffer_.width()]);
 
-    const float weight = 1.0f / (frames_);
+    const float weight = 1.0f / (frames_ * spp_);
     for (int y = 0; y < accum_buffer_.height(); y++) {
-        const float4* accum_row = accum_buffer_.row(y);
+        const auto* accum_row = accum_buffer_.row(y);
         png_bytep img_row = row.get();
         for (int x = 0; x < accum_buffer_.width(); x++) {
             img_row[x * 4 + 0] = (png_byte)(255.0f * clamp(powf(accum_row[x].x * weight, gamma), 0.0f, 1.0f));

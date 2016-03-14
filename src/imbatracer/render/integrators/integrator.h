@@ -18,7 +18,7 @@ public:
         : scene_(scene), cam_(cam)
     {}
 
-    virtual void render(Image& out) = 0;
+    virtual void render(AtomicImage& out) = 0;
     virtual void reset() {}
 
 protected:

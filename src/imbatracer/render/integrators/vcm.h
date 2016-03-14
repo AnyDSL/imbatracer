@@ -202,7 +202,7 @@ public:
         photon_grid_.reserve(width_ * height_);
     }
 
-    virtual void render(Image& out) override;
+    virtual void render(AtomicImage& out) override;
     virtual void reset() override {
         pm_radius_ = base_radius_ * scene_.sphere.radius;
         cur_iteration_ = 0;
@@ -228,23 +228,23 @@ private:
 
     void reset_buffers();
 
-    Image light_image_;
-    Image pm_image_;
+    AtomicImage light_image_;
+    AtomicImage pm_image_;
 
     HashGrid<PhotonIterator> photon_grid_;
 
-    void process_light_rays(RayQueue<VCMState>& rays_in, RayQueue<VCMState>& rays_out, RayQueue<VCMState>& rays_out_shadow, Image&);
-    void process_camera_rays(RayQueue<VCMState>& rays_in, RayQueue<VCMState>& rays_out, RayQueue<VCMState>& shadow_rays, Image& img);
-    void process_shadow_rays(RayQueue<VCMState>& rays_in, Image& img);
+    void process_light_rays(RayQueue<VCMState>& rays_in, RayQueue<VCMState>& rays_out, RayQueue<VCMState>& rays_out_shadow, AtomicImage&);
+    void process_camera_rays(RayQueue<VCMState>& rays_in, RayQueue<VCMState>& rays_out, RayQueue<VCMState>& shadow_rays, AtomicImage& img);
+    void process_shadow_rays(RayQueue<VCMState>& rays_in, AtomicImage& img);
 
     void trace_light_paths();
-    void trace_camera_paths(Image& img);
+    void trace_camera_paths(AtomicImage& img);
 
     void connect_to_camera(const VCMState& light_state, const Intersection& isect, const BSDF* bsdf, RayQueue<VCMState>& rays_out_shadow);
 
     void direct_illum(VCMState& cam_state, const Intersection& isect, BSDF* bsdf, RayQueue<VCMState>& rays_out_shadow);
     void connect(VCMState& cam_state, const Intersection& isect, BSDF* bsdf, MemoryArena& bsdf_arena, RayQueue<VCMState>& rays_out_shadow);
-    void vertex_merging(const VCMState& state, const Intersection& isect, const BSDF* bsdf, Image& img);
+    void vertex_merging(const VCMState& state, const Intersection& isect, const BSDF* bsdf, AtomicImage& img);
 
     void bounce(VCMState& state, const Intersection& isect, BSDF* bsdf, RayQueue<VCMState>& rays_out, bool adjoint, int max_length);
 

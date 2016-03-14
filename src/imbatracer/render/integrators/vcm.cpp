@@ -28,7 +28,7 @@ inline float mis_heuristic(float a) {
 #define VCM_INTEGRATOR VCMIntegrator<bpt_only, ppm_only, lt_only, pt_only>
 
 VCM_TEMPLATE
-void VCM_INTEGRATOR::render(Image& img) {
+void VCM_INTEGRATOR::render(AtomicImage& img) {
     reset_buffers();
 
     cur_iteration_++;
@@ -112,7 +112,7 @@ void VCM_INTEGRATOR::trace_light_paths() {
 }
 
 VCM_TEMPLATE
-void VCM_INTEGRATOR::trace_camera_paths(Image& img) {
+void VCM_INTEGRATOR::trace_camera_paths(AtomicImage& img) {
     scheduler_.run_iteration(img, this,
         &VCM_INTEGRATOR::process_shadow_rays,
         &VCM_INTEGRATOR::process_camera_rays,
@@ -210,7 +210,7 @@ void VCM_INTEGRATOR::bounce(VCMState& state, const Intersection& isect, BSDF* bs
 }
 
 VCM_TEMPLATE
-void VCM_INTEGRATOR::process_light_rays(RayQueue<VCMState>& rays_in, RayQueue<VCMState>& rays_out, RayQueue<VCMState>& ray_out_shadow, Image&) {
+void VCM_INTEGRATOR::process_light_rays(RayQueue<VCMState>& rays_in, RayQueue<VCMState>& rays_out, RayQueue<VCMState>& ray_out_shadow, AtomicImage&) {
     int ray_count = rays_in.size();
     VCMState* states = rays_in.states();
     const Hit* hits = rays_in.hits();
@@ -314,7 +314,7 @@ void VCM_INTEGRATOR::connect_to_camera(const VCMState& light_state, const Inters
 }
 
 VCM_TEMPLATE
-void VCM_INTEGRATOR::process_camera_rays(RayQueue<VCMState>& rays_in, RayQueue<VCMState>& rays_out, RayQueue<VCMState>& ray_out_shadow, Image& img) {
+void VCM_INTEGRATOR::process_camera_rays(RayQueue<VCMState>& rays_in, RayQueue<VCMState>& rays_out, RayQueue<VCMState>& ray_out_shadow, AtomicImage& img) {
     int ray_count = rays_in.size();
     VCMState* states = rays_in.states();
     const Hit* hits = rays_in.hits();
@@ -497,7 +497,7 @@ void VCM_INTEGRATOR::connect(VCMState& cam_state, const Intersection& isect, BSD
 }
 
 VCM_TEMPLATE
-void VCM_INTEGRATOR::vertex_merging(const VCMState& state, const Intersection& isect, const BSDF* bsdf, Image& img) {
+void VCM_INTEGRATOR::vertex_merging(const VCMState& state, const Intersection& isect, const BSDF* bsdf, AtomicImage& img) {
     if (!bsdf->count(BSDF_NON_SPECULAR))
         return;
 
@@ -533,7 +533,7 @@ void VCM_INTEGRATOR::vertex_merging(const VCMState& state, const Intersection& i
 }
 
 VCM_TEMPLATE
-void VCM_INTEGRATOR::process_shadow_rays(RayQueue<VCMState>& rays_in, Image& img) {
+void VCM_INTEGRATOR::process_shadow_rays(RayQueue<VCMState>& rays_in, AtomicImage& img) {
     int ray_count = rays_in.size();
     const VCMState* states = rays_in.states();
     const Hit* hits = rays_in.hits();
