@@ -4,7 +4,6 @@
 
 #include "../loaders/loaders.h"
 
-#include "../render/render.h"
 #include "../render/scene.h"
 #include "../render/ray_gen.h"
 
@@ -13,7 +12,7 @@
 
 using namespace imba;
 
-static const int SAMPLES_PER_PIXEL = 10;
+static const int SAMPLES_PER_PIXEL = 2;
 
 class CameraControl : public InputController {
 public:
