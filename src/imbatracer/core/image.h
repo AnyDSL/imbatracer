@@ -29,6 +29,7 @@ public:
         y.store(a.y);
         z.store(a.z);
         w.store(a.w);
+        return *this;
     }
 
     float4 operator+= (const float4& a) {

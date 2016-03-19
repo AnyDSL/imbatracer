@@ -30,9 +30,9 @@ public:
         : width_(w), height_(h), n_samples_(spp), next_pixel_(0)
     {}
 
-    int width() const { return width_; }
-    int height() const { return height_; }
-    int num_samples() const { return n_samples_; }
+    int width() const override { return width_; }
+    int height() const override { return height_; }
+    int num_samples() const override { return n_samples_; }
 
     virtual void start_frame() override { next_pixel_ = 0; }
 
