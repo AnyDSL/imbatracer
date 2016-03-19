@@ -12,7 +12,7 @@
 
 using namespace imba;
 
-static const int SAMPLES_PER_PIXEL = 2;
+static const int SAMPLES_PER_PIXEL = 1;
 
 class CameraControl : public InputController {
 public:

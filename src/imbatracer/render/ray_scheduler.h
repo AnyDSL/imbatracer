@@ -106,7 +106,7 @@ private:
 template<typename StateType, int queue_count, int shadow_queue_count, int max_shadow_rays_per_hit>
 class RayScheduler {
     using SamplePixelFn = typename RayGen<StateType>::SamplePixelFn;
-    static constexpr int DEFAULT_QUEUE_SIZE = 1 << 18;
+    static constexpr int DEFAULT_QUEUE_SIZE = 1 << 20;
 public:
     RayScheduler(RayGen<StateType>& ray_gen, Scene& scene, int queue_size = DEFAULT_QUEUE_SIZE)
         : ray_gen_(ray_gen)

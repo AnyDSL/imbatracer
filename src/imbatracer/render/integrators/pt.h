@@ -15,7 +15,6 @@ struct PTState : RayState {
 
 /// Renders a scene using path tracing starting at the camera.
 class PathTracer : public Integrator {
-    static constexpr int TARGET_RAY_COUNT = 1 << 20;
 public:
     PathTracer(Scene& scene, PerspectiveCamera& cam, RayGen<PTState>& ray_gen)
         : Integrator(scene, cam)

@@ -15,7 +15,25 @@ public:
     TextureSampler(const TextureSampler&) = delete;
     TextureSampler& operator=(const TextureSampler&) = delete;
 
-    float4 sample(float2 uv) {
+    inline float4 sample_du(float2 uv) {
+        float u = uv.x + du();
+        return sample(float2(u, uv.y));
+    }
+
+    inline float4 sample_dv(float2 uv) {
+        float v = uv.y - dv();
+        return sample(float2(uv.x, v));
+    }
+
+    inline float du() {
+        return 0.5f / float(img_.width());
+    }
+
+    inline float dv() {
+        return 0.5f / float(img_.height());
+    }
+
+    inline float4 sample(float2 uv) {
         float u = clamp(uv.x - (int)uv.x, -1.0f, 1.0f);
         float v = clamp(uv.y - (int)uv.y, -1.0f, 1.0f);
         u += u < 0.0f ? 1.0f : 0.0f;
@@ -27,6 +45,7 @@ public:
 
         const int x0 = (int)kx;
         const int y0 = (int)ky;
+
         const int x1 = (x0 + 1) % img_.width();
         const int y1 = (y0 + 1) % img_.height();
 

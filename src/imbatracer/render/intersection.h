@@ -14,6 +14,9 @@ struct Intersection {
     float2 uv;
     float3 geom_normal;
 
+    float3 u_tangent;
+    float3 v_tangent;
+
     Material* mat;
 };
 

@@ -111,10 +111,19 @@ void convert_materials(const Path& path, const obj::File& obj_file, const obj::M
             if (is_emissive)
                 mtl_to_light_intensity.insert(std::make_pair(scene.materials.size(), float4(mat.ke, 1.0f)));
 
+            TextureSampler* bump_sampler = nullptr;
+            if (!mat.map_bump.empty()) {
+                // Load the bump map.
+                const std::string img_file = path.base_name() + "/" + mat.map_bump;
+                int sampler_id = load_texture(img_file);
+                if (sampler_id >= 0)
+                    bump_sampler = scene.textures[sampler_id].get();
+            }
+
             if (mat.illum == 5)
-                scene.materials.push_back(std::unique_ptr<MirrorMaterial>(new MirrorMaterial(1.0f, mat.ns, float4(mat.ks, 1.0f))));
+                scene.materials.push_back(std::unique_ptr<MirrorMaterial>(new MirrorMaterial(1.0f, mat.ns, float4(mat.ks, 1.0f), bump_sampler)));
             else if (mat.illum == 7) ///* HACK !!! */ || mat.ni != 0)
-                scene.materials.push_back(std::unique_ptr<GlassMaterial>(new GlassMaterial(mat.ni, /* HACK !!! mat.kd*/ float4(mat.tf, 1.0f), float4(mat.ks, 1.0f))));
+                scene.materials.push_back(std::unique_ptr<GlassMaterial>(new GlassMaterial(mat.ni, /* HACK !!! mat.kd*/ float4(mat.tf, 1.0f), float4(mat.ks, 1.0f), bump_sampler)));
             else if (is_phong){
                 Material* mtl;
                 if (!mat.map_kd.empty()) {
@@ -122,12 +131,12 @@ void convert_materials(const Path& path, const obj::File& obj_file, const obj::M
 
                     int sampler_id = load_texture(img_file);
                     if (sampler_id < 0) {
-                        mtl = new GlossyMaterial(mat.ns, float4(mat.ks, 1.0f), float4(1.0f, 0.0f, 1.0f, 1.0f));
+                        mtl = new GlossyMaterial(mat.ns, float4(mat.ks, 1.0f), float4(1.0f, 0.0f, 1.0f, 1.0f), bump_sampler);
                     } else {
-                        mtl = new GlossyMaterial(mat.ns, float4(mat.ks, 1.0f), scene.textures[sampler_id].get());
+                        mtl = new GlossyMaterial(mat.ns, float4(mat.ks, 1.0f), scene.textures[sampler_id].get(), bump_sampler);
                     }
                 } else {
-                    mtl = new GlossyMaterial(mat.ns, float4(mat.ks, 1.0f), float4(mat.kd, 1.0f));
+                    mtl = new GlossyMaterial(mat.ns, float4(mat.ks, 1.0f), float4(mat.kd, 1.0f), bump_sampler);
                 }
 
                 scene.materials.push_back(std::unique_ptr<Material>(mtl));
@@ -138,12 +147,12 @@ void convert_materials(const Path& path, const obj::File& obj_file, const obj::M
 
                     int sampler_id = load_texture(img_file);
                     if (sampler_id < 0) {
-                        mtl = new DiffuseMaterial(float4(1.0f, 0.0f, 1.0f, 1.0f));
+                        mtl = new DiffuseMaterial(float4(1.0f, 0.0f, 1.0f, 1.0f), bump_sampler);
                     } else {
-                        mtl = new DiffuseMaterial(scene.textures[sampler_id].get());
+                        mtl = new DiffuseMaterial(scene.textures[sampler_id].get(), bump_sampler);
                     }
                 } else {
-                    mtl = new DiffuseMaterial(float4(mat.kd, 1.0f));
+                    mtl = new DiffuseMaterial(float4(mat.kd, 1.0f), bump_sampler);
                 }
 
                 scene.materials.push_back(std::unique_ptr<Material>(mtl));

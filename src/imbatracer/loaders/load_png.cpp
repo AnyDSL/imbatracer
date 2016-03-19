@@ -68,7 +68,7 @@ bool load_png(const Path& path, Image& image) {
         png_set_tRNS_to_alpha(png_ptr);
 
     // Otherwise add an opaque alpha channel
-    if (color_type == PNG_COLOR_TYPE_RGB)
+    else
         png_set_filler(png_ptr, 0xFF, PNG_FILLER_AFTER);
 
     image.resize(width, height);
