@@ -48,30 +48,21 @@ void VCM_INTEGRATOR::render(AtomicImage& img) {
         mis_weight_vm_ = 0.0f;
 
     if (!pt_only)
-        trace_light_paths();
+        trace_light_paths(img);
 
     if (!lt_only)
         trace_camera_paths(img);
-
-    // Merge light and camera images.
-    for (int i = 0; i < width_ * height_; ++i) {
-        img.pixels()[i] += light_image_.pixels()[i];
-        img.pixels()[i] += pm_image_.pixels()[i];
-    }
 }
 
 VCM_TEMPLATE
 void VCM_INTEGRATOR::reset_buffers() {
     if (!lt_only)
         light_paths_.reset();
-
-    light_image_.clear();
-    pm_image_.clear();
 }
 
 VCM_TEMPLATE
-void VCM_INTEGRATOR::trace_light_paths() {
-    scheduler_.run_iteration(light_image_, this,
+void VCM_INTEGRATOR::trace_light_paths(AtomicImage& img) {
+    scheduler_.run_iteration(img, this,
         &VCM_INTEGRATOR::process_shadow_rays,
         &VCM_INTEGRATOR::process_light_rays,
         [this] (int x, int y, ::Ray& ray_out, VCMState& state_out) {
@@ -210,7 +201,7 @@ void VCM_INTEGRATOR::bounce(VCMState& state, const Intersection& isect, BSDF* bs
 }
 
 VCM_TEMPLATE
-void VCM_INTEGRATOR::process_light_rays(RayQueue<VCMState>& rays_in, RayQueue<VCMState>& rays_out, RayQueue<VCMState>& ray_out_shadow, AtomicImage&) {
+void VCM_INTEGRATOR::process_light_rays(RayQueue<VCMState>& rays_in, RayQueue<VCMState>& rays_out, RayQueue<VCMState>& ray_out_shadow, AtomicImage& img) {
     int ray_count = rays_in.size();
     VCMState* states = rays_in.states();
     const Hit* hits = rays_in.hits();
@@ -434,6 +425,8 @@ void VCM_INTEGRATOR::connect(VCMState& cam_state, const Intersection& isect, BSD
     auto& light_path = light_paths_.get_path(cam_state.pixel_id);
     const int path_len = light_paths_.get_path_len(cam_state.pixel_id);
     for (int i = 0; i < path_len; ++i) {
+        bsdf_arena.free_all();
+
         auto& light_vertex = light_path[i];
         auto light_bsdf = light_vertex.isect.mat->get_bsdf(light_vertex.isect, bsdf_arena, true);
 
@@ -529,7 +522,7 @@ void VCM_INTEGRATOR::vertex_merging(const VCMState& state, const Intersection& i
         contrib += mis_weight * bsdf_value * p->throughput;
     }
 
-    pm_image_.pixels()[state.pixel_id] += state.throughput * contrib * vm_normalization_;
+    img.pixels()[state.pixel_id] += state.throughput * contrib * vm_normalization_;
 }
 
 VCM_TEMPLATE

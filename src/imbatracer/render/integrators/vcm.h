@@ -189,8 +189,6 @@ public:
         , width_(cam.width())
         , height_(cam.height())
         , ray_gen_(ray_gen)
-        , light_image_(width_, height_)
-        , pm_image_(width_, height_)
         , light_path_count_(width_ * height_)
         , light_paths_(MAX_LIGHT_PATH_LEN, width_ * height_)
         , pm_radius_(base_radius)
@@ -228,16 +226,13 @@ private:
 
     void reset_buffers();
 
-    AtomicImage light_image_;
-    AtomicImage pm_image_;
-
     HashGrid<PhotonIterator> photon_grid_;
 
-    void process_light_rays(RayQueue<VCMState>& rays_in, RayQueue<VCMState>& rays_out, RayQueue<VCMState>& rays_out_shadow, AtomicImage&);
+    void process_light_rays(RayQueue<VCMState>& rays_in, RayQueue<VCMState>& rays_out, RayQueue<VCMState>& rays_out_shadow, AtomicImage& img);
     void process_camera_rays(RayQueue<VCMState>& rays_in, RayQueue<VCMState>& rays_out, RayQueue<VCMState>& shadow_rays, AtomicImage& img);
     void process_shadow_rays(RayQueue<VCMState>& rays_in, AtomicImage& img);
 
-    void trace_light_paths();
+    void trace_light_paths(AtomicImage& img);
     void trace_camera_paths(AtomicImage& img);
 
     void connect_to_camera(const VCMState& light_state, const Intersection& isect, const BSDF* bsdf, RayQueue<VCMState>& rays_out_shadow);
