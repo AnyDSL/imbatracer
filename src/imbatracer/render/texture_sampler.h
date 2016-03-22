@@ -26,11 +26,11 @@ public:
     }
 
     inline float du() {
-        return 0.5f / float(img_.width());
+        return 1.0f / float(img_.width());
     }
 
     inline float dv() {
-        return 0.5f / float(img_.height());
+        return 1.0f / float(img_.height());
     }
 
     inline float4 sample(float2 uv) {
