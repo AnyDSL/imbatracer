@@ -425,8 +425,6 @@ void VCM_INTEGRATOR::connect(VCMState& cam_state, const Intersection& isect, BSD
     auto& light_path = light_paths_.get_path(cam_state.pixel_id);
     const int path_len = light_paths_.get_path_len(cam_state.pixel_id);
     for (int i = 0; i < path_len; ++i) {
-        bsdf_arena.free_all();
-
         auto& light_vertex = light_path[i];
         auto light_bsdf = light_vertex.isect.mat->get_bsdf(light_vertex.isect, bsdf_arena, true);
 

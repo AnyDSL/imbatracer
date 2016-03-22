@@ -50,6 +50,9 @@ public:
     /// Releases all chunks and makes all memory in all blocks available for reusing.
     /// Does not actually free any memory.
     void free_all() {
+#ifdef DEBUG_MEM_ARENA
+        printf("Freed %d blocks, current offset was %d \n", cur_block_ + 1, cur_block_offset_);
+#endif
         cur_block_ = 0;
         cur_block_offset_ = 0;
     }
@@ -69,7 +72,6 @@ public:
                 allocate_block();
 
             cur_block_offset_ = 0;
-            cur_block_ = blocks_.size() - 1;
         }
 
         size_t offset = cur_block_offset_;
