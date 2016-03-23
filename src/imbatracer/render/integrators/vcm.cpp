@@ -21,6 +21,7 @@ static ThreadLocalPhotonContainer photon_containers;
 
 inline float mis_heuristic(float a) {
     return sqr(a);
+    //return a;
 }
 
 // Reduce ugliness from the template parameters.
@@ -136,7 +137,7 @@ void VCM_INTEGRATOR::trace_camera_paths(AtomicImage& img) {
 /// This function has to be used for all BSDFs during particle tracing to prevent brighness discontinuities.
 /// See Veach's PhD thesis for more details.
 inline float shading_normal_adjoint(const float3& normal, const float3& geom_normal, const float3& out_dir, const float3& in_dir) {
-    return fabsf(dot(out_dir, normal)) * fabsf(dot(in_dir, geom_normal)) / fabsf(dot(out_dir, geom_normal));
+    return dot(out_dir, normal) * dot(in_dir, geom_normal) / dot(out_dir, geom_normal);
 }
 
 VCM_TEMPLATE
@@ -170,7 +171,7 @@ void VCM_INTEGRATOR::bounce(VCMState& state, const Intersection& isect, BSDF* bs
     if (!is_specular) // cannot evaluate reverse pdf of specular surfaces (but is the same as forward due to symmetry)
         pdf_rev_w = bsdf->pdf(sample_dir, isect.out_dir);
 
-    const float cos_theta_i = adjoint ? shading_normal_adjoint(isect.normal, isect.geom_normal, isect.out_dir, sample_dir)
+    const float cos_theta_i = adjoint ? fabsf(shading_normal_adjoint(isect.normal, isect.geom_normal, isect.out_dir, sample_dir))
                                       : fabsf(dot(sample_dir, isect.normal));
 
     VCMState s = state;
@@ -272,7 +273,7 @@ void VCM_INTEGRATOR::connect_to_camera(const VCMState& light_state, const Inters
 
     const float cos_theta_i = fabsf(dot(cam_.dir(), -dir_to_cam));
     //float cos_theta_o = fabsf(dot(isect.normal, dir_to_cam));
-    const float cos_theta_o = shading_normal_adjoint(isect.normal, isect.geom_normal, isect.out_dir, dir_to_cam);
+    const float cos_theta_o = fabsf(shading_normal_adjoint(isect.normal, isect.geom_normal, isect.out_dir, dir_to_cam));
 
     // Evaluate the material and compute the pdf values.
     auto bsdf_value = bsdf->eval(isect.out_dir, dir_to_cam, BSDF_ALL);
@@ -451,6 +452,10 @@ void VCM_INTEGRATOR::connect(VCMState& cam_state, const Intersection& isect, BSD
         float pdf_dir_light_w = light_bsdf->pdf(light_vertex.isect.out_dir, -connect_dir);
         float pdf_rev_light_w = light_bsdf->pdf(-connect_dir, light_vertex.isect.out_dir);
 
+        if (pdf_dir_cam_w == 0.0f || pdf_dir_light_w == 0.0f ||
+            pdf_rev_cam_w == 0.0f || pdf_rev_light_w == 0.0f)
+            return;  // A pdf value of zero means that there has to be zero contribution from this pair of directions as well.
+
         // Compute the cosine terms. We need to use the adjoint for the light vertex BSDF.
         const float cos_theta_cam = dot(isect.normal, connect_dir);
         const float cos_theta_light = shading_normal_adjoint(light_vertex.isect.normal, light_vertex.isect.geom_normal,
@@ -477,6 +482,17 @@ void VCM_INTEGRATOR::connect(VCMState& cam_state, const Intersection& isect, BSD
 
         VCMState s = cam_state;
         s.throughput *= mis_weight * geom_term * bsdf_value_cam * bsdf_value_light * light_vertex.throughput;
+
+        if (s.throughput.x > 6.0f) {
+            printf("FIREFLY! mis %f geom %f bsdf_c %f bsdf_l %f l_tp %f c_tp %f path_length %d cp_l %f cp_c %f\n",
+                mis_weight, geom_term, bsdf_value_cam.x, bsdf_value_light.x, light_vertex.throughput.x,
+                cam_state.throughput.x, cam_state.path_length, light_vertex.continue_prob, cam_state.continue_prob);
+            printf("  mis terms: \n");
+            printf("    cam: %f %f %f %f %f\n", mis_heuristic(pdf_light_a), cam_state.dVCM, cam_state.dVC, mis_heuristic(pdf_cam_r));
+            printf("    light: %f %f %f %f %f\n", mis_heuristic(pdf_cam_a), light_vertex.dVCM, light_vertex.dVC, mis_heuristic(pdf_light_r));
+            printf("     light pdfs: %f %f %f\n", pdf_light_a, pdf_light_f, pdf_dir_light_w);
+            printf("\n");
+        }
 
         Ray ray {
             { isect.pos.x, isect.pos.y, isect.pos.z, offset },
@@ -530,9 +546,12 @@ void VCM_INTEGRATOR::process_shadow_rays(RayQueue<VCMState>& rays_in, AtomicImag
     const Hit* hits = rays_in.hits();
     const Ray* rays = rays_in.rays();
 
+    const float4 max_contrib(100.0f, 100.0f, 100.0f, 100.0f);
+    const float4 min_contrib(0.0f, 0.0f, 0.0f, 0.0f);
+
     for (int i = 0; i < ray_count; ++i) {
         if (hits[i].tri_id < 0) {
-            img.pixels()[states[i].pixel_id] += states[i].throughput;
+            img.pixels()[states[i].pixel_id] += clamp(states[i].throughput, min_contrib, max_contrib);
         }
     }
 }
