@@ -163,8 +163,7 @@ void VCM_INTEGRATOR::bounce(VCMState& state, const Intersection& isect, BSDF* bs
 
     bool is_specular = sampled_flags & BSDF_SPECULAR;
 
-    // For PPM: don't store black photons.
-    if (ppm_only && (sampled_flags == 0 || pdf_dir_w == 0.0f || is_black(bsdf_value)))
+    if (sampled_flags == 0 || pdf_dir_w == 0.0f || is_black(bsdf_value))
         return;
 
     float pdf_rev_w = pdf_dir_w;
@@ -277,10 +276,12 @@ void VCM_INTEGRATOR::connect_to_camera(const VCMState& light_state, const Inters
 
     // Evaluate the material and compute the pdf values.
     auto bsdf_value = bsdf->eval(isect.out_dir, dir_to_cam, BSDF_ALL);
-    float pdf_dir_w = bsdf->pdf(isect.out_dir, dir_to_cam);
     float pdf_rev_w = bsdf->pdf(dir_to_cam, isect.out_dir);
 
     const float pdf_rev = pdf_rev_w * light_state.continue_prob;
+
+    if (pdf_rev == 0.0f)
+        return;
 
     // Compute conversion factor from surface area to image plane and vice versa.
     const float img_to_surf = (sqr(cam_.image_plane_dist()) * cos_theta_o) /
@@ -405,6 +406,9 @@ void VCM_INTEGRATOR::direct_illum(VCMState& cam_state, const Intersection& isect
     float pdf_dir_w = bsdf->pdf(isect.out_dir, sample.dir);
     float pdf_rev_w = bsdf->pdf(sample.dir, isect.out_dir);
 
+    if (pdf_dir_w == 0.0f || pdf_rev_w == 0.0f)
+        return;
+
     const float pdf_forward = ls->is_delta() ? 0.0f : cam_state.continue_prob * pdf_dir_w;
     const float pdf_reverse = cam_state.continue_prob * pdf_rev_w;
 
@@ -513,6 +517,9 @@ void VCM_INTEGRATOR::vertex_merging(const VCMState& state, const Intersection& i
         const auto bsdf_value = bsdf->eval(isect.out_dir, light_in_dir);
         const float pdf_dir_w = bsdf->pdf(isect.out_dir, light_in_dir);
         const float pdf_rev_w = bsdf->pdf(light_in_dir, isect.out_dir);
+
+        if (pdf_dir_w == 0.0f || pdf_rev_w == 0.0f)
+            continue;
 
         const float pdf_forward = pdf_dir_w * state.continue_prob;
         const float pdf_reverse = pdf_rev_w * state.continue_prob;
