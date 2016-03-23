@@ -20,8 +20,8 @@ using ThreadLocalPhotonContainer = tbb::enumerable_thread_specific<std::vector<P
 static ThreadLocalPhotonContainer photon_containers;
 
 inline float mis_heuristic(float a) {
-    return sqr(a);
-    //return a;
+    //return sqr(a);
+    return a;
 }
 
 // Reduce ugliness from the template parameters.
@@ -482,17 +482,6 @@ void VCM_INTEGRATOR::connect(VCMState& cam_state, const Intersection& isect, BSD
 
         VCMState s = cam_state;
         s.throughput *= mis_weight * geom_term * bsdf_value_cam * bsdf_value_light * light_vertex.throughput;
-
-        if (s.throughput.x > 6.0f) {
-            printf("FIREFLY! mis %f geom %f bsdf_c %f bsdf_l %f l_tp %f c_tp %f path_length %d cp_l %f cp_c %f\n",
-                mis_weight, geom_term, bsdf_value_cam.x, bsdf_value_light.x, light_vertex.throughput.x,
-                cam_state.throughput.x, cam_state.path_length, light_vertex.continue_prob, cam_state.continue_prob);
-            printf("  mis terms: \n");
-            printf("    cam: %f %f %f %f %f\n", mis_heuristic(pdf_light_a), cam_state.dVCM, cam_state.dVC, mis_heuristic(pdf_cam_r));
-            printf("    light: %f %f %f %f %f\n", mis_heuristic(pdf_cam_a), light_vertex.dVCM, light_vertex.dVC, mis_heuristic(pdf_light_r));
-            printf("     light pdfs: %f %f %f\n", pdf_light_a, pdf_light_f, pdf_dir_light_w);
-            printf("\n");
-        }
 
         Ray ray {
             { isect.pos.x, isect.pos.y, isect.pos.z, offset },

@@ -25,22 +25,26 @@ public:
 
     /// Updates the shading normal of the given intersection using bump mapping.
     inline void bump(Intersection& isect) {
-        return;
         if (!bump_)
             return;
 
-        auto u_displace = bump_->sample_du(isect.uv);
-        auto v_displace = bump_->sample_dv(isect.uv);
-        auto displace   = bump_->sample(isect.uv);
+        float du = 0.001f;
+        float dv = 0.001f;
+        float vscale = 0.02f;
+        auto u_displace = vscale * bump_->sample(float2(isect.uv.x + du, isect.uv.y));
+        auto v_displace = vscale * bump_->sample(float2(isect.uv.x, isect.uv.y + dv));
+        auto displace   = vscale * bump_->sample(isect.uv);
 
-        auto diff_u = (u_displace - displace).x / (bump_->du() * 50.0f);
-        auto diff_v = (v_displace - displace).x / (bump_->dv() * 50.0f);
+        auto diff_u = (u_displace - displace).x / du;
+        auto diff_v = (v_displace - displace).x / dv;
 
         auto n = cross(isect.v_tangent, isect.u_tangent);
         auto u = isect.u_tangent + diff_u * n;
         auto v = isect.v_tangent + diff_v * n;
 
         isect.normal = normalize(cross(u, v));
+        isect.u_tangent = u;
+        isect.v_tangent = v;
     }
 
 private:

@@ -61,7 +61,7 @@ alg_large = ['pt', 'bpt', 'vcm', 'lt', 'ppm']
 alg_pt_only = ['pt']
 
 time_sec = 5
-algorithms = alg_pt_only
+algorithms = alg_small
 
 def run_benchmark(app, setting):
     results = ''
