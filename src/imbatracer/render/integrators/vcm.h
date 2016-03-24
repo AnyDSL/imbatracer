@@ -184,7 +184,7 @@ class VCMIntegrator : public Integrator {
     static constexpr int MAX_LIGHT_PATH_LEN = 8;
     static constexpr int MAX_CAMERA_PATH_LEN = 16;
 public:
-    VCMIntegrator(Scene& scene, PerspectiveCamera& cam, RayGen<VCMState>& ray_gen, float base_radius=0.003f, float radius_alpha=0.75f)
+    VCMIntegrator(Scene& scene, PerspectiveCamera& cam, RayGen<VCMState>& ray_gen, float base_radius=0.03f, float radius_alpha=0.75f)
         : Integrator(scene, cam)
         , width_(cam.width())
         , height_(cam.height())

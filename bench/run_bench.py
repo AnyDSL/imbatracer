@@ -53,6 +53,26 @@ bench_settings = [
         'height': 1024,
         'base_filename': 'results/cornell_water',
         'args': []
+    },
+
+    {
+        'name': 'Sponza behind curtain',
+        'scene': 'scenes/sponza/sponza.scene',
+        'reference': 'references/ref_sponza_curtain.png',
+        'width': 1024,
+        'height': 1024,
+        'base_filename': 'results/sponza_curtain',
+        'args': []
+    },
+
+    {
+        'name': 'Sibenik',
+        'scene': 'scenes/sibenik/sibenik.scene',
+        'reference': 'references/ref_sibenik.png',
+        'width': 1024,
+        'height': 1024,
+        'base_filename': 'results/sibenik',
+        'args': []
     }
 ]
 
@@ -70,11 +90,15 @@ def run_benchmark(app, setting):
         print '   > running ' + alg + ' ... '
 
         out_filename = setting['base_filename'] + '_' + alg + '.png'
-        p = Popen([app, setting['scene'],
-                  '-w', str(setting['width']),
-                  '-h', str(setting['height']),
-                  '-q', '-t', str(time_sec), '-a', alg,
-                  out_filename],
+
+        args = [app, setting['scene'],
+                '-w', str(setting['width']),
+                '-h', str(setting['height']),
+                '-q', '-t', str(time_sec), '-a', alg,
+                out_filename]
+        args.extend(setting['args'])
+
+        p = Popen(args,
                   stdin=PIPE, stdout=PIPE, stderr=PIPE)
 
         output, err = p.communicate()

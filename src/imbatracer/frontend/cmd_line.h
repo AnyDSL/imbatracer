@@ -34,16 +34,18 @@ struct UserSettings {
 
     float fov;
 
+    float base_radius;
+
     UserSettings()
         : input_file(""), accel_output(""), output_file("render.png"), algorithm(PT),
           width(512), height(512), max_samples(INT_MAX), max_time_sec(FLT_MAX),
-          background(false), fov(60.0f)
+          background(false), fov(60.0f), base_radius(0.03f)
     {}
 };
 
 inline void print_help() {
     std::cout << "Usage: imbatracer <input_file.scene> [-q | -s <max_samples> | -t <max_time_seconds> |" << std::endl
-              << "                                    -a <algorithm> | -w <width> | -h <height> | <output_file.png> ]"
+              << "                                    -a <algorithm> | -w <width> | -h <height> | <output_file.png> | -r <base_radius>]"
               << std::endl << std::endl
               << "    -q  Quiet mode, render in background without SDL preview." << std::endl
               << "    -s  Number of samples per pixel to render (default: unlimited)" << std::endl
@@ -52,6 +54,7 @@ inline void print_help() {
               << "    -w  Sets the horizontal resolution in pixels (default: 512)" << std::endl
               << "    -h  Sets the vertical resolution in pixels (default: 512)" << std::endl
               << "    -f  Sets the horizontal field of view (default: 60)" << std::endl
+              << "    -r  Sets the initial radius for photon mapping as a factor of the scene bounding sphere radius (default: 0.03)" << std::endl
               << "    --write_accel <filename>  Writes the acceleration structure to the specified file." << std::endl
               << "  If time (-t) and number of samples (-s) are both given, time has higher priority." << std::endl;
 }
@@ -134,6 +137,8 @@ inline bool parse_cmd_line(int argc, char* argv[], UserSettings& settings) {
             settings.accel_output = argv[i];
         } else if (arg == "-f") {
             parse_argument(++i, argc, argv, settings.fov);
+        } else if (arg == "-r") {
+            parse_argument(++i, argc, argv, settings.base_radius);
         } else
             settings.output_file = arg;
     }

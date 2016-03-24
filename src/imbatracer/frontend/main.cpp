@@ -123,7 +123,7 @@ int main(int argc, char* argv[]) {
         break;
 
     case UserSettings::PPM:
-        integrator = new PPM(scene, cam, ray_gen);
+        integrator = new PPM(scene, cam, ray_gen, settings.base_radius);
         break;
 
     case UserSettings::LT:
@@ -135,7 +135,7 @@ int main(int argc, char* argv[]) {
         break;
 
     default:
-        integrator = new VCM(scene, cam, ray_gen);
+        integrator = new VCM(scene, cam, ray_gen, settings.base_radius);
         break;
     }
 
