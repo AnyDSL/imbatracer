@@ -22,7 +22,7 @@ public:
     virtual int num_samples() const = 0;
 };
 
-/// Base class for all classes that generate rays per pixel (camera, lights)
+/// Generates n primary rays per pixel in range [0,0] to [w,h]
 template <typename StateType>
 class PixelRayGen : public RayGen<StateType> {
 public:
@@ -89,6 +89,25 @@ protected:
     int width_;
     int height_;
     int n_samples_;
+};
+
+/// Generates primary rays for the pixels within a tile. Simply adds an offset to the pixel coordinates from the
+/// PixelRayGen, according to the position of the tile.
+template<typename StateType>
+class TiledRayGen : PixelRayGen<StateType>
+{
+public:
+    TiledRayGen(int top, int left, int w, int h, int spp)
+        : PixelRayGen<StateType>(w, h, spp), top_(top), left_(left)
+    {}
+
+    virtual void fill_queue(RayQueue<StateType>& out, typename RayGen<StateType>::SamplePixelFn sample_pixel) override {
+        PixelRayGen<StateType>::fill_queue(out,
+            [sample_pixel, this](int x, int y, ::Ray& r, StateType& s) { sample_pixel(x + left_, y + top_, r, s); });
+    }
+
+private:
+    int top_, left_;
 };
 
 } // namespace imba

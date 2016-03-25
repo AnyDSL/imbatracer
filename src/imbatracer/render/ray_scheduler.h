@@ -102,93 +102,32 @@ private:
     std::atomic<size_t> nonempty_count_;
 };
 
-/// Schedules the processing of ray queues by the traversal and shading steps.
-template<typename StateType, int queue_count, int shadow_queue_count, int max_shadow_rays_per_hit>
-class RayScheduler {
+/// Base class for all types of schedulers.
+template<typename Derived, typename StateType>
+class RaySchedulerBase {
     using SamplePixelFn = typename RayGen<StateType>::SamplePixelFn;
-    static constexpr int DEFAULT_QUEUE_SIZE = 1 << 16;
 public:
-    RayScheduler(RayGen<StateType>& ray_gen, Scene& scene, int queue_size = DEFAULT_QUEUE_SIZE)
+    RaySchedulerBase(RayGen<StateType>& ray_gen, Scene& scene)
         : ray_gen_(ray_gen)
         , scene_(scene)
-        , queue_pool_(queue_size)
-        , shadow_queue_pool_(queue_size * max_shadow_rays_per_hit)
     {}
-
-    ~RayScheduler() {}
 
     template<typename Obj>
     void run_iteration(AtomicImage& out, Obj* integrator,
                        void (Obj::*process_shadow_rays)(RayQueue<StateType>&, AtomicImage&),
                        void (Obj::*process_primary_rays)(RayQueue<StateType>&, RayQueue<StateType>&, RayQueue<StateType>&, AtomicImage&),
                        SamplePixelFn sample_fn) {
-        ray_gen_.start_frame();
-
-        while (queue_pool_.has_nonempty() ||
-               shadow_queue_pool_.has_nonempty() ||
-               !ray_gen_.is_empty()) {
-            // Traverse the next set of rays.
-            // Prioritize shadow rays as they are faster to traverse.
-            auto q_ref = shadow_queue_pool_.claim_queue_with_tag(QUEUE_READY_FOR_SHADOW_TRAVERSAL);
-            if (q_ref) {
-                q_ref->traverse_occluded(scene_);
-
-                (integrator->*process_shadow_rays)(*q_ref, out);
-
-                q_ref->clear();
-                shadow_queue_pool_.return_queue(q_ref, QUEUE_EMPTY);
-
-                continue;
-            }
-
-            // There are no shadow ray queues left. Try to find a queue of primary rays.
-            q_ref = queue_pool_.claim_queue_with_tag(QUEUE_READY_FOR_TRAVERSAL);
-            if (!q_ref) {
-                // There is no queue of primary rays ready for traversal
-                if (!ray_gen_.is_empty()) {
-                    q_ref = queue_pool_.claim_queue_with_tag(QUEUE_EMPTY);
-                    if (q_ref) {
-                        // We found an empty queue. Fill it with a set of rays from the ray generation (camera or light).
-                        ray_gen_.fill_queue(*q_ref, sample_fn);
-                    }
-                }
-            }
-
-            if (!q_ref) {
-                // There is no work for traversal at the moment.
-                shading_tasks_.wait();
-                continue;
-            }
-
-            // Traverse the queue of primary rays.
-            q_ref->traverse(scene_);
-
-            auto q_out = queue_pool_.claim_queue_with_tag(QUEUE_EMPTY);
-            auto q_out_shadow = shadow_queue_pool_.claim_queue_with_tag(QUEUE_EMPTY);
-
-            shading_tasks_.run([this, integrator, process_primary_rays, q_ref, q_out, q_out_shadow, &out] () {
-                (integrator->*process_primary_rays)(*q_ref, *q_out, *q_out_shadow, out);
-
-                q_ref->clear();
-                queue_pool_.return_queue(q_ref, QUEUE_EMPTY);
-                queue_pool_.return_queue(q_out, QUEUE_READY_FOR_TRAVERSAL);
-                shadow_queue_pool_.return_queue(q_out_shadow, QUEUE_READY_FOR_SHADOW_TRAVERSAL);
-            });
-        }
-
-        shading_tasks_.wait();
+        static_cast<Derived*>(this)->derived_run_iteration(out, integrator, process_shadow_rays, process_primary_rays, sample_fn);
     }
 
-private:
-    RayQueuePool<StateType, queue_count> queue_pool_;
-    RayQueuePool<StateType, shadow_queue_count> shadow_queue_pool_;
-
+protected:
     RayGen<StateType>& ray_gen_;
     Scene& scene_;
-
-    tbb::task_group shading_tasks_;
 };
 
 }
+
+#include "queue_scheduler_impl.h"
+#include "tile_scheduler_impl.h"
 
 #endif
