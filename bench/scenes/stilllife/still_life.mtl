@@ -1,0 +1,144 @@
+# Blender MTL File: 'None'
+# Material Count: 23
+
+newmtl Cap_1SG
+Ns 0.000000
+Ka 0.590000 0.590000 0.590000
+Kd 0.000000 0.000000 0.000000
+Ks 0.000000 0.000000 0.000000
+Ni 1.000000
+d 0.000000
+illum 6
+
+newmtl initialShadingGroup
+Ns 96.078431
+Ka 0.000000 0.000000 0.000000
+Kd 0.400000 0.400000 0.400000
+Ks 0.500000 0.500000 0.500000
+Ni 1.000000
+d 0.000000
+illum 6
+
+#################################
+## Diffuse surfaces
+#################################
+
+newmtl apple_001
+map_Kd apple_001.tga
+illum 2
+
+newmtl apple_002
+map_Kd apple_002.tga
+illum 2
+
+newmtl bottle_cap
+Kd 1.000000 1.000000 1.000000
+illum 2
+
+newmtl cloth_bottom
+map_Kd fabric_bot.tga
+illum 2
+
+newmtl cloth_top
+map_Kd fabric_top.tga
+illum 2
+
+newmtl leaf
+Kd 0.200000 0.600000 0.010000
+illum 2
+
+newmtl petals
+Kd 0.800000 0.100000 0.010000
+illum 2
+
+newmtl vase
+Kd 1.000000 1.000000 1.000000
+illum 2
+
+newmtl walls
+Kd 0.273831 0.273831 0.273831
+illum 2
+
+##################################
+## Metal surfaces
+##################################
+
+newmtl bowl
+Ns 96.078431
+Ka 0.000000 0.000000 0.000000
+Kd 0.000000 0.000000 0.000000
+Ks 1.000000 1.000000 1.000000
+Ni 1.000000
+illum 2
+
+newmtl cap_metal
+Ns 96.078431
+Ka 0.000000 0.000000 0.000000
+Kd 0.200000 0.200000 0.200000
+Ks 0.500000 0.500000 0.500000
+Ni 1.000000
+illum 2
+
+newmtl mirror
+Ns 96.078431
+Ni 1.000000
+Ks 1 1 1
+illum 5
+
+newmtl ring
+Ns 96.078431
+Ka 0.000000 0.000000 0.000000
+Kd 0.200000 0.200000 0.200000
+Ks 0.500000 0.500000 0.500000
+Ni 1.000000
+illum 2
+
+################################
+## Dielectrics
+################################
+
+newmtl diamond
+Ks 1 1 1
+Tf 1 1 1
+Ni 3.000000
+illum 7
+
+newmtl glass
+Ks 1 1 1
+Tf 1 1 1
+Ni 1.700000
+illum 7
+
+newmtl water_blue
+Ks 0.1 0.1 1
+Tf 0.1 0.1 1
+Ni 1.330000
+illum 7
+
+newmtl water_clear
+Ks 1 1 1
+Tf 1 1 1
+Ni 1.330000
+illum 7
+
+newmtl water_green
+Ks 0.1 1 0.1
+Tf 0.1 1 0.1
+Ni 1.330000
+illum 7
+
+######################
+## Lights
+######################
+
+newmtl back_light
+Ke 100 100 100
+illum 2
+
+newmtl fill_light
+Ke 200 200 200
+illum 2
+
+newmtl key_light
+Ke 1000 1000 1000
+illum 2
