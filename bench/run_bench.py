@@ -11,8 +11,8 @@ bench_settings = [
         'reference': 'references/ref_cornell_org.png',
         'width': 1024,
         'height': 1024,
-        'base_filename': 'results/cornell',
-        'args': []
+        'base_filename': 'cornell',
+        'args': ['-r', '0.003']
     },
 
     {
@@ -21,8 +21,8 @@ bench_settings = [
         'reference': 'references/ref_cornell_specular_front.png',
         'width': 1024,
         'height': 1024,
-        'base_filename': 'results/cornell_specular_front',
-        'args': []
+        'base_filename': 'cornell_specular_front',
+        'args': ['-r', '0.003']
     },
 
     {
@@ -31,8 +31,8 @@ bench_settings = [
         'reference': 'references/ref_cornell_specular.png',
         'width': 1024,
         'height': 1024,
-        'base_filename': 'results/cornell_specular',
-        'args': []
+        'base_filename': 'cornell_specular',
+        'args': ['-r', '0.003']
     },
 
     {
@@ -41,8 +41,8 @@ bench_settings = [
         'reference': 'references/ref_cornell_indirect.png',
         'width': 1024,
         'height': 1024,
-        'base_filename': 'results/cornell_indirect',
-        'args': []
+        'base_filename': 'cornell_indirect',
+        'args': ['-r', '0.003']
     },
 
     {
@@ -51,8 +51,8 @@ bench_settings = [
         'reference': 'references/ref_cornell_water.png',
         'width': 1024,
         'height': 1024,
-        'base_filename': 'results/cornell_water',
-        'args': []
+        'base_filename': 'cornell_water',
+        'args': ['-r', '0.003']
     },
 
     {
@@ -61,19 +61,19 @@ bench_settings = [
         'reference': 'references/ref_sponza_curtain.png',
         'width': 1024,
         'height': 1024,
-        'base_filename': 'results/sponza_curtain',
+        'base_filename': 'sponza_curtain',
         'args': []
     },
 
-    {
-        'name': 'Sibenik',
-        'scene': 'scenes/sibenik/sibenik.scene',
-        'reference': 'references/ref_sibenik.png',
-        'width': 1024,
-        'height': 1024,
-        'base_filename': 'results/sibenik',
-        'args': []
-    }
+    # {
+    #     'name': 'Sibenik',
+    #     'scene': 'scenes/sibenik/sibenik.scene',
+    #     'reference': 'references/ref_sibenik.png',
+    #     'width': 1024,
+    #     'height': 1024,
+    #     'base_filename': 'sibenik',
+    #     'args': []
+    # }
 ]
 
 alg_small = ['pt', 'bpt', 'vcm']
@@ -83,13 +83,13 @@ alg_pt_only = ['pt']
 time_sec = 5
 algorithms = alg_small
 
-def run_benchmark(app, setting):
+def run_benchmark(app, setting, path):
     results = ''
 
     for alg in algorithms:
         print '   > running ' + alg + ' ... '
 
-        out_filename = setting['base_filename'] + '_' + alg + '.png'
+        out_filename = path + setting['base_filename'] + '_' + alg + '.png'
 
         args = [app, setting['scene'],
                 '-w', str(setting['width']),
@@ -116,12 +116,15 @@ def run_benchmark(app, setting):
         ms_per_frame = m.group(4)
 
         # Compute RMSE with ImageMagick
-        p = Popen(['compare', '-metric', 'RMSE', out_filename, setting['reference'], setting['base_filename'] + '_compare_' + alg + '.png'],
+        p = Popen(['compare', '-metric', 'RMSE', out_filename, setting['reference'], '.compare.png'],
                   stdin=PIPE, stdout=PIPE, stderr=PIPE)
         output, err = p.communicate()
 
         m = re.match(r'(\d+\.\d*)', err)
-        rmse = m.group(1)
+        if m is None:
+            rmse = 'ERROR: ' + output + err
+        else:
+            rmse = m.group(1)
 
         print '   > RMSE: ' + rmse
         print '   > '
@@ -144,5 +147,5 @@ if __name__ == '__main__':
     i = 1
     for setting in bench_settings:
         print '== Running benchmark ' + str(i) + ' / ' + str(len(bench_settings)) + ' - ' + setting['name']
-        res_file.write(run_benchmark(app, setting))
+        res_file.write(run_benchmark(app, setting, 'results/images_' + timestamp + '/'))
         i += 1

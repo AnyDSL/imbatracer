@@ -25,8 +25,8 @@ public:
     virtual void render(AtomicImage& out) override;
 
 private:
-    //QueueScheduler<PTState, 8, 8, 1> scheduler_;
-    TileScheduler<PTState, 4, 256> scheduler_;
+    QueueScheduler<PTState, 8, 8, 1> scheduler_;
+    //TileScheduler<PTState, 4, 256> scheduler_;
     RayGen<PTState>&  ray_gen_;
 
     void process_shadow_rays(RayQueue<PTState>& ray_in, AtomicImage& out);
