@@ -222,7 +222,8 @@ private:
 
     RayGen<VCMState>& ray_gen_;
     LightPathContainer light_paths_;
-    QueueScheduler<VCMState, 8, 8, MAX_LIGHT_PATH_LEN + 1> scheduler_;
+    //QueueScheduler<VCMState, 8, 8, MAX_LIGHT_PATH_LEN + 1> scheduler_;
+    TileScheduler<VCMState, 4, 256, MAX_LIGHT_PATH_LEN + 1> scheduler_;
 
     void reset_buffers();
 

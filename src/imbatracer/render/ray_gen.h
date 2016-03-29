@@ -94,20 +94,25 @@ protected:
 /// Generates primary rays for the pixels within a tile. Simply adds an offset to the pixel coordinates from the
 /// PixelRayGen, according to the position of the tile.
 template<typename StateType>
-class TiledRayGen : PixelRayGen<StateType>
+class TiledRayGen : public PixelRayGen<StateType>
 {
 public:
-    TiledRayGen(int top, int left, int w, int h, int spp)
+    TiledRayGen(int left, int top, int w, int h, int spp, int full_width, int full_height)
         : PixelRayGen<StateType>(w, h, spp), top_(top), left_(left)
+        , full_height_(full_height), full_width_(full_width)
     {}
 
     virtual void fill_queue(RayQueue<StateType>& out, typename RayGen<StateType>::SamplePixelFn sample_pixel) override {
         PixelRayGen<StateType>::fill_queue(out,
-            [sample_pixel, this](int x, int y, ::Ray& r, StateType& s) { sample_pixel(x + left_, y + top_, r, s); });
+            [sample_pixel, this](int x, int y, ::Ray& r, StateType& s) {
+                s.pixel_id = (y + top_) * full_width_ + (x + left_);
+                sample_pixel(x + left_, y + top_, r, s);
+            });
     }
 
 private:
     int top_, left_;
+    int full_width_, full_height_;
 };
 
 } // namespace imba
