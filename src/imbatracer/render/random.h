@@ -77,7 +77,7 @@ inline DirectionSample sample_cos_hemisphere(float u1, float u2) {
 }
 
 inline float cos_hemisphere_pdf(const float3& dir) {
-    return std::max(0.0f, dir.z) * 1.0f / pi;
+    return fabsf(dir.z) * 1.0f / pi;
 }
 
 inline DirectionSample sample_power_cos_hemisphere(float power, float u1, float u2) {
