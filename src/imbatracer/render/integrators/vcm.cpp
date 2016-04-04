@@ -137,6 +137,7 @@ void VCM_INTEGRATOR::trace_camera_paths(AtomicImage& img) {
 /// This function has to be used for all BSDFs during particle tracing to prevent brighness discontinuities.
 /// See Veach's PhD thesis for more details.
 inline float shading_normal_adjoint(const float3& normal, const float3& geom_normal, const float3& out_dir, const float3& in_dir) {
+    //return dot(in_dir, normal);
     return dot(out_dir, normal) * dot(in_dir, geom_normal) / dot(out_dir, geom_normal);
 }
 
@@ -355,9 +356,10 @@ void VCM_INTEGRATOR::process_camera_rays(RayQueue<VCMState>& rays_in, RayQueue<V
                 const float pdf_e = pdf_emit_w * pdf_lightpick;
 
                 const float mis_weight_camera = mis_heuristic(pdf_di) * states[i].dVCM + mis_heuristic(pdf_e) * states[i].dVC;
+                const float mis_weight = 1.0f / (mis_weight_camera + 1.0f);
 
                 if (states[i].path_length > 1) {
-                    float4 color = states[i].throughput * radiance * 1.0f / (mis_weight_camera + 1.0f);
+                    float4 color = states[i].throughput * radiance * mis_weight;
 
                     if (!pt_only)
                         img.pixels()[states[i].pixel_id] += color;
@@ -443,7 +445,7 @@ void VCM_INTEGRATOR::connect(VCMState& cam_state, const Intersection& isect, BSD
             // If two points are too close to each other, they are either occluded or have cosine terms
             // that are close to zero. Numerical inaccuracies might yield an overly bright pixel.
             // The correct result is usually black or close to black so we just ignore those connections.
-            return;
+            continue;
         }
 
         // Evaluate the bsdf at the camera vertex.
@@ -458,15 +460,16 @@ void VCM_INTEGRATOR::connect(VCMState& cam_state, const Intersection& isect, BSD
 
         if (pdf_dir_cam_w == 0.0f || pdf_dir_light_w == 0.0f ||
             pdf_rev_cam_w == 0.0f || pdf_rev_light_w == 0.0f)
-            return;  // A pdf value of zero means that there has to be zero contribution from this pair of directions as well.
+            continue;  // A pdf value of zero means that there has to be zero contribution from this pair of directions as well.
 
         // Compute the cosine terms. We need to use the adjoint for the light vertex BSDF.
         const float cos_theta_cam = dot(isect.normal, connect_dir);
         const float cos_theta_light = shading_normal_adjoint(light_vertex.isect.normal, light_vertex.isect.geom_normal,
                                                              light_vertex.isect.out_dir, -connect_dir);
 
-        float geom_term = cos_theta_cam * cos_theta_light / connect_dist_sq;
-        geom_term = std::max(0.0f, geom_term);
+        const float geom_term = cos_theta_cam * cos_theta_light / connect_dist_sq;
+        if (geom_term <= 0.0f)
+            continue;
 
         // Compute and convert the pdfs
         const float pdf_cam_f = pdf_dir_cam_w * cam_state.continue_prob;
@@ -547,7 +550,7 @@ void VCM_INTEGRATOR::process_shadow_rays(RayQueue<VCMState>& rays_in, AtomicImag
 
     for (int i = 0; i < ray_count; ++i) {
         if (hits[i].tri_id < 0) {
-            img.pixels()[states[i].pixel_id] += clamp(states[i].throughput, min_contrib, max_contrib);
+            img.pixels()[states[i].pixel_id] += /*clamp(*/states[i].throughput;//, min_contrib, max_contrib);
         }
     }
 }
