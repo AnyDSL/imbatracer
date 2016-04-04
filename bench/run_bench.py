@@ -1,5 +1,5 @@
 from subprocess import Popen, PIPE
-import sys
+import sys, os
 import re
 import datetime
 
@@ -81,7 +81,7 @@ alg_large = ['pt', 'bpt', 'vcm', 'lt', 'ppm']
 alg_pt_only = ['pt']
 
 time_sec = 5
-algorithms = alg_small
+algorithms = alg_pt_only
 
 def run_benchmark(app, setting, path):
     results = ''
@@ -144,8 +144,11 @@ if __name__ == '__main__':
     res_file = open('results/result_' + timestamp + '.csv', 'w')
     res_file.write('name, algorithm, time (seconds), samples, frames per second, ms per frame, RMSE\n')
 
+    foldername = 'results/images_' + timestamp
+    os.makedirs(foldername)
+
     i = 1
     for setting in bench_settings:
         print '== Running benchmark ' + str(i) + ' / ' + str(len(bench_settings)) + ' - ' + setting['name']
-        res_file.write(run_benchmark(app, setting, 'results/images_' + timestamp + '/'))
+        res_file.write(run_benchmark(app, setting, foldername + '/'))
         i += 1

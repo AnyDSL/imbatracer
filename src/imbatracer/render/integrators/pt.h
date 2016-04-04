@@ -26,8 +26,8 @@ public:
 
 private:
     //QueueScheduler<PTState, 8, 8, 1> scheduler_;
-    TileScheduler<PTState, 4, 256, 2> scheduler_;
-    RayGen<PTState>&  ray_gen_;
+    TileScheduler<PTState, 4, 256, 1> scheduler_;
+    RayGen<PTState>& ray_gen_;
 
     void process_shadow_rays(RayQueue<PTState>& ray_in, AtomicImage& out);
     void process_primary_rays(RayQueue<PTState>& ray_in, RayQueue<PTState>& ray_out, RayQueue<PTState>& ray_out_shadow, AtomicImage& out);

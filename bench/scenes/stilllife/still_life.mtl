@@ -136,7 +136,7 @@ Ke 100 100 100
 illum 2
 
 newmtl fill_light
-Ke 200 200 200
+Ke 500 500 500
 illum 2
 
 newmtl key_light
