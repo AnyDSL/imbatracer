@@ -29,14 +29,15 @@ struct LightPathVertex {
     float4 throughput;
 
     float continue_prob;
+    int path_length;
 
     // partial weights for MIS, see VCM technical report
     float dVC;
     float dVCM;
     float dVM;
 
-    LightPathVertex(Intersection isect, float4 tp, float continue_prob, float dVC, float dVCM, float dVM)
-        : isect(isect), throughput(tp), continue_prob(continue_prob), dVC(dVC), dVCM(dVCM), dVM(dVM)
+    LightPathVertex(Intersection isect, float4 tp, float continue_prob, float dVC, float dVCM, float dVM, int path_length)
+        : isect(isect), throughput(tp), continue_prob(continue_prob), dVC(dVC), dVCM(dVCM), dVM(dVM), path_length(path_length)
     {}
 
     LightPathVertex() {}
@@ -184,7 +185,7 @@ class VCMIntegrator : public Integrator {
     static constexpr int MAX_LIGHT_PATH_LEN = 8;
     static constexpr int MAX_CAMERA_PATH_LEN = 16;
 public:
-    VCMIntegrator(Scene& scene, PerspectiveCamera& cam, RayGen<VCMState>& ray_gen, float base_radius=0.03f, float radius_alpha=0.75f)
+    VCMIntegrator(Scene& scene, PerspectiveCamera& cam, RayGen<VCMState>& ray_gen, int max_path_len = 32, float base_radius=0.03f, float radius_alpha=0.75f)
         : Integrator(scene, cam)
         , width_(cam.width())
         , height_(cam.height())
@@ -196,6 +197,7 @@ public:
         , radius_alpha_(radius_alpha)
         , cur_iteration_(0)
         , scheduler_(ray_gen, scene)
+        , max_path_len_(max_path_len)
     {
         photon_grid_.reserve(width_ * height_);
     }
@@ -209,6 +211,7 @@ public:
 private:
     int width_, height_;
     float light_path_count_;
+    const int max_path_len_;
 
     float base_radius_;
     float radius_alpha_;

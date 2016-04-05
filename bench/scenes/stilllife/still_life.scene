@@ -1,7 +1,7 @@
-#mesh still_life.obj
-#accel still_life.bvh
+mesh still_life.obj
+accel still_life.bvh
 
-mesh still_life_simple.obj
+#mesh still_life_simple.obj
 
 #pos  6.90045  4.90085  5.20925
 #dir  -0.905465  -0.159941  -0.39313

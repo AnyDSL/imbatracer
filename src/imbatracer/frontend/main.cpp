@@ -106,7 +106,7 @@ int main(int argc, char* argv[]) {
 
     if (settings.algorithm == UserSettings::PT) {
         PixelRayGen<PTState> ray_gen(settings.width, settings.height, SAMPLES_PER_PIXEL);
-        PathTracer integrator(scene, cam, ray_gen);
+        PathTracer integrator(scene, cam, ray_gen, settings.max_path_len);
 
         RenderWindow wnd(settings, integrator, ctrl, SAMPLES_PER_PIXEL);
         wnd.render_loop();
@@ -123,19 +123,19 @@ int main(int argc, char* argv[]) {
         break;
 
     case UserSettings::PPM:
-        integrator = new PPM(scene, cam, ray_gen, settings.base_radius);
+        integrator = new PPM(scene, cam, ray_gen, settings.max_path_len, settings.base_radius);
         break;
 
     case UserSettings::LT:
-        integrator = new LT(scene, cam, ray_gen);
+        integrator = new LT(scene, cam, ray_gen, settings.max_path_len);
         break;
 
     case UserSettings::VCM_PT:
-        integrator = new VCM_PT(scene, cam, ray_gen);
+        integrator = new VCM_PT(scene, cam, ray_gen, settings.max_path_len);
         break;
 
     default:
-        integrator = new VCM(scene, cam, ray_gen, settings.base_radius);
+        integrator = new VCM(scene, cam, ray_gen, settings.max_path_len, settings.base_radius);
         break;
     }
 

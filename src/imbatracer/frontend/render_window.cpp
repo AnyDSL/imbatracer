@@ -65,6 +65,12 @@ void RenderWindow::render_loop() {
             break;
 
         cur_time = clock_type::now();
+
+        if (frames_ % 1000 == 0) {
+            std::stringstream str;
+            str << "tmp_rendering_" << frames_ * spp_ << "samples" << ".png";
+            write_image(str.str().c_str());
+        }
     }
 
     auto elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(cur_time - start_time_).count();

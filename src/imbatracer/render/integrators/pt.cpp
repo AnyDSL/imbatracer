@@ -44,8 +44,7 @@ void PathTracer::compute_direct_illum(const Intersection& isect, PTState& state,
 void PathTracer::bounce(const Intersection& isect, PTState& state, RayQueue<PTState>& ray_out, BSDF* bsdf) {
     RNG& rng = state.rng;
 
-    const int max_recursion = 32; // prevent havoc
-    if (state.bounces >= max_recursion)
+    if (state.bounces >= max_path_len_)
         return;
 
     float rr_pdf;

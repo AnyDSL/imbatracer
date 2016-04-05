@@ -239,7 +239,8 @@ void VCM_INTEGRATOR::process_light_rays(RayQueue<VCMState>& rays_in, RayQueue<VC
                                         states[i].continue_prob,
                                         states[i].dVC,
                                         states[i].dVCM,
-                                        states[i].dVM);
+                                        states[i].dVM,
+                                        states[i].path_length + 1);
 
                 if (!ppm_only)
                     connect_to_camera(states[i], isect, bsdf, ray_out_shadow);
@@ -368,7 +369,10 @@ void VCM_INTEGRATOR::process_camera_rays(RayQueue<VCMState>& rays_in, RayQueue<V
             }
 
             // Compute direct illumination.
-            direct_illum(states[i], isect, bsdf, ray_out_shadow);
+            if (states[i].path_length < max_path_len_)
+                direct_illum(states[i], isect, bsdf, ray_out_shadow);
+            else
+                continue; // No point in continuing this path. It is too long already
 
             // Connect to light path vertices.
             if (!pt_only && !isect.mat->is_specular())
@@ -433,6 +437,11 @@ void VCM_INTEGRATOR::connect(VCMState& cam_state, const Intersection& isect, BSD
     const int path_len = light_paths_.get_path_len(cam_state.pixel_id);
     for (int i = 0; i < path_len; ++i) {
         auto& light_vertex = light_path[i];
+
+        // Ignore paths that are longer than the specified maximum length.
+        if (light_vertex.path_length + cam_state.path_length > max_path_len_)
+            continue;
+
         auto light_bsdf = light_vertex.isect.mat->get_bsdf(light_vertex.isect, bsdf_arena, true);
 
         // Compute connection direction and distance.
@@ -515,6 +524,10 @@ void VCM_INTEGRATOR::vertex_merging(const VCMState& state, const Intersection& i
 
     float4 contrib(0.0f);
     for (PhotonIterator p : photons) {
+        // Ignore the path if it would be too small. Don't count the merged vertices twice.
+        if (state.path_length + p->path_length - 1 > max_path_len_)
+            continue;
+
         const auto light_in_dir = p->isect.out_dir;
 
         const auto bsdf_value = bsdf->eval(isect.out_dir, light_in_dir);
@@ -545,8 +558,8 @@ void VCM_INTEGRATOR::process_shadow_rays(RayQueue<VCMState>& rays_in, AtomicImag
     const Hit* hits = rays_in.hits();
     const Ray* rays = rays_in.rays();
 
-    const float4 max_contrib(100.0f, 100.0f, 100.0f, 100.0f);
-    const float4 min_contrib(0.0f, 0.0f, 0.0f, 0.0f);
+    // const float4 max_contrib(100.0f, 100.0f, 100.0f, 100.0f);
+    // const float4 min_contrib(0.0f, 0.0f, 0.0f, 0.0f);
 
     for (int i = 0; i < ray_count; ++i) {
         if (hits[i].tri_id < 0) {

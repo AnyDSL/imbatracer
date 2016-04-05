@@ -35,11 +35,13 @@ struct UserSettings {
     float fov;
 
     float base_radius;
+    int max_path_len;
 
     UserSettings()
         : input_file(""), accel_output(""), output_file("render.png"), algorithm(PT),
           width(512), height(512), max_samples(INT_MAX), max_time_sec(FLT_MAX),
-          background(false), fov(60.0f), base_radius(0.03f)
+          background(false), fov(60.0f), base_radius(0.03f),
+          max_path_len(10)
     {}
 };
 
@@ -56,6 +58,7 @@ inline void print_help() {
               << "    -f  Sets the horizontal field of view (default: 60)" << std::endl
               << "    -r  Sets the initial radius for photon mapping as a factor of the scene bounding sphere radius (default: 0.03)" << std::endl
               << "    --write_accel <filename>  Writes the acceleration structure to the specified file." << std::endl
+              << "    --max_path_len <len>      Specifies the maximum number of vertices within any path. (default: 10)" << std::endl
               << "  If time (-t) and number of samples (-s) are both given, time has higher priority." << std::endl;
 }
 
@@ -135,6 +138,8 @@ inline bool parse_cmd_line(int argc, char* argv[], UserSettings& settings) {
             }
 
             settings.accel_output = argv[i];
+        } else if (arg == "--max_path_len"){
+            parse_argument(++i, argc, argv, settings.max_path_len);
         } else if (arg == "-f") {
             parse_argument(++i, argc, argv, settings.fov);
         } else if (arg == "-r") {

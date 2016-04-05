@@ -65,6 +65,16 @@ bench_settings = [
         'args': []
     },
 
+    {
+        'name': 'Still Life',
+        'scene': 'scenes/still_life/still_life.scene',
+        'reference': 'references/ref_still_life.png',
+        'width': 960,
+        'height': 540,
+        'base_filename': 'still_life',
+        'args': ['-r', '0.02']
+    },
+
     # {
     #     'name': 'Sibenik',
     #     'scene': 'scenes/sibenik/sibenik.scene',
@@ -81,7 +91,7 @@ alg_large = ['pt', 'bpt', 'vcm', 'lt', 'ppm']
 alg_pt_only = ['pt']
 
 time_sec = 5
-algorithms = alg_pt_only
+algorithms = alg_small
 
 def run_benchmark(app, setting, path):
     results = ''
