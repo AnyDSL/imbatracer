@@ -64,6 +64,43 @@ public:
     virtual float pdf(const float3& out_dir, const float3& in_dir) const {
         return same_hemisphere(out_dir, in_dir) ? cos_hemisphere_pdf(in_dir) : 0.0f;
     }
+
+    /// Returns the desired probability for importance sampling when choosing between BRDF and BTDF.
+    /// Only meaningful for BTDFs, ignored for BRDFs.
+    virtual float importance(const float3& out_dir) const { return 0.5f; }
+};
+
+class CombineBxDF : public BxDF {
+public:
+    CombineBxDF(BxDF* a, BxDF* b) : BxDF(BxDFFlags(a->flags | b->flags)), a_(a), b_(b) {}
+
+    virtual float4 eval(const float3& out_dir, const float3& in_dir) const override {
+        return a_->eval(out_dir, in_dir) + b_->eval(out_dir, in_dir);
+    }
+
+    /// Default implementation cosine-samples the hemisphere.
+    virtual float4 sample(const float3& out_dir, float3& in_dir, float rnd_num_1, float rnd_num_2, float& pdf) const override {
+        BxDF* chosen_bxdf;
+
+        if (rnd_num_1 < 0.5f) // Reusing the first random number in this way causes neglegible correlation.
+            chosen_bxdf = a_;
+        else
+            chosen_bxdf = b_;
+
+        auto val = chosen_bxdf->sample(out_dir, in_dir, rnd_num_1, rnd_num_2, pdf);
+        pdf *= 0.5f;
+        return val;
+    }
+
+    virtual float pdf(const float3& out_dir, const float3& in_dir) const override {
+        // Probability to sample in_dir = probability for a to sample in_dir * probability to choose a for sampling
+        //                              + probability for b to sample in_dir * probability to choose b for sampling
+        return (a_->pdf(out_dir, in_dir) + b_->pdf(out_dir, in_dir)) * 0.5f;
+    }
+
+private:
+    BxDF* a_;
+    BxDF* b_;
 };
 
 // Functions that compute angles in the shading coordinate system.
@@ -88,25 +125,9 @@ inline float sin_phi(const float3& dir) {
 class BSDF {
 public:
     /// Initializes the BSDF for the given surface point.
-    BSDF(const Intersection& isect) : isect_(isect), num_bxdfs_(0) {
+    BSDF(const Intersection& isect, BxDF* brdf, BxDF* btdf) : isect_(isect), brdf_(brdf), btdf_(btdf) {
         // Compute base vectors of the shading space.
         local_coordinates(isect.normal, tangent_, binormal_);
-    }
-
-    void add(BxDF* b) {
-        assert(num_bxdfs_ < MAX_BXDFS);
-        bxdfs_[num_bxdfs_++] = b;
-    }
-
-    int count() const { return num_bxdfs_; }
-
-    int count(BxDFFlags flags) const {
-        int nr = 0;
-        for (int i = 0; i < count(); ++i) {
-            if (bxdfs_[i]->matches_flags(flags))
-                nr++;
-        }
-        return nr;
     }
 
     float4 eval(const float3& out_dir, const float3& in_dir, BxDFFlags flags = BSDF_ALL) const {
@@ -116,42 +137,54 @@ public:
         // Some care has to be taken when using shading normals to prevent light leaks and dark spots.
         // We follow the approach from PBRT and use the geometric normal to decide whether to evaluate
         // the BRDF (reflection) or the BTDF (transmission.)
-        if (dot(in_dir, isect_.geom_normal) * dot(out_dir, isect_.geom_normal) <= 0.0f /*||
-            dot(in_dir, isect_.normal)      * dot(out_dir, isect_.normal)      <= 0.0f*/)
-            flags = BxDFFlags(flags & ~BSDF_REFLECTION); // in and out are on different sides: ignore reflection
+        BxDF* chosen_bxdf;
+        if (dot(in_dir, isect_.geom_normal) * dot(out_dir, isect_.geom_normal) <= 0.0f)
+            chosen_bxdf = btdf_; // in and out are on different sides: ignore reflection
         else
-            flags = BxDFFlags(flags & ~BSDF_TRANSMISSION); // in and out are on the same side: ignore transmission
+            chosen_bxdf = brdf_; // in and out are on the same side: ignore transmission
+
+        if (chosen_bxdf == nullptr)
+            return float4(0.0f);
 
         float4 res(0.0f);
-        for (int i = 0; i < num_bxdfs_; ++i)
-            if (bxdfs_[i]->matches_flags(flags))
-                res += bxdfs_[i]->eval(local_out, local_in);
+        if (chosen_bxdf->matches_flags(flags))
+            res = chosen_bxdf->eval(local_out, local_in);
         return res;
     }
 
     float4 sample(const float3& out_dir, float3& in_dir, float rnd_num_component, float rnd_num_1, float rnd_num_2,
                   BxDFFlags flags, BxDFFlags& sampled_flags, float& pdf) const {
-        // Choose a BxDF to sample from all BxDFs that match the given flags.
-        int num_matching_bxdf = count(flags);
-        if (num_matching_bxdf == 0) {
+        float3 local_out = world_to_local(out_dir);
+
+        // Select which to sample: BRDF or BTDF, based on importance specified by the BTDF.
+        const bool brdf_matches = brdf_ ? brdf_->matches_flags(flags) : false;
+        const bool btdf_matches = btdf_ ? btdf_->matches_flags(flags) : false;
+
+        float btdf_prob;
+        if (brdf_matches && btdf_matches)
+            btdf_prob = btdf_->importance(local_out);
+        else if (brdf_matches)
+            btdf_prob = 0.0f;
+        else if (btdf_matches)
+            btdf_prob = 1.0f;
+        else {
             pdf = 0.0f;
+            sampled_flags = BxDFFlags(0);
             return float4(0.0f);
         }
 
-        int chosen_i = std::min(static_cast<int>(rnd_num_component * num_matching_bxdf), num_matching_bxdf - 1);
-
-        BxDF* chosen_bxdf = nullptr;
-        int counter = 0;
-        for (int i = 0; i < count(); ++i) {
-            if (bxdfs_[i]->matches_flags(flags) && counter++ == chosen_i) {
-                chosen_bxdf = bxdfs_[i];
-            }
+        BxDF* chosen_bxdf;
+        float component_pdf;
+        if (rnd_num_component < btdf_prob) {
+            chosen_bxdf = btdf_;
+            component_pdf = btdf_prob;
+        } else {
+            chosen_bxdf = brdf_;
+            component_pdf = 1.0f - btdf_prob;
         }
 
         // Sample the BxDF
-        float3 local_out = world_to_local(out_dir);
         float3 local_in;
-
         float4 value = chosen_bxdf->sample(local_out, local_in, rnd_num_1, rnd_num_2, pdf);
 
         if (pdf == 0.0f) {
@@ -161,36 +194,7 @@ public:
 
         sampled_flags = chosen_bxdf->flags;
         in_dir = local_to_world(local_in);
-
-        // Add the pdfs of all other matching BxDFs as well,
-        // except if we sampled from a delta destribution, because we represent delta distributions with a pdf value of one.
-        if (!(sampled_flags & BSDF_SPECULAR) && num_matching_bxdf > 1) {
-            for (int i = 0; i < count(); ++i) {
-                if (i != chosen_i && bxdfs_[i]->matches_flags(flags)) {
-                    pdf += bxdfs_[i]->pdf(local_out, local_in);
-                }
-            }
-        }
-
-        if (num_matching_bxdf > 1)
-            pdf /= num_matching_bxdf;
-
-        // Compute the BxDF value unless it was represented by a delta distribution.
-        // Once more, we take all matching BxDFs into account.
-        if (!(sampled_flags & BSDF_SPECULAR)) {
-            // Basically the same as eval, but without calculating the local coordinates again
-            // and without recalculating the value of the sampled BxDF.
-
-            if (dot(in_dir, isect_.geom_normal) * dot(out_dir, isect_.geom_normal) <= 0.0f /*||
-                dot(in_dir, isect_.normal)      * dot(out_dir, isect_.normal)      <= 0.0f*/)
-                flags = BxDFFlags(flags & ~BSDF_REFLECTION); // in and out are on different sides: ignore reflection
-            else
-                flags = BxDFFlags(flags & ~BSDF_TRANSMISSION); // in and out are on the same side: ignore transmission
-
-            for (int i = 0; i < num_bxdfs_; ++i)
-                if (i != chosen_i && bxdfs_[i]->matches_flags(flags))
-                    value += bxdfs_[i]->eval(local_out, local_in);
-        }
+        pdf *= component_pdf;
 
         return value;
     }
@@ -200,17 +204,19 @@ public:
         float3 local_out = world_to_local(out_dir);
         float3 local_in = world_to_local(in_dir);
 
-        float pdf = 0.0f;
-        int num_matching_bxdf = 0;
-        for (int i = 0; i < count(); ++i) {
-            if (bxdfs_[i]->matches_flags(flags)) {
-                pdf += bxdfs_[i]->pdf(local_out, local_in);
-                ++num_matching_bxdf;
-            }
-        }
+        BxDF* chosen_bxdf;
+        if (dot(in_dir, isect_.geom_normal) * dot(out_dir, isect_.geom_normal) <= 0.0f)
+            chosen_bxdf = btdf_;
+        else
+            chosen_bxdf = brdf_;
 
-        pdf = num_matching_bxdf > 0 ? pdf / num_matching_bxdf : 0.0f;
-        return pdf;
+        if (chosen_bxdf == nullptr)
+            return 0.0f;
+
+        if (chosen_bxdf->matches_flags(flags))
+            return chosen_bxdf->pdf(local_out, local_in);
+
+        return 0.0f;
     }
 
     float3 world_to_local(const float3& dir) const {
@@ -230,9 +236,8 @@ private:
     float3 tangent_;
     float3 binormal_;
 
-    static constexpr int MAX_BXDFS = 8;
-    int num_bxdfs_;
-    BxDF* bxdfs_[MAX_BXDFS];
+    BxDF* brdf_;
+    BxDF* btdf_;
 };
 
 }

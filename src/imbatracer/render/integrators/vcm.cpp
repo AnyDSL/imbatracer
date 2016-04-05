@@ -510,9 +510,6 @@ void VCM_INTEGRATOR::connect(VCMState& cam_state, const Intersection& isect, BSD
 
 VCM_TEMPLATE
 void VCM_INTEGRATOR::vertex_merging(const VCMState& state, const Intersection& isect, const BSDF* bsdf, AtomicImage& img) {
-    if (!bsdf->count(BSDF_NON_SPECULAR))
-        return;
-
     auto& photons = photon_containers.local();
     photons.reserve(width_ * height_);
     photons.clear();

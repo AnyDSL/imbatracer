@@ -35,7 +35,6 @@ add_library(imba_render
             render/integrators/vcm.cpp
             render/ray_queue.h
             render/random.h
-            render/material.h
             render/intersection.h
             render/mem_arena.h
             render/scene.h

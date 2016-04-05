@@ -52,6 +52,11 @@ public:
         return (1.0f - fr) * scale_ / fabsf(cos_theta(in_dir));
     }
 
+    virtual float importance(const float3& out_dir) const override {
+        float fr = fresnel_.eval(cos_theta(out_dir));
+        return 1.0f - fr;
+    }
+
     virtual float pdf(const float3& out_dir, const float3& in_dir) const override {
         return 0.0f; // Probability between any two randomly choosen directions is zero due to the delta distribution.
     }
