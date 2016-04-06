@@ -215,6 +215,9 @@ void VCM_INTEGRATOR::process_light_rays(RayQueue<VCMState>& rays_in, RayQueue<VC
             if (hits[i].tri_id < 0)
                 continue;
 
+            if (states[i].path_length >= max_path_len_)
+                continue; // Path is too long already. Do not bounce, do not store the vertex.
+
             bsdf_mem_arena.free_all();
 
             RNG& rng = states[i].rng;

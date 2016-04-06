@@ -72,7 +72,7 @@ bench_settings = [
         'width': 960,
         'height': 540,
         'base_filename': 'still_life',
-        'args': ['-r', '0.02']
+        'args': ['-r', '0.03', '--max_path_len', '12']
     },
 
     # {
