@@ -14,8 +14,19 @@ struct UserSettings {
     std::string input_file;
     std::string output_file;
 
+    // If specified, BVH data will be written to this file.
     std::string accel_output;
 
+    // Camera and canvas
+    int width, height;
+    float fov;
+
+    // Execution properties
+    int max_samples;
+    float max_time_sec;
+    bool background;
+
+    // Algorithm settings
     enum Algorithm {
         PT,
         BPT,
@@ -25,23 +36,19 @@ struct UserSettings {
         LT
     } algorithm;
 
-    int width, height;
-
-    int max_samples;
-    float max_time_sec;
-
-    bool background;
-
-    float fov;
-
     float base_radius;
     int max_path_len;
+
+    // Scheduler
+    int concurrent_spp;
+    int tile_size;
+    int thread_count;
 
     UserSettings()
         : input_file(""), accel_output(""), output_file("render.png"), algorithm(PT),
           width(512), height(512), max_samples(INT_MAX), max_time_sec(FLT_MAX),
           background(false), fov(60.0f), base_radius(0.03f),
-          max_path_len(10)
+          max_path_len(10), concurrent_spp(1), tile_size(256), thread_count(4)
     {}
 };
 
@@ -57,8 +64,11 @@ inline void print_help() {
               << "    -h  Sets the vertical resolution in pixels (default: 512)" << std::endl
               << "    -f  Sets the horizontal field of view (default: 60)" << std::endl
               << "    -r  Sets the initial radius for photon mapping as a factor of the scene bounding sphere radius (default: 0.03)" << std::endl
-              << "    --write_accel <filename>  Writes the acceleration structure to the specified file." << std::endl
-              << "    --max_path_len <len>      Specifies the maximum number of vertices within any path. (default: 10)" << std::endl
+              << "    --write-accel <filename>  Writes the acceleration structure to the specified file." << std::endl
+              << "    --max-path-len <len>      Specifies the maximum number of vertices within any path. (default: 10)" << std::endl
+              << "    --spp <nr>                Specifies the number of samples per pixel within a single frame. (default: 1)" << std::endl
+              << "    --tile-size <size>        Specifies the size of the rectangular tiles. (default: 256)" << std::endl
+              << "    --thread-count <nr>       Specifies the number of threads for processing tiles. (default: 4)" << std::endl
               << "  If time (-t) and number of samples (-s) are both given, time has higher priority." << std::endl;
 }
 
@@ -131,20 +141,28 @@ inline bool parse_cmd_line(int argc, char* argv[], UserSettings& settings) {
             parse_argument(++i, argc, argv, settings.width);
         } else if (arg == "-h") {
             parse_argument(++i, argc, argv, settings.height);
-        } else if (arg == "--write_accel"){
+        } else if (arg == "--write-accel"){
             if (++i >= argc) {
                 std::cout << "Too few arguments." << std::endl;
                 return false;
             }
 
             settings.accel_output = argv[i];
-        } else if (arg == "--max_path_len"){
+        } else if (arg == "--max-path-len"){
             parse_argument(++i, argc, argv, settings.max_path_len);
+        } else if (arg == "--spp"){
+            parse_argument(++i, argc, argv, settings.concurrent_spp);
+        }else if (arg == "--tile-size"){
+            parse_argument(++i, argc, argv, settings.tile_size);
+        }else if (arg == "--thread-count"){
+            parse_argument(++i, argc, argv, settings.thread_count);
         } else if (arg == "-f") {
             parse_argument(++i, argc, argv, settings.fov);
         } else if (arg == "-r") {
             parse_argument(++i, argc, argv, settings.base_radius);
-        } else
+        } else if (arg[0] == '-')
+            std::cout << "Unknown argument ignored: " << arg << std::endl;
+        else
             settings.output_file = arg;
     }
 

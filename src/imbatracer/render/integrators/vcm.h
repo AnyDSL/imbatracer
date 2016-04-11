@@ -185,7 +185,8 @@ class VCMIntegrator : public Integrator {
     static constexpr int MAX_LIGHT_PATH_LEN = 8;
     static constexpr int MAX_CAMERA_PATH_LEN = 16;
 public:
-    VCMIntegrator(Scene& scene, PerspectiveCamera& cam, RayGen<VCMState>& ray_gen, int max_path_len = 32, float base_radius=0.03f, float radius_alpha=0.75f)
+    VCMIntegrator(Scene& scene, PerspectiveCamera& cam, RayGen<VCMState>& ray_gen,
+        int max_path_len, int thread_count, int tile_size, float base_radius=0.03f, float radius_alpha=0.75f)
         : Integrator(scene, cam)
         , width_(cam.width())
         , height_(cam.height())
@@ -196,7 +197,7 @@ public:
         , base_radius_(base_radius)
         , radius_alpha_(radius_alpha)
         , cur_iteration_(0)
-        , scheduler_(ray_gen, scene)
+        , scheduler_(ray_gen, scene, thread_count, tile_size)
         , max_path_len_(max_path_len)
     {
         photon_grid_.reserve(width_ * height_);
@@ -225,8 +226,8 @@ private:
 
     RayGen<VCMState>& ray_gen_;
     LightPathContainer light_paths_;
-    //QueueScheduler<VCMState, 8, 8, MAX_LIGHT_PATH_LEN + 1> scheduler_;
-    TileScheduler<VCMState, 4, 256, MAX_LIGHT_PATH_LEN + 1> scheduler_;
+
+    TileScheduler<VCMState, MAX_LIGHT_PATH_LEN + 1> scheduler_;
 
     void reset_buffers();
 

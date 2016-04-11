@@ -16,10 +16,10 @@ struct PTState : RayState {
 /// Renders a scene using path tracing starting at the camera.
 class PathTracer : public Integrator {
 public:
-    PathTracer(Scene& scene, PerspectiveCamera& cam, RayGen<PTState>& ray_gen, int max_path_len = 32)
+    PathTracer(Scene& scene, PerspectiveCamera& cam, RayGen<PTState>& ray_gen, int max_path_len, int thread_count, int tile_size)
         : Integrator(scene, cam)
         , ray_gen_(ray_gen)
-        , scheduler_(ray_gen, scene)
+        , scheduler_(ray_gen, scene, thread_count, tile_size)
         , max_path_len_(max_path_len)
     {}
 
@@ -27,7 +27,7 @@ public:
 
 private:
     //QueueScheduler<PTState, 8, 8, 1> scheduler_;
-    TileScheduler<PTState, 4, 256, 1> scheduler_;
+    TileScheduler<PTState, 1> scheduler_;
     RayGen<PTState>& ray_gen_;
 
     const int max_path_len_;

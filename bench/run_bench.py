@@ -93,7 +93,7 @@ alg_pt_only = ['pt']
 time_sec = 10
 algorithms = alg_large
 
-def run_benchmark(app, setting, path):
+def run_benchmark(app, setting, path, global_args):
     results = ''
 
     for alg in algorithms:
@@ -107,6 +107,7 @@ def run_benchmark(app, setting, path):
                 '-q', '-t', str(time_sec), '-a', alg,
                 out_filename]
         args.extend(setting['args'])
+        args.extend(global_args)
 
         p = Popen(args,
                   stdin=PIPE, stdout=PIPE, stderr=PIPE)
@@ -144,11 +145,14 @@ def run_benchmark(app, setting, path):
     return results
 
 if __name__ == '__main__':
-    if len(sys.argv) != 2:
+    if len(sys.argv) < 2:
         print 'Invalid command line arguments. Expected path to imbatracer executable.'
         quit()
 
     app = sys.argv[1]
+
+    if len(sys.argv) > 2:
+        args = sys.argv[2:]
 
     timestamp = datetime.datetime.now().strftime('%Y_%m_%d_%H_%M_%S')
     res_file = open('results/result_' + timestamp + '.csv', 'w')
@@ -160,5 +164,5 @@ if __name__ == '__main__':
     i = 1
     for setting in bench_settings:
         print '== Running benchmark ' + str(i) + ' / ' + str(len(bench_settings)) + ' - ' + setting['name']
-        res_file.write(run_benchmark(app, setting, foldername + '/'))
+        res_file.write(run_benchmark(app, setting, foldername + '/', args))
         i += 1

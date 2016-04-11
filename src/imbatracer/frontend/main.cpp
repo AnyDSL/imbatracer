@@ -12,8 +12,6 @@
 
 using namespace imba;
 
-static const int SAMPLES_PER_PIXEL = 1;
-
 class CameraControl : public InputController {
 public:
     CameraControl(PerspectiveCamera& cam, float3& cam_pos, float3& cam_dir, float3& cam_up)
@@ -105,41 +103,41 @@ int main(int argc, char* argv[]) {
     CameraControl ctrl(cam, cam_pos, cam_dir, cam_up);
 
     if (settings.algorithm == UserSettings::PT) {
-        PixelRayGen<PTState> ray_gen(settings.width, settings.height, SAMPLES_PER_PIXEL);
-        PathTracer integrator(scene, cam, ray_gen, settings.max_path_len);
+        PixelRayGen<PTState> ray_gen(settings.width, settings.height, settings.concurrent_spp);
+        PathTracer integrator(scene, cam, ray_gen, settings.max_path_len, settings.thread_count, settings.tile_size);
 
-        RenderWindow wnd(settings, integrator, ctrl, SAMPLES_PER_PIXEL);
+        RenderWindow wnd(settings, integrator, ctrl, settings.concurrent_spp);
         wnd.render_loop();
 
         return 0;
     }
 
-    PixelRayGen<VCMState> ray_gen(settings.width, settings.height, SAMPLES_PER_PIXEL);
+    PixelRayGen<VCMState> ray_gen(settings.width, settings.height, settings.concurrent_spp);
     Integrator* integrator;
 
     switch (settings.algorithm) {
     case UserSettings::BPT:
-        integrator = new BPT(scene, cam, ray_gen);
+        integrator = new BPT(scene, cam, ray_gen, settings.max_path_len, settings.thread_count, settings.tile_size);
         break;
 
     case UserSettings::PPM:
-        integrator = new PPM(scene, cam, ray_gen, settings.max_path_len, settings.base_radius);
+        integrator = new PPM(scene, cam, ray_gen, settings.max_path_len, settings.thread_count, settings.tile_size, settings.base_radius);
         break;
 
     case UserSettings::LT:
-        integrator = new LT(scene, cam, ray_gen, settings.max_path_len);
+        integrator = new LT(scene, cam, ray_gen, settings.max_path_len, settings.thread_count, settings.tile_size);
         break;
 
     case UserSettings::VCM_PT:
-        integrator = new VCM_PT(scene, cam, ray_gen, settings.max_path_len);
+        integrator = new VCM_PT(scene, cam, ray_gen, settings.max_path_len, settings.thread_count, settings.tile_size);
         break;
 
     default:
-        integrator = new VCM(scene, cam, ray_gen, settings.max_path_len, settings.base_radius);
+        integrator = new VCM(scene, cam, ray_gen, settings.max_path_len, settings.thread_count, settings.tile_size, settings.base_radius);
         break;
     }
 
-    RenderWindow wnd(settings, *integrator, ctrl, SAMPLES_PER_PIXEL);
+    RenderWindow wnd(settings, *integrator, ctrl, settings.concurrent_spp);
     wnd.render_loop();
 
     delete integrator;

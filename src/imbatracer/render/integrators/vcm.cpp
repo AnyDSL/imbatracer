@@ -573,11 +573,11 @@ void dummy_func_to_prevent_linker_errors_dont_call() {
     Scene scene;
     PerspectiveCamera cam(0,0,0.0f);
     PixelRayGen<VCMState> ray_gen(1, 1, 1);
-    VCMIntegrator<false, false, false, false> tmp1(scene, cam, ray_gen);
-    VCMIntegrator<true , false, false, false> tmp2(scene, cam, ray_gen);
-    VCMIntegrator<false, true , false, false> tmp3(scene, cam, ray_gen);
-    VCMIntegrator<false, false, true , false> tmp4(scene, cam, ray_gen);
-    VCMIntegrator<false, false, false, true > tmp5(scene, cam, ray_gen);
+    VCMIntegrator<false, false, false, false> tmp1(scene, cam, ray_gen, 1, 1, 1);
+    VCMIntegrator<true , false, false, false> tmp2(scene, cam, ray_gen, 1, 1, 1);
+    VCMIntegrator<false, true , false, false> tmp3(scene, cam, ray_gen, 1, 1, 1);
+    VCMIntegrator<false, false, true , false> tmp4(scene, cam, ray_gen, 1, 1, 1);
+    VCMIntegrator<false, false, false, true > tmp5(scene, cam, ray_gen, 1, 1, 1);
 }
 
 } // namespace imba
