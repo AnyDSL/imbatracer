@@ -44,7 +44,7 @@ void PathTracer::compute_direct_illum(const Intersection& isect, PTState& state,
 void PathTracer::bounce(const Intersection& isect, PTState& state, RayQueue<PTState>& ray_out, BSDF* bsdf) {
     RNG& rng = state.rng;
 
-    if (state.bounces >= max_path_len_)
+    if (state.bounces + 1 >= max_path_len_) // Path length includes the vertices on the camera and the light.
         return;
 
     float rr_pdf;

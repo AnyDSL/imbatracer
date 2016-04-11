@@ -62,12 +62,12 @@ bench_settings = [
         'width': 1024,
         'height': 1024,
         'base_filename': 'sponza_curtain',
-        'args': []
+        'args': ['-r', '0.006']
     },
 
     {
         'name': 'Still Life',
-        'scene': 'scenes/still_life/still_life.scene',
+        'scene': 'scenes/stilllife/still_life.scene',
         'reference': 'references/ref_still_life.png',
         'width': 960,
         'height': 540,
@@ -90,8 +90,8 @@ alg_small = ['pt', 'bpt', 'vcm']
 alg_large = ['pt', 'bpt', 'vcm', 'lt', 'ppm']
 alg_pt_only = ['pt']
 
-time_sec = 5
-algorithms = alg_small
+time_sec = 10
+algorithms = alg_large
 
 def run_benchmark(app, setting, path):
     results = ''
@@ -130,7 +130,7 @@ def run_benchmark(app, setting, path):
                   stdin=PIPE, stdout=PIPE, stderr=PIPE)
         output, err = p.communicate()
 
-        m = re.match(r'(\d+\.\d*)', err)
+        m = re.match(r'(\d+\.?\d*)', err)
         if m is None:
             rmse = 'ERROR: ' + output + err
         else:

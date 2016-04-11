@@ -12,7 +12,7 @@ public:
     {}
 
     virtual float4 eval(const float3& out_dir, const float3& in_dir) const override {
-        return color_ * (1.0f / pi);
+        return same_hemisphere(out_dir, in_dir) ? color_ * (1.0f / pi) : float4(0.0f);
     }
 
 private:
@@ -56,7 +56,9 @@ public:
         auto reflected_in = float3(-in_dir.x, -in_dir.y, in_dir.z);
         float cos_r_o = std::max(0.0f, dot(reflected_in, out_dir));
 
-        return (exponent_ + 2.0f) / (2.0f * pi) * coefficient_ * powf(cos_r_o, exponent_);
+        return same_hemisphere(out_dir, in_dir)
+                ? (exponent_ + 2.0f) / (2.0f * pi) * coefficient_ * powf(cos_r_o, exponent_)
+                : float4(0.0f);
     }
 
     virtual float4 sample(const float3& out_dir, float3& in_dir, float rnd_num_1, float rnd_num_2, float& pdf) const override {
@@ -125,7 +127,9 @@ public:
             tan_beta  = sin_theta_out / abs_cos_theta(out_dir);
         }
 
-        return reflectance_ * (1.0f / pi) * (param_a_ + param_b_ * max_cos * sin_alpha * tan_beta);
+        return same_hemisphere(out_dir, in_dir)
+                ? reflectance_ * (1.0f / pi) * (param_a_ + param_b_ * max_cos * sin_alpha * tan_beta)
+                : float4(0.0f);
     }
 
 private:
@@ -156,6 +160,9 @@ public:
         float cos_half = dot(in_dir, half_dir);
 
         auto fr = fresnel_->eval(cos_half);
+
+        if (!same_hemisphere(out_dir, in_dir))
+            return float4(0.0f);
 
         return (reflectance_ * blinn_distribution(half_dir) * geom_attenuation(out_dir, in_dir, half_dir) * fr)
                 /
