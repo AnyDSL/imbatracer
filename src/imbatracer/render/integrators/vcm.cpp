@@ -58,7 +58,8 @@ void VCM_INTEGRATOR::render(AtomicImage& img) {
 VCM_TEMPLATE
 void VCM_INTEGRATOR::reset_buffers() {
     if (!lt_only)
-        light_paths_.reset();
+        for (auto& lp : light_paths_)
+            lp->reset();
 }
 
 VCM_TEMPLATE
@@ -99,8 +100,12 @@ void VCM_INTEGRATOR::trace_light_paths(AtomicImage& img) {
             state_out.is_finite = l->is_finite();
         });
 
-    photon_grid_.reserve(width_ * height_);
-    photon_grid_.build(light_paths_.begin(), light_paths_.end(), pm_radius_);
+    for (int i = 0; i < spp_; ++i) {
+        auto& grid = photon_grid_[i];
+
+        grid->reserve(width_ * height_);
+        grid->build(light_paths_[i]->begin(), light_paths_[i]->end(), pm_radius_);
+    }
 }
 
 VCM_TEMPLATE
@@ -236,14 +241,15 @@ void VCM_INTEGRATOR::process_light_rays(RayQueue<VCMState>& rays_in, RayQueue<VC
 
             if (!isect.mat->is_specular()){ // Do not store vertices on materials described by a delta distribution.
                 if (!lt_only)
-                    light_paths_.append(states[i].pixel_id,
-                                        isect,
-                                        states[i].throughput,
-                                        states[i].continue_prob,
-                                        states[i].dVC,
-                                        states[i].dVCM,
-                                        states[i].dVM,
-                                        states[i].path_length + 1);
+                    light_paths_[states[i].sample_id]->append(
+                        states[i].pixel_id,
+                        isect,
+                        states[i].throughput,
+                        states[i].continue_prob,
+                        states[i].dVC,
+                        states[i].dVCM,
+                        states[i].dVM,
+                        states[i].path_length + 1);
 
                 if (!ppm_only)
                     connect_to_camera(states[i], isect, bsdf, ray_out_shadow);
@@ -436,8 +442,8 @@ void VCM_INTEGRATOR::direct_illum(VCMState& cam_state, const Intersection& isect
 
 VCM_TEMPLATE
 void VCM_INTEGRATOR::connect(VCMState& cam_state, const Intersection& isect, BSDF* bsdf_cam, MemoryArena& bsdf_arena, RayQueue<VCMState>& rays_out_shadow) {
-    auto& light_path = light_paths_.get_path(cam_state.pixel_id);
-    const int path_len = light_paths_.get_path_len(cam_state.pixel_id);
+    auto& light_path = light_paths_[cam_state.sample_id]->get_path(cam_state.pixel_id);
+    const int path_len = light_paths_[cam_state.sample_id]->get_path_len(cam_state.pixel_id);
     for (int i = 0; i < path_len; ++i) {
         auto& light_vertex = light_path[i];
 
@@ -518,7 +524,7 @@ void VCM_INTEGRATOR::vertex_merging(const VCMState& state, const Intersection& i
     photons.clear();
 
     //auto t0 = std::chrono::high_resolution_clock::now();
-    photon_grid_.process(photons, isect.pos);
+    photon_grid_[state.sample_id]->process(photons, isect.pos);
     //auto t1 = std::chrono::high_resolution_clock::now();
     //photon_time += std::chrono::duration_cast<std::chrono::milliseconds>(t1 - t0).count();
 
@@ -573,11 +579,11 @@ void dummy_func_to_prevent_linker_errors_dont_call() {
     Scene scene;
     PerspectiveCamera cam(0,0,0.0f);
     PixelRayGen<VCMState> ray_gen(1, 1, 1);
-    VCMIntegrator<false, false, false, false> tmp1(scene, cam, ray_gen, 1, 1, 1);
-    VCMIntegrator<true , false, false, false> tmp2(scene, cam, ray_gen, 1, 1, 1);
-    VCMIntegrator<false, true , false, false> tmp3(scene, cam, ray_gen, 1, 1, 1);
-    VCMIntegrator<false, false, true , false> tmp4(scene, cam, ray_gen, 1, 1, 1);
-    VCMIntegrator<false, false, false, true > tmp5(scene, cam, ray_gen, 1, 1, 1);
+    VCMIntegrator<false, false, false, false> tmp1(scene, cam, ray_gen, 1, 1, 1, 1);
+    VCMIntegrator<true , false, false, false> tmp2(scene, cam, ray_gen, 1, 1, 1, 1);
+    VCMIntegrator<false, true , false, false> tmp3(scene, cam, ray_gen, 1, 1, 1, 1);
+    VCMIntegrator<false, false, true , false> tmp4(scene, cam, ray_gen, 1, 1, 1, 1);
+    VCMIntegrator<false, false, false, true > tmp5(scene, cam, ray_gen, 1, 1, 1, 1);
 }
 
 } // namespace imba

@@ -186,21 +186,30 @@ class VCMIntegrator : public Integrator {
     static constexpr int MAX_CAMERA_PATH_LEN = 16;
 public:
     VCMIntegrator(Scene& scene, PerspectiveCamera& cam, RayGen<VCMState>& ray_gen,
-        int max_path_len, int thread_count, int tile_size, float base_radius=0.03f, float radius_alpha=0.75f)
+        int max_path_len, int thread_count, int tile_size, int spp, float base_radius=0.03f, float radius_alpha=0.75f)
         : Integrator(scene, cam)
         , width_(cam.width())
         , height_(cam.height())
         , ray_gen_(ray_gen)
         , light_path_count_(width_ * height_)
-        , light_paths_(MAX_LIGHT_PATH_LEN, width_ * height_)
+        , light_paths_(spp)
         , pm_radius_(base_radius)
         , base_radius_(base_radius)
         , radius_alpha_(radius_alpha)
         , cur_iteration_(0)
         , scheduler_(ray_gen, scene, thread_count, tile_size)
         , max_path_len_(max_path_len)
+        , spp_(spp)
+        , photon_grid_(spp)
     {
-        photon_grid_.reserve(width_ * height_);
+        for (auto& grid : photon_grid_) {
+            grid.reset(new HashGrid<PhotonIterator>());
+            grid->reserve(width_ * height_);
+        }
+
+        for (auto& path_set : light_paths_) {
+            path_set.reset(new LightPathContainer(MAX_LIGHT_PATH_LEN, width_ * height_));
+        }
     }
 
     virtual void render(AtomicImage& out) override;
@@ -211,6 +220,7 @@ public:
 
 private:
     int width_, height_;
+    int spp_;
     float light_path_count_;
     const int max_path_len_;
 
@@ -225,13 +235,12 @@ private:
     float mis_weight_vm_;
 
     RayGen<VCMState>& ray_gen_;
-    LightPathContainer light_paths_;
-
     TileScheduler<VCMState, MAX_LIGHT_PATH_LEN + 1> scheduler_;
 
-    void reset_buffers();
+    std::vector<std::unique_ptr<LightPathContainer> > light_paths_;
+    std::vector<std::unique_ptr<HashGrid<PhotonIterator> > > photon_grid_;
 
-    HashGrid<PhotonIterator> photon_grid_;
+    void reset_buffers();
 
     void process_light_rays(RayQueue<VCMState>& rays_in, RayQueue<VCMState>& rays_out, RayQueue<VCMState>& rays_out_shadow, AtomicImage& img);
     void process_camera_rays(RayQueue<VCMState>& rays_in, RayQueue<VCMState>& rays_out, RayQueue<VCMState>& shadow_rays, AtomicImage& img);

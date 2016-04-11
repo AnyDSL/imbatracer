@@ -117,23 +117,23 @@ int main(int argc, char* argv[]) {
 
     switch (settings.algorithm) {
     case UserSettings::BPT:
-        integrator = new BPT(scene, cam, ray_gen, settings.max_path_len, settings.thread_count, settings.tile_size);
+        integrator = new BPT(scene, cam, ray_gen, settings.max_path_len, settings.thread_count, settings.tile_size, settings.concurrent_spp);
         break;
 
     case UserSettings::PPM:
-        integrator = new PPM(scene, cam, ray_gen, settings.max_path_len, settings.thread_count, settings.tile_size, settings.base_radius);
+        integrator = new PPM(scene, cam, ray_gen, settings.max_path_len, settings.thread_count, settings.tile_size, settings.concurrent_spp, settings.base_radius);
         break;
 
     case UserSettings::LT:
-        integrator = new LT(scene, cam, ray_gen, settings.max_path_len, settings.thread_count, settings.tile_size);
+        integrator = new LT(scene, cam, ray_gen, settings.max_path_len, settings.thread_count, settings.tile_size, settings.concurrent_spp);
         break;
 
     case UserSettings::VCM_PT:
-        integrator = new VCM_PT(scene, cam, ray_gen, settings.max_path_len, settings.thread_count, settings.tile_size);
+        integrator = new VCM_PT(scene, cam, ray_gen, settings.max_path_len, settings.thread_count, settings.tile_size, settings.concurrent_spp);
         break;
 
     default:
-        integrator = new VCM(scene, cam, ray_gen, settings.max_path_len, settings.thread_count, settings.tile_size, settings.base_radius);
+        integrator = new VCM(scene, cam, ray_gen, settings.max_path_len, settings.thread_count, settings.tile_size, settings.concurrent_spp, settings.base_radius);
         break;
     }
 
