@@ -8,6 +8,9 @@
 
 #include "traversal.h"
 #include "bvh_format.h"
+#include "../render/thorin_mem.h"
+
+namespace imba {
 
 bool load_accel(const std::string& filename, ThorinArray<Node>& nodes_ref, ThorinArray<Vec4>& tris_ref) {
     std::ifstream in(filename, std::ifstream::binary);
@@ -122,3 +125,5 @@ bool store_accel(const std::string& filename, const ThorinArray<Node>& nodes, co
     // TODO
     return false;
 }
+
+} // namespace imba

@@ -6,10 +6,17 @@ namespace imba {
 
 /// Launches multiple threads, each running an entire traversal-shading pipeline.
 /// Thus, there can be multiple calls to traversal at the same time.
-template<typename StateType, int max_shadow_rays_per_hit, bool single_traversal = true>
-class TileScheduler : public RaySchedulerBase<TileScheduler<StateType, max_shadow_rays_per_hit, single_traversal>, StateType> {
-    using BaseType = RaySchedulerBase<TileScheduler<StateType, max_shadow_rays_per_hit, single_traversal>, StateType>;
+template<typename StateType, int max_shadow_rays_per_hit>
+class TileScheduler : public RaySchedulerBase<TileScheduler<StateType, max_shadow_rays_per_hit>, StateType> {
+    using BaseType = RaySchedulerBase<TileScheduler<StateType, max_shadow_rays_per_hit>, StateType>;
     using SamplePixelFn = typename RayGen<StateType>::SamplePixelFn;
+
+    // Allow running multiple traversal instances at the same time, if traversal is running on the CPU.
+#ifdef CPU_TRAVERSAL
+    static constexpr bool single_traversal = false;
+#else
+    static constexpr bool single_traversal = true;
+#endif
 
 protected:
     using BaseType::ray_gen_;
@@ -17,8 +24,7 @@ protected:
 
 public:
     TileScheduler(RayGen<StateType>& ray_gen, Scene& scene, int num_threads, int tile_size)
-        : RaySchedulerBase<TileScheduler<StateType, max_shadow_rays_per_hit, single_traversal>
-        , StateType>(ray_gen, scene)
+        : BaseType(ray_gen, scene)
         , num_threads_(num_threads), tile_size_(tile_size)
         , thread_local_prim_queues_(num_threads * 2)
         , thread_local_shadow_queues_(num_threads)

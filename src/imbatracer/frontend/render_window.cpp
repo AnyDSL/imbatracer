@@ -50,7 +50,7 @@ void RenderWindow::render_loop() {
         auto elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(cur_time - start_time_).count();
         auto msg_ms = std::chrono::duration_cast<std::chrono::milliseconds>(cur_time - msg_time).count();
         if (msg_ms > msg_interval_ms && frames_ > 0) {
-            std::cout << frames_ << " samples, "
+            std::cout << frames_ * spp_ << " samples, "
                       << 1000.0f * frames_ / static_cast<float>(elapsed_ms) << " frames per second, "
                       << static_cast<float>(elapsed_ms) / frames_ << "ms per frame"
                       << std::endl;
@@ -60,7 +60,7 @@ void RenderWindow::render_loop() {
         render();
 
         if ((window_ && handle_events(false)) ||
-            frames_ + 1 > max_samples_ ||
+            (frames_ + 1) * spp_ > max_samples_ ||
             elapsed_ms / 1000.0f > max_time_sec_)
             break;
 

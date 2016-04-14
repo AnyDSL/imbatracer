@@ -5,18 +5,24 @@
 using std::size_t;
 #include <thorin_runtime.hpp>
 
-// Define this symbol to avoid unnecessary copies on the CPU
-// #define NO_COPY
+#ifdef GPU_TRAVERSAL
 
 #define TRAVERSAL_DEVICE    0
 #define TRAVERSAL_PLATFORM  CUDA
 #define TRAVERSAL_INTERSECT intersect_masked_gpu
 #define TRAVERSAL_OCCLUDED  occluded_masked_gpu
 
-// #define TRAVERSAL_DEVICE    0
-// #define TRAVERSAL_PLATFORM  HOST
-// #define TRAVERSAL_INTERSECT intersect_masked_cpu
-// #define TRAVERSAL_OCCLUDED  occluded_masked_cpu
+#else
+
+// Avoid unnecessary copies on the CPU
+#define NO_COPY
+
+#define TRAVERSAL_DEVICE    0
+#define TRAVERSAL_PLATFORM  HOST
+#define TRAVERSAL_INTERSECT intersect_masked_cpu
+#define TRAVERSAL_OCCLUDED  occluded_masked_cpu
+
+#endif
 
 namespace imba {
 

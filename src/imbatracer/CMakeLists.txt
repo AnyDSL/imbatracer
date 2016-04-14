@@ -1,3 +1,16 @@
+# Configure traversal platform
+if(BACKEND STREQUAL "cpu" OR BACKEND STREQUAL "avx")
+  add_definitions(-DCPU_TRAVERSAL)
+  set(CORE_SRCS core/cpu_adapter.cpp)
+  set(LOADER_SRCS loaders/load_mbvh.cpp)
+elseif(BACKEND STREQUAL "nvvm" OR BACKEND STREQUAL "cuda" OR BACKEND STREQUAL "gpu")
+  add_definitions(-DGPU_TRAVERSAL)
+  set(CORE_SRCS core/gpu_adapter.cpp)
+  set(LOADER_SRCS loaders/load_bvh.cpp)
+else()
+  message(FATAL_ERROR "Backend not supported")
+endif()
+
 add_library(imba_core
             core/adapter.h
             core/bbox.h
@@ -6,14 +19,13 @@ add_library(imba_core
             core/float3.h
             core/float4.h
             core/float4x4.h
-            core/gpu_adapter.cpp
-            #core/cpu_adapter.cpp
             core/mask.h
             core/mem_pool.h
             core/mesh.h
             core/mesh.cpp
             core/sbvh_builder.h
-            core/tri.h)
+            core/tri.h
+            ${CORE_SRCS})
 
 add_library(imba_loaders
             loaders/loaders.h
@@ -22,9 +34,8 @@ add_library(imba_loaders
             loaders/load_obj.h
             loaders/load_obj.cpp
             loaders/path.h
-            loaders/load_bvh.cpp
-            #loaders/load_mbvh.cpp
-            loaders/bvh_format.h)
+            loaders/bvh_format.h
+            ${LOADER_SRCS})
 
 add_library(imba_render
             render/camera.h
