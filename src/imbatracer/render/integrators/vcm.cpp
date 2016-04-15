@@ -24,9 +24,145 @@ inline float mis_heuristic(float a) {
     return a;
 }
 
+/// Computes the cosine term for adjoint BSDFs that use shading normals.
+///
+/// This function has to be used for all BSDFs during particle tracing to prevent brighness discontinuities.
+/// See Veach's PhD thesis for more details.
+inline float shading_normal_adjoint(const float3& normal, const float3& geom_normal, const float3& out_dir, const float3& in_dir) {
+    //return dot(in_dir, normal);
+    return dot(out_dir, normal) * dot(in_dir, geom_normal) / dot(out_dir, geom_normal);
+}
+
 // Reduce ugliness from the template parameters.
 #define VCM_TEMPLATE template<bool bpt_only, bool ppm_only, bool lt_only, bool pt_only>
 #define VCM_INTEGRATOR VCMIntegrator<bpt_only, ppm_only, lt_only, pt_only>
+
+VCM_TEMPLATE
+void VCM_INTEGRATOR::preprocess() {
+    if (lt_only || pt_only) // Vertex cache is only needed for bidirectional algorithms.
+        return;
+
+    // Trace a couple of light paths into the scene and calculate their average length.
+    // This information is than used to allocate the light vertex cache.
+
+    // Setup the queues. We need two: one for input and one for output during scattering.
+    const int path_count = LIGHT_PATH_LEN_PROBES;
+    RayQueue<VCMState> queues[2] = {RayQueue<VCMState>(path_count), RayQueue<VCMState>(path_count)};
+    int in_q = 0;
+    int out_q = 1;
+
+    // Fill the queue with the initial light rays.
+    for (int i = 0; i < path_count; ++i) {
+        Ray ray_out;
+        VCMState state_out;
+
+        static std::random_device rd;
+        state_out.rng = RNG(rd());
+
+        // randomly choose one light source to sample
+        auto& l = scene_.lights[state_out.rng.random_int(0, scene_.lights.size())];
+        float pdf_lightpick = 1.0f / scene_.lights.size();
+
+        Light::EmitSample sample = l->sample_emit(state_out.rng);
+        ray_out.org.x = sample.pos.x;
+        ray_out.org.y = sample.pos.y;
+        ray_out.org.z = sample.pos.z;
+        ray_out.org.w = offset;
+
+        ray_out.dir.x = sample.dir.x;
+        ray_out.dir.y = sample.dir.y;
+        ray_out.dir.z = sample.dir.z;
+        ray_out.dir.w = FLT_MAX;
+
+        state_out.throughput = sample.radiance / pdf_lightpick;
+        state_out.path_length = 1;
+        state_out.continue_prob = 1.0f;
+
+        queues[in_q].push(ray_out, state_out);
+    }
+
+    std::atomic<int> path_length_sum(0);
+
+    // Trace the light paths until they are (almost) all terminated.
+    while (queues[in_q].size() > 0) {
+        queues[in_q].traverse(scene_);
+
+        // Process hitpoints and bounce or terminate paths.
+        int ray_count = queues[in_q].size();
+        VCMState* states = queues[in_q].states();
+        const Hit* hits = queues[in_q].hits();
+        const Ray* rays = queues[in_q].rays();
+        auto& rays_out = queues[out_q];
+        tbb::parallel_for(tbb::blocked_range<size_t>(0, ray_count),
+                          [this, states, hits, rays, &rays_out, &path_length_sum] (const tbb::blocked_range<size_t>& range) {
+            auto& bsdf_mem_arena = bsdf_memory_arenas.local();
+
+            for (size_t i = range.begin(); i != range.end(); ++i) {
+                float rr_pdf;
+                RNG& rng = states[i].rng;
+                if (hits[i].tri_id < 0)
+                    continue;
+
+                ++path_length_sum;
+
+                if (!russian_roulette(states[i].throughput, rng.random_float(), rr_pdf))
+                    continue;
+
+                bsdf_mem_arena.free_all();
+
+                Intersection isect = calculate_intersection(hits, rays, i);
+                auto bsdf = isect.mat->get_bsdf(isect, bsdf_mem_arena, true);
+
+                float pdf_dir_w;
+                float3 sample_dir;
+                BxDFFlags sampled_flags;
+                auto bsdf_value = bsdf->sample(isect.out_dir, sample_dir, rng.random_float(), rng.random_float(), rng.random_float(),
+                                               BSDF_ALL, sampled_flags, pdf_dir_w);
+
+                if (sampled_flags == 0 || pdf_dir_w == 0.0f || is_black(bsdf_value))
+                    continue;
+
+                const float cos_theta_i = fabsf(shading_normal_adjoint(isect.normal, isect.geom_normal, isect.out_dir, sample_dir));
+
+                VCMState s = states[i];
+                s.throughput *= bsdf_value * cos_theta_i / (rr_pdf * pdf_dir_w);
+                s.path_length++;
+                s.continue_prob = rr_pdf;
+
+                Ray ray {
+                    { isect.pos.x, isect.pos.y, isect.pos.z, offset },
+                    { sample_dir.x, sample_dir.y, sample_dir.z, FLT_MAX }
+                };
+
+                rays_out.push(ray, s);
+            }
+        });
+
+        queues[in_q].clear();
+
+        std::swap(in_q, out_q);
+    }
+
+    const int avg_len = path_length_sum / path_count;
+    const int vc_size = (avg_len * 1.1) * width_ * height_ * spp_;
+
+    printf("avg path len %d, cache size %d\n", avg_len, vc_size);
+
+    vertex_cache_.resize(vc_size + 600000);
+}
+
+static int64_t counter = 0;
+
+VCM_TEMPLATE
+void VCM_INTEGRATOR::add_vertex_to_cache(const LightPathVertex& v) {
+    int i = vertex_cache_last_++;
+    if (i > vertex_cache_.size()) {
+        ++counter;
+        return; // Discard vertices that do not fit. This is statistically very unlikely to happen.
+    }
+
+    vertex_cache_[i] = v;
+}
 
 VCM_TEMPLATE
 void VCM_INTEGRATOR::render(AtomicImage& img) {
@@ -57,13 +193,14 @@ void VCM_INTEGRATOR::render(AtomicImage& img) {
 
 VCM_TEMPLATE
 void VCM_INTEGRATOR::reset_buffers() {
-    if (!lt_only)
-        for (auto& lp : light_paths_)
-            lp->reset();
 }
 
 VCM_TEMPLATE
 void VCM_INTEGRATOR::trace_light_paths(AtomicImage& img) {
+    printf("discarded in total %d\n", counter);
+    counter = 0;
+    vertex_cache_last_ = 0;
+
     scheduler_.run_iteration(img, this,
         &VCM_INTEGRATOR::process_shadow_rays,
         &VCM_INTEGRATOR::process_light_rays,
@@ -100,12 +237,12 @@ void VCM_INTEGRATOR::trace_light_paths(AtomicImage& img) {
             state_out.is_finite = l->is_finite();
         });
 
-    for (int i = 0; i < spp_; ++i) {
-        auto& grid = photon_grid_[i];
+    if (lt_only)
+        return;
 
-        grid->reserve(width_ * height_);
-        grid->build(light_paths_[i]->begin(), light_paths_[i]->end(), pm_radius_);
-    }
+    photon_grid_.reserve(width_ * height_);
+    light_vertices_count_ = std::min(static_cast<int>(vertex_cache_.size()), static_cast<int>(vertex_cache_last_));
+    photon_grid_.build(vertex_cache_.begin(), vertex_cache_.begin() + light_vertices_count_, pm_radius_);
 }
 
 VCM_TEMPLATE
@@ -137,20 +274,8 @@ void VCM_INTEGRATOR::trace_camera_paths(AtomicImage& img) {
         });
 }
 
-/// Computes the cosine term for adjoint BSDFs that use shading normals.
-///
-/// This function has to be used for all BSDFs during particle tracing to prevent brighness discontinuities.
-/// See Veach's PhD thesis for more details.
-inline float shading_normal_adjoint(const float3& normal, const float3& geom_normal, const float3& out_dir, const float3& in_dir) {
-    //return dot(in_dir, normal);
-    return dot(out_dir, normal) * dot(in_dir, geom_normal) / dot(out_dir, geom_normal);
-}
-
 VCM_TEMPLATE
-void VCM_INTEGRATOR::bounce(VCMState& state, const Intersection& isect, BSDF* bsdf, RayQueue<VCMState>& rays_out, bool adjoint, int max_length) {
-    if (state.path_length >= max_length)
-        return;
-
+void VCM_INTEGRATOR::bounce(VCMState& state, const Intersection& isect, BSDF* bsdf, RayQueue<VCMState>& rays_out, bool adjoint) {
     RNG& rng = state.rng;
 
     float rr_pdf;
@@ -240,22 +365,22 @@ void VCM_INTEGRATOR::process_light_rays(RayQueue<VCMState>& rays_in, RayQueue<VC
             auto bsdf = isect.mat->get_bsdf(isect, bsdf_mem_arena, true);
 
             if (!isect.mat->is_specular()){ // Do not store vertices on materials described by a delta distribution.
-                if (!lt_only)
-                    light_paths_[states[i].sample_id]->append(
-                        states[i].pixel_id,
+                if (!lt_only) {
+                    add_vertex_to_cache(LightPathVertex(
                         isect,
                         states[i].throughput,
                         states[i].continue_prob,
                         states[i].dVC,
                         states[i].dVCM,
                         states[i].dVM,
-                        states[i].path_length + 1);
+                        states[i].path_length + 1));
+                }
 
                 if (!ppm_only)
                     connect_to_camera(states[i], isect, bsdf, ray_out_shadow);
             }
 
-            bounce(states[i], isect, bsdf, rays_out, true, MAX_LIGHT_PATH_LEN);
+            bounce(states[i], isect, bsdf, rays_out, true);
         }
     });
 }
@@ -345,7 +470,7 @@ void VCM_INTEGRATOR::process_camera_rays(RayQueue<VCMState>& rays_in, RayQueue<V
                 }
 
                 // Continue the path using russian roulette.
-                bounce(states[i], isect, bsdf, rays_out, false, MAX_CAMERA_PATH_LEN);
+                bounce(states[i], isect, bsdf, rays_out, false);
                 continue;
             }
 
@@ -393,7 +518,7 @@ void VCM_INTEGRATOR::process_camera_rays(RayQueue<VCMState>& rays_in, RayQueue<V
             }
 
             // Continue the path using russian roulette.
-            bounce(states[i], isect, bsdf, rays_out, false, MAX_CAMERA_PATH_LEN);
+            bounce(states[i], isect, bsdf, rays_out, false);
         }
     });
 }
@@ -442,10 +567,13 @@ void VCM_INTEGRATOR::direct_illum(VCMState& cam_state, const Intersection& isect
 
 VCM_TEMPLATE
 void VCM_INTEGRATOR::connect(VCMState& cam_state, const Intersection& isect, BSDF* bsdf_cam, MemoryArena& bsdf_arena, RayQueue<VCMState>& rays_out_shadow) {
-    auto& light_path = light_paths_[cam_state.sample_id]->get_path(cam_state.pixel_id);
-    const int path_len = light_paths_[cam_state.sample_id]->get_path_len(cam_state.pixel_id);
-    for (int i = 0; i < path_len; ++i) {
-        auto& light_vertex = light_path[i];
+    // Additional weight required do to changed random processes when using the vertex cache.
+    const float vc_weight = (light_vertices_count_ / light_path_count_) / NUM_CONNECTIONS;
+
+    RNG& rng = cam_state.rng;
+    // Connect to NUM_CONNECTIONS randomly chosen vertices from the cache.
+    for (int i = 0; i < NUM_CONNECTIONS; ++i) {
+        auto& light_vertex = vertex_cache_[rng.random_int(0, light_vertices_count_)];
 
         // Ignore paths that are longer than the specified maximum length.
         if (light_vertex.path_length + cam_state.path_length > max_path_len_)
@@ -506,7 +634,7 @@ void VCM_INTEGRATOR::connect(VCMState& cam_state, const Intersection& isect, BSD
         const float mis_weight = 1.0f / (mis_weight_camera + 1.0f + mis_weight_light);
 
         VCMState s = cam_state;
-        s.throughput *= mis_weight * geom_term * bsdf_value_cam * bsdf_value_light * light_vertex.throughput;
+        s.throughput *= vc_weight * mis_weight * geom_term * bsdf_value_cam * bsdf_value_light * light_vertex.throughput;
 
         Ray ray {
             { isect.pos.x, isect.pos.y, isect.pos.z, offset },
@@ -524,7 +652,7 @@ void VCM_INTEGRATOR::vertex_merging(const VCMState& state, const Intersection& i
     photons.clear();
 
     //auto t0 = std::chrono::high_resolution_clock::now();
-    photon_grid_[state.sample_id]->process(photons, isect.pos);
+    photon_grid_.process(photons, isect.pos);
     //auto t1 = std::chrono::high_resolution_clock::now();
     //photon_time += std::chrono::duration_cast<std::chrono::milliseconds>(t1 - t0).count();
 

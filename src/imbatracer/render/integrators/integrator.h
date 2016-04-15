@@ -20,6 +20,7 @@ public:
 
     virtual void render(AtomicImage& out) = 0;
     virtual void reset() {}
+    virtual void preprocess() {}
 
 protected:
     Scene& scene_;

@@ -137,6 +137,8 @@ int main(int argc, char* argv[]) {
         break;
     }
 
+    integrator->preprocess();
+
     RenderWindow wnd(settings, *integrator, ctrl, settings.concurrent_spp);
     wnd.render_loop();
 

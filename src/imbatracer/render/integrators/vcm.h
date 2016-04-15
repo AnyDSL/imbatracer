@@ -46,144 +46,13 @@ struct LightPathVertex {
     const float3& position() const { return isect.pos; }
 };
 
-using LightPath = std::vector<LightPathVertex>;
+using PhotonIterator = std::vector<LightPathVertex>::iterator;
 
-class LightPathContainer;
-
-/// Iterator class for iterating over all the photons in a LightPathContainer
-class PhotonIterator {
-public:
-    PhotonIterator() : cont_(nullptr), cur_path_(-1), cur_vertex_(-1), is_end_(true) {}
-    PhotonIterator(const LightPathContainer* cont, bool is_end = false);
-
-    const LightPathVertex& operator* () const;
-    const LightPathVertex* operator-> () const;
-    PhotonIterator& operator++ ();
-
-    bool operator!= (const PhotonIterator& r) const {
-        return !(*this == r);
-    }
-
-    bool operator== (const PhotonIterator& r) const {
-        return ((!r.is_end_ && !is_end_) && (r.cur_path_ == cur_path_ && r.cur_vertex_ == cur_vertex_)) || (r.is_end_ && is_end_);
-    }
-
-private:
-    const LightPathContainer* cont_;
-    int cur_path_;
-    int cur_vertex_;
-    bool is_end_;
-};
-
-class LightPathContainer {
-public:
-    LightPathContainer(int max_len, int max_path_count)
-        : max_len_(max_len), max_path_count_(max_path_count),
-          light_paths_(max_path_count), light_path_lengths_(max_path_count)
-    {
-        for (auto& v : light_paths_) {
-            v.resize(max_len);
-        }
-    }
-
-    ~LightPathContainer() {}
-
-    LightPathContainer(const LightPathContainer&) = delete;
-    LightPathContainer& operator= (const LightPathContainer&) = delete;
-    LightPathContainer(LightPathContainer&&) = delete;
-    LightPathContainer& operator= (LightPathContainer&&) = delete;
-
-    void reset() {
-        std::fill(light_path_lengths_.begin(), light_path_lengths_.end(), 0);
-    }
-
-    int get_path_len(int pixel_index) const {
-        return light_path_lengths_[pixel_index];
-    }
-
-    const LightPath& get_path(int pixel_index) const {
-        return light_paths_[pixel_index];
-    }
-
-    template<typename... Args>
-    void append(int pixel_index, Args&&... args) {
-        light_paths_[pixel_index][get_path_len(pixel_index)] = LightPathVertex(std::forward<Args>(args)...);
-        ++light_path_lengths_[pixel_index];
-
-        assert(get_path_len(pixel_index) <= max_len_);
-    }
-
-    PhotonIterator begin() {
-        return PhotonIterator(this);
-    }
-
-    PhotonIterator end() {
-        return PhotonIterator(this, true);
-    }
-
-    int size() {
-        int counter = 0;
-        for (PhotonIterator it = begin(); it != end(); ++it)
-            counter++;
-        return counter;
-    }
-
-private:
-    int max_len_;
-    int max_path_count_;
-
-    std::vector<LightPath> light_paths_;
-    std::vector<int> light_path_lengths_;
-
-    friend class PhotonIterator;
-};
-
-inline const LightPathVertex& PhotonIterator::operator* () const {
-    assert(!is_end_);
-    assert(cur_path_ < cont_->light_paths_.size() && cur_vertex_ < cont_->get_path_len(cur_path_));
-    return cont_->light_paths_[cur_path_][cur_vertex_];
-}
-
-inline const LightPathVertex* PhotonIterator::operator-> () const {
-    assert(!is_end_);
-    assert(cur_path_ < cont_->light_paths_.size());
-    assert(cur_vertex_ < cont_->get_path_len(cur_path_));
-    return &(cont_->light_paths_[cur_path_][cur_vertex_]);
-}
-
-inline PhotonIterator& PhotonIterator::operator++ () {
-    if (is_end_)
-        return *this;
-
-    auto maxlen = cont_->get_path_len(cur_path_);
-    if (++cur_vertex_ >= maxlen) {
-        // Skip empty paths
-        while (++cur_path_ < cont_->max_path_count_ && cont_->get_path_len(cur_path_) <= 0) ;
-
-        if (cur_path_ >= cont_->max_path_count_)
-            is_end_ = true;
-
-        cur_vertex_ = 0;
-    }
-    return *this;
-}
-
-inline PhotonIterator::PhotonIterator(const LightPathContainer* cont, bool is_end) : cont_(cont), cur_path_(0), cur_vertex_(0), is_end_(is_end) {
-    if (!is_end) {
-        while (cur_path_ < cont_->max_path_count_ && cont_->get_path_len(cur_path_) <= 0)
-            ++cur_path_;
-
-        if (cur_path_ >= cont_->max_path_count_)
-            is_end_ = true;
-    }
-}
-
-// bidirectional path tracing
 template<bool bpt_only, bool ppm_only, bool lt_only, bool pt_only>
 class VCMIntegrator : public Integrator {
-    static constexpr int TARGET_RAY_COUNT = 1 << 20;
-    static constexpr int MAX_LIGHT_PATH_LEN = 8;
-    static constexpr int MAX_CAMERA_PATH_LEN = 16;
+    // Number of light paths to be traced when computing the average length and thus vertex cache size.
+    static constexpr int LIGHT_PATH_LEN_PROBES = 10000;
+    static constexpr int NUM_CONNECTIONS = 4;
 public:
     VCMIntegrator(Scene& scene, PerspectiveCamera& cam, RayGen<VCMState>& ray_gen,
         int max_path_len, int thread_count, int tile_size, int spp, float base_radius=0.03f, float radius_alpha=0.75f)
@@ -191,8 +60,7 @@ public:
         , width_(cam.width())
         , height_(cam.height())
         , ray_gen_(ray_gen)
-        , light_path_count_(width_ * height_)
-        , light_paths_(spp)
+        , light_path_count_(cam.width() * cam.height() * spp)
         , pm_radius_(base_radius)
         , base_radius_(base_radius)
         , radius_alpha_(radius_alpha)
@@ -200,16 +68,9 @@ public:
         , scheduler_(ray_gen, scene, thread_count, tile_size)
         , max_path_len_(max_path_len)
         , spp_(spp)
-        , photon_grid_(spp)
+        , photon_grid_()
     {
-        for (auto& grid : photon_grid_) {
-            grid.reset(new HashGrid<PhotonIterator>());
-            grid->reserve(width_ * height_);
-        }
-
-        for (auto& path_set : light_paths_) {
-            path_set.reset(new LightPathContainer(MAX_LIGHT_PATH_LEN, width_ * height_));
-        }
+        photon_grid_.reserve(cam.width() * cam.height() * spp);
     }
 
     virtual void render(AtomicImage& out) override;
@@ -217,6 +78,8 @@ public:
         pm_radius_ = base_radius_ * scene_.sphere.radius;
         cur_iteration_ = 0;
     }
+
+    virtual void preprocess() override;
 
 private:
     int width_, height_;
@@ -235,12 +98,15 @@ private:
     float mis_weight_vm_;
 
     RayGen<VCMState>& ray_gen_;
-    TileScheduler<VCMState, MAX_LIGHT_PATH_LEN + 1> scheduler_;
+    TileScheduler<VCMState, NUM_CONNECTIONS + 1> scheduler_;
 
-    std::vector<std::unique_ptr<LightPathContainer> > light_paths_;
-    std::vector<std::unique_ptr<HashGrid<PhotonIterator> > > photon_grid_;
+    std::vector<LightPathVertex> vertex_cache_;
+    std::atomic<int> vertex_cache_last_;
+    int light_vertices_count_;
+    HashGrid<PhotonIterator> photon_grid_;
 
     void reset_buffers();
+    void add_vertex_to_cache(const LightPathVertex& v);
 
     void process_light_rays(RayQueue<VCMState>& rays_in, RayQueue<VCMState>& rays_out, RayQueue<VCMState>& rays_out_shadow, AtomicImage& img);
     void process_camera_rays(RayQueue<VCMState>& rays_in, RayQueue<VCMState>& rays_out, RayQueue<VCMState>& shadow_rays, AtomicImage& img);
@@ -255,7 +121,7 @@ private:
     void connect(VCMState& cam_state, const Intersection& isect, BSDF* bsdf, MemoryArena& bsdf_arena, RayQueue<VCMState>& rays_out_shadow);
     void vertex_merging(const VCMState& state, const Intersection& isect, const BSDF* bsdf, AtomicImage& img);
 
-    void bounce(VCMState& state, const Intersection& isect, BSDF* bsdf, RayQueue<VCMState>& rays_out, bool adjoint, int max_length);
+    void bounce(VCMState& state, const Intersection& isect, BSDF* bsdf, RayQueue<VCMState>& rays_out, bool adjoint);
 
     template<typename StateType, int queue_count, int shadow_queue_count, int max_shadow_rays_per_hit>
     friend class RayScheduler;
