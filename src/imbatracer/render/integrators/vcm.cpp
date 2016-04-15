@@ -148,7 +148,7 @@ void VCM_INTEGRATOR::preprocess() {
 
     printf("avg path len %d, cache size %d\n", avg_len, vc_size);
 
-    vertex_cache_.resize(vc_size + 600000);
+    vertex_cache_.resize(vc_size + 700000);
 }
 
 static int64_t counter = 0;
@@ -178,11 +178,7 @@ void VCM_INTEGRATOR::render(AtomicImage& img) {
     // Compute the MIS weights for vetex connection and vertex merging.
     const float etaVCM = pi * sqr(pm_radius_) * light_path_count_;
     mis_weight_vc_ = mis_heuristic(1.0f / etaVCM);
-
-    if (!bpt_only)
-        mis_weight_vm_ = mis_heuristic(etaVCM);
-    else
-        mis_weight_vm_ = 0.0f;
+    mis_weight_vm_ = bpt_only ? 0.0f : mis_heuristic(etaVCM);
 
     if (!pt_only)
         trace_light_paths(img);
@@ -197,7 +193,6 @@ void VCM_INTEGRATOR::reset_buffers() {
 
 VCM_TEMPLATE
 void VCM_INTEGRATOR::trace_light_paths(AtomicImage& img) {
-    printf("discarded in total %d\n", counter);
     counter = 0;
     vertex_cache_last_ = 0;
 
@@ -240,9 +235,12 @@ void VCM_INTEGRATOR::trace_light_paths(AtomicImage& img) {
     if (lt_only)
         return;
 
-    photon_grid_.reserve(width_ * height_);
     light_vertices_count_ = std::min(static_cast<int>(vertex_cache_.size()), static_cast<int>(vertex_cache_last_));
+    photon_grid_.reserve(light_vertices_count_);
     photon_grid_.build(vertex_cache_.begin(), vertex_cache_.begin() + light_vertices_count_, pm_radius_);
+
+    if (counter > 0)
+        printf("discarded in total %d\n", counter);
 }
 
 VCM_TEMPLATE
@@ -314,7 +312,7 @@ void VCM_INTEGRATOR::bounce(VCMState& state, const Intersection& isect, BSDF* bs
                 (s.dVC * mis_heuristic(pdf_rev_w * rr_pdf) + s.dVCM + mis_weight_vm_);
 
         s.dVM = mis_heuristic(cos_theta_i / (pdf_dir_w * rr_pdf)) *
-                (s.dVM * mis_heuristic(pdf_rev_w * rr_pdf) + s.dVCM + mis_weight_vc_);
+                (s.dVM * mis_heuristic(pdf_rev_w * rr_pdf) + s.dVCM * mis_weight_vc_ + 1.0f);
 
         s.dVCM = mis_heuristic(1.0f / (pdf_dir_w * rr_pdf));
     }
@@ -668,7 +666,7 @@ void VCM_INTEGRATOR::vertex_merging(const VCMState& state, const Intersection& i
         const float pdf_dir_w = bsdf->pdf(isect.out_dir, light_in_dir);
         const float pdf_rev_w = bsdf->pdf(light_in_dir, isect.out_dir);
 
-        if (pdf_dir_w == 0.0f || pdf_rev_w == 0.0f)
+        if (is_black(bsdf_value))
             continue;
 
         const float pdf_forward = pdf_dir_w * state.continue_prob;
