@@ -8,6 +8,9 @@
 #include <cmath>
 #include <chrono>
 
+// Enables debugging code for the vertex cache.
+#define TEST_VERTEX_CACHE
+
 namespace imba {
 
 //static int64_t photon_time = 0;
@@ -55,6 +58,7 @@ void VCM_INTEGRATOR::preprocess() {
     for (int i = 0; i < path_count; ++i) {
         Ray ray_out;
         VCMState state_out;
+        state_out.pixel_id = i;
 
         static std::random_device rd;
         state_out.rng = RNG(rd());
@@ -81,10 +85,10 @@ void VCM_INTEGRATOR::preprocess() {
         queues[in_q].push(ray_out, state_out);
     }
 
-    std::atomic<int> path_length_sum(0);
+    std::atomic<int> vertex_count(0);
 
     // Trace the light paths until they are (almost) all terminated.
-    while (queues[in_q].size() > 0) {
+    while (queues[in_q].size() > 256) {
         queues[in_q].traverse(scene_);
 
         // Process hitpoints and bounce or terminate paths.
@@ -94,24 +98,22 @@ void VCM_INTEGRATOR::preprocess() {
         const Ray* rays = queues[in_q].rays();
         auto& rays_out = queues[out_q];
         tbb::parallel_for(tbb::blocked_range<size_t>(0, ray_count),
-                          [this, states, hits, rays, &rays_out, &path_length_sum] (const tbb::blocked_range<size_t>& range) {
+                          [this, states, hits, rays, &rays_out, &vertex_count] (const tbb::blocked_range<size_t>& range) {
             auto& bsdf_mem_arena = bsdf_memory_arenas.local();
 
             for (size_t i = range.begin(); i != range.end(); ++i) {
                 float rr_pdf;
                 RNG& rng = states[i].rng;
-                if (hits[i].tri_id < 0)
-                    continue;
-
-                ++path_length_sum;
-
-                if (!russian_roulette(states[i].throughput, rng.random_float(), rr_pdf))
+                if (hits[i].tri_id < 0 || !russian_roulette(states[i].throughput, rng.random_float(), rr_pdf))
                     continue;
 
                 bsdf_mem_arena.free_all();
 
                 Intersection isect = calculate_intersection(hits, rays, i);
                 auto bsdf = isect.mat->get_bsdf(isect, bsdf_mem_arena, true);
+
+                if (!isect.mat->is_specular())
+                    ++vertex_count; // we would store a vertex at this position
 
                 float pdf_dir_w;
                 float3 sample_dir;
@@ -143,21 +145,19 @@ void VCM_INTEGRATOR::preprocess() {
         std::swap(in_q, out_q);
     }
 
-    const int avg_len = path_length_sum / path_count;
-    const int vc_size = (avg_len * 1.1) * width_ * height_ * spp_;
+    const float avg_len = static_cast<float>(vertex_count) / static_cast<float>(path_count);
+    const int vc_size = 1.1f * std::ceil(avg_len) * width_ * height_ * spp_;
 
-    printf("avg path len %d, cache size %d\n", avg_len, vc_size);
-
-    vertex_cache_.resize(vc_size + 700000);
+    vertex_cache_.resize(vc_size);
 }
-
-static int64_t counter = 0;
 
 VCM_TEMPLATE
 void VCM_INTEGRATOR::add_vertex_to_cache(const LightPathVertex& v) {
     int i = vertex_cache_last_++;
     if (i > vertex_cache_.size()) {
-        ++counter;
+#ifdef TEST_VERTEX_CACHE
+        printf("Attempted to store a vertex that does not fit into the cache.\n");
+#endif
         return; // Discard vertices that do not fit. This is statistically very unlikely to happen.
     }
 
@@ -193,7 +193,6 @@ void VCM_INTEGRATOR::reset_buffers() {
 
 VCM_TEMPLATE
 void VCM_INTEGRATOR::trace_light_paths(AtomicImage& img) {
-    counter = 0;
     vertex_cache_last_ = 0;
 
     scheduler_.run_iteration(img, this,
@@ -238,9 +237,6 @@ void VCM_INTEGRATOR::trace_light_paths(AtomicImage& img) {
     light_vertices_count_ = std::min(static_cast<int>(vertex_cache_.size()), static_cast<int>(vertex_cache_last_));
     photon_grid_.reserve(light_vertices_count_);
     photon_grid_.build(vertex_cache_.begin(), vertex_cache_.begin() + light_vertices_count_, pm_radius_);
-
-    if (counter > 0)
-        printf("discarded in total %d\n", counter);
 }
 
 VCM_TEMPLATE
