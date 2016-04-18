@@ -146,22 +146,23 @@ void VCM_INTEGRATOR::preprocess() {
     }
 
     const float avg_len = static_cast<float>(vertex_count) / static_cast<float>(path_count);
-    const int vc_size = 1.1f * std::ceil(avg_len) * width_ * height_ * spp_;
+    const int vc_size = 1.1f * std::ceil(avg_len) * width_ * height_;
 
-    vertex_cache_.resize(vc_size);
+    for (auto& vc : vertex_caches_)
+        vc.resize(vc_size);
 }
 
 VCM_TEMPLATE
-void VCM_INTEGRATOR::add_vertex_to_cache(const LightPathVertex& v) {
-    int i = vertex_cache_last_++;
-    if (i > vertex_cache_.size()) {
+void VCM_INTEGRATOR::add_vertex_to_cache(const LightPathVertex& v, int sample_id) {
+    int i = vertex_cache_last_[sample_id]++;
+    if (i > vertex_caches_[sample_id].size()) {
 #ifdef TEST_VERTEX_CACHE
         printf("Attempted to store a vertex that does not fit into the cache.\n");
 #endif
         return; // Discard vertices that do not fit. This is statistically very unlikely to happen.
     }
 
-    vertex_cache_[i] = v;
+    vertex_caches_[sample_id][i] = v;
 }
 
 VCM_TEMPLATE
@@ -193,7 +194,8 @@ void VCM_INTEGRATOR::reset_buffers() {
 
 VCM_TEMPLATE
 void VCM_INTEGRATOR::trace_light_paths(AtomicImage& img) {
-    vertex_cache_last_ = 0;
+    for(auto& i : vertex_cache_last_)
+        i = 0;
 
     scheduler_.run_iteration(img, this,
         &VCM_INTEGRATOR::process_shadow_rays,
@@ -234,9 +236,11 @@ void VCM_INTEGRATOR::trace_light_paths(AtomicImage& img) {
     if (lt_only)
         return;
 
-    light_vertices_count_ = std::min(static_cast<int>(vertex_cache_.size()), static_cast<int>(vertex_cache_last_));
-    photon_grid_.reserve(light_vertices_count_);
-    photon_grid_.build(vertex_cache_.begin(), vertex_cache_.begin() + light_vertices_count_, pm_radius_);
+    for (int i = 0; i < spp_; ++i) {
+        light_vertices_count_[i] = std::min(static_cast<int>(vertex_caches_[i].size()), static_cast<int>(vertex_cache_last_[i]));
+        photon_grid_[i].reserve(light_vertices_count_[i]);
+        photon_grid_[i].build(vertex_caches_[i].begin(), vertex_caches_[i].begin() + light_vertices_count_[i], pm_radius_);
+    }
 }
 
 VCM_TEMPLATE
@@ -367,7 +371,7 @@ void VCM_INTEGRATOR::process_light_rays(RayQueue<VCMState>& rays_in, RayQueue<VC
                         states[i].dVC,
                         states[i].dVCM,
                         states[i].dVM,
-                        states[i].path_length + 1));
+                        states[i].path_length + 1), states[i].sample_id);
                 }
 
                 if (!ppm_only)
@@ -562,12 +566,12 @@ void VCM_INTEGRATOR::direct_illum(VCMState& cam_state, const Intersection& isect
 VCM_TEMPLATE
 void VCM_INTEGRATOR::connect(VCMState& cam_state, const Intersection& isect, BSDF* bsdf_cam, MemoryArena& bsdf_arena, RayQueue<VCMState>& rays_out_shadow) {
     // Additional weight required do to changed random processes when using the vertex cache.
-    const float vc_weight = (light_vertices_count_ / light_path_count_) / NUM_CONNECTIONS;
+    const float vc_weight = (light_vertices_count_[cam_state.sample_id] / light_path_count_) / NUM_CONNECTIONS;
 
     RNG& rng = cam_state.rng;
     // Connect to NUM_CONNECTIONS randomly chosen vertices from the cache.
     for (int i = 0; i < NUM_CONNECTIONS; ++i) {
-        auto& light_vertex = vertex_cache_[rng.random_int(0, light_vertices_count_)];
+        auto& light_vertex = vertex_caches_[cam_state.sample_id][rng.random_int(0, light_vertices_count_[cam_state.sample_id])];
 
         // Ignore paths that are longer than the specified maximum length.
         if (light_vertex.path_length + cam_state.path_length > max_path_len_)
@@ -646,7 +650,7 @@ void VCM_INTEGRATOR::vertex_merging(const VCMState& state, const Intersection& i
     photons.clear();
 
     //auto t0 = std::chrono::high_resolution_clock::now();
-    photon_grid_.process(photons, isect.pos);
+    photon_grid_[state.sample_id].process(photons, isect.pos);
     //auto t1 = std::chrono::high_resolution_clock::now();
     //photon_time += std::chrono::duration_cast<std::chrono::milliseconds>(t1 - t0).count();
 

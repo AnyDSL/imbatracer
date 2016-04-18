@@ -60,7 +60,7 @@ public:
         , width_(cam.width())
         , height_(cam.height())
         , ray_gen_(ray_gen)
-        , light_path_count_(cam.width() * cam.height() * spp)
+        , light_path_count_(cam.width() * cam.height())
         , pm_radius_(base_radius)
         , base_radius_(base_radius)
         , radius_alpha_(radius_alpha)
@@ -68,9 +68,13 @@ public:
         , scheduler_(ray_gen, scene, thread_count, tile_size)
         , max_path_len_(max_path_len)
         , spp_(spp)
-        , photon_grid_()
+        , vertex_caches_(spp)
+        , vertex_cache_last_(spp)
+        , light_vertices_count_(spp)
+        , photon_grid_(spp)
     {
-        photon_grid_.reserve(cam.width() * cam.height() * spp);
+        for (auto& grid : photon_grid_)
+            grid.reserve(cam.width() * cam.height());
     }
 
     virtual void render(AtomicImage& out) override;
@@ -100,13 +104,14 @@ private:
     RayGen<VCMState>& ray_gen_;
     TileScheduler<VCMState, NUM_CONNECTIONS + 1> scheduler_;
 
-    std::vector<LightPathVertex> vertex_cache_;
-    std::atomic<int> vertex_cache_last_;
-    int light_vertices_count_;
-    HashGrid<PhotonIterator> photon_grid_;
+    // Light path vertices and associated data are stored separately per sample / iteration.
+    std::vector<std::vector<LightPathVertex> > vertex_caches_;
+    std::vector<std::atomic<int> > vertex_cache_last_;
+    std::vector<int> light_vertices_count_;
+    std::vector<HashGrid<PhotonIterator> > photon_grid_;
 
     void reset_buffers();
-    void add_vertex_to_cache(const LightPathVertex& v);
+    void add_vertex_to_cache(const LightPathVertex& v, int sample_id);
 
     void process_light_rays(RayQueue<VCMState>& rays_in, RayQueue<VCMState>& rays_out, RayQueue<VCMState>& rays_out_shadow, AtomicImage& img);
     void process_camera_rays(RayQueue<VCMState>& rays_in, RayQueue<VCMState>& rays_out, RayQueue<VCMState>& shadow_rays, AtomicImage& img);
