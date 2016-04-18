@@ -22,6 +22,8 @@ RenderWindow::RenderWindow(const UserSettings& settings, Integrator& r, InputCon
     , max_time_sec_(settings.max_time_sec)
     , output_file_(settings.output_file)
     , spp_(spp)
+    , conv_interval_sec_(settings.intermediate_image_time)
+    , conv_file_base_(settings.intermediate_image_name)
 {
     if (!settings.background) {
         SDL_Init(SDL_INIT_VIDEO);
@@ -47,12 +49,13 @@ void RenderWindow::render_loop() {
     std::chrono::time_point<clock_type> cur_time = msg_time;
 
     while (true) {
-        auto elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(cur_time - start_time_).count();
-        auto msg_ms = std::chrono::duration_cast<std::chrono::milliseconds>(cur_time - msg_time).count();
+        const auto elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(cur_time - start_time_).count();
+        const auto msg_ms = std::chrono::duration_cast<std::chrono::milliseconds>(cur_time - msg_time).count();
+        const auto avg_frame_time = static_cast<float>(elapsed_ms) / frames_;
         if (msg_ms > msg_interval_ms && frames_ > 0) {
             std::cout << frames_ * spp_ << " samples, "
                       << 1000.0f * frames_ / static_cast<float>(elapsed_ms) << " frames per second, "
-                      << static_cast<float>(elapsed_ms) / frames_ << "ms per frame"
+                      << avg_frame_time << "ms per frame"
                       << std::endl;
             msg_time = cur_time;
         }
@@ -61,14 +64,15 @@ void RenderWindow::render_loop() {
 
         if ((window_ && handle_events(false)) ||
             (frames_ + 1) * spp_ > max_samples_ ||
-            elapsed_ms / 1000.0f > max_time_sec_)
+            (elapsed_ms + avg_frame_time) / 1000.0f > max_time_sec_)
             break;
 
         cur_time = clock_type::now();
 
-        if (frames_ % 1000 == 0) {
+        if (conv_file_base_ != "" && elapsed_ms / static_cast<int>(1000 * conv_interval_sec_) >= conv_count_) {
+            ++conv_count_;
             std::stringstream str;
-            str << "tmp_rendering_" << frames_ * spp_ << "samples" << ".png";
+            str << conv_file_base_ << elapsed_ms << "ms" << ".png";
             write_image(str.str().c_str());
         }
     }
@@ -165,6 +169,7 @@ void RenderWindow::clear() {
     std::chrono::high_resolution_clock clock;
     start_time_ = clock.now();
     msg_counter_ = 1;
+    conv_count_ = 0;
 
     integrator_.reset();
 }

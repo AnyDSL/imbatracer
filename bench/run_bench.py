@@ -79,11 +79,11 @@ bench_settings = [
 scheduler_args = [
     ##############################################################
     # Default thread count, varying spp
-    {
-        'name': 'default: 256x256 4 threads 1 spp',
-        'abbr': 'default',
-        'args': []
-    },
+    # {
+    #     'name': 'default: 256x256 4 threads 1 spp',
+    #     'abbr': 'default',
+    #     'args': []
+    # },
 
     # {
     #     'name': 'default 2 spp: 256x256 4 threads 2 spp',
@@ -91,11 +91,11 @@ scheduler_args = [
     #     'args': ['--spp', '2']
     # },
 
-    # {
-    #     'name': 'default 4 spp: 256x256 4 threads 4 spp',
-    #     'abbr': 'default_spp4',
-    #     'args': ['--spp', '4']
-    # },
+    {
+        'name': 'default 4 spp: 256x256 4 threads 4 spp',
+        'abbr': 'default_spp4',
+        'args': ['--spp', '4']
+    },
 
     ##############################################################
     # Single threaded version for reference
@@ -150,11 +150,26 @@ alg_small = ['pt', 'bpt', 'vcm']
 alg_large = ['pt', 'bpt', 'vcm', 'lt', 'ppm']
 alg_pt_only = ['pt']
 
-times_in_seconds = [30] #[5, 10, 30, 60]
-algorithms = ['bpt', 'vcm']
+times_in_seconds = [5] #[5, 10, 30, 60]
+algorithms = ['pt']
+convergence = True
+convergence_step_sec = 1
+
+def compute_rmse(file, ref):
+    p = Popen(['compare', '-metric', 'RMSE', file, ref, '.compare.png'],
+              stdin=PIPE, stdout=PIPE, stderr=PIPE)
+    output, err = p.communicate()
+
+    m = re.match(r'(\d+\.?\d*)', err)
+    if m is None:
+        rmse = 'ERROR: ' + output + err
+    else:
+        rmse = m.group(1)
+
+    return rmse
 
 def run_benchmark(app, setting, path, global_args, time_sec):
-    results = ''
+    results = ['', '']
 
     for alg in algorithms:
         print '   > running ' + alg + ' ... '
@@ -162,6 +177,7 @@ def run_benchmark(app, setting, path, global_args, time_sec):
         for scheduling in scheduler_args:
             print '   > ' + scheduling['name']
 
+            # Determine arguments and run imbatracer
             out_filename = path + setting['base_filename'] + '_' + alg + scheduling['abbr'] + '_' + str(time_sec) + 'sec' + '.png'
 
             args = [app, setting['scene'],
@@ -173,8 +189,11 @@ def run_benchmark(app, setting, path, global_args, time_sec):
             args.extend(global_args)
             args.extend(scheduling['args'])
 
-            p = Popen(args,
-                      stdin=PIPE, stdout=PIPE, stderr=PIPE)
+            if convergence:
+                args.extend(['--intermediate-path', path + setting['base_filename'] + '_' + alg + '_conv_',
+                             '--intermediate-time', str(convergence_step_sec)])
+
+            p = Popen(args, stdin=PIPE, stdout=PIPE, stderr=PIPE)
 
             output, err = p.communicate()
 
@@ -183,6 +202,7 @@ def run_benchmark(app, setting, path, global_args, time_sec):
 
             print '   > ' + perf_result
 
+            # Parse the results with regular expressions
             m = re.match(r'Done after (\d+\.?\d*) seconds, (\d+) samples @ (\d+\.?\d*) frames per second, (\d+\.?\d*)ms per frame', perf_result)
 
             time = m.group(1)
@@ -190,21 +210,28 @@ def run_benchmark(app, setting, path, global_args, time_sec):
             fps = m.group(3)
             ms_per_frame = m.group(4)
 
-            # Compute RMSE with ImageMagick
-            p = Popen(['compare', '-metric', 'RMSE', out_filename, setting['reference'], '.compare.png'],
-                      stdin=PIPE, stdout=PIPE, stderr=PIPE)
-            output, err = p.communicate()
-
-            m = re.match(r'(\d+\.?\d*)', err)
-            if m is None:
-                rmse = 'ERROR: ' + output + err
-            else:
-                rmse = m.group(1)
+            rmse = compute_rmse(out_filename, setting['reference'])
 
             print '   > RMSE: ' + rmse
             print '   > '
 
-            results += setting['name'] + ',' + alg + ',' + time + ',' + samples + ',' + fps + ',' + ms_per_frame + ',' + rmse + ',' + scheduling['name'] + '\n'
+            results[0] += setting['name'] + ',' + alg + ',' + time + ',' + samples + ',' + fps + ',' + ms_per_frame + ',' + rmse + ',' + scheduling['name'] + '\n'
+
+            # Compute RMSE values for the image in the convergence test
+            if convergence:
+                results[1] += setting['name'] + ',' + alg + '\n'
+                results[1] += 'time ms' + ',' + 'RMSE\n'
+                for file in os.listdir(path):
+                    beginning = setting['base_filename'] + '_' + alg + '_conv_'
+                    m = re.match(beginning + r'(\d+)ms.png', file)
+                    if m is None:
+                        continue
+
+                    time = m.group(1)
+                    rmse = compute_rmse(path + file, setting['reference'])
+
+                    results[1] += time + ',' + rmse + '\n'
+
 
         print '   > finished ' + alg
         print '   > ==================================='
@@ -228,11 +255,23 @@ if __name__ == '__main__':
         res_file = open('results/result_' + timestamp + '_' + str(time_sec) + 'sec.csv', 'w')
         res_file.write('name, algorithm, time (seconds), samples, frames per second, ms per frame, RMSE, scheduling scheme\n')
 
+        if convergence:
+            conv_res_file = open('results/converge_' + timestamp + '_' + str(time_sec) + 'sec.csv', 'w')
+
         foldername = 'results/images_' + timestamp + '/' + str(time_sec) + 'sec'
         os.makedirs(foldername)
 
         i = 1
         for setting in bench_settings:
             print '== Running benchmark ' + str(i) + ' / ' + str(len(bench_settings)) + ' - ' + setting['name']
-            res_file.write(run_benchmark(app, setting, foldername + '/', args, time_sec))
+            bench_res = run_benchmark(app, setting, foldername + '/', args, time_sec)
+            res_file.write(bench_res[0])
+            conv_res_file.write(bench_res[1])
+
+            res_file.flush()
+            os.fsync(res_file.fileno())
+
+            conv_res_file.flush()
+            os.fsync(conv_res_file.fileno())
+
             i += 1

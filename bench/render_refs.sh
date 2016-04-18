@@ -22,5 +22,4 @@ echo "Rendering specular cornell box (front view) (1 hour, vcm)"
 echo "Rendering cornell box with water (1 hour vcm)"
 ../build/src/imbatracer/imbatracer scenes/cornell/cornell_water.scene -a vcm -r 0.003 -w 1024 -h 1024 -q -t 3600 references/ref_cornell_water.png
 
-# echo "Rendering sibenik scene (2 hours, pt)"
-# ../build/src/imbatracer/imbatracer scenes/sibenik/sibenik.scene -a pt -w 1024 -h 1024 -q -t 7200 references/ref_sibenik.png
+echo "DONE"

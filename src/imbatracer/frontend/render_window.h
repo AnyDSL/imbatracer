@@ -50,6 +50,10 @@ private:
     int spp_;
     float max_time_sec_;
 
+    std::string conv_file_base_;
+    float conv_interval_sec_;
+    int conv_count_;
+
     std::string output_file_;
 };
 
