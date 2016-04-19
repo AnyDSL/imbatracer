@@ -80,19 +80,19 @@ scheduler_args = [
     ##############################################################
     # Default thread count, varying spp
     # {
-    #     'name': 'default: 256x256 4 threads 1 spp',
+    #     'name': 'default: 256x256, 4 threads, 1 spp',
     #     'abbr': 'default',
     #     'args': []
     # },
 
     # {
-    #     'name': 'default 2 spp: 256x256 4 threads 2 spp',
+    #     'name': 'default 2 spp: 256x256, 4 threads, 2 spp',
     #     'abbr': 'default_spp2',
     #     'args': ['--spp', '2']
     # },
 
     {
-        'name': 'default 4 spp: 256x256 4 threads 4 spp',
+        'name': 'default 4 spp: 256x256, 4 threads, 4 spp',
         'abbr': 'default_spp4',
         'args': ['--spp', '4']
     },
@@ -100,60 +100,38 @@ scheduler_args = [
     ##############################################################
     # Single threaded version for reference
     # {
-    #     'name': 'single thread: 1024x1024 1 threads 1 spp',
+    #     'name': 'single thread: 1024x1024, 1 threads, 1 spp',
     #     'abbr': 'single',
     #     'args': ['--thread-count', '1', '--tile-size', '1024']
     # },
 
     ##############################################################
-    # fewer threads, varying spp
-    # {
-    #     'name': 'fewer threads: 256x256 2 threads 1 spp',
-    #     'abbr': 'fewer',
-    #     'args': ['--thread-count', '2']
-    # },
-
-    # {
-    #     'name': 'fewer threads 2 spp: 256x256 2 threads 2 spp',
-    #     'abbr': 'fewer_spp2',
-    #     'args': ['--spp', '2', '--thread-count', '2']
-    # },
-
-    # {
-    #     'name': 'fewer threads 4 spp: 256x256 2 threads 4 spp',
-    #     'abbr': 'fewer_spp4',
-    #     'args': ['--spp', '4', '--thread-count', '2']
-    # },
-
-    ##############################################################
     # smaller tiles
 #     {
-#         'name': 'smaller tiles: 128x128 4 threads 1 spp',
+#         'name': 'smaller tiles: 128x128, 4 threads ,1 spp',
 #         'abbr': 'small',
 #         'args': ['--tile-size', '128']
 #     },
 
 #     {
-#         'name': 'smaller tiles 2 spp: 128x128 4 threads 2 spp',
+#         'name': 'smaller tiles 2 spp: 128x128, 4 threads, 2 spp',
 #         'abbr': 'small_spp2',
 #         'args': ['--spp', '2', '--tile-size', '128']
 #     },
 
 #     {
-#         'name': 'smaller tiles 4 spp: 128x128 4 threads 4 spp',
+#         'name': 'smaller tiles 4 spp: 128x128, 4 threads, 4 spp',
 #         'abbr': 'small_spp4',
 #         'args': ['--spp', '4', '--tile-size', '128']
 #     }
 ]
 
-alg_small = ['pt', 'bpt', 'vcm']
-alg_large = ['pt', 'bpt', 'vcm', 'lt', 'ppm']
-alg_pt_only = ['pt']
+all_algorithms = ['pt', 'bpt', 'vcm', 'lt', 'ppm']
 
-times_in_seconds = [5] #[5, 10, 30, 60]
-algorithms = ['pt']
+times_in_seconds = [60] #[5, 10, 30, 60]
+algorithms = ['pt', 'bpt', 'vcm', 'lt', 'ppm']
 convergence = True
-convergence_step_sec = 1
+convergence_step_sec = 5
 
 def compute_rmse(file, ref):
     p = Popen(['compare', '-metric', 'RMSE', file, ref, '.compare.png'],

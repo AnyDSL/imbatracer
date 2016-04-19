@@ -24,10 +24,14 @@ illum 6
 #################################
 
 newmtl apple_001
+Ns 15
+Ks 0.1 0.1 0.1
 map_Kd apple_001.tga
 illum 2
 
 newmtl apple_002
+Ns 15
+Ks 0.1 0.1 0.1
 map_Kd apple_002.tga
 illum 2
 
@@ -36,7 +40,7 @@ Kd 1.000000 1.000000 1.000000
 illum 2
 
 newmtl cloth_bottom
-map_Kd fabric_bot.tga
+map_Kd black.png
 illum 2
 
 newmtl cloth_top
@@ -110,8 +114,8 @@ Ni 1.700000
 illum 7
 
 newmtl water_blue
-Ks 0.1 0.1 1
-Tf 0.1 0.1 1
+Ks 0.2 0.6 0.9
+Tf 0.2 0.6 0.9
 Ni 1.330000
 illum 7
 
@@ -122,8 +126,8 @@ Ni 1.330000
 illum 7
 
 newmtl water_green
-Ks 0.1 1 0.1
-Tf 0.1 1 0.1
+Ks 0.3 1 0.3
+Tf 0.3 1 0.3
 Ni 1.330000
 illum 7
 

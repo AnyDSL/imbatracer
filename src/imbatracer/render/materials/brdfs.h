@@ -29,7 +29,7 @@ public:
         return float4(0.0f);
     }
 
-    virtual float4 sample(const float3& out_dir, float3& in_dir, float rnd_num_1, float rnd_num_2, float& pdf) const override {
+    virtual float4 sample(const float3& out_dir, float3& in_dir, RNG& rng, float& pdf) const override {
         in_dir = float3(-out_dir.x, -out_dir.y, out_dir.z); // Reflected direction in shading space (normal == z.)
         pdf = 1.0f;
 
@@ -61,9 +61,9 @@ public:
                 : float4(0.0f);
     }
 
-    virtual float4 sample(const float3& out_dir, float3& in_dir, float rnd_num_1, float rnd_num_2, float& pdf) const override {
+    virtual float4 sample(const float3& out_dir, float3& in_dir, RNG& rng, float& pdf) const override {
         // Sample a power weighted direction relative to the reflected direction
-        auto dir_sample = sample_power_cos_hemisphere(exponent_, rnd_num_1, rnd_num_2);
+        auto dir_sample = sample_power_cos_hemisphere(exponent_, rng.random_float(), rng.random_float());
 
         auto reflected_in = float3(-out_dir.x, -out_dir.y, out_dir.z);
         float3 reflected_tan, reflected_binorm;
@@ -169,8 +169,8 @@ public:
                (4.0f * abs_cos_theta(in_dir) * abs_cos_theta(out_dir));
     }
 
-    virtual float4 sample(const float3& out_dir, float3& in_dir, float rnd_num_1, float rnd_num_2, float& pdf) const override {
-        sample_blinn_distribution(out_dir, in_dir, rnd_num_1, rnd_num_2, pdf);
+    virtual float4 sample(const float3& out_dir, float3& in_dir, RNG& rng, float& pdf) const override {
+        sample_blinn_distribution(out_dir, in_dir, rng.random_float(), rng.random_float(), pdf);
         return same_hemisphere(out_dir, in_dir) ? eval(out_dir, in_dir) : float4(0.0f);
     }
 

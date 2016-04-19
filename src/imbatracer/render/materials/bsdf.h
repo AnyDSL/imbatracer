@@ -14,6 +14,8 @@
 namespace imba {
 
 enum BxDFFlags {
+    BSDF_NONE = 0,
+
     BSDF_REFLECTION      = 1 << 0,
     BSDF_TRANSMISSION    = 1 << 1,
 
@@ -49,8 +51,8 @@ public:
     virtual float4 eval(const float3& out_dir, const float3& in_dir) const = 0;
 
     /// Default implementation cosine-samples the hemisphere.
-    virtual float4 sample(const float3& out_dir, float3& in_dir, float rnd_num_1, float rnd_num_2, float& pdf) const {
-        DirectionSample ds = sample_cos_hemisphere(rnd_num_1, rnd_num_2);
+    virtual float4 sample(const float3& out_dir, float3& in_dir, RNG& rng, float& pdf) const {
+        DirectionSample ds = sample_cos_hemisphere(rng.random_float(), rng.random_float());
         in_dir = ds.dir;
         pdf = ds.pdf;
 
@@ -79,15 +81,16 @@ public:
     }
 
     /// Default implementation cosine-samples the hemisphere.
-    virtual float4 sample(const float3& out_dir, float3& in_dir, float rnd_num_1, float rnd_num_2, float& pdf) const override {
+    virtual float4 sample(const float3& out_dir, float3& in_dir, RNG& rng, float& pdf) const override {
         BxDF* chosen_bxdf;
 
-        if (rnd_num_1 < 0.5f) // Reusing the first random number in this way causes neglegible correlation.
+        const float tr = rng.random_float();
+        if (tr < 0.5f)
             chosen_bxdf = a_;
         else
             chosen_bxdf = b_;
 
-        auto val = chosen_bxdf->sample(out_dir, in_dir, rnd_num_1, rnd_num_2, pdf);
+        auto val = chosen_bxdf->sample(out_dir, in_dir, rng, pdf);
         pdf *= 0.5f;
         return val;
     }
@@ -152,8 +155,7 @@ public:
         return res;
     }
 
-    float4 sample(const float3& out_dir, float3& in_dir, float rnd_num_component, float rnd_num_1, float rnd_num_2,
-                  BxDFFlags flags, BxDFFlags& sampled_flags, float& pdf) const {
+    float4 sample(const float3& out_dir, float3& in_dir, RNG& rng, BxDFFlags flags, BxDFFlags& sampled_flags, float& pdf) const {
         float3 local_out = world_to_local(out_dir);
 
         // Select which to sample: BRDF or BTDF, based on importance specified by the BTDF.
@@ -175,6 +177,7 @@ public:
 
         BxDF* chosen_bxdf;
         float component_pdf;
+        const float rnd_num_component = rng.random_float();
         if (rnd_num_component < btdf_prob) {
             chosen_bxdf = btdf_;
             component_pdf = btdf_prob;
@@ -185,7 +188,7 @@ public:
 
         // Sample the BxDF
         float3 local_in;
-        float4 value = chosen_bxdf->sample(local_out, local_in, rnd_num_1, rnd_num_2, pdf);
+        float4 value = chosen_bxdf->sample(local_out, local_in, rng, pdf);
 
         if (pdf == 0.0f) {
             sampled_flags = BxDFFlags(0);

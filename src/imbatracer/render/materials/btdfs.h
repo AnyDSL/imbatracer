@@ -18,7 +18,7 @@ public:
         return float4(0.0f);
     }
 
-    virtual float4 sample(const float3& out_dir, float3& in_dir, float rnd_num_1, float rnd_num_2, float& pdf) const override {
+    virtual float4 sample(const float3& out_dir, float3& in_dir, RNG& rng, float& pdf) const override {
         pdf = 1.0f;
 
         // Compute optical densities depending on whether the ray is coming from the outside or the inside.

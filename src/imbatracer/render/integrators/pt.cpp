@@ -54,10 +54,9 @@ void PathTracer::bounce(const Intersection& isect, PTState& state, RayQueue<PTSt
     float pdf;
     float3 sample_dir;
     BxDFFlags sampled_flags;
-    auto bsdf_value = bsdf->sample(isect.out_dir, sample_dir, rng.random_float(), rng.random_float(), rng.random_float(),
-                                   BSDF_ALL, sampled_flags, pdf);
+    auto bsdf_value = bsdf->sample(isect.out_dir, sample_dir, rng, BSDF_ALL, sampled_flags, pdf);
 
-    if (pdf <= 0.0001f)
+    if (pdf == 0.0f || sampled_flags == BSDF_NONE || is_black(bsdf_value))
         return;
 
     const float cos_term = fabsf(dot(isect.normal, sample_dir));

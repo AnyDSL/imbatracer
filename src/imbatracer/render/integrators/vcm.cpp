@@ -118,8 +118,7 @@ void VCM_INTEGRATOR::preprocess() {
                 float pdf_dir_w;
                 float3 sample_dir;
                 BxDFFlags sampled_flags;
-                auto bsdf_value = bsdf->sample(isect.out_dir, sample_dir, rng.random_float(), rng.random_float(), rng.random_float(),
-                                               BSDF_ALL, sampled_flags, pdf_dir_w);
+                auto bsdf_value = bsdf->sample(isect.out_dir, sample_dir, rng, BSDF_ALL, sampled_flags, pdf_dir_w);
 
                 if (sampled_flags == 0 || pdf_dir_w == 0.0f || is_black(bsdf_value))
                     continue;
@@ -287,8 +286,7 @@ void VCM_INTEGRATOR::bounce(VCMState& state, const Intersection& isect, BSDF* bs
     float pdf_dir_w;
     float3 sample_dir;
     BxDFFlags sampled_flags;
-    auto bsdf_value = bsdf->sample(isect.out_dir, sample_dir, rng.random_float(), rng.random_float(), rng.random_float(),
-                                   flags, sampled_flags, pdf_dir_w);
+    auto bsdf_value = bsdf->sample(isect.out_dir, sample_dir, rng, flags, sampled_flags, pdf_dir_w);
 
     bool is_specular = sampled_flags & BSDF_SPECULAR;
 
@@ -468,7 +466,9 @@ void VCM_INTEGRATOR::process_camera_rays(RayQueue<VCMState>& rays_in, RayQueue<V
                 }
 
                 // Continue the path using russian roulette.
-                bounce(states[i], isect, bsdf, rays_out, false);
+                if (states[i].path_length < max_path_len_)
+                    bounce(states[i], isect, bsdf, rays_out, false);
+
                 continue;
             }
 
