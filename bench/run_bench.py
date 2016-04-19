@@ -144,6 +144,8 @@ def compute_rmse(file, ref):
     else:
         rmse = m.group(1)
 
+    os.remove('.compare.png')
+
     return rmse
 
 def run_benchmark(app, setting, path, time_sec):

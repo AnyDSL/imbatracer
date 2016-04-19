@@ -10,6 +10,7 @@
 #include <cstring>
 #include <cassert>
 #include <atomic>
+#include <mutex>
 
 namespace imba {
 
@@ -20,6 +21,11 @@ struct RayState {
 
     RNG rng;
 };
+
+// Allow running multiple traversal instances at the same time, if traversal is running on the CPU.
+#ifndef CPU_TRAVERSAL
+static std::mutex traversal_mutex;
+#endif
 
 /// Stores a set of rays for traversal along with their state.
 template <typename StateType>
@@ -104,15 +110,22 @@ public:
         }
 
         ray_buffer_.upload(size());
-        TRAVERSAL_INTERSECT(scene.nodes.device_data(),
-                            scene.tris.device_data(),
-                            ray_buffer_.device_data(),
-                            hit_buffer_.device_data(),
-                            scene.indices.device_data(),
-                            scene.texcoords.device_data(),
-                            scene.masks.device_data(),
-                            scene.mask_buffer.device_data(),
-                            count);
+
+        {
+#ifndef CPU_TRAVERSAL
+            std::lock_guard<std::mutex> lock(traversal_mutex);
+#endif
+            TRAVERSAL_INTERSECT(scene.nodes.device_data(),
+                                scene.tris.device_data(),
+                                ray_buffer_.device_data(),
+                                hit_buffer_.device_data(),
+                                scene.indices.device_data(),
+                                scene.texcoords.device_data(),
+                                scene.masks.device_data(),
+                                scene.mask_buffer.device_data(),
+                                count);
+        }
+
         hit_buffer_.download(size());
     }
 
@@ -125,15 +138,22 @@ public:
         }
 
         ray_buffer_.upload(size());
-        TRAVERSAL_OCCLUDED(scene.nodes.device_data(),
-                           scene.tris.device_data(),
-                           ray_buffer_.device_data(),
-                           hit_buffer_.device_data(),
-                           scene.indices.device_data(),
-                           scene.texcoords.device_data(),
-                           scene.masks.device_data(),
-                           scene.mask_buffer.device_data(),
-                           count);
+
+        {
+#ifndef CPU_TRAVERSAL
+            std::lock_guard<std::mutex> lock(traversal_mutex);
+#endif
+            TRAVERSAL_OCCLUDED(scene.nodes.device_data(),
+                               scene.tris.device_data(),
+                               ray_buffer_.device_data(),
+                               hit_buffer_.device_data(),
+                               scene.indices.device_data(),
+                               scene.texcoords.device_data(),
+                               scene.masks.device_data(),
+                               scene.mask_buffer.device_data(),
+                               count);
+        }
+
         hit_buffer_.download(size());
     }
 

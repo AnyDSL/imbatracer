@@ -1,5 +1,4 @@
 #include <thread>
-#include <mutex>
 #include <atomic>
 
 namespace imba {
@@ -10,13 +9,6 @@ template<typename StateType, int max_shadow_rays_per_hit>
 class TileScheduler : public RaySchedulerBase<TileScheduler<StateType, max_shadow_rays_per_hit>, StateType> {
     using BaseType = RaySchedulerBase<TileScheduler<StateType, max_shadow_rays_per_hit>, StateType>;
     using SamplePixelFn = typename RayGen<StateType>::SamplePixelFn;
-
-    // Allow running multiple traversal instances at the same time, if traversal is running on the CPU.
-#ifdef CPU_TRAVERSAL
-    static constexpr bool single_traversal = false;
-#else
-    static constexpr bool single_traversal = true;
-#endif
 
 protected:
     using BaseType::ray_gen_;
@@ -112,20 +104,12 @@ private:
             while(!tile_ray_gen.is_empty() || prim_q_in->size() > 0) {
                 tile_ray_gen.fill_queue(*prim_q_in, sample_fn);
 
-                if (single_traversal) {
-                    std::lock_guard<std::mutex> lock(traversal_mutex_);
-                    prim_q_in->traverse(scene_);
-                } else
-                    prim_q_in->traverse(scene_);
+                prim_q_in->traverse(scene_);
 
                 (integrator->*process_primary_rays)(*prim_q_in, *prim_q_out, *shadow_q, image);
 
                 if (shadow_q->size() > 0) {
-                    if (single_traversal) {
-                        std::lock_guard<std::mutex> lock(traversal_mutex_);
-                        shadow_q->traverse_occluded(scene_);
-                    } else
-                        shadow_q->traverse_occluded(scene_);
+                    shadow_q->traverse_occluded(scene_);
 
                     (integrator->*process_shadow_rays)(*shadow_q, image);
                 }
@@ -140,8 +124,6 @@ private:
             cur_tile = next_tile_++;
         }
     }
-
-    std::mutex traversal_mutex_;
 };
 
 } // namespace imba
