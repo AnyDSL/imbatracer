@@ -146,7 +146,7 @@ def compute_rmse(file, ref):
 
     return rmse
 
-def run_benchmark(app, setting, path, global_args, time_sec):
+def run_benchmark(app, setting, path, time_sec):
     results = ['', '']
 
     for alg in algorithms:
@@ -164,7 +164,6 @@ def run_benchmark(app, setting, path, global_args, time_sec):
                     '-q', '-t', str(time_sec), '-a', alg,
                     out_filename]
             args.extend(setting['args'])
-            args.extend(global_args)
             args.extend(scheduling['args'])
 
             if convergence:
@@ -216,17 +215,66 @@ def run_benchmark(app, setting, path, global_args, time_sec):
 
     return results
 
+
+def run_convergence_tests(app):
+    """ Test to check if all algorithms eventually converge to the given reference image.
+
+    Uses only the path tracer, bi-directinal path tracer and vertex connection and merging, because
+    the other algorithms are biased and cannot reproduce some effects.
+    """
+    output_dir = 'results/convergence'
+    os.makedirs(output_dir)
+
+    print 'Running convergence tests...'
+
+    convergence_algs = ['pt', 'bpt', 'vcm']
+    for setting in bench_settings:
+        print setting['name']
+
+        convergence_algs = ['pt', 'bpt', 'vcm']
+        for alg in convergence_algs:
+            print alg
+
+            out_filename = output_dir + '/' + setting['base_filename'] + alg + '.png'
+
+            args = [app, setting['scene'],
+                    '-w', str(setting['width']),
+                    '-h', str(setting['height']),
+                    '-q', '-t', '3600', '-a', alg,
+                    '--spp', '4',
+                    out_filename]
+            args.extend(setting['args'])
+
+            p = Popen(args, stdin=PIPE, stdout=PIPE, stderr=PIPE)
+            output, err = p.communicate()
+
+            if not os.path.isfile(out_filename):
+                print 'ERROR: File was not created. Output: ' + output + err
+                continue
+
+            # compute RMSE
+            rmse = compute_rmse(out_filename, setting['reference'])
+            print ' > RMSE: ' + rmse
+
+    print 'DONE'
+    print ''
+
+
 if __name__ == '__main__':
-    if len(sys.argv) < 2:
+    if len(sys.argv) < 2 or len(sys.argv) > 3:
         print 'Invalid command line arguments. Expected path to imbatracer executable.'
         quit()
 
     app = sys.argv[1]
 
     args = []
-    if len(sys.argv) > 2:
-        args = sys.argv[2:]
+    if len(sys.argv) == 3:
+        if sys.argv[2] != '-c':
+            print 'Unknown argument: ' + sys.argv[2]
+        else:
+            run_convergence_tests(app)
 
+    # Run benchmarks
     timestamp = datetime.datetime.now().strftime('%Y_%m_%d_%H_%M_%S')
 
     for time_sec in times_in_seconds:
@@ -242,7 +290,7 @@ if __name__ == '__main__':
         i = 1
         for setting in bench_settings:
             print '== Running benchmark ' + str(i) + ' / ' + str(len(bench_settings)) + ' - ' + setting['name']
-            bench_res = run_benchmark(app, setting, foldername + '/', args, time_sec)
+            bench_res = run_benchmark(app, setting, foldername + '/', time_sec)
             res_file.write(bench_res[0])
             conv_res_file.write(bench_res[1])
 
