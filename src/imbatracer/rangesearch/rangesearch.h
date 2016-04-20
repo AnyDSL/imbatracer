@@ -27,7 +27,7 @@ public:
     void build(const Iter& photons_begin, const Iter& photons_end, float radius) {
         radius_        = radius;
         radius_sqr_    = sqr(radius_);
-        cell_size_     = radius_ * 2.f;
+        cell_size_     = radius_ * 2.f; // TODO dertermine on the fly would be better?
         inv_cell_size_ = 1.f / cell_size_;
 
         bbox_min_ = float3( 1e36f);
@@ -97,16 +97,10 @@ public:
 
         for(int j = 0; j < 8; j++) {
             CellIdx active_range;
-            switch(j) {
-            case 0: active_range = cell_range(cell_index(px , py , pz )); break;
-            case 1: active_range = cell_range(cell_index(px , py , pzo)); break;
-            case 2: active_range = cell_range(cell_index(px , pyo, pz )); break;
-            case 3: active_range = cell_range(cell_index(px , pyo, pzo)); break;
-            case 4: active_range = cell_range(cell_index(pxo, py , pz )); break;
-            case 5: active_range = cell_range(cell_index(pxo, py , pzo)); break;
-            case 6: active_range = cell_range(cell_index(pxo, pyo, pz )); break;
-            case 7: active_range = cell_range(cell_index(pxo, pyo, pzo)); break;
-            }
+            auto z = j & 1 ? pzo : pz;
+            auto y = j & 2 ? pyo : py;
+            auto x = j & 4 ? pxo : px;
+            active_range = cell_range(cell_index(x, y, z));
 
             for(; active_range.x < active_range.y; active_range.x++)
             {
