@@ -32,8 +32,8 @@ newmtl floor
     Ns 500.0000
     Ni 1.5000
     illum 2
-    #Kd 0.35 0.35 0.35
-	Ks 0.6 0.6 0.6
+    Kd 0.35 0.35 0.35
+    Ks 0.6 0.6 0.6
 
 newmtl ceiling
     Ns 10.0000

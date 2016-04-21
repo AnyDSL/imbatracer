@@ -96,7 +96,7 @@ public:
         } else {
             sample.radiance = float4(0.0f);
 
-            // Prevent nans in the integrator
+            // Prevent NaNs in the integrator
             sample.cos_out      = 1.0f;
             sample.pdf_emit_w   = 1.0f;
             sample.pdf_direct_w = 1.0f;
@@ -115,8 +115,19 @@ public:
 
         // Sample an outgoing direction
         DirectionSample dir_sample = sample_cos_hemisphere(rng.random_float(), rng.random_float());
-        auto world_dir = local_to_world(dir_sample.dir);
-        float cos_out = dir_sample.dir.z;
+        const auto world_dir = local_to_world(dir_sample.dir);
+        const float cos_out = dir_sample.dir.z;
+
+        if (cos_out == 0.0f) {
+            // pdf and cosine are zero! In theory impossible, but happens roughly once in a thousand frames in practice.
+            // To prevent NaNs (cosine and pdf are divided by each other for the MIS weight), set values appropriately.
+            sample.dir = world_dir;
+            sample.radiance = float4(0.0f);
+            sample.cos_out = 0.0f;
+            sample.pdf_emit_w = 1.0f;
+            sample.pdf_direct_a = 1.0f;
+            return sample;
+        }
 
         sample.dir      = world_dir;
         sample.radiance = intensity_ * area_ * pi; // The cosine cancels out with the pdf
@@ -132,7 +143,7 @@ public:
         const float cos_theta_o = dot(normal_, out_dir);
 
         if (cos_theta_o <= 0.0f) {
-            // set pdf to 1 to prevent nans
+            // set pdf to 1 to prevent NaNs
             pdf_direct_a = 1.0f;
             pdf_emit_w = 1.0f;
             return float4(0.0f);

@@ -17,7 +17,7 @@
 namespace imba {
 
 //static int64_t photon_time = 0;
-static const float offset = 0.00001f;
+static const float offset = 0.0001f;
 
 using ThreadLocalMemArena = tbb::enumerable_thread_specific<MemoryArena, tbb::cache_aligned_allocator<MemoryArena>, tbb::ets_key_per_instance>;
 static ThreadLocalMemArena bsdf_memory_arenas;
@@ -242,6 +242,13 @@ void VCM_INTEGRATOR::trace_light_paths(AtomicImage& img) {
             state_out.dVM = state_out.dVC * mis_weight_vc_;
 
             state_out.is_finite = l->is_finite();
+
+#ifdef ENABLE_NAN_TESTS
+            if (isnan(state_out.dVC) || isnan(state_out.dVCM) || isnan(state_out.dVM)) {
+                printf("NaN in light sampling:\n   pdf_dir_a=%f  pdf_emit_w=%f  cos=%f  pdf_lightpick=%f\n",
+                    sample.pdf_direct_a, sample.pdf_emit_w, sample.cos_out, pdf_lightpick);
+            }
+#endif
         });
 
     if (lt_only)
@@ -342,6 +349,11 @@ void VCM_INTEGRATOR::bounce(VCMState& state, const Intersection& isect, BSDF* bs
     if (isnan(s.throughput.x) || isnan(s.throughput.y) || isnan(s.throughput.z))
         printf("NaN in bounce: adjoint=%d\n   bsdf=(%f,%f,%f)\n   cos=%f\n   pdf=%f*%f\n",
             adjoint, bsdf_value.x, bsdf_value.y, bsdf_value.z, cos_theta_i, rr_pdf, pdf_dir_w);
+
+    if (isnan(s.dVC) || isnan(s.dVCM)) {
+        printf("NaN in bounce - partial weights:\n   cos=%f  pdf=%f  rr_pdf=%f  rev_pdf=%f  vm_weight=%f  vc_weight=%f\n",
+            cos_theta_i, pdf_dir_w, rr_pdf, pdf_rev_w, mis_weight_vm_, mis_weight_vc_);
+    }
 #endif
 }
 
@@ -460,6 +472,7 @@ void VCM_INTEGRATOR::connect_to_camera(const VCMState& light_state, const Inters
         printf("NaN in connect to camera:\n   mis=%f\n   bsdf=(%f,%f,%f)\n   weight=%f/%f\n",
             mis_weight, bsdf_value.x, bsdf_value.y, bsdf_value.z, img_to_surf, light_path_count_);
         printf("   mis_weight = %f * (%f + %f + %f * %f)\n", mis_heuristic(pdf_cam / light_path_count_), mis_weight_vm_, light_state.dVCM, light_state.dVC, mis_heuristic(pdf_rev));
+        printf("   bounces=%d\n", state.path_length);
     }
 #endif
 }
@@ -719,12 +732,6 @@ void VCM_INTEGRATOR::vertex_merging(const VCMState& state, const Intersection& i
         const float mis_weight = ppm_only ? 1.0f : (1.0f / (mis_weight_light + 1.0f + mis_weight_camera));
 
         contrib += mis_weight * bsdf_value * p->throughput;
-
-/*#ifdef ENABLE_NAN_TESTS
-        if (isnan(contrib.x) || isnan(contrib.y) || isnan(contrib.z))
-            printf("NaN in vertex merging:\n   mis=%f\n   bsdf=(%f,%f,%f)\n   throughput=(%f,%f,%f)\n",
-                mis_weight, bsdf_value.x, bsdf_value.y, bsdf_value.z, p->throughput.x, p->throughput.y, p->throughput.z);
-#endif*/
     }
 
     img.pixels()[state.pixel_id] += state.throughput * contrib * vm_normalization_;
@@ -737,14 +744,14 @@ void VCM_INTEGRATOR::process_shadow_rays(RayQueue<VCMState>& rays_in, AtomicImag
     const Hit* hits = rays_in.hits();
     const Ray* rays = rays_in.rays();
 
-    // const float4 max_contrib(100.0f, 100.0f, 100.0f, 100.0f);
-    // const float4 min_contrib(0.0f, 0.0f, 0.0f, 0.0f);
+    tbb::parallel_for(tbb::blocked_range<size_t>(0, ray_count), [states, hits, &img] (const tbb::blocked_range<size_t>& range) {
+        // const float4 max_contrib(100.0f, 100.0f, 100.0f, 100.0f);
+        // const float4 min_contrib(0.0f, 0.0f, 0.0f, 0.0f);
 
-    for (int i = 0; i < ray_count; ++i) {
-        if (hits[i].tri_id < 0) {
-            img.pixels()[states[i].pixel_id] += /*clamp(*/states[i].throughput;//, min_contrib, max_contrib);
-        }
-    }
+        for (size_t i = range.begin(); i != range.end(); ++i)
+            if (hits[i].tri_id < 0)
+                img.pixels()[states[i].pixel_id] += /*clamp(*/states[i].throughput;//, min_contrib, max_contrib);
+    });
 }
 
 // Prevents linker errors from defining member functions of a template class outside of the header.

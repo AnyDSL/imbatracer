@@ -85,17 +85,17 @@ scheduler_args = [
     #     'args': []
     # },
 
-    # {
-    #     'name': 'default 2 spp: 256x256, 4 threads, 2 spp',
-    #     'abbr': 'default_spp2',
-    #     'args': ['--spp', '2']
-    # },
-
     {
         'name': 'default 4 spp: 256x256, 4 threads, 4 spp',
         'abbr': 'default_spp4',
         'args': ['--spp', '4']
     },
+
+    # {
+    #     'name': 'default 8 spp: 256x256, 4 threads, 8 spp',
+    #     'abbr': 'default_spp8',
+    #     'args': ['--spp', '8']
+    # },
 
     ##############################################################
     # Single threaded version for reference
@@ -114,16 +114,16 @@ scheduler_args = [
 #     },
 
 #     {
-#         'name': 'smaller tiles 2 spp: 128x128, 4 threads, 2 spp',
-#         'abbr': 'small_spp2',
-#         'args': ['--spp', '2', '--tile-size', '128']
-#     },
-
-#     {
 #         'name': 'smaller tiles 4 spp: 128x128, 4 threads, 4 spp',
 #         'abbr': 'small_spp4',
 #         'args': ['--spp', '4', '--tile-size', '128']
 #     }
+
+#     {
+#         'name': 'smaller tiles 8 spp: 128x128, 4 threads, 8 spp',
+#         'abbr': 'small_spp8',
+#         'args': ['--spp', '8', '--tile-size', '128']
+#     },
 ]
 
 all_algorithms = ['pt', 'bpt', 'vcm', 'lt', 'ppm']
@@ -225,7 +225,8 @@ def run_convergence_tests(app):
     the other algorithms are biased and cannot reproduce some effects.
     """
     output_dir = 'results/convergence'
-    os.makedirs(output_dir)
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
 
     print 'Running convergence tests...'
 
