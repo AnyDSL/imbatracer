@@ -44,12 +44,9 @@ public:
         in_dir = float3(eta_frac * -out_dir.x, eta_frac * -out_dir.y, cos_trans);
 
         float fr = fresnel_.eval(cos_theta(out_dir));
+        float factor = adjoint ? 1.0f : sqr(eta_in / eta_trans);
 
-        float factor = 1.0f;
-        if (!adjoint)
-            factor = sqr(eta_trans) / sqr(eta_in);
-
-        return (1.0f - fr) * scale_ / fabsf(cos_theta(in_dir));
+        return factor * (1.0f - fr) * scale_ / fabsf(cos_theta(in_dir));
     }
 
     virtual float importance(const float3& out_dir) const override {
