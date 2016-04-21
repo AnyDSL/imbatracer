@@ -23,19 +23,31 @@ struct RayState {
 };
 
 // Allow running multiple traversal instances at the same time, if traversal is running on the CPU.
-#ifndef CPU_TRAVERSAL
+#ifdef GPU_TRAVERSAL
+
 static std::mutex traversal_mutex;
+static const int TRAVERSAL_BLOCK_SIZE = 64;
+
+#else
+
+static const int TRAVERSAL_BLOCK_SIZE = 8;
+
 #endif
 
 /// Stores a set of rays for traversal along with their state.
 template <typename StateType>
 class RayQueue {
+    inline int align(int v) { return v + TRAVERSAL_BLOCK_SIZE - v % TRAVERSAL_BLOCK_SIZE; }
 public:
     RayQueue() { }
 
     RayQueue(int capacity)
-        : ray_buffer_(capacity), hit_buffer_(capacity), state_buffer_(capacity), last_(-1)
-    {}
+        : ray_buffer_(align(capacity))
+        , hit_buffer_(align(capacity))
+        , state_buffer_(align(capacity))
+        , last_(-1)
+    {
+    }
 
     RayQueue(const RayQueue<StateType>&) = delete;
     RayQueue& operator= (const RayQueue<StateType>&) = delete;
@@ -105,8 +117,8 @@ public:
         assert(size() != 0);
 
         int count = size();
-        if (count % 64 != 0) {
-            count = count + 64 - count % 64;
+        if (count % TRAVERSAL_BLOCK_SIZE != 0) {
+            count = count + TRAVERSAL_BLOCK_SIZE - count % TRAVERSAL_BLOCK_SIZE;
         }
 
         ray_buffer_.upload(size());
@@ -133,8 +145,8 @@ public:
         assert(size() != 0);
 
         int count = size();
-        if (count % 64 != 0) {
-            count = count + 64 - count % 64;
+        if (count % TRAVERSAL_BLOCK_SIZE != 0) {
+            count = count + TRAVERSAL_BLOCK_SIZE - count % TRAVERSAL_BLOCK_SIZE;
         }
 
         ray_buffer_.upload(size());
