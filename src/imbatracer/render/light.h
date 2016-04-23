@@ -118,9 +118,10 @@ public:
         const auto world_dir = local_to_world(dir_sample.dir);
         const float cos_out = dir_sample.dir.z;
 
-        if (cos_out == 0.0f) {
+        if (dir_sample.pdf <= 0.0f) {
             // pdf and cosine are zero! In theory impossible, but happens roughly once in a thousand frames in practice.
             // To prevent NaNs (cosine and pdf are divided by each other for the MIS weight), set values appropriately.
+            // Numerical inaccuracies also cause this issue if the cosine is almost zero and the division by pi turns the pdf into zero
             sample.dir = world_dir;
             sample.radiance = float4(0.0f);
             sample.cos_out = 0.0f;

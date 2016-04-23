@@ -99,11 +99,11 @@ scheduler_args = [
 
     ##############################################################
     # Single threaded version for reference
-    # {
-    #     'name': 'single thread: 1024x1024, 1 threads, 1 spp',
-    #     'abbr': 'single',
-    #     'args': ['--thread-count', '1', '--tile-size', '1024']
-    # },
+    {
+        'name': 'single thread: 1024x1024, 1 threads, 1 spp',
+        'abbr': 'single',
+        'args': ['--thread-count', '1', '--tile-size', '1024']
+    },
 
     ##############################################################
     # smaller tiles
@@ -119,11 +119,11 @@ scheduler_args = [
 #         'args': ['--spp', '4', '--tile-size', '128']
 #     }
 
-#     {
-#         'name': 'smaller tiles 8 spp: 128x128, 4 threads, 8 spp',
-#         'abbr': 'small_spp8',
-#         'args': ['--spp', '8', '--tile-size', '128']
-#     },
+    {
+        'name': 'smaller tiles 8 spp: 128x128, 4 threads, 8 spp',
+        'abbr': 'small_spp8',
+        'args': ['--spp', '8', '--tile-size', '128']
+    },
 ]
 
 all_algorithms = ['pt', 'bpt', 'vcm', 'lt', 'ppm']
@@ -144,7 +144,10 @@ def compute_rmse(file, ref):
     else:
         rmse = m.group(1)
 
-    os.remove('.compare.png')
+    try:
+        os.remove('.compare.png')
+    except:
+        pass
 
     return rmse
 
@@ -207,9 +210,10 @@ def run_benchmark(app, setting, path, time_sec):
                         continue
 
                     time = m.group(1)
-                    rmse = compute_rmse(path + file, setting['reference'])
+                    rmse_step = compute_rmse(path + file, setting['reference'])
 
-                    results[1] += time + ',' + rmse + '\n'
+                    results[1] += time + ',' + rmse_step + '\n'
+                results[1] += '60' + ',' + rmse + '\n'
 
 
         print '   > finished ' + alg
