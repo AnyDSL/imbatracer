@@ -48,7 +48,15 @@ struct LightPathVertex {
 
 using PhotonIterator = std::vector<LightPathVertex>::iterator;
 
-template<bool bpt_only, bool ppm_only, bool lt_only, bool pt_only>
+enum VCMSubAlgorithm {
+    ALGO_VCM,
+    ALGO_BPT,
+    ALGO_PPM,
+    ALGO_LT,
+    ALGO_PT
+};
+
+template<VCMSubAlgorithm algo>
 class VCMIntegrator : public Integrator {
     // Number of light paths to be traced when computing the average length and thus vertex cache size.
     static constexpr int LIGHT_PATH_LEN_PROBES = 10000;
@@ -132,11 +140,11 @@ private:
     friend class RayScheduler;
 };
 
-using VCM    = VCMIntegrator<false, false, false, false>;
-using BPT    = VCMIntegrator<true , false, false, false>;
-using PPM    = VCMIntegrator<false, true , false, false>;
-using LT     = VCMIntegrator<false, false, true , false>;
-using VCM_PT = VCMIntegrator<false, false, false, true >;
+using VCM    = VCMIntegrator<ALGO_VCM>;
+using BPT    = VCMIntegrator<ALGO_BPT>;
+using PPM    = VCMIntegrator<ALGO_PPM>;
+using LT     = VCMIntegrator<ALGO_LT >;
+using VCM_PT = VCMIntegrator<ALGO_PT >;
 
 } // namespace imba
 

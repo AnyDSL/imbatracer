@@ -39,13 +39,8 @@ struct float4 {
     }
 };
 
-inline float3 truncate(const float4& a) {
-    return float3(a.x, a.y, a.z);
-}
-
-inline float3 homogeneous(const float4& a) {
-    return float3(a.x, a.y, a.z) / a.w;
-}
+inline float3::float3(const float4& f) : x(f.x), y(f.y), z(f.z)
+{}
 
 inline float4 operator * (float a, const float4& b) {
     return float4(a * b.x, a * b.y, a * b.z, a * b.w);

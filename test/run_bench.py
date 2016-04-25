@@ -91,14 +91,14 @@ scheduler_args = [
         'args': ['--spp', '4']
     },
 
-    # {
-    #     'name': 'default 8 spp: 256x256, 4 threads, 8 spp',
-    #     'abbr': 'default_spp8',
-    #     'args': ['--spp', '8']
-    # },
+    {
+        'name': 'default 8 spp: 256x256, 4 threads, 8 spp',
+        'abbr': 'default_spp8',
+        'args': ['--spp', '8']
+    },
 
-    ##############################################################
-    # Single threaded version for reference
+    # ##############################################################
+    # # Single threaded version for reference
     {
         'name': 'single thread: 1024x1024, 1 threads, 1 spp',
         'abbr': 'single',
@@ -113,11 +113,11 @@ scheduler_args = [
 #         'args': ['--tile-size', '128']
 #     },
 
-#     {
-#         'name': 'smaller tiles 4 spp: 128x128, 4 threads, 4 spp',
-#         'abbr': 'small_spp4',
-#         'args': ['--spp', '4', '--tile-size', '128']
-#     }
+    # {
+    #     'name': 'smaller tiles 4 spp: 128x128, 4 threads, 4 spp',
+    #     'abbr': 'small_spp4',
+    #     'args': ['--spp', '4', '--tile-size', '128']
+    # }
 
     {
         'name': 'smaller tiles 8 spp: 128x128, 4 threads, 8 spp',
@@ -129,7 +129,7 @@ scheduler_args = [
 all_algorithms = ['pt', 'bpt', 'vcm', 'lt', 'ppm']
 
 times_in_seconds = [60] #[5, 10, 30, 60]
-algorithms = ['pt', 'bpt', 'vcm', 'lt', 'ppm']
+algorithms = ['bpt', 'vcm']
 convergence = True
 convergence_step_sec = 5
 
@@ -172,7 +172,7 @@ def run_benchmark(app, setting, path, time_sec):
             args.extend(scheduling['args'])
 
             if convergence:
-                args.extend(['--intermediate-path', path + setting['base_filename'] + '_' + alg + '_conv_',
+                args.extend(['--intermediate-path', path + setting['base_filename'] + '_' + alg + scheduling['abbr'] + '_conv_',
                              '--intermediate-time', str(convergence_step_sec)])
 
             p = Popen(args, stdin=PIPE, stdout=PIPE, stderr=PIPE)
@@ -186,6 +186,10 @@ def run_benchmark(app, setting, path, time_sec):
 
             # Parse the results with regular expressions
             m = re.match(r'Done after (\d+\.?\d*) seconds, (\d+) samples @ (\d+\.?\d*) frames per second, (\d+\.?\d*)ms per frame', perf_result)
+
+            if m is None:
+                print 'imbatracer failed. Output: \n' + output + err
+                continue
 
             time = m.group(1)
             samples = m.group(2)
@@ -204,8 +208,8 @@ def run_benchmark(app, setting, path, time_sec):
                 results[1] += setting['name'] + ',' + alg + '\n'
                 results[1] += 'time ms' + ',' + 'RMSE\n'
                 for file in os.listdir(path):
-                    beginning = setting['base_filename'] + '_' + alg + '_conv_'
-                    m = re.match(beginning + r'(\d+)ms.png', file)
+                    filename_base = setting['base_filename'] + '_' + alg + scheduling['abbr'] + '_conv_'
+                    m = re.match(filename_base + r'(\d+)ms.png', file)
                     if m is None:
                         continue
 
@@ -299,12 +303,15 @@ if __name__ == '__main__':
             print '== Running benchmark ' + str(i) + ' / ' + str(len(bench_settings)) + ' - ' + setting['name']
             bench_res = run_benchmark(app, setting, foldername + '/', time_sec)
             res_file.write(bench_res[0])
-            conv_res_file.write(bench_res[1])
+
+            if convergence:
+                conv_res_file.write(bench_res[1])
 
             res_file.flush()
             os.fsync(res_file.fileno())
 
-            conv_res_file.flush()
-            os.fsync(conv_res_file.fileno())
+            if convergence:
+                conv_res_file.flush()
+                os.fsync(conv_res_file.fileno())
 
             i += 1

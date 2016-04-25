@@ -9,14 +9,13 @@
 #include <chrono>
 
 // Enables debugging code for the vertex cache.
-#define ENABLE_VERTEX_CACHE_DEBUG
+//#define ENABLE_VERTEX_CACHE_DEBUG
 
 // Enables debugging code that checks for NaNs in all contributions.
-#define ENABLE_NAN_TESTS
+//#define ENABLE_NAN_TESTS
 
 namespace imba {
 
-//static int64_t photon_time = 0;
 static const float offset = 0.0001f;
 
 using ThreadLocalMemArena = tbb::enumerable_thread_specific<MemoryArena, tbb::cache_aligned_allocator<MemoryArena>, tbb::ets_key_per_instance>;
@@ -26,8 +25,8 @@ using ThreadLocalPhotonContainer = tbb::enumerable_thread_specific<std::vector<P
 static ThreadLocalPhotonContainer photon_containers;
 
 inline float mis_heuristic(float a) {
-    //return sqr(a);
-    return a;
+    return sqr(a);
+    //return a;
 }
 
 /// Computes the cosine term for adjoint BSDFs that use shading normals.
@@ -40,12 +39,12 @@ inline float shading_normal_adjoint(const float3& normal, const float3& geom_nor
 }
 
 // Reduce ugliness from the template parameters.
-#define VCM_TEMPLATE template<bool bpt_only, bool ppm_only, bool lt_only, bool pt_only>
-#define VCM_INTEGRATOR VCMIntegrator<bpt_only, ppm_only, lt_only, pt_only>
+#define VCM_TEMPLATE template<VCMSubAlgorithm algo>
+#define VCM_INTEGRATOR VCMIntegrator<algo>
 
 VCM_TEMPLATE
 void VCM_INTEGRATOR::preprocess() {
-    if (lt_only || pt_only) // Vertex cache is only needed for bidirectional algorithms.
+    if (algo == ALGO_LT || algo == ALGO_PT) // Vertex cache is only needed for bidirectional algorithms.
         return;
 
     // Trace a couple of light paths into the scene and calculate their average length.
@@ -191,12 +190,12 @@ void VCM_INTEGRATOR::render(AtomicImage& img) {
     // Compute the MIS weights for vetex connection and vertex merging.
     const float etaVCM = pi * sqr(pm_radius_) * light_path_count_;
     mis_weight_vc_ = mis_heuristic(1.0f / etaVCM);
-    mis_weight_vm_ = bpt_only ? 0.0f : mis_heuristic(etaVCM);
+    mis_weight_vm_ = algo == ALGO_BPT ? 0.0f : mis_heuristic(etaVCM);
 
-    if (!pt_only)
+    if (algo != ALGO_PT)
         trace_light_paths(img);
 
-    if (!lt_only)
+    if (algo != ALGO_LT)
         trace_camera_paths(img);
 }
 
@@ -251,12 +250,12 @@ void VCM_INTEGRATOR::trace_light_paths(AtomicImage& img) {
 #endif
         });
 
-    if (lt_only) // Only build the hash grid when it is used.
+    if (algo == ALGO_LT) // Only build the hash grid when it is used.
         return;
 
     for (int i = 0; i < spp_; ++i) {
         light_vertices_count_[i] = std::min(static_cast<int>(vertex_caches_[i].size()), static_cast<int>(vertex_cache_last_[i]));
-        if (bpt_only) {
+        if (algo != ALGO_BPT) {
             photon_grid_[i].reserve(light_vertices_count_[i]);
             photon_grid_[i].build(vertex_caches_[i].begin(), vertex_caches_[i].begin() + light_vertices_count_[i], pm_radius_);
         }
@@ -301,7 +300,7 @@ void VCM_INTEGRATOR::bounce(VCMState& state, const Intersection& isect, BSDF* bs
         return;
 
     BxDFFlags flags = BSDF_ALL;
-    if (ppm_only && !adjoint) // For PPM: only sample specular scattering on the camera path.
+    if (algo == ALGO_PPM && !adjoint) // For PPM: only sample specular scattering on the camera path.
         flags = BxDFFlags(BSDF_SPECULAR | BSDF_REFLECTION | BSDF_TRANSMISSION);
 
     float pdf_dir_w;
@@ -393,7 +392,7 @@ void VCM_INTEGRATOR::process_light_rays(RayQueue<VCMState>& rays_in, RayQueue<VC
             auto bsdf = isect.mat->get_bsdf(isect, bsdf_mem_arena, true);
 
             if (!isect.mat->is_specular()){ // Do not store vertices on materials described by a delta distribution.
-                if (!lt_only) {
+                if (algo != ALGO_LT) {
                     add_vertex_to_cache(LightPathVertex(
                         isect,
                         states[i].throughput,
@@ -404,7 +403,7 @@ void VCM_INTEGRATOR::process_light_rays(RayQueue<VCMState>& rays_in, RayQueue<VC
                         states[i].path_length + 1), states[i].sample_id);
                 }
 
-                if (!ppm_only)
+                if (algo != ALGO_PPM)
                     connect_to_camera(states[i], isect, bsdf, ray_out_shadow);
             }
 
@@ -456,7 +455,7 @@ void VCM_INTEGRATOR::connect_to_camera(const VCMState& light_state, const Inters
     const float pdf_cam = img_to_surf; // Pixel sampling pdf is one as pixel area is one by convention.
     const float mis_weight_light = mis_heuristic(pdf_cam / light_path_count_) * (mis_weight_vm_ + light_state.dVCM + light_state.dVC * mis_heuristic(pdf_rev));
 
-    const float mis_weight = lt_only ? 1.0f : (1.0f / (mis_weight_light + 1.0f));
+    const float mis_weight = algo == ALGO_LT ? 1.0f : (1.0f / (mis_weight_light + 1.0f));
 
     // Contribution is divided by the number of samples (light_path_count_) and the factor that converts the (divided) pdf from surface area to image plane area.
     // The cosine term is already included in the img_to_surf term.
@@ -501,7 +500,7 @@ void VCM_INTEGRATOR::process_camera_rays(RayQueue<VCMState>& rays_in, RayQueue<V
 
             auto bsdf = isect.mat->get_bsdf(isect, bsdf_mem_arena);
 
-            if (ppm_only){
+            if (algo == ALGO_PPM){
                 if (!isect.mat->is_specular()) {
                     vertex_merging(states[i], isect, bsdf, img);
                 }
@@ -535,7 +534,7 @@ void VCM_INTEGRATOR::process_camera_rays(RayQueue<VCMState>& rays_in, RayQueue<V
                 if (states[i].path_length > 1) {
                     float4 color = states[i].throughput * radiance * mis_weight;
 
-                    if (!pt_only)
+                    if (algo != ALGO_PT)
                         img.pixels()[states[i].pixel_id] += color;
                 } else
                     img.pixels()[states[i].pixel_id] += radiance; // Light directly visible, no weighting required.
@@ -548,10 +547,10 @@ void VCM_INTEGRATOR::process_camera_rays(RayQueue<VCMState>& rays_in, RayQueue<V
                 continue; // No point in continuing this path. It is too long already
 
             // Connect to light path vertices.
-            if (!pt_only && !isect.mat->is_specular())
+            if (algo != ALGO_PT && !isect.mat->is_specular())
                 connect(states[i], isect, bsdf, bsdf_mem_arena, ray_out_shadow);
 
-            if (!bpt_only) {
+            if (algo != ALGO_BPT) {
                 if (!isect.mat->is_specular())
                     vertex_merging(states[i], isect, bsdf, img);
             }
@@ -596,7 +595,7 @@ void VCM_INTEGRATOR::direct_illum(VCMState& cam_state, const Intersection& isect
     const float mis_weight_camera = mis_heuristic(sample.pdf_emit_w * cos_theta_i / (sample.pdf_direct_w * cos_theta_o)) *
                                     (mis_weight_vm_ + cam_state.dVCM + cam_state.dVC * mis_heuristic(pdf_reverse));
 
-    const float mis_weight = pt_only ? 1.0f : (1.0f / (mis_weight_camera + 1.0f + mis_weight_light));
+    const float mis_weight = algo == ALGO_PT ? 1.0f : (1.0f / (mis_weight_camera + 1.0f + mis_weight_light));
 
     VCMState s = cam_state;
     s.throughput *= mis_weight * bsdf_value * cos_theta_i * sample.radiance * inv_pdf_lightpick;
@@ -613,19 +612,19 @@ void VCM_INTEGRATOR::direct_illum(VCMState& cam_state, const Intersection& isect
 
 VCM_TEMPLATE
 void VCM_INTEGRATOR::connect(VCMState& cam_state, const Intersection& isect, BSDF* bsdf_cam, MemoryArena& bsdf_arena, RayQueue<VCMState>& rays_out_shadow) {
-    // Additional weight required do to changed random processes when using the vertex cache.
+    // PDF conversion factor from using the vertex cache.
+    // Vertex Cache is equivalent to randomly sampling a path with pdf ~ path length and uniformly sampling a vertex on this path.
     const float vc_weight = (light_vertices_count_[cam_state.sample_id] / light_path_count_) / NUM_CONNECTIONS;
 
-    RNG& rng = cam_state.rng;
     // Connect to NUM_CONNECTIONS randomly chosen vertices from the cache.
     for (int i = 0; i < NUM_CONNECTIONS; ++i) {
-        auto& light_vertex = vertex_caches_[cam_state.sample_id][rng.random_int(0, light_vertices_count_[cam_state.sample_id])];
+        const auto& light_vertex = vertex_caches_[cam_state.sample_id][cam_state.rng.random_int(0, light_vertices_count_[cam_state.sample_id])];
 
         // Ignore paths that are longer than the specified maximum length.
         if (light_vertex.path_length + cam_state.path_length > max_path_len_)
             continue;
 
-        auto light_bsdf = light_vertex.isect.mat->get_bsdf(light_vertex.isect, bsdf_arena, true);
+        const auto light_bsdf = light_vertex.isect.mat->get_bsdf(light_vertex.isect, bsdf_arena, true);
 
         // Compute connection direction and distance.
         float3 connect_dir = light_vertex.isect.pos - isect.pos;
@@ -701,14 +700,12 @@ void VCM_INTEGRATOR::connect(VCMState& cam_state, const Intersection& isect, BSD
 
 VCM_TEMPLATE
 void VCM_INTEGRATOR::vertex_merging(const VCMState& state, const Intersection& isect, const BSDF* bsdf, AtomicImage& img) {
+    // Obtain the thread local photon buffer and reserve sufficient memory.
     auto& photons = photon_containers.local();
     photons.reserve(width_ * height_);
     photons.clear();
 
-    //auto t0 = std::chrono::high_resolution_clock::now();
     photon_grid_[state.sample_id].process(photons, isect.pos);
-    //auto t1 = std::chrono::high_resolution_clock::now();
-    //photon_time += std::chrono::duration_cast<std::chrono::milliseconds>(t1 - t0).count();
 
     float4 contrib(0.0f);
     const float radius_sqr = pm_radius_ * pm_radius_;
@@ -717,22 +714,23 @@ void VCM_INTEGRATOR::vertex_merging(const VCMState& state, const Intersection& i
         if (state.path_length + p->path_length - 1 > max_path_len_)
             continue;
 
-        const auto light_in_dir = p->isect.out_dir;
+        const auto photon_in_dir = p->isect.out_dir;
 
-        const auto bsdf_value = bsdf->eval(isect.out_dir, light_in_dir);
-        const float pdf_dir_w = bsdf->pdf(isect.out_dir, light_in_dir);
-        const float pdf_rev_w = bsdf->pdf(light_in_dir, isect.out_dir);
+        const auto bsdf_value = bsdf->eval(isect.out_dir, photon_in_dir);
+        const float pdf_dir_w = bsdf->pdf(isect.out_dir, photon_in_dir);
+        const float pdf_rev_w = bsdf->pdf(photon_in_dir, isect.out_dir);
 
-        if (is_black(bsdf_value))
+        if (pdf_dir_w == 0.0f || pdf_rev_w == 0.0f || is_black(bsdf_value))
             continue;
 
+        // Compute MIS weight.
         const float pdf_forward = pdf_dir_w * state.continue_prob;
         const float pdf_reverse = pdf_rev_w * state.continue_prob;
 
         const float mis_weight_light = p->dVCM * mis_weight_vc_ + p->dVM * mis_heuristic(pdf_forward);
         const float mis_weight_camera = state.dVCM * mis_weight_vc_ + state.dVM * mis_heuristic(pdf_reverse);
 
-        const float mis_weight = ppm_only ? 1.0f : (1.0f / (mis_weight_light + 1.0f + mis_weight_camera));
+        const float mis_weight = algo == ALGO_PPM ? 1.0f : (1.0f / (mis_weight_light + 1.0f + mis_weight_camera));
 
         // Epanechnikov filter
         const float kernel = 1.0f - dot(isect.pos - p->isect.pos, isect.pos - p->isect.pos) / radius_sqr;
@@ -740,23 +738,20 @@ void VCM_INTEGRATOR::vertex_merging(const VCMState& state, const Intersection& i
         contrib += mis_weight * bsdf_value * kernel * p->throughput;
     }
 
-    img.pixels()[state.pixel_id] += state.throughput * contrib * vm_normalization_ * 2.0f; // Factor 2 part of the Epanechnikov filter
+    img.pixels()[state.pixel_id] += state.throughput * contrib * vm_normalization_ * 2.0f; // Factor 2.0f is part of the Epanechnikov filter
 }
 
 VCM_TEMPLATE
 void VCM_INTEGRATOR::process_shadow_rays(RayQueue<VCMState>& rays_in, AtomicImage& img) {
-    int ray_count = rays_in.size();
     const VCMState* states = rays_in.states();
     const Hit* hits = rays_in.hits();
-    const Ray* rays = rays_in.rays();
 
-    tbb::parallel_for(tbb::blocked_range<size_t>(0, ray_count), [states, hits, &img] (const tbb::blocked_range<size_t>& range) {
-        // const float4 max_contrib(100.0f, 100.0f, 100.0f, 100.0f);
-        // const float4 min_contrib(0.0f, 0.0f, 0.0f, 0.0f);
-
+    tbb::parallel_for(tbb::blocked_range<size_t>(0, rays_in.size()),
+        [states, hits, &img] (const tbb::blocked_range<size_t>& range)
+    {
         for (size_t i = range.begin(); i != range.end(); ++i)
-            if (hits[i].tri_id < 0)
-                img.pixels()[states[i].pixel_id] += /*clamp(*/states[i].throughput;//, min_contrib, max_contrib);
+            if (hits[i].tri_id < 0) // Nothing was hit, the light is visible.
+                img.pixels()[states[i].pixel_id] += states[i].throughput;
     });
 }
 
@@ -765,11 +760,11 @@ void dummy_func_to_prevent_linker_errors_dont_call() {
     Scene scene;
     PerspectiveCamera cam(0,0,0.0f);
     PixelRayGen<VCMState> ray_gen(1, 1, 1);
-    VCMIntegrator<false, false, false, false> tmp1(scene, cam, ray_gen, 1, 1, 1, 1);
-    VCMIntegrator<true , false, false, false> tmp2(scene, cam, ray_gen, 1, 1, 1, 1);
-    VCMIntegrator<false, true , false, false> tmp3(scene, cam, ray_gen, 1, 1, 1, 1);
-    VCMIntegrator<false, false, true , false> tmp4(scene, cam, ray_gen, 1, 1, 1, 1);
-    VCMIntegrator<false, false, false, true > tmp5(scene, cam, ray_gen, 1, 1, 1, 1);
+    VCMIntegrator<ALGO_PPM> tmp1(scene, cam, ray_gen, 1, 1, 1, 1);
+    VCMIntegrator<ALGO_PT > tmp2(scene, cam, ray_gen, 1, 1, 1, 1);
+    VCMIntegrator<ALGO_LT > tmp3(scene, cam, ray_gen, 1, 1, 1, 1);
+    VCMIntegrator<ALGO_BPT> tmp4(scene, cam, ray_gen, 1, 1, 1, 1);
+    VCMIntegrator<ALGO_VCM> tmp5(scene, cam, ray_gen, 1, 1, 1, 1);
 }
 
 } // namespace imba

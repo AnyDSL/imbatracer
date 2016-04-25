@@ -7,8 +7,6 @@
 
 #include <cfloat>
 #include <cassert>
-#include <random>
-#include <chrono>
 
 namespace imba {
 
@@ -38,6 +36,7 @@ void PathTracer::compute_direct_illum(const Intersection& isect, PTState& state,
 }
 
 void PathTracer::bounce(const Intersection& isect, PTState& state, RayQueue<PTState>& ray_out, BSDF* bsdf) {
+    // Terminate the path if it is too long or with russian roulette.
     if (state.bounces + 1 >= max_path_len_) // Path length includes the vertices on the camera and the light.
         return;
 
