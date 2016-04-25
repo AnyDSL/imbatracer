@@ -96,17 +96,10 @@ public:
         const int  pzo = pz + (fract_coord.z < 0.5f ? -1 : 1);
 
         for(int j = 0; j < 8; j++) {
-            CellIdx active_range;
-            switch(j) {
-            case 0: active_range = cell_range(cell_index(px , py , pz )); break;
-            case 1: active_range = cell_range(cell_index(px , py , pzo)); break;
-            case 2: active_range = cell_range(cell_index(px , pyo, pz )); break;
-            case 3: active_range = cell_range(cell_index(px , pyo, pzo)); break;
-            case 4: active_range = cell_range(cell_index(pxo, py , pz )); break;
-            case 5: active_range = cell_range(cell_index(pxo, py , pzo)); break;
-            case 6: active_range = cell_range(cell_index(pxo, pyo, pz )); break;
-            case 7: active_range = cell_range(cell_index(pxo, pyo, pzo)); break;
-            }
+            const int x = j & 4 ? pxo : px;
+            const int y = j & 2 ? pyo : py;
+            const int z = j & 1 ? pzo : pz;
+            CellIdx active_range = cell_range(cell_index(x , y , z ));
 
             for(; active_range.x < active_range.y; active_range.x++)
             {

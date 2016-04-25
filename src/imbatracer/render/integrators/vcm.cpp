@@ -251,13 +251,15 @@ void VCM_INTEGRATOR::trace_light_paths(AtomicImage& img) {
 #endif
         });
 
-    if (lt_only)
+    if (lt_only) // Only build the hash grid when it is used.
         return;
 
     for (int i = 0; i < spp_; ++i) {
         light_vertices_count_[i] = std::min(static_cast<int>(vertex_caches_[i].size()), static_cast<int>(vertex_cache_last_[i]));
-        photon_grid_[i].reserve(light_vertices_count_[i]);
-        photon_grid_[i].build(vertex_caches_[i].begin(), vertex_caches_[i].begin() + light_vertices_count_[i], pm_radius_);
+        if (bpt_only) {
+            photon_grid_[i].reserve(light_vertices_count_[i]);
+            photon_grid_[i].build(vertex_caches_[i].begin(), vertex_caches_[i].begin() + light_vertices_count_[i], pm_radius_);
+        }
     }
 }
 

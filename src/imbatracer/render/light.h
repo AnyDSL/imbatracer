@@ -232,8 +232,9 @@ private:
 
 class PointLight : public Light {
 public:
-    PointLight(const float3&
-     pos, const float4& intensity) : pos_(pos), intensity_(intensity) {}
+    PointLight(const float3& pos, const float4& intensity)
+        : pos_(pos), intensity_(intensity)
+    {}
 
     virtual float4 radiance(const float3& out_dir, float& pdf_direct_a, float& pdf_emit_w) override {
         return float4(0.0f); // Point lights cannot be hit.
