@@ -709,6 +709,7 @@ void VCM_INTEGRATOR::vertex_merging(const VCMState& state, const Intersection& i
     //photon_time += std::chrono::duration_cast<std::chrono::milliseconds>(t1 - t0).count();
 
     float4 contrib(0.0f);
+    const float radius_sqr = pm_radius_ * pm_radius_;
     for (PhotonIterator p : photons) {
         // Ignore the path if it would be too small. Don't count the merged vertices twice.
         if (state.path_length + p->path_length - 1 > max_path_len_)
@@ -731,10 +732,13 @@ void VCM_INTEGRATOR::vertex_merging(const VCMState& state, const Intersection& i
 
         const float mis_weight = ppm_only ? 1.0f : (1.0f / (mis_weight_light + 1.0f + mis_weight_camera));
 
-        contrib += mis_weight * bsdf_value * p->throughput;
+        // Epanechnikov filter
+        const float kernel = 1.0f - dot(isect.pos - p->isect.pos, isect.pos - p->isect.pos) / radius_sqr;
+
+        contrib += mis_weight * bsdf_value * kernel * p->throughput;
     }
 
-    img.pixels()[state.pixel_id] += state.throughput * contrib * vm_normalization_;
+    img.pixels()[state.pixel_id] += state.throughput * contrib * vm_normalization_ * 2.0f; // Factor 2 part of the Epanechnikov filter
 }
 
 VCM_TEMPLATE
