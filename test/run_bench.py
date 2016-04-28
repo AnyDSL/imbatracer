@@ -5,55 +5,55 @@ import datetime
 
 # contains a dictionary of settings for every benchmark test
 bench_settings = [
-    {
-        'name': 'Cornell box',
-        'scene': 'scenes/cornell/cornell_org.scene',
-        'reference': 'references/ref_cornell_org.png',
-        'width': 1024,
-        'height': 1024,
-        'base_filename': 'cornell',
-        'args': ['-r', '0.003']
-    },
+    # {
+    #     'name': 'Cornell box',
+    #     'scene': 'scenes/cornell/cornell_org.scene',
+    #     'reference': 'references/ref_cornell_org.png',
+    #     'width': 1024,
+    #     'height': 1024,
+    #     'base_filename': 'cornell',
+    #     'args': ['-r', '0.003']
+    # },
 
-    {
-        'name': 'Cornell specular balls',
-        'scene': 'scenes/cornell/cornell_specular_front.scene',
-        'reference': 'references/ref_cornell_specular_front.png',
-        'width': 1024,
-        'height': 1024,
-        'base_filename': 'cornell_specular_front',
-        'args': ['-r', '0.003']
-    },
+    # {
+    #     'name': 'Cornell specular balls',
+    #     'scene': 'scenes/cornell/cornell_specular_front.scene',
+    #     'reference': 'references/ref_cornell_specular_front.png',
+    #     'width': 1024,
+    #     'height': 1024,
+    #     'base_filename': 'cornell_specular_front',
+    #     'args': ['-r', '0.003']
+    # },
 
-    {
-        'name': 'Cornell specular balls close',
-        'scene': 'scenes/cornell/cornell_specular.scene',
-        'reference': 'references/ref_cornell_specular.png',
-        'width': 1024,
-        'height': 1024,
-        'base_filename': 'cornell_specular',
-        'args': ['-r', '0.003']
-    },
+    # {
+    #     'name': 'Cornell specular balls close',
+    #     'scene': 'scenes/cornell/cornell_specular.scene',
+    #     'reference': 'references/ref_cornell_specular.png',
+    #     'width': 1024,
+    #     'height': 1024,
+    #     'base_filename': 'cornell_specular',
+    #     'args': ['-r', '0.003']
+    # },
 
-    {
-        'name': 'Cornell indirect',
-        'scene': 'scenes/cornell/cornell_indirect.scene',
-        'reference': 'references/ref_cornell_indirect.png',
-        'width': 1024,
-        'height': 1024,
-        'base_filename': 'cornell_indirect',
-        'args': ['-r', '0.003']
-    },
+    # {
+    #     'name': 'Cornell indirect',
+    #     'scene': 'scenes/cornell/cornell_indirect.scene',
+    #     'reference': 'references/ref_cornell_indirect.png',
+    #     'width': 1024,
+    #     'height': 1024,
+    #     'base_filename': 'cornell_indirect',
+    #     'args': ['-r', '0.003']
+    # },
 
-    {
-        'name': 'Cornell water',
-        'scene': 'scenes/cornell/cornell_water.scene',
-        'reference': 'references/ref_cornell_water.png',
-        'width': 1024,
-        'height': 1024,
-        'base_filename': 'cornell_water',
-        'args': ['-r', '0.003']
-    },
+    # {
+    #     'name': 'Cornell water',
+    #     'scene': 'scenes/cornell/cornell_water.scene',
+    #     'reference': 'references/ref_cornell_water.png',
+    #     'width': 1024,
+    #     'height': 1024,
+    #     'base_filename': 'cornell_water',
+    #     'args': ['-r', '0.003']
+    # },
 
     {
         'name': 'Sponza behind curtain',
@@ -85,53 +85,156 @@ scheduler_args = [
     #     'args': []
     # },
 
-    {
-        'name': 'default 4 spp: 256x256, 4 threads, 4 spp',
-        'abbr': 'default_spp4',
-        'args': ['--spp', '4']
-    },
+    # {
+    #     'name': 'default 4 spp: 256x256, 4 threads, 4 spp',
+    #     'abbr': 'default_spp4',
+    #     'args': ['--spp', '4']
+    # },
 
-    {
-        'name': 'default 8 spp: 256x256, 4 threads, 8 spp',
-        'abbr': 'default_spp8',
-        'args': ['--spp', '8']
-    },
+    # {
+    #     'name': 'default 8 spp: 256x256, 4 threads, 8 spp',
+    #     'abbr': 'default_spp8',
+    #     'args': ['--spp', '8']
+    # },
 
     # ##############################################################
     # # Single threaded version for reference
-    {
-        'name': 'single thread: 1024x1024, 1 threads, 1 spp',
-        'abbr': 'single',
-        'args': ['--thread-count', '1', '--tile-size', '1024']
-    },
+    # {
+    #     'name': 'single thread: 1024x1024, 1 threads, 1 spp',
+    #     'abbr': 'single',
+    #     'args': ['--thread-count', '1', '--tile-size', '1024']
+    # },
+
+    # {
+    #     'name': 'single thread: 1024x1024, 1 threads, 4 spp',
+    #     'abbr': 'single_4',
+    #     'args': ['--thread-count', '1', '--tile-size', '1024', '--spp', '4']
+    # },
+
+    # {
+    #     'name': 'single thread: 1024x1024, 1 threads, 8 spp',
+    #     'abbr': 'single_8',
+    #     'args': ['--thread-count', '1', '--tile-size', '1024', '--spp', '8']
+    # },
+
+    # {
+    #     'name': 'single thread: 1024x1024, 1 threads, 16 spp',
+    #     'abbr': 'single_16',
+    #     'args': ['--thread-count', '1', '--tile-size', '1024', '--spp', '16']
+    # },
+
+    ##################################################################
+    # 2 threads
+    # {
+    #     'name': '2 thread: 1024x1024, 2 threads, 1 spp',
+    #     'abbr': 'dual_1',
+    #     'args': ['--thread-count', '2', '--tile-size', '128']
+    # },
+
+    # {
+    #     'name': '2 thread: 1024x1024, 2 threads, 4 spp',
+    #     'abbr': 'dual_4',
+    #     'args': ['--thread-count', '2', '--tile-size', '128', '--spp', '4']
+    # },
+
+    # {
+    #     'name': '2 thread: 1024x1024, 2 threads, 8 spp',
+    #     'abbr': 'dual_8',
+    #     'args': ['--thread-count', '2', '--tile-size', '128', '--spp', '8']
+    # },
+
+    # {
+    #     'name': '2 thread: 1024x1024, 2 threads, 16 spp',
+    #     'abbr': 'dual_16',
+    #     'args': ['--thread-count', '2', '--tile-size', '128', '--spp', '16']
+    # },
+
+    ##################################################################
+    # 6 threads
+    # {
+    #     'name': '6 thread: 1024x1024, 6 threads, 1 spp',
+    #     'abbr': 'hecta_1',
+    #     'args': ['--thread-count', '6', '--tile-size', '128']
+    # },
+
+    # {
+    #     'name': '6 thread: 1024x1024, 6 threads, 4 spp',
+    #     'abbr': 'hecta_4',
+    #     'args': ['--thread-count', '6', '--tile-size', '128', '--spp', '4']
+    # },
+
+    # {
+    #     'name': '6 thread: 1024x1024, 6 threads, 8 spp',
+    #     'abbr': 'hecta_8',
+    #     'args': ['--thread-count', '6', '--tile-size', '128', '--spp', '8']
+    # },
+
+    # {
+    #     'name': '6 thread: 1024x1024, 6 threads, 16 spp',
+    #     'abbr': 'hecta_16',
+    #     'args': ['--thread-count', '6', '--tile-size', '128', '--spp', '16']
+    # },
+
+    ##################################################################
+    # 8 threads
+    # {
+    #     'name': '8 thread: 1024x1024, 8 threads, 1 spp',
+    #     'abbr': 'octa_1',
+    #     'args': ['--thread-count', '8', '--tile-size', '128']
+    # },
+
+    # {
+    #     'name': '8 thread: 1024x1024, 8 threads, 4 spp',
+    #     'abbr': 'octa_4',
+    #     'args': ['--thread-count', '8', '--tile-size', '128', '--spp', '4']
+    # },
+
+    # {
+    #     'name': '8 thread: 1024x1024, 8 threads, 8 spp',
+    #     'abbr': 'octa_8',
+    #     'args': ['--thread-count', '8', '--tile-size', '128', '--spp', '8']
+    # },
+
+    # {
+    #     'name': '8 thread: 1024x1024, 8 threads, 16 spp',
+    #     'abbr': 'octa_16',
+    #     'args': ['--thread-count', '8', '--tile-size', '128', '--spp', '16']
+    # },
 
     ##############################################################
-    # smaller tiles
-#     {
-#         'name': 'smaller tiles: 128x128, 4 threads ,1 spp',
-#         'abbr': 'small',
-#         'args': ['--tile-size', '128']
-#     },
+    # 4 threads
+    # {
+    #     'name': 'smaller tiles: 128x128, 4 threads ,1 spp',
+    #     'abbr': 'quad',
+    #     'args': ['--tile-size', '128']
+    # },
 
     # {
     #     'name': 'smaller tiles 4 spp: 128x128, 4 threads, 4 spp',
-    #     'abbr': 'small_spp4',
+    #     'abbr': 'quad_spp4',
     #     'args': ['--spp', '4', '--tile-size', '128']
-    # }
+    # },
 
-    {
-        'name': 'smaller tiles 8 spp: 128x128, 4 threads, 8 spp',
-        'abbr': 'small_spp8',
-        'args': ['--spp', '8', '--tile-size', '128']
-    },
+    # {
+    #     'name': 'smaller tiles 8 spp: 128x128, 4 threads, 8 spp',
+    #     'abbr': 'quad_spp8',
+    #     'args': ['--spp', '8', '--tile-size', '128']
+    # },
+
+    # {
+    #     'name': 'smaller tiles 8 spp: 128x128, 4 threads, 16 spp',
+    #     'abbr': 'quad_spp16',
+    #     'args': ['--spp', '16', '--tile-size', '128']
+    # },
 ]
 
 all_algorithms = ['pt', 'bpt', 'vcm', 'lt', 'ppm']
 
 times_in_seconds = [60] #[5, 10, 30, 60]
-algorithms = ['bpt', 'vcm']
-convergence = True
+algorithms = ['pt', 'bpt', 'vcm']
+convergence = False
 convergence_step_sec = 5
+
 
 def compute_rmse(file, ref):
     p = Popen(['compare', '-metric', 'RMSE', file, ref, '.compare.png'],
@@ -150,6 +253,7 @@ def compute_rmse(file, ref):
         pass
 
     return rmse
+
 
 def run_benchmark(app, setting, path, time_sec):
     results = ['', '']
@@ -206,18 +310,18 @@ def run_benchmark(app, setting, path, time_sec):
             # Compute RMSE values for the image in the convergence test
             if convergence:
                 results[1] += setting['name'] + ',' + alg + '\n'
-                results[1] += 'time ms' + ',' + 'RMSE\n'
+                results[1] += 'time s' + ',' + 'RMSE\n'
                 for file in os.listdir(path):
                     filename_base = setting['base_filename'] + '_' + alg + scheduling['abbr'] + '_conv_'
                     m = re.match(filename_base + r'(\d+)ms.png', file)
                     if m is None:
                         continue
 
-                    time = m.group(1)
+                    time = float(m.group(1)) / 1000.0
                     rmse_step = compute_rmse(path + file, setting['reference'])
 
-                    results[1] += time + ',' + rmse_step + '\n'
-                results[1] += '60' + ',' + rmse + '\n'
+                    results[1] += str(time) + ',' + rmse_step + '\n'
+                results[1] += str(time_sec) + ',' + rmse + '\n'
 
 
         print '   > finished ' + alg
@@ -269,6 +373,10 @@ def run_convergence_tests(app):
 
     print 'DONE'
     print ''
+
+
+def run_scaling_bench(app, setting, path, time_sec):
+    pass
 
 
 if __name__ == '__main__':

@@ -563,13 +563,10 @@ void VCM_INTEGRATOR::process_camera_rays(RayQueue<VCMState>& rays_in, RayQueue<V
 
 VCM_TEMPLATE
 void VCM_INTEGRATOR::direct_illum(VCMState& cam_state, const Intersection& isect, BSDF* bsdf, RayQueue<VCMState>& rays_out_shadow) {
-    RNG& rng = cam_state.rng;
-
     // Generate the shadow ray (sample one point on one lightsource)
-    const int light_i = rng.random_int(0, scene_.lights.size());
-    const auto ls = scene_.lights[light_i].get();
-    const float inv_pdf_lightpick = scene_.lights.size();
-    const auto sample = ls->sample_direct(isect.pos, rng);
+    const auto ls = scene_.lights[cam_state.rng.random_int(0, scene_.lights.size())].get();
+    const float pdf_lightpick_inv = scene_.lights.size();
+    const auto sample = ls->sample_direct(isect.pos, cam_state.rng);
     const float cos_theta_o = sample.cos_out;
     assert_normalized(sample.dir);
 
@@ -591,21 +588,21 @@ void VCM_INTEGRATOR::direct_illum(VCMState& cam_state, const Intersection& isect
     const float pdf_reverse = cam_state.continue_prob * pdf_rev_w;
 
     // Compute full MIS weights for camera and light.
-    const float mis_weight_light = mis_heuristic(pdf_forward * inv_pdf_lightpick / sample.pdf_direct_w);
+    const float mis_weight_light = mis_heuristic(pdf_forward * pdf_lightpick_inv / sample.pdf_direct_w);
     const float mis_weight_camera = mis_heuristic(sample.pdf_emit_w * cos_theta_i / (sample.pdf_direct_w * cos_theta_o)) *
                                     (mis_weight_vm_ + cam_state.dVCM + cam_state.dVC * mis_heuristic(pdf_reverse));
 
     const float mis_weight = algo == ALGO_PT ? 1.0f : (1.0f / (mis_weight_camera + 1.0f + mis_weight_light));
 
     VCMState s = cam_state;
-    s.throughput *= mis_weight * bsdf_value * cos_theta_i * sample.radiance * inv_pdf_lightpick;
+    s.throughput *= mis_weight * bsdf_value * cos_theta_i * sample.radiance * pdf_lightpick_inv;
 
     rays_out_shadow.push(ray, s);
 
 #ifdef ENABLE_NAN_TESTS
     if (isnan(s.throughput.x) || isnan(s.throughput.y) || isnan(s.throughput.z))
         printf("NaN in direct illumination:\n   mis=%f\n   bsdf=(%f,%f,%f)\n   cos=%f\n   pdf=%f\n   radiance=(%f,%f,%f)\n",
-            mis_weight, bsdf_value.x, bsdf_value.y, bsdf_value.z, cos_theta_i, inv_pdf_lightpick,
+            mis_weight, bsdf_value.x, bsdf_value.y, bsdf_value.z, cos_theta_i, pdf_lightpick_inv,
             sample.radiance.x, sample.radiance.y, sample.radiance.z);
 #endif
 }
@@ -640,14 +637,14 @@ void VCM_INTEGRATOR::connect(VCMState& cam_state, const Intersection& isect, BSD
         }
 
         // Evaluate the bsdf at the camera vertex.
-        auto bsdf_value_cam = bsdf_cam->eval(isect.out_dir, connect_dir, BSDF_ALL);
-        float pdf_dir_cam_w = bsdf_cam->pdf(isect.out_dir, connect_dir);
-        float pdf_rev_cam_w = bsdf_cam->pdf(connect_dir, isect.out_dir);
+        const auto bsdf_value_cam = bsdf_cam->eval(isect.out_dir, connect_dir, BSDF_ALL);
+        const float pdf_dir_cam_w = bsdf_cam->pdf(isect.out_dir, connect_dir);
+        const float pdf_rev_cam_w = bsdf_cam->pdf(connect_dir, isect.out_dir);
 
         // Evaluate the bsdf at the light vertex.
-        auto bsdf_value_light = light_bsdf->eval(light_vertex.isect.out_dir, -connect_dir, BSDF_ALL);
-        float pdf_dir_light_w = light_bsdf->pdf(light_vertex.isect.out_dir, -connect_dir);
-        float pdf_rev_light_w = light_bsdf->pdf(-connect_dir, light_vertex.isect.out_dir);
+        const auto bsdf_value_light = light_bsdf->eval(light_vertex.isect.out_dir, -connect_dir, BSDF_ALL);
+        const float pdf_dir_light_w = light_bsdf->pdf(light_vertex.isect.out_dir, -connect_dir);
+        const float pdf_rev_light_w = light_bsdf->pdf(-connect_dir, light_vertex.isect.out_dir);
 
         if (pdf_dir_cam_w == 0.0f || pdf_dir_light_w == 0.0f ||
             pdf_rev_cam_w == 0.0f || pdf_rev_light_w == 0.0f)

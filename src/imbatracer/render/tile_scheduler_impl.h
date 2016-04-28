@@ -26,14 +26,20 @@ public:
         tiles_per_col_ = ray_gen_.height() / tile_size_ + (ray_gen_.height() % tile_size_ == 0 ? 0 : 1);
         tile_count_ = tiles_per_row_ * tiles_per_col_;
 
+        const auto max_ray_count = tile_size_ * tile_size_ * ray_gen_.num_samples();
         for (auto& q : thread_local_prim_queues_)
-            q = new RayQueue<StateType>(tile_size_ * tile_size_ * ray_gen_.num_samples());
+            q = new RayQueue<StateType>(max_ray_count);
 
         for (auto& q : thread_local_shadow_queues_)
-            q = new RayQueue<StateType>(tile_size_ * tile_size_ * ray_gen_.num_samples() * max_shadow_rays_per_hit);
+            q = new RayQueue<StateType>(max_ray_count * max_shadow_rays_per_hit);
+
+        // Initialize the GPU buffer
+        RayQueue<StateType>::setup_device_buffer(max_ray_count * max_shadow_rays_per_hit);
     }
 
     ~TileScheduler() {
+        RayQueue<StateType>::release_device_buffer();
+
         for (auto& q : thread_local_prim_queues_)
             delete q;
 

@@ -49,6 +49,10 @@ void RenderWindow::render_loop() {
     std::chrono::time_point<clock_type> cur_time = msg_time;
 
     while (true) {
+        render();
+
+        cur_time = clock_type::now();
+
         const auto elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(cur_time - start_time_).count();
         const auto msg_ms = std::chrono::duration_cast<std::chrono::milliseconds>(cur_time - msg_time).count();
         const auto avg_frame_time = frames_ == 0 ? static_cast<float>(elapsed_ms) : static_cast<float>(elapsed_ms) / frames_;
@@ -60,14 +64,10 @@ void RenderWindow::render_loop() {
             msg_time = cur_time;
         }
 
-        render();
-
         if ((window_ && handle_events()) ||
             (frames_ + 1) * spp_ > max_samples_ ||
-            (elapsed_ms + avg_frame_time) / 1000.0f > max_time_sec_)
+            (elapsed_ms + avg_frame_time * 0.5f) / 1000.0f > max_time_sec_) // Allow only 50% average frame time more than specified.
             break;
-
-        cur_time = clock_type::now();
 
         if (conv_file_base_ != "" && elapsed_ms / static_cast<int>(1000 * conv_interval_sec_) >= conv_count_) {
             ++conv_count_;

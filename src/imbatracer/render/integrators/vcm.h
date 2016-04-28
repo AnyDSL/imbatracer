@@ -60,7 +60,7 @@ template<VCMSubAlgorithm algo>
 class VCMIntegrator : public Integrator {
     // Number of light paths to be traced when computing the average length and thus vertex cache size.
     static constexpr int LIGHT_PATH_LEN_PROBES = 10000;
-    static constexpr int NUM_CONNECTIONS = 4;
+    static constexpr int NUM_CONNECTIONS = 1;
 public:
     VCMIntegrator(Scene& scene, PerspectiveCamera& cam, RayGen<VCMState>& ray_gen,
         int max_path_len, int thread_count, int tile_size, int spp, float base_radius=0.03f, float radius_alpha=0.75f)
