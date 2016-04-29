@@ -500,18 +500,6 @@ void VCM_INTEGRATOR::process_camera_rays(RayQueue<VCMState>& rays_in, RayQueue<V
 
             auto bsdf = isect.mat->get_bsdf(isect, bsdf_mem_arena);
 
-            if (algo == ALGO_PPM){
-                if (!isect.mat->is_specular()) {
-                    vertex_merging(states[i], isect, bsdf, img);
-                }
-
-                // Continue the path using russian roulette.
-                if (states[i].path_length < max_path_len_)
-                    bounce(states[i], isect, bsdf, rays_out, false);
-
-                continue;
-            }
-
             // Complete computation of partial MIS weights.
             states[i].dVCM *= mis_heuristic(sqr(isect.distance)) / mis_heuristic(cos_theta_o); // convert divided pdf from solid angle to area
             states[i].dVC *= 1.0f / mis_heuristic(cos_theta_o);
@@ -532,7 +520,7 @@ void VCM_INTEGRATOR::process_camera_rays(RayQueue<VCMState>& rays_in, RayQueue<V
                 const float mis_weight = 1.0f / (mis_weight_camera + 1.0f);
 
                 if (states[i].path_length > 1) {
-                    float4 color = states[i].throughput * radiance * mis_weight;
+                    float4 color = states[i].throughput * radiance * (algo == ALGO_PPM ? 1.0f : mis_weight);
 
                     if (algo != ALGO_PT)
                         img.pixels()[states[i].pixel_id] += color;
@@ -541,13 +529,14 @@ void VCM_INTEGRATOR::process_camera_rays(RayQueue<VCMState>& rays_in, RayQueue<V
             }
 
             // Compute direct illumination.
-            if (states[i].path_length < max_path_len_)
-                direct_illum(states[i], isect, bsdf, ray_out_shadow);
-            else
+            if (states[i].path_length < max_path_len_) {
+                if (algo != ALGO_PPM)
+                    direct_illum(states[i], isect, bsdf, ray_out_shadow);
+            } else
                 continue; // No point in continuing this path. It is too long already
 
             // Connect to light path vertices.
-            if (algo != ALGO_PT && !isect.mat->is_specular())
+            if (algo != ALGO_PT && algo != ALGO_PPM && !isect.mat->is_specular())
                 connect(states[i], isect, bsdf, bsdf_mem_arena, ray_out_shadow);
 
             if (algo != ALGO_BPT) {
