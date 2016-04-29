@@ -1,7 +1,7 @@
 #include <thread>
 #include <atomic>
 
-#define ENABLE_QUEUE_STATS
+//#define ENABLE_QUEUE_STATS
 
 namespace imba {
 
