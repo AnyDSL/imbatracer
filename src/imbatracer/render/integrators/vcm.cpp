@@ -611,10 +611,10 @@ VCM_TEMPLATE
 void VCM_INTEGRATOR::connect(VCMState& cam_state, const Intersection& isect, BSDF* bsdf_cam, MemoryArena& bsdf_arena, RayQueue<VCMState>& rays_out_shadow) {
     // PDF conversion factor from using the vertex cache.
     // Vertex Cache is equivalent to randomly sampling a path with pdf ~ path length and uniformly sampling a vertex on this path.
-    const float vc_weight = (light_vertices_count_[cam_state.sample_id] / light_path_count_) / NUM_CONNECTIONS;
+    const float vc_weight = (light_vertices_count_[cam_state.sample_id] / light_path_count_) / num_connections_;
 
-    // Connect to NUM_CONNECTIONS randomly chosen vertices from the cache.
-    for (int i = 0; i < NUM_CONNECTIONS; ++i) {
+    // Connect to num_connections_ randomly chosen vertices from the cache.
+    for (int i = 0; i < num_connections_; ++i) {
         const auto& light_vertex = vertex_caches_[cam_state.sample_id][cam_state.rng.random_int(0, light_vertices_count_[cam_state.sample_id])];
 
         // Ignore paths that are longer than the specified maximum length.
@@ -757,11 +757,11 @@ void dummy_func_to_prevent_linker_errors_dont_call() {
     Scene scene;
     PerspectiveCamera cam(0,0,0.0f);
     PixelRayGen<VCMState> ray_gen(1, 1, 1);
-    VCMIntegrator<ALGO_PPM> tmp1(scene, cam, ray_gen, 1, 1, 1, 1);
-    VCMIntegrator<ALGO_PT > tmp2(scene, cam, ray_gen, 1, 1, 1, 1);
-    VCMIntegrator<ALGO_LT > tmp3(scene, cam, ray_gen, 1, 1, 1, 1);
-    VCMIntegrator<ALGO_BPT> tmp4(scene, cam, ray_gen, 1, 1, 1, 1);
-    VCMIntegrator<ALGO_VCM> tmp5(scene, cam, ray_gen, 1, 1, 1, 1);
+    VCMIntegrator<ALGO_PPM> tmp1(scene, cam, ray_gen, 1, 1, 1, 1, 1);
+    VCMIntegrator<ALGO_PT > tmp2(scene, cam, ray_gen, 1, 1, 1, 1, 1);
+    VCMIntegrator<ALGO_LT > tmp3(scene, cam, ray_gen, 1, 1, 1, 1, 1);
+    VCMIntegrator<ALGO_BPT> tmp4(scene, cam, ray_gen, 1, 1, 1, 1, 1);
+    VCMIntegrator<ALGO_VCM> tmp5(scene, cam, ray_gen, 1, 1, 1, 1, 1);
 }
 
 } // namespace imba

@@ -60,10 +60,10 @@ template<VCMSubAlgorithm algo>
 class VCMIntegrator : public Integrator {
     // Number of light paths to be traced when computing the average length and thus vertex cache size.
     static constexpr int LIGHT_PATH_LEN_PROBES = 10000;
-    static constexpr int NUM_CONNECTIONS = 1;
+    static constexpr int MAX_NUM_CONNECTIONS = 8;
 public:
     VCMIntegrator(Scene& scene, PerspectiveCamera& cam, RayGen<VCMState>& ray_gen,
-        int max_path_len, int thread_count, int tile_size, int spp, float base_radius=0.03f, float radius_alpha=0.75f)
+        int max_path_len, int thread_count, int tile_size, int spp, int num_connections, float base_radius=0.03f, float radius_alpha=0.75f)
         : Integrator(scene, cam)
         , width_(cam.width())
         , height_(cam.height())
@@ -80,6 +80,7 @@ public:
         , vertex_cache_last_(spp)
         , light_vertices_count_(spp)
         , photon_grid_(spp)
+        , num_connections_(num_connections)
     {
         for (auto& grid : photon_grid_)
             grid.reserve(cam.width() * cam.height());
@@ -98,6 +99,7 @@ private:
     int spp_;
     float light_path_count_;
     const int max_path_len_;
+    const int num_connections_;
 
     float base_radius_;
     float radius_alpha_;
@@ -110,7 +112,7 @@ private:
     float mis_weight_vm_;
 
     RayGen<VCMState>& ray_gen_;
-    TileScheduler<VCMState, NUM_CONNECTIONS + 1> scheduler_;
+    TileScheduler<VCMState, MAX_NUM_CONNECTIONS + 1> scheduler_;
 
     // Light path vertices and associated data are stored separately per sample / iteration.
     std::vector<std::vector<LightPathVertex> > vertex_caches_;

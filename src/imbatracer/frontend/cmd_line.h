@@ -46,19 +46,19 @@ struct UserSettings {
     int concurrent_spp;
     int tile_size;
     int thread_count;
+    int num_connections;
 
     UserSettings()
         : input_file(""), accel_output(""), output_file("render.png"), algorithm(PT),
           width(512), height(512), max_samples(INT_MAX), max_time_sec(FLT_MAX),
           background(false), fov(60.0f), base_radius(0.03f),
           max_path_len(10), concurrent_spp(1), tile_size(256), thread_count(4),
-          intermediate_image_time(10.0f), intermediate_image_name("")
+          intermediate_image_time(10.0f), intermediate_image_name(""), num_connections(1)
     {}
 };
 
 inline void print_help() {
-    std::cout << "Usage: imbatracer <input_file.scene> [-q | -s <max_samples> | -t <max_time_seconds> |" << std::endl
-              << "                                    -a <algorithm> | -w <width> | -h <height> | <output_file.png> | -r <base_radius>]"
+    std::cout << "Usage: imbatracer <input_file.scene> [options]"
               << std::endl << std::endl
               << "    -q  Quiet mode, render in background without SDL preview." << std::endl
               << "    -s  Number of samples per pixel to render (default: unlimited)" << std::endl
@@ -68,6 +68,7 @@ inline void print_help() {
               << "    -h  Sets the vertical resolution in pixels (default: 512)" << std::endl
               << "    -f  Sets the horizontal field of view (default: 60)" << std::endl
               << "    -r  Sets the initial radius for photon mapping as a factor of the scene bounding sphere radius (default: 0.03)" << std::endl
+              << "    -c  Sets the number of vertices form the light path that any vertex on a camera path is connected to (default: 1)" << std::endl
               << "    --write-accel <filename>   Writes the acceleration structure to the specified file." << std::endl
               << "    --max-path-len <len>       Specifies the maximum number of vertices within any path. (default: 10)" << std::endl
               << "    --spp <nr>                 Specifies the number of samples per pixel within a single frame. (default: 1)" << std::endl
@@ -167,6 +168,8 @@ inline bool parse_cmd_line(int argc, char* argv[], UserSettings& settings) {
             parse_argument(++i, argc, argv, settings.fov);
         else if (arg == "-r")
             parse_argument(++i, argc, argv, settings.base_radius);
+        else if (arg == "-c")
+            parse_argument(++i, argc, argv, settings.num_connections);
         else if (arg == "--intermediate-time")
             parse_argument(++i, argc, argv, settings.intermediate_image_time);
         else if (arg == "--intermediate-path")

@@ -76,162 +76,25 @@ bench_settings = [
     },
 ]
 
-scheduler_args = [
-    ##############################################################
-    # Default thread count, varying spp
-    # {
-    #     'name': 'default: 256x256, 4 threads, 1 spp',
-    #     'abbr': 'default',
-    #     'args': []
-    # },
 
-    # {
-    #     'name': 'default 4 spp: 256x256, 4 threads, 4 spp',
-    #     'abbr': 'default_spp4',
-    #     'args': ['--spp', '4']
-    # },
+thread_counts = [8]
+sample_counts = [16]
+tilesizes     = [128]
+connections   = [1, 2, 4, 8]
 
-    # {
-    #     'name': 'default 8 spp: 256x256, 4 threads, 8 spp',
-    #     'abbr': 'default_spp8',
-    #     'args': ['--spp', '8']
-    # },
+scheduler_args = []
+for t in thread_counts:
+    for s in sample_counts:
+        for tile in tilesizes:
+            for c in connections:
+                scheduler_args.append({
+                    'name': 'tilesize: ' + str(tile) + ', threads: ' + str(t) + ', samples: ' + str(s) + ', connections: ' + str(c),
+                    'abbr': str(tile) + str(t) + str(s) + str(c),
+                    'args': ['-c', str(c), '--thread-count', str(t), '--tile-size', str(tile), '--spp', str(s)]
+                    })
 
-    # ##############################################################
-    # # Single threaded version for reference
-    # {
-    #     'name': 'single thread: 1024x1024, 1 threads, 1 spp',
-    #     'abbr': 'single',
-    #     'args': ['--thread-count', '1', '--tile-size', '1024']
-    # },
-
-    # {
-    #     'name': 'single thread: 1024x1024, 1 threads, 4 spp',
-    #     'abbr': 'single_4',
-    #     'args': ['--thread-count', '1', '--tile-size', '1024', '--spp', '4']
-    # },
-
-    # {
-    #     'name': 'single thread: 1024x1024, 1 threads, 8 spp',
-    #     'abbr': 'single_8',
-    #     'args': ['--thread-count', '1', '--tile-size', '1024', '--spp', '8']
-    # },
-
-    # {
-    #     'name': 'single thread: 1024x1024, 1 threads, 16 spp',
-    #     'abbr': 'single_16',
-    #     'args': ['--thread-count', '1', '--tile-size', '1024', '--spp', '16']
-    # },
-
-    ##################################################################
-    # 2 threads
-    # {
-    #     'name': '2 thread: 1024x1024, 2 threads, 1 spp',
-    #     'abbr': 'dual_1',
-    #     'args': ['--thread-count', '2', '--tile-size', '128']
-    # },
-
-    # {
-    #     'name': '2 thread: 1024x1024, 2 threads, 4 spp',
-    #     'abbr': 'dual_4',
-    #     'args': ['--thread-count', '2', '--tile-size', '128', '--spp', '4']
-    # },
-
-    # {
-    #     'name': '2 thread: 1024x1024, 2 threads, 8 spp',
-    #     'abbr': 'dual_8',
-    #     'args': ['--thread-count', '2', '--tile-size', '128', '--spp', '8']
-    # },
-
-    # {
-    #     'name': '2 thread: 1024x1024, 2 threads, 16 spp',
-    #     'abbr': 'dual_16',
-    #     'args': ['--thread-count', '2', '--tile-size', '128', '--spp', '16']
-    # },
-
-    ##################################################################
-    # 6 threads
-    # {
-    #     'name': '6 thread: 1024x1024, 6 threads, 1 spp',
-    #     'abbr': 'hecta_1',
-    #     'args': ['--thread-count', '6', '--tile-size', '128']
-    # },
-
-    # {
-    #     'name': '6 thread: 1024x1024, 6 threads, 4 spp',
-    #     'abbr': 'hecta_4',
-    #     'args': ['--thread-count', '6', '--tile-size', '128', '--spp', '4']
-    # },
-
-    # {
-    #     'name': '6 thread: 1024x1024, 6 threads, 8 spp',
-    #     'abbr': 'hecta_8',
-    #     'args': ['--thread-count', '6', '--tile-size', '128', '--spp', '8']
-    # },
-
-    # {
-    #     'name': '6 thread: 1024x1024, 6 threads, 16 spp',
-    #     'abbr': 'hecta_16',
-    #     'args': ['--thread-count', '6', '--tile-size', '128', '--spp', '16']
-    # },
-
-    ##################################################################
-    # 8 threads
-    # {
-    #     'name': '8 thread: 1024x1024, 8 threads, 1 spp',
-    #     'abbr': 'octa_1',
-    #     'args': ['--thread-count', '8', '--tile-size', '128']
-    # },
-
-    # {
-    #     'name': '8 thread: 1024x1024, 8 threads, 4 spp',
-    #     'abbr': 'octa_4',
-    #     'args': ['--thread-count', '8', '--tile-size', '128', '--spp', '4']
-    # },
-
-    # {
-    #     'name': '8 thread: 1024x1024, 8 threads, 8 spp',
-    #     'abbr': 'octa_8',
-    #     'args': ['--thread-count', '8', '--tile-size', '128', '--spp', '8']
-    # },
-
-    # {
-    #     'name': '8 thread: 1024x1024, 8 threads, 16 spp',
-    #     'abbr': 'octa_16',
-    #     'args': ['--thread-count', '8', '--tile-size', '128', '--spp', '16']
-    # },
-
-    ##############################################################
-    # 4 threads
-    # {
-    #     'name': 'smaller tiles: 128x128, 4 threads ,1 spp',
-    #     'abbr': 'quad',
-    #     'args': ['--tile-size', '128']
-    # },
-
-    # {
-    #     'name': 'smaller tiles 4 spp: 128x128, 4 threads, 4 spp',
-    #     'abbr': 'quad_spp4',
-    #     'args': ['--spp', '4', '--tile-size', '128']
-    # },
-
-    # {
-    #     'name': 'smaller tiles 8 spp: 128x128, 4 threads, 8 spp',
-    #     'abbr': 'quad_spp8',
-    #     'args': ['--spp', '8', '--tile-size', '128']
-    # },
-
-    # {
-    #     'name': 'smaller tiles 8 spp: 128x128, 4 threads, 16 spp',
-    #     'abbr': 'quad_spp16',
-    #     'args': ['--spp', '16', '--tile-size', '128']
-    # },
-]
-
-all_algorithms = ['pt', 'bpt', 'vcm', 'lt', 'ppm']
-
-times_in_seconds = [60] #[5, 10, 30, 60]
-algorithms = ['pt', 'bpt', 'vcm']
+times_in_seconds = [1]
+algorithms = ['bpt', 'vcm']
 convergence = False
 convergence_step_sec = 5
 
@@ -356,7 +219,7 @@ def run_convergence_tests(app):
                     '-w', str(setting['width']),
                     '-h', str(setting['height']),
                     '-q', '-t', '3600', '-a', alg,
-                    '--spp', '4',
+                    '--spp', '8', '--tile-size', '128',
                     out_filename]
             args.extend(setting['args'])
 
@@ -392,6 +255,7 @@ if __name__ == '__main__':
             print 'Unknown argument: ' + sys.argv[2]
         else:
             run_convergence_tests(app)
+            quit()
 
     # Run benchmarks
     timestamp = datetime.datetime.now().strftime('%Y_%m_%d_%H_%M_%S')
