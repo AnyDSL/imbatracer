@@ -1,7 +1,8 @@
 #include <thread>
 #include <atomic>
 
-//#define ENABLE_QUEUE_STATS
+#define ENABLE_QUEUE_STATS
+#define ENABLE_MERGING
 
 namespace imba {
 
@@ -52,11 +53,17 @@ public:
 
     ~TileScheduler() {
 #ifdef ENABLE_QUEUE_STATS
-        printf("Queue stats:\n\tprimary_rays: %d\t\tshadow_rays: %d\n\tprimary_min: %d\t\t\tshadow_min: %d\n\ttraversal_calls: %d\t\tshadow_calls: %d\n\tprimary_avg: %d\t\tshadow_avg: %d\n",
-            primary_ray_total.load(), shadow_ray_total.load(),
-            primary_ray_min.load(), shadow_ray_min.load(),
-            traversal_calls.load(), shadow_traversal_calls.load(),
-            primary_ray_total / traversal_calls, shadow_ray_total / shadow_traversal_calls);
+        std::cout << "Queue stats:" << std::endl
+                  << "   primary rays    : " << primary_ray_total << std::endl
+                  << "   shadow rays     : " << shadow_ray_total << std::endl
+                  << "   primary min     : " << primary_ray_min << std::endl
+                  << "   shadow min      : " << shadow_ray_min << std::endl
+                  << "   traversal calls : " << traversal_calls << std::endl
+                  << "   traversal calls (shadow) : " << shadow_traversal_calls << std::endl
+                  << "   average primary : " << primary_ray_total / traversal_calls << std::endl
+                  << "   average shadow  : " << shadow_ray_total / traversal_calls << std::endl;
+
+        std::cout << primary_ray_total + shadow_ray_total << std::endl;
 #endif
 
         RayQueue<StateType>::release_device_buffer();
@@ -118,6 +125,7 @@ private:
         int tile_width  = std::min(ray_gen_.width() - tile_pos_x, tile_size_);
         int tile_height = std::min(ray_gen_.height() - tile_pos_y, tile_size_);
 
+#ifdef ENABLE_MERGING
         // If the next tile is smaller than half the size, acquire it as well.
         // If this tile is smaller than half the size, skip it (was acquired by one of its neighbours)
         if (tile_width < tile_size_ / 2 ||
@@ -129,6 +137,7 @@ private:
 
         if (ray_gen_.height() - (tile_pos_y + tile_height) < tile_size_ / 2)
             tile_height += ray_gen_.height() - (tile_pos_y + tile_height);
+#endif
 
         out = TiledRayGen<StateType>(tile_pos_x, tile_pos_y, tile_width, tile_height,
                                      ray_gen_.num_samples(), ray_gen_.width(), ray_gen_.height());
@@ -161,12 +170,14 @@ private:
             while(!tile_ray_gen.is_empty() || prim_q_in->size() > MIN_QUEUE_SIZE) {
                 tile_ray_gen.fill_queue(*prim_q_in, sample_fn);
 
-                if (prim_q_in->size() < tile_size_ * tile_size_ * 0.5) {
+#ifdef ENABLE_MERGING
+                if (prim_q_in->size() < (tile_size_ * tile_size_ * ray_gen_.num_samples()) / 2) {
                     // Acquire another tile, if available, to keep ray count high.
                     cur_tile = next_tile_++;
                     while (cur_tile < tile_count_ && !acquire_tile(cur_tile, tile_ray_gen))
                         cur_tile = next_tile_++;
                 }
+#endif
 
 #ifdef ENABLE_QUEUE_STATS
                 primary_ray_total += prim_q_in->size();

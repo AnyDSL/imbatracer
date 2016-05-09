@@ -162,12 +162,26 @@ public:
             q_ref->traverse(scene_);
 
             auto q_out = queue_pool_.claim_queue_with_tag(QUEUE_EMPTY);
-            if (!q_out) {
+            while (!q_out) {
                 // All queues are currently occupied as input or output of shading tasks.
                 shading_tasks_.wait();
-                continue;
+                q_out = queue_pool_.claim_queue_with_tag(QUEUE_EMPTY);
             }
+
             auto q_out_shadow = shadow_queue_pool_.claim_queue_with_tag(QUEUE_EMPTY);
+            while (!q_out_shadow) {
+                q_out_shadow = shadow_queue_pool_.claim_queue_with_tag(QUEUE_READY_FOR_SHADOW_TRAVERSAL);
+                if (q_out_shadow) { // A shadow ray queue is ready for traversal.
+                    q_out_shadow->traverse_occluded(scene_);
+                    (integrator->*process_shadow_rays)(*q_out_shadow, out);
+                    q_out_shadow->clear();
+                    // The queue is now empty and can be used.
+                } else {
+                    shading_tasks_.wait();
+                    // Try to get an empty shadow queue again.
+                    q_out_shadow = shadow_queue_pool_.claim_queue_with_tag(QUEUE_EMPTY);
+                }
+            }
 
             shading_tasks_.run([this, integrator, process_primary_rays, q_ref, q_out, q_out_shadow, &out] () {
                 (integrator->*process_primary_rays)(*q_ref, *q_out, *q_out_shadow, out);

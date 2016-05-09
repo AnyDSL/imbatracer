@@ -25,8 +25,8 @@ using ThreadLocalPhotonContainer = tbb::enumerable_thread_specific<std::vector<P
 static ThreadLocalPhotonContainer photon_containers;
 
 inline float mis_heuristic(float a) {
-    return sqr(a);
-    //return a;
+    //return sqr(a);
+    return a;
 }
 
 /// Computes the cosine term for adjoint BSDFs that use shading normals.

@@ -19,15 +19,16 @@ public:
     PathTracer(Scene& scene, PerspectiveCamera& cam, RayGen<PTState>& ray_gen, int max_path_len, int thread_count, int tile_size)
         : Integrator(scene, cam)
         , ray_gen_(ray_gen)
-        , scheduler_(ray_gen, scene, thread_count, tile_size)
+        //, scheduler_(ray_gen, scene, thread_count, tile_size)
+        , scheduler_(ray_gen, scene)
         , max_path_len_(max_path_len)
     {}
 
     virtual void render(AtomicImage& out) override;
 
 private:
-    //QueueScheduler<PTState, 8, 8, 1> scheduler_;
-    TileScheduler<PTState, 1> scheduler_;
+    QueueScheduler<PTState, 8, 8, 1> scheduler_;
+    //TileScheduler<PTState, 1> scheduler_;
     RayGen<PTState>& ray_gen_;
 
     const int max_path_len_;
