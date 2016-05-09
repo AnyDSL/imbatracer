@@ -207,9 +207,11 @@ void VCM_INTEGRATOR::reset_buffers() {
 
 VCM_TEMPLATE
 void VCM_INTEGRATOR::trace_light_paths(AtomicImage& img) {
-    scheduler_.run_iteration(img, this,
-        &VCM_INTEGRATOR::process_shadow_rays,
-        &VCM_INTEGRATOR::process_light_rays,
+    scheduler_.run_iteration(img,
+        [this] (RayQueue<VCMState>& ray_in, AtomicImage& out) { process_shadow_rays(ray_in, out); },
+        [this] (RayQueue<VCMState>& ray_in, RayQueue<VCMState>& ray_out, RayQueue<VCMState>& ray_out_shadow, AtomicImage& out) {
+            process_light_rays(ray_in, ray_out, ray_out_shadow, out);
+        },
         [this] (int x, int y, ::Ray& ray_out, VCMState& state_out) {
             // randomly choose one light source to sample
             int i = state_out.rng.random_int(0, scene_.lights.size());
@@ -264,9 +266,11 @@ void VCM_INTEGRATOR::trace_light_paths(AtomicImage& img) {
 
 VCM_TEMPLATE
 void VCM_INTEGRATOR::trace_camera_paths(AtomicImage& img) {
-    scheduler_.run_iteration(img, this,
-        &VCM_INTEGRATOR::process_shadow_rays,
-        &VCM_INTEGRATOR::process_camera_rays,
+    scheduler_.run_iteration(img,
+        [this] (RayQueue<VCMState>& ray_in, AtomicImage& out) { process_shadow_rays(ray_in, out); },
+        [this] (RayQueue<VCMState>& ray_in, RayQueue<VCMState>& ray_out, RayQueue<VCMState>& ray_out_shadow, AtomicImage& out) {
+            process_camera_rays(ray_in, ray_out, ray_out_shadow, out);
+        },
         [this] (int x, int y, ::Ray& ray_out, VCMState& state_out) {
             // Sample a ray from the camera.
             const float sample_x = static_cast<float>(x) + state_out.rng.random_float();

@@ -75,18 +75,18 @@ public:
             delete q;
     }
 
-    template<typename Obj>
-    void derived_run_iteration(AtomicImage& image, Obj* integrator,
-                               void (Obj::*process_shadow_rays)(RayQueue<StateType>&, AtomicImage&),
-                               void (Obj::*process_primary_rays)(RayQueue<StateType>&, RayQueue<StateType>&, RayQueue<StateType>&, AtomicImage&),
+    template<typename ShFunc, typename PrimFunc>
+    void derived_run_iteration(AtomicImage& image,
+                               ShFunc process_shadow_rays,
+                               PrimFunc process_primary_rays,
                                SamplePixelFn sample_fn) {
         next_tile_ = 0;
 
         std::vector<std::thread> threads;
         for (int i = 0; i < num_threads_; ++i) {
-            threads.emplace_back([this, i, &image, integrator, process_shadow_rays, process_primary_rays, sample_fn]()
+            threads.emplace_back([this, i, &image, process_shadow_rays, process_primary_rays, sample_fn]()
                 {
-                    render_thread(i, image, integrator, process_shadow_rays, process_primary_rays, sample_fn);
+                    render_thread(i, image, process_shadow_rays, process_primary_rays, sample_fn);
                 });
         }
 
@@ -146,10 +146,10 @@ private:
         return true;
     }
 
-    template<typename Obj>
-    void render_thread(int thread_idx, AtomicImage& image, Obj* integrator,
-                       void (Obj::*process_shadow_rays)(RayQueue<StateType>&, AtomicImage&),
-                       void (Obj::*process_primary_rays)(RayQueue<StateType>&, RayQueue<StateType>&, RayQueue<StateType>&, AtomicImage&),
+    template<typename ShFunc, typename PrimFunc>
+    void render_thread(int thread_idx, AtomicImage& image,
+                       ShFunc process_shadow_rays,
+                       PrimFunc process_primary_rays,
                        SamplePixelFn sample_fn) {
         auto cur_tile = next_tile_++;
         while (cur_tile < tile_count_) {
@@ -189,7 +189,7 @@ private:
 #endif
                 prim_q_in->traverse(scene_);
 
-                (integrator->*process_primary_rays)(*prim_q_in, *prim_q_out, *shadow_q, image);
+                process_primary_rays(*prim_q_in, *prim_q_out, *shadow_q, image);
 
                 if (shadow_q->size() > MIN_QUEUE_SIZE) {
                     shadow_q->traverse_occluded(scene_);
@@ -203,7 +203,7 @@ private:
                         ;
 #endif
 
-                    (integrator->*process_shadow_rays)(*shadow_q, image);
+                    process_shadow_rays(*shadow_q, image);
                 }
 
                 shadow_q->clear();

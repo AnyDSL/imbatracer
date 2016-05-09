@@ -23,12 +23,11 @@ public:
         , scene_(scene)
     {}
 
-    template<typename Obj>
-    void run_iteration(AtomicImage& out, Obj* integrator,
-                       void (Obj::*process_shadow_rays)(RayQueue<StateType>&, AtomicImage&),
-                       void (Obj::*process_primary_rays)(RayQueue<StateType>&, RayQueue<StateType>&, RayQueue<StateType>&, AtomicImage&),
+    template<typename ShFunc, typename PrimFunc>
+    void run_iteration(AtomicImage& out,
+                       ShFunc process_shadow_rays, PrimFunc process_primary_rays,
                        SamplePixelFn sample_fn) {
-        static_cast<Derived*>(this)->derived_run_iteration(out, integrator, process_shadow_rays, process_primary_rays, sample_fn);
+        static_cast<Derived*>(this)->derived_run_iteration(out, process_shadow_rays, process_primary_rays, sample_fn);
     }
 
 protected:

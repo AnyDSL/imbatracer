@@ -36,15 +36,17 @@ enum QueueTag {
     QUEUE_READY_FOR_SHADOW_TRAVERSAL
 };
 
-template<typename StateType, size_t count>
+template<typename StateType>
 class RayQueuePool {
 public:
-    RayQueuePool(size_t length) {
+    RayQueuePool(size_t queue_size, size_t count)
+        : queues_(count), queue_flags_(count)
+    {
         for (auto iter = queue_flags_.begin(); iter != queue_flags_.end(); ++iter)
             iter->store(QUEUE_EMPTY);
 
         for (auto& q : queues_)
-            q = new RayQueue<StateType>(length);
+            q = new RayQueue<StateType>(queue_size);
 
         nonempty_count_ = 0;
     }
@@ -56,7 +58,7 @@ public:
 
     /// Finds the next queue that matches the given tag, sets its tag to QUEUE_IN_USE and returns it.
     QueueReference<StateType> claim_queue_with_tag(QueueTag tag) {
-        for (size_t i = 0; i < count; ++i) {
+        for (size_t i = 0; i < queues_.size(); ++i) {
             QueueTag expected = tag;
             if (queue_flags_[i].compare_exchange_strong(expected, QUEUE_IN_USE)) {
                 // We found a matching queue.
@@ -84,16 +86,17 @@ public:
     bool has_nonempty() { return nonempty_count_ > 0; }
 
 private:
-    std::array<RayQueue<StateType>*, count> queues_;
-    std::array<std::atomic<QueueTag>, count> queue_flags_;
+    std::vector<RayQueue<StateType>*> queues_;
+    std::vector<std::atomic<QueueTag> > queue_flags_;
 
     std::atomic<size_t> nonempty_count_;
 };
 
-/// Uses a fixed number of queues, a single traversal and multiple shading threads.
-template<typename StateType, int queue_count, int shadow_queue_count, int max_shadow_rays_per_hit>
-class QueueScheduler : public RaySchedulerBase<QueueScheduler<StateType, queue_count, shadow_queue_count, max_shadow_rays_per_hit>, StateType> {
-    using BaseType = RaySchedulerBase<QueueScheduler<StateType, queue_count, shadow_queue_count, max_shadow_rays_per_hit>, StateType>;
+/// Uses a fixed number of queues, and multiple shading threads.
+/// Traversal runs in the main thread. Thus, the scheduler is most beneficial for the GPU traversal.
+template<typename StateType, int shadow_queue_count, int max_shadow_rays_per_hit>
+class QueueScheduler : public RaySchedulerBase<QueueScheduler<StateType, shadow_queue_count, max_shadow_rays_per_hit>, StateType> {
+    using BaseType = RaySchedulerBase<QueueScheduler<StateType, shadow_queue_count, max_shadow_rays_per_hit>, StateType>;
     using SamplePixelFn = typename RayGen<StateType>::SamplePixelFn;
     static constexpr int DEFAULT_QUEUE_SIZE = 1 << 16;
 
@@ -103,22 +106,21 @@ protected:
 
 public:
     QueueScheduler(RayGen<StateType>& ray_gen, Scene& scene, int queue_size = DEFAULT_QUEUE_SIZE)
-        : RaySchedulerBase<QueueScheduler<StateType, queue_count, shadow_queue_count, max_shadow_rays_per_hit>, StateType>(ray_gen, scene)
-        , queue_pool_(queue_size)
-        , shadow_queue_pool_(queue_size * max_shadow_rays_per_hit)
+        : BaseType(ray_gen, scene)
+        , queue_pool_(queue_size, (2 * ray_gen.width() * ray_gen.height() * ray_gen.num_samples()) / queue_size)
+        , shadow_queue_pool_(queue_size * max_shadow_rays_per_hit, shadow_queue_count)
     {
         // Initialize the GPU buffer
-        RayQueue<StateType>::setup_device_buffer(queue_size * max_shadow_rays_per_hit);
+        RayQueue<StateType>::setup_device_buffer(queue_size * max_shadow_rays_per_hit * shadow_queue_count);
     }
 
     ~QueueScheduler() {
         RayQueue<StateType>::release_device_buffer();
     }
 
-    template<typename Obj>
-    void derived_run_iteration(AtomicImage& out, Obj* integrator,
-                               void (Obj::*process_shadow_rays)(RayQueue<StateType>&, AtomicImage&),
-                               void (Obj::*process_primary_rays)(RayQueue<StateType>&, RayQueue<StateType>&, RayQueue<StateType>&, AtomicImage&),
+    template<typename ShFunc, typename PrimFunc>
+    void derived_run_iteration(AtomicImage& out,
+                               ShFunc process_shadow_rays, PrimFunc process_primary_rays,
                                SamplePixelFn sample_fn) {
         ray_gen_.start_frame();
 
@@ -131,7 +133,7 @@ public:
             if (q_ref) {
                 q_ref->traverse_occluded(scene_);
 
-                (integrator->*process_shadow_rays)(*q_ref, out);
+                process_shadow_rays(*q_ref, out);
 
                 q_ref->clear();
                 shadow_queue_pool_.return_queue(q_ref, QUEUE_EMPTY);
@@ -173,7 +175,7 @@ public:
                 q_out_shadow = shadow_queue_pool_.claim_queue_with_tag(QUEUE_READY_FOR_SHADOW_TRAVERSAL);
                 if (q_out_shadow) { // A shadow ray queue is ready for traversal.
                     q_out_shadow->traverse_occluded(scene_);
-                    (integrator->*process_shadow_rays)(*q_out_shadow, out);
+                    process_shadow_rays(*q_out_shadow, out);
                     q_out_shadow->clear();
                     // The queue is now empty and can be used.
                 } else {
@@ -183,8 +185,8 @@ public:
                 }
             }
 
-            shading_tasks_.run([this, integrator, process_primary_rays, q_ref, q_out, q_out_shadow, &out] () {
-                (integrator->*process_primary_rays)(*q_ref, *q_out, *q_out_shadow, out);
+            shading_tasks_.run([this, process_primary_rays, q_ref, q_out, q_out_shadow, &out] () {
+                process_primary_rays(*q_ref, *q_out, *q_out_shadow, out);
 
                 q_ref->clear();
                 queue_pool_.return_queue(q_ref, QUEUE_EMPTY);
@@ -197,10 +199,18 @@ public:
     }
 
 private:
-    RayQueuePool<StateType, queue_count> queue_pool_;
-    RayQueuePool<StateType, shadow_queue_count> shadow_queue_pool_;
+    RayQueuePool<StateType> queue_pool_;
+    RayQueuePool<StateType> shadow_queue_pool_;
 
     tbb::task_group shading_tasks_;
+
+    void fill_primary_queues() {
+
+    }
+
+    void process_shadow_queues() {
+
+    }
 };
 
 } // namespace imba

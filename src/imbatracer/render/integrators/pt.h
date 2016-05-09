@@ -27,7 +27,7 @@ public:
     virtual void render(AtomicImage& out) override;
 
 private:
-    QueueScheduler<PTState, 8, 8, 1> scheduler_;
+    QueueScheduler<PTState, 8, 1> scheduler_;
     //TileScheduler<PTState, 1> scheduler_;
     RayGen<PTState>& ray_gen_;
 
