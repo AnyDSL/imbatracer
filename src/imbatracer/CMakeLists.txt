@@ -11,6 +11,30 @@ else()
   message(FATAL_ERROR "Backend not supported")
 endif()
 
+set(IMPALA_SRCS
+    ~/Documents/AnyDSL/traversal/src/common/range.impala
+    rangesearch/rangesearch.impala)
+set(IMPALA_INTERFACE_NAME rangesearch_impala_interface)
+
+add_custom_command(OUTPUT ${CMAKE_CURRENT_SOURCE_DIR}/rangesearch/${IMPALA_INTERFACE_NAME}.h
+                   COMMAND impala -emit-c-interface ${IMPALA_SRCS}
+                          ${THORIN_RUNTIME_DIR}/runtime.impala
+                          ${THORIN_RUNTIME_DIR}/platforms/intrinsics_${BACKEND}.impala
+                          ${THORIN_RUNTIME_DIR}/platforms/intrinsics_thorin.impala
+                          -o rangesearch/${IMPALA_INTERFACE_NAME}
+                   DEPENDS ${IMPALA_SRCS}
+                   WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
+
+thorin_runtime_wrap(IMPALA_PROGRAM
+                    BACKEND ${BACKEND}
+                    CLANG_FLAGS -march=native -ffast-math
+                    FILES ${IMPALA_SRCS})
+
+set_source_files_properties(rangesearch/${IMPALA_INTERFACE_NAME}.h PROPERTIES GENERATED TRUE)
+
+set(IMPALA_INTERFACES # Have to use it somewhere so the interface head files will be generated
+    rangesearch/${IMPALA_INTERFACE_NAME}.h)
+
 add_library(imba_core
             core/adapter.h
             core/bbox.h
@@ -52,7 +76,12 @@ add_library(imba_render
             render/thorin_mem.h
             render/texture_sampler.h
             render/ray_scheduler.h
-            rangesearch/rangesearch.h)
+            rangesearch/rangesearch.h
+            ${IMPALA_INTERFACES})
+
+# Rangesearch Impala library
+add_library(rangesearch ${IMPALA_PROGRAM})
+target_link_libraries(rangesearch ${THORIN_RUNTIME_LIBRARY} ${THORIN_RUNTIME_LIBRARIES})
 
 add_executable(imbatracer
                frontend/main.cpp
@@ -65,6 +94,7 @@ target_link_libraries(imbatracer
                       imba_render
                       imba_core
                       imba_loaders
+                      rangesearch
                       ${SDL2_LIBRARY}
                       ${PNG_LIBRARIES}
                       ${TRAVERSAL_LIBRARY}
