@@ -106,13 +106,26 @@ public:
         // Calculate the position at which the rays will be inserted.
         int count = rays_end - rays_begin;
         int end_idx = last_ += count; // atomic add to last_
-        int start_idx = end_idx - (count - 1);\
+        int start_idx = end_idx - (count - 1);
 
         assert(end_idx < ray_buffer_.size() && "ray queue full");
 
         // Copy ray and state data.
         std::copy(rays_begin, rays_end, ray_buffer_.begin() + start_idx);
         std::copy(states_begin, states_end, state_buffer_.begin() + start_idx);
+    }
+
+    // Appends the rays and state data from another queue to this queue. Hits are not copied.
+    void append(const RayQueue<StateType>& other) {
+        int count = other.size();
+        int end_idx = last_ += count; // atomic add to last_
+        int start_idx = end_idx - (count - 1);
+
+        assert(end_idx < ray_buffer_.size() && "ray queue full");
+
+        // Copy ray and state data.
+        std::copy(other.ray_buffer_.begin(), other.ray_buffer_.end(), ray_buffer_.begin() + start_idx);
+        std::copy(other.state_buffer_.begin(), other.state_buffer_.end(), state_buffer_.begin() + start_idx);
     }
 
     /// Traverses the acceleration structure with the rays currently inside the queue.
@@ -186,6 +199,39 @@ public:
                            scene.mask_buffer.device_data(),
                            count);
 #endif
+    }
+
+    // Traverses all queues within a range of queue pointers at once.
+    template<typename QIter>
+    static void traverse_occluded_multi(QIter first, QIter last, Scene& scene) {
+        // ASSUMES GPU TRAVERSAL + QUEUE SCHEDULER!
+
+        // Copy all rays to the device.
+        size_t offset = 0;
+        for (QIter it = first; it != last; ++it) {
+            thorin::copy((*it)->ray_buffer_, 0, *device_ray_buffer.get(), offset, (*it)->size());
+            offset += (*it)->size();
+        }
+
+        if (offset == 0) // All queues were empty.
+            return;
+
+        TRAVERSAL_OCCLUDED(scene.nodes.device_data(),
+                           scene.tris.device_data(),
+                           device_ray_buffer->data(),
+                           device_hit_buffer->data(),
+                           scene.indices.device_data(),
+                           scene.texcoords.device_data(),
+                           scene.masks.device_data(),
+                           scene.mask_buffer.device_data(),
+                           align(offset));
+
+        // Copy the hits back into the individual queues.
+        offset = 0;
+        for (QIter it = first; it != last; ++it) {
+            thorin::copy(*device_hit_buffer.get(), 0, (*it)->hit_buffer_, offset, (*it)->size());
+            offset += (*it)->size();
+        }
     }
 
 #ifdef GPU_TRAVERSAL

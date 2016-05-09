@@ -73,7 +73,8 @@ public:
         , base_radius_(base_radius)
         , radius_alpha_(radius_alpha)
         , cur_iteration_(0)
-        , scheduler_(ray_gen, scene, thread_count, tile_size)
+        //, scheduler_(ray_gen, scene, thread_count, tile_size)
+        , scheduler_(ray_gen, scene)
         , max_path_len_(max_path_len)
         , spp_(spp)
         , vertex_caches_(spp)
@@ -112,7 +113,8 @@ private:
     float mis_weight_vm_;
 
     RayGen<VCMState>& ray_gen_;
-    TileScheduler<VCMState, MAX_NUM_CONNECTIONS + 1> scheduler_;
+    //TileScheduler<VCMState, MAX_NUM_CONNECTIONS + 1> scheduler_;
+    QueueScheduler<VCMState, 8, MAX_NUM_CONNECTIONS + 1> scheduler_;
 
     // Light path vertices and associated data are stored separately per sample / iteration.
     std::vector<std::vector<LightPathVertex> > vertex_caches_;

@@ -1,5 +1,8 @@
+#include <condition_variable>
 
 namespace imba {
+template<typename StateType>
+class RayQueuePool;
 
 template<typename StateType>
 class QueueReference {
@@ -23,6 +26,11 @@ public:
     }
 
     operator bool() const { return q_ != nullptr; }
+
+    void release() {
+        q_ = nullptr;
+        idx_ = 0;
+    }
 
 private:
     mutable RayQueue<StateType>* q_;
@@ -76,14 +84,19 @@ public:
         if (ref->size() <= 0)
             new_tag = QUEUE_EMPTY;
 
-        if (new_tag == QUEUE_EMPTY)
+        // Clear all queues that were returned with tag QUEUE_EMPTY.
+        if (new_tag == QUEUE_EMPTY) {
+            ref->clear();
             nonempty_count_--;
+        }
 
         queue_flags_[ref.index()] = new_tag;
     }
 
     /// Checks if there are still any queues left that are not empty.
     bool has_nonempty() { return nonempty_count_ > 0; }
+
+    size_t size() { return queues_.size(); }
 
 private:
     std::vector<RayQueue<StateType>*> queues_;
@@ -93,25 +106,34 @@ private:
 };
 
 /// Uses a fixed number of queues, and multiple shading threads.
-/// Traversal runs in the main thread. Thus, the scheduler is most beneficial for the GPU traversal.
+/// Traversal runs in the main thread and some other optimizations have been made for the GPU traversal.
+/// Thus, the QueueScheduler should never be used with the CPU traversal.
 template<typename StateType, int shadow_queue_count, int max_shadow_rays_per_hit>
 class QueueScheduler : public RaySchedulerBase<QueueScheduler<StateType, shadow_queue_count, max_shadow_rays_per_hit>, StateType> {
     using BaseType = RaySchedulerBase<QueueScheduler<StateType, shadow_queue_count, max_shadow_rays_per_hit>, StateType>;
     using SamplePixelFn = typename RayGen<StateType>::SamplePixelFn;
-    static constexpr int DEFAULT_QUEUE_SIZE = 1 << 16;
+    static constexpr int DEFAULT_QUEUE_SIZE = 1 << 18;
 
 protected:
     using BaseType::ray_gen_;
     using BaseType::scene_;
 
+    inline int primary_queue_count(RayGen<StateType>& ray_gen, int queue_size) {
+        double size = ray_gen.width() * ray_gen.height() * ray_gen.num_samples() / static_cast<double>(queue_size);
+        return std::ceil(size);
+    }
+
 public:
     QueueScheduler(RayGen<StateType>& ray_gen, Scene& scene, int queue_size = DEFAULT_QUEUE_SIZE)
         : BaseType(ray_gen, scene)
-        , queue_pool_(queue_size, (2 * ray_gen.width() * ray_gen.height() * ray_gen.num_samples()) / queue_size)
-        , shadow_queue_pool_(queue_size * max_shadow_rays_per_hit, shadow_queue_count)
+        , queue_pool_(queue_size, 2 * primary_queue_count(ray_gen, queue_size))
+        , shadow_queue_pool_(queue_size * max_shadow_rays_per_hit,
+            std::max(shadow_queue_count, 1 + primary_queue_count(ray_gen, queue_size)))
+        , shadow_buffer_(queue_size * max_shadow_rays_per_hit * std::max(shadow_queue_count, 1 + primary_queue_count(ray_gen, queue_size)))
     {
         // Initialize the GPU buffer
-        RayQueue<StateType>::setup_device_buffer(queue_size * max_shadow_rays_per_hit * shadow_queue_count);
+        RayQueue<StateType>::setup_device_buffer(queue_size * max_shadow_rays_per_hit *
+            std::max(shadow_queue_count, 1 + primary_queue_count(ray_gen, queue_size)));
     }
 
     ~QueueScheduler() {
@@ -124,74 +146,57 @@ public:
                                SamplePixelFn sample_fn) {
         ray_gen_.start_frame();
 
+        fill_primary_queues(sample_fn);
+
         while (queue_pool_.has_nonempty() ||
-               shadow_queue_pool_.has_nonempty() ||
-               !ray_gen_.is_empty()) {
-            // Traverse the next set of rays.
-            // Prioritize shadow rays as they are faster to traverse.
-            auto q_ref = shadow_queue_pool_.claim_queue_with_tag(QUEUE_READY_FOR_SHADOW_TRAVERSAL);
-            if (q_ref) {
-                q_ref->traverse_occluded(scene_);
-
-                process_shadow_rays(*q_ref, out);
-
-                q_ref->clear();
-                shadow_queue_pool_.return_queue(q_ref, QUEUE_EMPTY);
-
-                continue;
-            }
-
-            // There are no shadow ray queues left. Try to find a queue of primary rays.
-            q_ref = queue_pool_.claim_queue_with_tag(QUEUE_READY_FOR_TRAVERSAL);
-            if (!q_ref) {
+               shadow_queue_pool_.has_nonempty()) {
+            auto trav_q = queue_pool_.claim_queue_with_tag(QUEUE_READY_FOR_TRAVERSAL);
+            if (!trav_q) {
                 // There is no queue of primary rays ready for traversal
-                if (!ray_gen_.is_empty()) {
-                    q_ref = queue_pool_.claim_queue_with_tag(QUEUE_EMPTY);
-                    if (q_ref) {
-                        // We found an empty queue. Fill it with a set of rays from the ray generation (camera or light).
-                        ray_gen_.fill_queue(*q_ref, sample_fn);
-                    }
-                }
+                process_shadow_queues(out, process_shadow_rays); // Find something to do.
+
+                // Wait on the condition variable which signals that a shading thread is finished.
+
+                /*std::unique_lock<std::mutex> lk(cv_m_);
+
+                trav_q = queue_pool_.claim_queue_with_tag(QUEUE_READY_FOR_TRAVERSAL);
+                if (!trav_q) {
+                    //std::cout << "waiting..." << std::endl;
+                    cv_.wait(lk, [this]{ return shading_done_; });
+                    shading_done_--;
+                    continue;
+                }*/
+                    continue;
             }
 
-            if (!q_ref) {
-                // There is no work for traversal at the moment.
-                shading_tasks_.wait();
-                continue;
-            }
+            trav_q->traverse(scene_);
 
-            // Traverse the queue of primary rays.
-            q_ref->traverse(scene_);
-
-            auto q_out = queue_pool_.claim_queue_with_tag(QUEUE_EMPTY);
-            while (!q_out) {
-                // All queues are currently occupied as input or output of shading tasks.
-                shading_tasks_.wait();
-                q_out = queue_pool_.claim_queue_with_tag(QUEUE_EMPTY);
-            }
+            auto q_out = queue_pool_.claim_queue_with_tag(QUEUE_EMPTY); // We ensured that there will always be an output queue.
 
             auto q_out_shadow = shadow_queue_pool_.claim_queue_with_tag(QUEUE_EMPTY);
-            while (!q_out_shadow) {
-                q_out_shadow = shadow_queue_pool_.claim_queue_with_tag(QUEUE_READY_FOR_SHADOW_TRAVERSAL);
-                if (q_out_shadow) { // A shadow ray queue is ready for traversal.
-                    q_out_shadow->traverse_occluded(scene_);
-                    process_shadow_rays(*q_out_shadow, out);
-                    q_out_shadow->clear();
-                    // The queue is now empty and can be used.
-                } else {
-                    shading_tasks_.wait();
-                    // Try to get an empty shadow queue again.
-                    q_out_shadow = shadow_queue_pool_.claim_queue_with_tag(QUEUE_EMPTY);
-                }
+            if (!q_out_shadow) {
+                // If there is no empty shadow ray queue available, traverse the full ones.
+                // Because the number of shadow queues is larger than the number of queues filled with
+                // rays from the ray generation, there will always be at least one full queue ready for traversal,
+                // if none of the queues are empty.
+                process_shadow_queues(out, process_shadow_rays);
+
+                // At least one queue will be empty now.
+                q_out_shadow = shadow_queue_pool_.claim_queue_with_tag(QUEUE_EMPTY);
             }
 
-            shading_tasks_.run([this, process_primary_rays, q_ref, q_out, q_out_shadow, &out] () {
-                process_primary_rays(*q_ref, *q_out, *q_out_shadow, out);
+            shading_tasks_.run([this, process_primary_rays, trav_q, q_out, q_out_shadow, &out] () {
+                process_primary_rays(*trav_q, *q_out, *q_out_shadow, out);
 
-                q_ref->clear();
-                queue_pool_.return_queue(q_ref, QUEUE_EMPTY);
+                trav_q->clear();
+                queue_pool_.return_queue(trav_q, QUEUE_EMPTY);
                 queue_pool_.return_queue(q_out, QUEUE_READY_FOR_TRAVERSAL);
                 shadow_queue_pool_.return_queue(q_out_shadow, QUEUE_READY_FOR_SHADOW_TRAVERSAL);
+
+                /*std::unique_lock<std::mutex> lk(cv_m_);
+                shading_done_++;
+                lk.unlock();
+                cv_.notify_one();*/
             });
         }
 
@@ -202,14 +207,51 @@ private:
     RayQueuePool<StateType> queue_pool_;
     RayQueuePool<StateType> shadow_queue_pool_;
 
+    RayQueue<StateType> shadow_buffer_;
+
     tbb::task_group shading_tasks_;
 
-    void fill_primary_queues() {
+    std::condition_variable cv_;
+    std::mutex cv_m_;
+    int shading_done_;
 
+    void fill_primary_queues(SamplePixelFn sample_fn) {
+        while (!ray_gen_.is_empty()) {
+            // We can be sure that there will always be a queue available.
+            auto q = queue_pool_.claim_queue_with_tag(QUEUE_EMPTY);
+            ray_gen_.fill_queue(*q, sample_fn);
+            queue_pool_.return_queue(q, QUEUE_READY_FOR_TRAVERSAL);
+        }
     }
 
-    void process_shadow_queues() {
+    template<typename ShFunc>
+    void process_shadow_queues(AtomicImage& out, ShFunc process_shadow_rays) {
+        // Add all available shadow queues to the combined buffer.
+        auto q_out_shadow = shadow_queue_pool_.claim_queue_with_tag(QUEUE_READY_FOR_SHADOW_TRAVERSAL);
 
+        if (q_out_shadow) {
+            q_out_shadow->traverse_occluded(scene_);
+            process_shadow_rays(*q_out_shadow, out);
+            shadow_queue_pool_.return_queue(q_out_shadow, QUEUE_EMPTY);
+        }
+        return;
+
+        static std::vector<QueueReference<StateType> > used_refs;
+        used_refs.reserve(shadow_queue_pool_.size());
+
+        while (q_out_shadow) {
+            used_refs.push_back(q_out_shadow);
+            break;
+
+            q_out_shadow = shadow_queue_pool_.claim_queue_with_tag(QUEUE_READY_FOR_SHADOW_TRAVERSAL);
+        }
+
+        RayQueue<StateType>::traverse_occluded_multi(used_refs.begin(), used_refs.end(), scene_);
+
+        for (auto& q_ref: used_refs) {
+            process_shadow_rays(*q_ref, out);
+            shadow_queue_pool_.return_queue(q_ref, QUEUE_EMPTY);
+        }
     }
 };
 
