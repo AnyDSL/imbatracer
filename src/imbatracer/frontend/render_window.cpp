@@ -12,6 +12,13 @@ namespace imba {
 
 constexpr float gamma = 1.0f / 2.0f;
 
+struct InitOnce {
+    InitOnce() { SDL_Init(SDL_INIT_VIDEO); };
+    ~InitOnce() { SDL_Quit(); }
+};
+
+static InitOnce init_once;
+
 RenderWindow::RenderWindow(const UserSettings& settings, Integrator& r, InputController& ctrl, int spp)
     : accum_buffer_(settings.width, settings.height)
     , integrator_(r)
@@ -26,29 +33,26 @@ RenderWindow::RenderWindow(const UserSettings& settings, Integrator& r, InputCon
     , conv_file_base_(settings.intermediate_image_name)
 {
     if (!settings.background) {
-        SDL_Init(SDL_INIT_VIDEO);
         window_ = SDL_CreateWindow("Imbatracer", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, settings.width, settings.height, 0);
+        SDL_GetWindowSurface(window_); // Creates a surface for the window
     }
-
     clear();
 }
 
 RenderWindow::~RenderWindow() {
-    if (window_) {
-        SDL_DestroyWindow(window_);
-        SDL_Quit();
-    }
+    if (window_) SDL_DestroyWindow(window_);
 }
 
 void RenderWindow::render_loop() {
-    // Flush input events (discard first mouse move event)
-    if (window_) handle_events(true);
-
     typedef std::chrono::high_resolution_clock clock_type;
     std::chrono::time_point<clock_type> msg_time = clock_type::now();
     std::chrono::time_point<clock_type> cur_time = msg_time;
 
     while (true) {
+        render();
+
+        cur_time = clock_type::now();
+
         const auto elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(cur_time - start_time_).count();
         const auto msg_ms = std::chrono::duration_cast<std::chrono::milliseconds>(cur_time - msg_time).count();
         const auto avg_frame_time = frames_ == 0 ? static_cast<float>(elapsed_ms) : static_cast<float>(elapsed_ms) / frames_;
@@ -60,14 +64,10 @@ void RenderWindow::render_loop() {
             msg_time = cur_time;
         }
 
-        render();
-
-        if ((window_ && handle_events(false)) ||
+        if ((window_ && handle_events()) ||
             (frames_ + 1) * spp_ > max_samples_ ||
-            (elapsed_ms + avg_frame_time) / 1000.0f > max_time_sec_)
+            (elapsed_ms + avg_frame_time * 0.5f) / 1000.0f > max_time_sec_) // Allow only 50% average frame time more than specified.
             break;
-
-        cur_time = clock_type::now();
 
         if (conv_file_base_ != "" && elapsed_ms / static_cast<int>(1000 * conv_interval_sec_) >= conv_count_) {
             ++conv_count_;
@@ -116,14 +116,9 @@ void RenderWindow::render() {
     SDL_UpdateWindowSurface(window_);
 }
 
-bool RenderWindow::handle_events(bool flush) {
+bool RenderWindow::handle_events() {
     SDL_Event event;
     bool update = false;
-
-    if (flush) {
-        while (SDL_PollEvent(&event));
-        return false;
-    }
 
     while (SDL_PollEvent(&event)) {
         switch (event.type) {

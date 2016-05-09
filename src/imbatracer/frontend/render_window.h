@@ -29,7 +29,7 @@ public:
 
 private:
     void clear();
-    bool handle_events(bool flush);
+    bool handle_events();
     void render();
 
     bool write_image(const char* filename);

@@ -139,11 +139,10 @@ public:
         const int  pzo = pz + (fract_coord.z < 0.5f ? -1 : 1);
 
         for(int j = 0; j < 8; j++) { // TODO Is it possible same photon get pushed back more than only once? i.e. a collision in hash fn
-            CellIdx active_range;
-            auto z = j & 1 ? pzo : pz;
-            auto y = j & 2 ? pyo : py;
-            auto x = j & 4 ? pxo : px;
-            active_range = cell_range(cell_index(x, y, z));
+            const int x = j & 4 ? pxo : px;
+            const int y = j & 2 ? pyo : py;
+            const int z = j & 1 ? pzo : pz;
+            CellIdx active_range = cell_range(cell_index(x , y , z ));
 
             for(; active_range.x < active_range.y; active_range.x++) // TODO How to parallelize?
             {

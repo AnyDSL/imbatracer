@@ -18,6 +18,8 @@ public:
         : scene_(scene), cam_(cam)
     {}
 
+    virtual ~Integrator() {}
+
     virtual void render(AtomicImage& out) = 0;
     virtual void reset() {}
     virtual void preprocess() {}

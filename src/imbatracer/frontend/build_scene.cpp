@@ -510,7 +510,7 @@ bool build_scene(const Path& path, Scene& scene, float3& cam_pos, float3& cam_di
     // Compute bounding sphere.
     BBox mesh_bb = BBox::empty();
     for (size_t i = 0; i < scene.mesh.vertex_count(); i++) {
-        const float3 v = truncate(scene.mesh.vertices()[i]);
+        const float3 v(scene.mesh.vertices()[i]);
         mesh_bb.extend(v);
     }
     const float radius = length(mesh_bb.max - mesh_bb.min) * 0.5f;

@@ -106,9 +106,14 @@ public:
         : RaySchedulerBase<QueueScheduler<StateType, queue_count, shadow_queue_count, max_shadow_rays_per_hit>, StateType>(ray_gen, scene)
         , queue_pool_(queue_size)
         , shadow_queue_pool_(queue_size * max_shadow_rays_per_hit)
-    {}
+    {
+        // Initialize the GPU buffer
+        RayQueue<StateType>::setup_device_buffer(queue_size * max_shadow_rays_per_hit);
+    }
 
-    ~QueueScheduler() {}
+    ~QueueScheduler() {
+        RayQueue<StateType>::release_device_buffer();
+    }
 
     template<typename Obj>
     void derived_run_iteration(AtomicImage& out, Obj* integrator,

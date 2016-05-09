@@ -1,9 +1,0 @@
-mesh sponza_scaled.obj
-accel sponza.bvh
-
-pos  -4.42058  1.32792  -4.98352
-dir  0.87082  0.0216803  0.491123
-up   -0.0364289  0.999126  0.0204869
-
-
-point_light 0 12.3 0 5060 5060 4060

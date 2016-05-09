@@ -1,0 +1,5 @@
+pos 0  0.9  2.5
+dir 0  0   -1
+up  0  1    0
+
+mesh CornellBox-Original.obj
