@@ -385,6 +385,9 @@ void VCM_INTEGRATOR::process_light_rays(RayQueue<VCMState>& rays_in, RayQueue<VC
             Intersection isect = calculate_intersection(hits, rays, i);
             float cos_theta_o = fabsf(dot(isect.out_dir, isect.normal));
 
+            if (cos_theta_o == 0.0f) // Prevent NaNs
+                continue;
+
             // Complete calculation of the partial weights.
             if (states[i].path_length > 1 || states[i].is_finite)
                 states[i].dVCM *= mis_heuristic(sqr(isect.distance));
@@ -392,6 +395,12 @@ void VCM_INTEGRATOR::process_light_rays(RayQueue<VCMState>& rays_in, RayQueue<VC
             states[i].dVCM *= 1.0f / mis_heuristic(cos_theta_o);
             states[i].dVC  *= 1.0f / mis_heuristic(cos_theta_o);
             states[i].dVM  *= 1.0f / mis_heuristic(cos_theta_o);
+
+#ifdef ENABLE_NAN_TESTS
+            if (isnan(states[i].dVCM) || isnan(states[i].dVC) || isnan(states[i].dVM))
+                printf("NaN in completed MIS weights (light):\n   weights: dVCM %f, dVC %f, dVM %f, cos: %f\n",
+                    states[i].dVCM, states[i].dVC, states[i].dVM, cos_theta_o);
+#endif
 
             auto bsdf = isect.mat->get_bsdf(isect, bsdf_mem_arena, true);
 
@@ -508,6 +517,15 @@ void VCM_INTEGRATOR::process_camera_rays(RayQueue<VCMState>& rays_in, RayQueue<V
             states[i].dVCM *= mis_heuristic(sqr(isect.distance)) / mis_heuristic(cos_theta_o); // convert divided pdf from solid angle to area
             states[i].dVC *= 1.0f / mis_heuristic(cos_theta_o);
             states[i].dVM *= 1.0f / mis_heuristic(cos_theta_o);
+
+            if (cos_theta_o == 0.0f) // Prevent NaNs
+                continue;
+
+#ifdef ENABLE_NAN_TESTS
+            if (isnan(states[i].dVCM) || isnan(states[i].dVC) || isnan(states[i].dVM))
+                printf("NaN in completed MIS weights (camera):\n   weights: dVCM %f, dVC %f, dVM %f, cos: %f\n",
+                    states[i].dVCM, states[i].dVC, states[i].dVM, cos_theta_o);
+#endif
 
             if (isect.mat->light()) {
                 auto light_source = isect.mat->light();
