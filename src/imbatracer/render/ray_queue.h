@@ -205,7 +205,7 @@ public:
     template<typename QIter>
     static void traverse_occluded_multi(QIter first, QIter last, Scene& scene) {
         // ASSUMES GPU TRAVERSAL + QUEUE SCHEDULER!
-
+#ifdef GPU_TRAVERSAL
         // Copy all rays to the device.
         size_t offset = 0;
         for (QIter it = first; it != last; ++it) {
@@ -215,6 +215,8 @@ public:
 
         if (offset == 0) // All queues were empty.
             return;
+
+        printf("traversing shadow rays: %d\n", offset);
 
         TRAVERSAL_OCCLUDED(scene.nodes.device_data(),
                            scene.tris.device_data(),
@@ -232,6 +234,7 @@ public:
             thorin::copy(*device_hit_buffer.get(), 0, (*it)->hit_buffer_, offset, (*it)->size());
             offset += (*it)->size();
         }
+#endif
     }
 
 #ifdef GPU_TRAVERSAL

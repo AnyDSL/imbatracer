@@ -6,6 +6,8 @@
 #include "../ray_gen.h"
 #include "../../rangesearch/rangesearch.h"
 
+//#define QUEUE_SCHEDULING
+
 namespace imba {
 
 struct VCMState : RayState {
@@ -73,8 +75,11 @@ public:
         , base_radius_(base_radius)
         , radius_alpha_(radius_alpha)
         , cur_iteration_(0)
-        //, scheduler_(ray_gen, scene, thread_count, tile_size)
+#ifdef QUEUE_SCHEDULING
         , scheduler_(ray_gen, scene)
+#else
+        , scheduler_(ray_gen, scene, thread_count, tile_size)
+#endif
         , max_path_len_(max_path_len)
         , spp_(spp)
         , vertex_caches_(spp)
@@ -113,8 +118,12 @@ private:
     float mis_weight_vm_;
 
     RayGen<VCMState>& ray_gen_;
-    //TileScheduler<VCMState, MAX_NUM_CONNECTIONS + 1> scheduler_;
+
+#ifdef QUEUE_SCHEDULING
     QueueScheduler<VCMState, 8, MAX_NUM_CONNECTIONS + 1> scheduler_;
+#else
+    TileScheduler<VCMState, MAX_NUM_CONNECTIONS + 1> scheduler_;
+#endif
 
     // Light path vertices and associated data are stored separately per sample / iteration.
     std::vector<std::vector<LightPathVertex> > vertex_caches_;

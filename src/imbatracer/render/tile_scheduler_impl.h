@@ -53,15 +53,15 @@ public:
 
     ~TileScheduler() {
 #ifdef ENABLE_QUEUE_STATS
-        std::cout << "Queue stats:" << std::endl
-                  << "   primary rays    : " << primary_ray_total << std::endl
-                  << "   shadow rays     : " << shadow_ray_total << std::endl
-                  << "   primary min     : " << primary_ray_min << std::endl
-                  << "   shadow min      : " << shadow_ray_min << std::endl
-                  << "   traversal calls : " << traversal_calls << std::endl
-                  << "   traversal calls (shadow) : " << shadow_traversal_calls << std::endl
-                  << "   average primary : " << primary_ray_total / traversal_calls << std::endl
-                  << "   average shadow  : " << shadow_ray_total / traversal_calls << std::endl;
+        // std::cout << "Queue stats:" << std::endl
+        //           << "   primary rays    : " << primary_ray_total << std::endl
+        //           << "   shadow rays     : " << shadow_ray_total << std::endl
+        //           << "   primary min     : " << primary_ray_min << std::endl
+        //           << "   shadow min      : " << shadow_ray_min << std::endl
+        //           << "   traversal calls : " << traversal_calls << std::endl
+        //           << "   traversal calls (shadow) : " << shadow_traversal_calls << std::endl
+        //           << "   average primary : " << primary_ray_total / traversal_calls << std::endl
+        //           << "   average shadow  : " << shadow_ray_total / traversal_calls << std::endl;
 
         std::cout << primary_ray_total + shadow_ray_total << std::endl;
 #endif

@@ -112,8 +112,7 @@ template<typename StateType, int shadow_queue_count, int max_shadow_rays_per_hit
 class QueueScheduler : public RaySchedulerBase<QueueScheduler<StateType, shadow_queue_count, max_shadow_rays_per_hit>, StateType> {
     using BaseType = RaySchedulerBase<QueueScheduler<StateType, shadow_queue_count, max_shadow_rays_per_hit>, StateType>;
     using SamplePixelFn = typename RayGen<StateType>::SamplePixelFn;
-    static constexpr int DEFAULT_QUEUE_SIZE = 1 << 18;
-
+    static constexpr int DEFAULT_QUEUE_SIZE = 1 << 16;
 protected:
     using BaseType::ray_gen_;
     using BaseType::scene_;
@@ -130,10 +129,10 @@ public:
         , shadow_queue_pool_(queue_size * max_shadow_rays_per_hit,
             std::max(shadow_queue_count, 1 + primary_queue_count(ray_gen, queue_size)))
         , shadow_buffer_(queue_size * max_shadow_rays_per_hit * std::max(shadow_queue_count, 1 + primary_queue_count(ray_gen, queue_size)))
+        , shadow_buffer_size_(queue_size * max_shadow_rays_per_hit)
     {
         // Initialize the GPU buffer
-        RayQueue<StateType>::setup_device_buffer(queue_size * max_shadow_rays_per_hit *
-            std::max(shadow_queue_count, 1 + primary_queue_count(ray_gen, queue_size)));
+        RayQueue<StateType>::setup_device_buffer(shadow_buffer_size_);
     }
 
     ~QueueScheduler() {
@@ -157,16 +156,7 @@ public:
 
                 // Wait on the condition variable which signals that a shading thread is finished.
 
-                /*std::unique_lock<std::mutex> lk(cv_m_);
-
-                trav_q = queue_pool_.claim_queue_with_tag(QUEUE_READY_FOR_TRAVERSAL);
-                if (!trav_q) {
-                    //std::cout << "waiting..." << std::endl;
-                    cv_.wait(lk, [this]{ return shading_done_; });
-                    shading_done_--;
-                    continue;
-                }*/
-                    continue;
+                continue; // busy wait for now
             }
 
             trav_q->traverse(scene_);
@@ -192,11 +182,6 @@ public:
                 queue_pool_.return_queue(trav_q, QUEUE_EMPTY);
                 queue_pool_.return_queue(q_out, QUEUE_READY_FOR_TRAVERSAL);
                 shadow_queue_pool_.return_queue(q_out_shadow, QUEUE_READY_FOR_SHADOW_TRAVERSAL);
-
-                /*std::unique_lock<std::mutex> lk(cv_m_);
-                shading_done_++;
-                lk.unlock();
-                cv_.notify_one();*/
             });
         }
 
@@ -214,6 +199,8 @@ private:
     std::condition_variable cv_;
     std::mutex cv_m_;
     int shading_done_;
+
+    int shadow_buffer_size_;
 
     void fill_primary_queues(SamplePixelFn sample_fn) {
         while (!ray_gen_.is_empty()) {
@@ -236,22 +223,30 @@ private:
         }
         return;
 
-        static std::vector<QueueReference<StateType> > used_refs;
-        used_refs.reserve(shadow_queue_pool_.size());
+        // static std::vector<QueueReference<StateType> > used_refs;
+        // used_refs.reserve(shadow_queue_pool_.size());
+        // used_refs.clear();
 
-        while (q_out_shadow) {
-            used_refs.push_back(q_out_shadow);
-            break;
+        // int total = 0;
+        // while (q_out_shadow) {
+        //     if (total + q_out_shadow->size() <= shadow_buffer_size_) {
+        //         total += q_out_shadow->size();
+        //         used_refs.push_back(q_out_shadow);
+        //     } else {
+        //         // We have enough rays in the buffer to utilize the GPU.
+        //         shadow_queue_pool_.return_queue(q_out_shadow, QUEUE_READY_FOR_SHADOW_TRAVERSAL);
+        //         break;
+        //     }
 
-            q_out_shadow = shadow_queue_pool_.claim_queue_with_tag(QUEUE_READY_FOR_SHADOW_TRAVERSAL);
-        }
+        //     q_out_shadow = shadow_queue_pool_.claim_queue_with_tag(QUEUE_READY_FOR_SHADOW_TRAVERSAL);
+        // }
 
-        RayQueue<StateType>::traverse_occluded_multi(used_refs.begin(), used_refs.end(), scene_);
+        // RayQueue<StateType>::traverse_occluded_multi(used_refs.begin(), used_refs.end(), scene_);
 
-        for (auto& q_ref: used_refs) {
-            process_shadow_rays(*q_ref, out);
-            shadow_queue_pool_.return_queue(q_ref, QUEUE_EMPTY);
-        }
+        // for (auto& q_ref: used_refs) {
+        //     process_shadow_rays(*q_ref, out);
+        //     shadow_queue_pool_.return_queue(q_ref, QUEUE_EMPTY);
+        // }
     }
 };
 
