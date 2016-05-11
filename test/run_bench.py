@@ -78,8 +78,8 @@ bench_settings = [
 
 
 thread_counts = [4]
-sample_counts = [16]
-tilesizes     = [128, 256]
+sample_counts = [1]
+tilesizes     = [256]
 connections   = [1]
 
 scheduler_args = []
@@ -94,8 +94,8 @@ for t in thread_counts:
                     'samples_per_frame': s
                     })
 
-times_in_seconds = [300]
-algorithms = ['pt', 'bpt', 'vcm', 'ppm']
+times_in_seconds = [10]
+algorithms = ['pt', 'vcm']
 convergence = True
 convergence_step_sec = 5
 
