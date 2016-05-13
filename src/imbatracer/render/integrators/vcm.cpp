@@ -255,13 +255,15 @@ void VCM_INTEGRATOR::trace_light_paths(AtomicImage& img) {
     if (algo == ALGO_LT) // Only build the hash grid when it is used.
         return;
 
-    for (int i = 0; i < spp_; ++i) {
-        light_vertices_count_[i] = std::min(static_cast<int>(vertex_caches_[i].size()), static_cast<int>(vertex_cache_last_[i]));
-        if (algo != ALGO_BPT) {
-            photon_grid_[i].reserve(light_vertices_count_[i]);
-            photon_grid_[i].build(vertex_caches_[i].begin(), vertex_caches_[i].begin() + light_vertices_count_[i], pm_radius_);
+    tbb::parallel_for(tbb::blocked_range<size_t>(0, spp_), [this] (const tbb::blocked_range<size_t>& range) {
+        for (size_t i = range.begin(); i != range.end(); ++i) {
+            light_vertices_count_[i] = std::min(static_cast<int>(vertex_caches_[i].size()), static_cast<int>(vertex_cache_last_[i]));
+            if (algo != ALGO_BPT) {
+                photon_grid_[i].reserve(light_vertices_count_[i]);
+                photon_grid_[i].build(vertex_caches_[i].begin(), vertex_caches_[i].begin() + light_vertices_count_[i], pm_radius_);
+            }
         }
-    }
+    });
 }
 
 VCM_TEMPLATE
