@@ -112,7 +112,8 @@ template<typename StateType, int shadow_queue_count, int max_shadow_rays_per_hit
 class QueueScheduler : public RaySchedulerBase<QueueScheduler<StateType, shadow_queue_count, max_shadow_rays_per_hit>, StateType> {
     using BaseType = RaySchedulerBase<QueueScheduler<StateType, shadow_queue_count, max_shadow_rays_per_hit>, StateType>;
     using SamplePixelFn = typename RayGen<StateType>::SamplePixelFn;
-    static constexpr int DEFAULT_QUEUE_SIZE = 1 << 16;
+    static constexpr int DEFAULT_QUEUE_SIZE = 65536;//1 << 16;
+
 protected:
     using BaseType::ray_gen_;
     using BaseType::scene_;

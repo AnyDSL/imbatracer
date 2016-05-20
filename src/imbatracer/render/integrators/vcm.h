@@ -12,13 +12,11 @@ namespace imba {
 
 struct VCMState : RayState {
     float4 throughput;
-    int path_length;
+    int path_length : 7;
+    bool is_finite : 1; // Used to store whether the light source during light tracing was finite.
 
     // Russian roulette probability for continuing this path.
     float continue_prob;
-
-    // Used to store whether the light source during light tracing was finite.
-    bool is_finite;
 
     // partial weights for MIS, see VCM technical report
     float dVC;
