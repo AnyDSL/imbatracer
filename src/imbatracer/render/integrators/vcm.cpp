@@ -13,7 +13,6 @@
 
 // Enables debugging code that checks for NaNs in all contributions.
 //#define ENABLE_NAN_TESTS
-
 namespace imba {
 
 static const float offset = 0.0001f;
@@ -540,7 +539,7 @@ void VCM_INTEGRATOR::process_camera_rays(RayQueue<VCMState>& rays_in, RayQueue<V
                 connect(states[i], isect, bsdf, bsdf_mem_arena, ray_out_shadow);
 
             if (algo != ALGO_BPT) {
-                if (!isect.mat->is_specular())
+                if (!isect.mat->is_specular()) 
                     vertex_merging(states[i], isect, bsdf, img);
             }
 

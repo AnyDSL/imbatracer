@@ -13,7 +13,8 @@ endif()
 
 set(IMPALA_SRCS
     ~/Documents/AnyDSL/traversal/src/common/range.impala
-    rangesearch/rangesearch.impala)
+    rangesearch/rangesearch.impala
+    rangesearch/mapping_gpu.impala)
 set(IMPALA_INTERFACE_NAME rangesearch_impala_interface)
 
 add_custom_command(OUTPUT ${CMAKE_CURRENT_SOURCE_DIR}/rangesearch/${IMPALA_INTERFACE_NAME}.h
@@ -62,6 +63,7 @@ add_library(imba_loaders
             ${LOADER_SRCS})
 
 add_library(imba_render
+            render/traversal_mutex.cpp
             render/camera.h
             render/integrators/integrator.h
             render/integrators/pt.h

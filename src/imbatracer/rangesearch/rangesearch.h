@@ -3,9 +3,11 @@
 
 #include "../core/float4.h"
 #include "rangesearch_impala_interface.h"
+#include "../render/ray_queue.h"
 #include <thorin_runtime.hpp>
 
 #include <vector>
+#include <iterator>
 
 namespace imba {
 
@@ -17,16 +19,58 @@ struct CellIdx {
     CellIdx() : x(0), y(0) {}
 };
 
+extern std::mutex traversal_mutex;
+
+extern "C" { float floorf32(float); }
+
 /// Prelim. photon range search accelerator, taken from SmallVCM
 /// Will be replaced later on by a high performance parallel version.
 template<typename Iter>
 class HashGrid {
 public:
+    ~HashGrid() {
+        
+    }
     void reserve(int num_cells) {
         cell_ends_.resize(num_cells);
     }
 
     void build(const Iter& photons_begin, const Iter& photons_end, float radius) {
+///*
+        if (hg) {
+            if (hg->photons) delete [] hg->photons;
+            if (hg->indices) delete [] hg->indices;
+            if (hg->cell_ends) delete [] hg->cell_ends;
+            delete hg;
+            hg = nullptr;
+        }
+
+        //destroy_hashgrid(hg);
+
+        it_begin = photons_begin;
+
+//
+	int photon_count = std::distance(photons_begin, photons_end);	
+
+	struct RawDataInfo rdi;
+	rdi.begin = &(photons_begin->position()[0]);
+        rdi.stride = sizeof(*photons_begin);
+//
+
+        struct Float3 *photon_poses = new struct Float3 [photon_count];
+
+	int i = 0;
+        for(Iter it = photons_begin; it != photons_end; ++it) { // TODO How to paralleliz? concurrent access for bbox_max_(rw) and bbox_min_(rw) and photon_count(w)
+            const float3 &pos = it->position();
+            photon_poses[i].x = pos[0];
+            photon_poses[i].y = pos[1];
+            photon_poses[i].z = pos[2];
+	    ++i;
+        }
+
+	hg = build_hashgrid(&rdi, photon_poses, photon_count, cell_ends_.size(), radius);
+//*/
+/*
         radius_        = radius;
         radius_sqr_    = sqr(radius_);
         cell_size_     = radius_ * 2.f; // TODO Is it the best?
@@ -69,57 +113,40 @@ public:
             const int target_idx = cell_ends_[cell_index(pos)]++;
             indices_[target_idx] = it;
         }
+*/
 
-        // init data used in impala
-        initImpalaData();
+//std::cout << indices_[indices_.size() - 1] - it_begin << ":" << hg->indices[hg->indices_size - 1] << std::endl;
+
     }
 
     template<typename Container>
     void process(Container& output, const float3& query_pos) {
 ///*
-        // Impala Impl: Init data
-        struct QueryResult *result = nullptr;
-	struct Float3 pos;
+        if (!hg) return;
+	std::lock_guard<std::mutex> lock(traversal_mutex);
+	struct ArrayI32 *result = query_hashgrid(hg, query_pos[0], query_pos[1], query_pos[2]);
 
-	pos.x = query_pos.x;
-        pos.y = query_pos.y;
-        pos.z = query_pos.z;
-
-        //thorin::Array<int> cell_ends_array(cell_ends_.size());
-        //std::copy(cell_ends_.begin(), cell_ends_.end(), cell_ends_array.begin());
-        
-        // Impala Impl: Call Interface
-        hashgrid_query(result, &data_, pos);
- 
-        // Impala Impl: Postprocess
-        for (int i = 0; i < result->size; ++i) {
-            Iter it = *(reinterpret_cast<Iter*>(result->pointers[i]));
-            // radius filter
-            // TODO how to put it into impala code
-            // define a function in c++ as interface to compute and return distSqr
-            const float distSqr = lensqr(query_pos - it->position());
-            if (distSqr <= radius_sqr_)
-                output.push_back(it);
+        for (int i = 0; i<result->size; ++i) {
+            output.push_back(std::next(it_begin, result->data[i]));
         }
+        //std::cout << output.size() << std::endl;
 
+        //release_query(result);
 
-        // Impala Impl: Free memory
         if (result) {
-            if (result->pointers)
-                delete [] result->pointers;
-            delete result;
+            if (result->data) delete [] result->data;
+            delete result; 
         }
+
 //*/
-
-
 /*
         const float3 dist_min = query_pos - bbox_min_;
         const float3 dist_max = bbox_max_ - query_pos;
 
         // Check if the position is outside the bounding box.
         for(int i = 0; i < 3; i++) {
-            if(dist_min[i] < 0.f) return;
-            if(dist_max[i] < 0.f) return;
+            //if(dist_min[i] < 0.f) return;
+            //if(dist_max[i] < 0.f) return;
         }
 
         const float3 cell = inv_cell_size_ * dist_min;
@@ -179,33 +206,6 @@ private:
         return cell_index(int(coord.x), int(coord.y), int(coord.z));
     }
 
-    void initImpalaData() {
-	// init iter_pointers_
-	size_t size = indices_.size();
-        iter_pointers_.resize(size);
-        for (size_t i = 0; i < size; ++i) {
-            iter_pointers_[i] = reinterpret_cast<unsigned long long>(&indices_[i]);
-        }
-	
-	// init data_
-        data_.bbox_min.x = bbox_min_.x;
-        data_.bbox_min.y = bbox_min_.y;
-        data_.bbox_min.z = bbox_min_.z;
-
-        data_.bbox_max.x = bbox_max_.x;
-        data_.bbox_max.y = bbox_max_.y;
-        data_.bbox_max.z = bbox_max_.z;
-
-        data_.radius = radius_;
-        data_.radius_sqr = radius_sqr_;
-        data_.cell_size = cell_size_;
-        data_.inv_cell_size = inv_cell_size_;
-        data_.indices_size = (int)indices_.size();
-        data_.cell_ends_size = (int)cell_ends_.size();
-        data_.indices = iter_pointers_.data();
-        data_.cell_ends = cell_ends_.data();   
-    }
-
     float3 bbox_min_;
     float3 bbox_max_;
     std::vector<Iter> indices_;
@@ -216,10 +216,11 @@ private:
     float cell_size_;
     float inv_cell_size_;
 
-    // Impala data
-    std::vector<unsigned long long> iter_pointers_; // holds the address of the Iter, serves as another representation as indices_
-    struct HashGridInfo data_;
+    // Impala Data Structure
+    Iter it_begin;
+    PhotonHashGrid* hg = nullptr;
     
+
 };
 
 }

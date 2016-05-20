@@ -140,6 +140,9 @@ private:
 
     template<typename StateType, int queue_count, int shadow_queue_count, int max_shadow_rays_per_hit>
     friend class RayScheduler;
+
+    // testing purpose only
+    tbb::mutex mtx;
 };
 
 using VCM    = VCMIntegrator<ALGO_VCM>;

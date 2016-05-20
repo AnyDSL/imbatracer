@@ -25,7 +25,7 @@ struct RayState {
 // Allow running multiple traversal instances at the same time, if traversal is running on the CPU.
 #ifdef GPU_TRAVERSAL
 
-static std::mutex traversal_mutex;
+extern std::mutex traversal_mutex;
 static const int TRAVERSAL_BLOCK_SIZE = 64;
 
 #else
@@ -205,7 +205,6 @@ public:
         device_hit_buffer.reset(nullptr);
         device_ray_buffer.reset(nullptr);
     }
-
 #else
 public:
     static inline void setup_device_buffer(size_t max_count) {}

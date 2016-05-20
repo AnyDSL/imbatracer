@@ -6,10 +6,9 @@
 extern "C" {
 #endif
 
-struct QueryResult {
-    int size;
-    int capacity;
-    unsigned long long* pointers;
+struct RawDataInfo {
+    float* begin;
+    int stride;
 };
 
 struct Float3 {
@@ -18,20 +17,31 @@ struct Float3 {
     float z;
 };
 
-struct HashGridInfo {
+struct PhotonHashGrid {
     float radius;
     float radius_sqr;
     float cell_size;
     float inv_cell_size;
+    int photons_size;
     int indices_size;
     int cell_ends_size;
     struct Float3 bbox_min;
     struct Float3 bbox_max;
-    unsigned long long* indices;
+    struct RawDataInfo raw_data_info;
+    struct Float3* photons;
+    int* indices;
     int* cell_ends;
 };
 
-void hashgrid_query(struct QueryResult* output, struct HashGridInfo* info, struct Float3 query_pos);
+struct ArrayI32 {
+    int size;
+    int* data;
+};
+
+struct PhotonHashGrid* build_hashgrid(struct RawDataInfo* info, struct Float3* photon_poses, int photon_cnt, int cell_size, float rad);
+struct ArrayI32* query_hashgrid(struct PhotonHashGrid* hg, float x, float y, float z);
+void destroy_hashgrid(struct PhotonHashGrid* hg);
+void release_query(struct ArrayI32* arr);
 
 #ifdef __cplusplus
 }

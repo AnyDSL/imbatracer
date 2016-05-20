@@ -1,6 +1,10 @@
 // HashGrid partial implementation in impala
 // Try different array operations in impala 
 
+extern "C" {
+    fn abort() -> ();
+}
+
 struct Float3 {
     x : f32,
     y : f32,
@@ -12,23 +16,30 @@ struct Integer2 {
     y : i32
 }
 
-struct HashGridInfo {
+struct PhotonHashGrid {
     radius         : f32,
     radius_sqr     : f32,
     cell_size      : f32,
     inv_cell_size  : f32,
+    photons_size   : i32,
     indices_size   : i32,
     cell_ends_size : i32,
     bbox_min       : Float3,
     bbox_max       : Float3,
-    indices        : &[u64],
+    raw_data_info  : RawDataInfo,
+    photons        : &[Float3],
+    indices        : &[i32],
     cell_ends      : &[i32]
 }
 
-struct QueryResult {
+struct RawDataInfo {
+    begin : &[f32],
+    stride: i32
+}
+
+struct ArrayI32 {
     size : i32,
-    capacity : i32,
-    pointers : &[u64]
+    data : &[i32],
 }
 
 fn sub(a: Float3, b: Float3) -> Float3 {
@@ -43,7 +54,7 @@ fn scalar(s: f32, v: Float3) -> Float3 {
     Float3 {
         x : s * v.x,
         y : s * v.y,
-        z : s * v.z,
+        z : s * v.z
     }
 }
 
@@ -54,7 +65,7 @@ fn dot(a: Float3, b: Float3) -> f32 {
 }
 
 fn sqr(v: Float3) -> f32 {
-    @dot(v, v)
+    dot(v, v)
 }
 
 fn has_negative(a: Float3) -> bool {
@@ -72,46 +83,132 @@ fn cell_range(cell_idx: i32, cell_ends: &[i32]) -> Integer2 {
     if (cell_idx > 0) {
         interval.x = cell_ends(cell_idx - 1);
     }
+
     interval
 }
 
 fn hash_func(x: u32, y: u32, z: u32, m: u32) -> i32 {
-    let ret = ((x * 73856093u) ^ (y * 19349663u) ^ (z * 83492791u)) % m;
+    let ret = ((x * 73856093u32) ^ (y * 19349663u32) ^ (z * 83492791u32)) % m;
     ret as i32
 }
 
-fn cell_index(point: Float3, info: HashGridInfo) -> i32 {
-    let dist_min = sub(point, info.bbox_min);
+fn cell_index(pos: Float3, hg: &PhotonHashGrid) -> i32 {
+    let dist_min = sub(pos, (*hg).bbox_min);
     let coord = Float3 {
-        x : floorf32((info.inv_cell_size * dist_min.x)),
-        y : floorf32((info.inv_cell_size * dist_min.y)),
-        z : floorf32((info.inv_cell_size * dist_min.z))
+        x : floorf32(((*hg).inv_cell_size * dist_min.x)),
+        y : floorf32(((*hg).inv_cell_size * dist_min.y)),
+        z : floorf32(((*hg).inv_cell_size * dist_min.z))
     };
-    hash_func(coord.x as u32, coord.y as u32, coord.z as u32, info.cell_ends_size as u32)
+    hash_func(coord.x as u32, coord.y as u32, coord.z as u32, (*hg).cell_ends_size as u32)
 }
 
-// TODO is this correct?
-fn floorf32 (f : f32) -> f32 {
-    let i = f as i32;
-    i as f32
+fn floorf32(f : f32) -> f32 {
+    f - (f % 1f32)
+}
+
+fn ceilf32(f : f32) -> f32 {
+    floorf32(f) + 1f32
+}
+
+fn min(a: f32, b : f32) -> f32 {
+    if (a > b) { return(b) }
+    a
+}
+
+fn max(a: f32, b : f32) -> f32 {
+    if (a < b) { return(b) }
+    a
+}
+
+fn getPosition(hg: &PhotonHashGrid, index: i32, offset: i32) -> f32 {
+    (*hg).raw_data_info.begin(index * (*hg).raw_data_info.stride + offset)
+}
+
+fn toFloat3(hg: &PhotonHashGrid, index: i32) -> Float3 {
+    Float3 {
+        x : getPosition(hg, index, 0),
+        y : getPosition(hg, index, 1),
+        z : getPosition(hg, index, 2)
+    }
 }
 
 // Interfaces
-extern fn hashgrid_query(mut output: &QueryResult, info: &HashGridInfo, query_pos: Float3) -> () {
-    let dist_min = sub(query_pos, info.bbox_min);
-    let dist_max = sub(info.bbox_max, query_pos);
+extern fn build_hashgrid(info: &RawDataInfo, photon_poses: &[Float3], photon_cnt: i32, cell_size: i32, rad: f32) -> &PhotonHashGrid {
+    let mut hg = ~PhotonHashGrid {
+        radius         : rad,
+        radius_sqr     : rad * rad,
+        cell_size      : rad * 2.f,
+        inv_cell_size  : 1.f / (rad * 2.f),
+        photons_size   : photon_cnt,
+        indices_size   : photon_cnt,
+        cell_ends_size : cell_size,
+        bbox_min       : Float3 { x:1e36f,  y:1e36f,  z:1e36f },
+        bbox_max       : Float3 { x:-1e36f, y:-1e36f, z:-1e36f },
+        raw_data_info  : RawDataInfo {
+            begin : (*info).begin,
+            stride: (*info).stride
+        },
+        photons        : photon_poses,
+        indices        : ~[photon_cnt : i32],
+        cell_ends      : ~[cell_size  : i32]
+    };
 
-    // dynamic allocate memory, free them in c++
-    output = ~QueryResult {
-        size : 0,
-        capacity : info.indices_size,
-        pointers : ~[info.indices_size: u64] // init an array 
+    // initialize array
+    for i in range (0, hg.cell_ends_size) {
+        hg.cell_ends(i) = 0;
+    }
+
+    // construct hashgrids
+    for i in range(0, photon_cnt) {
+//        let pos = toFloat3(hg, i);
+        hg.bbox_max.x = max(hg.bbox_max.x, hg.photons(i).x);
+        hg.bbox_max.y = max(hg.bbox_max.y, hg.photons(i).y);
+        hg.bbox_max.z = max(hg.bbox_max.z, hg.photons(i).z);
+        hg.bbox_min.x = min(hg.bbox_min.x, hg.photons(i).x);
+        hg.bbox_min.y = min(hg.bbox_min.y, hg.photons(i).y);
+        hg.bbox_min.z = min(hg.bbox_min.z, hg.photons(i).z);
+    }
+
+    for i in range(0, photon_cnt) {
+//        let pos = toFloat3(hg, i);
+        hg.cell_ends(cell_index(hg.photons(i), hg))++;
+    }
+
+    let mut sum = 0;
+    for i in range(0, cell_size) {
+        let tmp = hg.cell_ends(i);
+        hg.cell_ends(i) = sum;
+        sum += tmp;
+    }
+
+    for i in range(0, photon_cnt) {
+//        let pos = toFloat3(hg, i);
+        let idx = hg.cell_ends(cell_index(hg.photons(i), hg))++;
+        hg.indices(idx) = i;
+    }
+
+    hg
+}
+
+extern fn query_hashgrid(hg: &PhotonHashGrid, x: f32, y: f32, z: f32) -> &ArrayI32 {
+    let query_pos = Float3 {
+        x : x,
+        y : y,
+        z : z
     };
     
-    if (has_negative(dist_min)) { return() }
-    if (has_negative(dist_max)) { return() }    
+    let mut arr = ~ArrayI32 {
+        size : 0,
+        data : ~[(*hg).indices_size : i32],
+    };
+
+    let dist_min = sub(query_pos, (*hg).bbox_min);
+    let dist_max = sub((*hg).bbox_max, query_pos);
+
+    if (has_negative(dist_min)) { return(arr) }
+    if (has_negative(dist_max)) { return(arr) }    
     
-    let cell = scalar(info.inv_cell_size, dist_min);
+    let cell = scalar((*hg).inv_cell_size, dist_min);
 
     let coord = Float3 {
         x : floorf32(cell.x),
@@ -124,37 +221,67 @@ extern fn hashgrid_query(mut output: &QueryResult, info: &HashGridInfo, query_po
     let pz = coord.z as i32;
 
     let frac_coord = sub(cell, coord);
-    
-    let mut pxo = px;
-    let mut pyo = py;
-    let mut pzo = pz;
 
-    fn neighbour(mut val: &i32, frac: f32) -> () {
-        let mut i = 1;
-        if (frac < 0.5f) {
-            i = -1; 
+    let dx = if (frac_coord.x < 0.5f) { -1 } else { 1 };
+    let dy = if (frac_coord.y < 0.5f) { -1 } else { 1 };
+    let dz = if (frac_coord.z < 0.5f) { -1 } else { 1 };
+
+    let pxo = px + dx;
+    let pyo = py + dy;
+    let pzo = pz + dz;
+
+    //let size = (*hg).photons_size;
+    let size = 128;
+    let dev_mask_buf = acc_alloc(acc_dev(), size * sizeof[f32]());
+    let host_mask_buf = alloc_cpu(size * sizeof[f32]());
+
+    with acc(acc_dev(), (128, 1, 1), (64, 1, 1)) {
+        let mut mask_ptr = bitcast[&[f32]](dev_mask_buf.data);
+        let i = acc_gidx();
+        if (i < 128) {
+            mask_ptr(i) = 0f32;
         }
-        *val += i;
+        acc_barrier();
     }
 
-    neighbour(&pxo, frac_coord.x);
-    neighbour(&pyo, frac_coord.y);
-    neighbour(&pzo, frac_coord.z);
+    copy(dev_mask_buf, host_mask_buf, size * sizeof[f32]());
 
+    //for i in iterate_acc(size) {
+    //    let mut mask_ptr = bitcast[&[i8]](dev_mask_buf.data);
+    //    mask_ptr(i) = 0i8;
+    //}
+
+    release(dev_mask_buf);
+    release(host_mask_buf);
 
     for i in @unroll(0, 8) {
-        let z = if ((i & 1) as bool) { pzo } else { pz };
-        let y = if ((i & 2) as bool) { pyo } else { py };
-        let x = if ((i & 4) as bool) { pxo } else { px };
+        let z = if ((i & 1) != 0) { pzo } else { pz };
+        let y = if ((i & 2) != 0) { pyo } else { py };
+        let x = if ((i & 4) != 0) { pxo } else { px };
 
-        let interval = cell_range(hash_func(x as u32, y as u32, z as u32, info.cell_ends_size as u32), info.cell_ends);  
-        let start = output.size;
-        output.size += interval.y - interval.x;
-        
+        let interval = cell_range(hash_func(x as u32, y as u32, z as u32, (*hg).cell_ends_size as u32), (*hg).cell_ends);  
+        let start = arr.size;
+        let mut curCnt = 0;
+
         for j in range(interval.x, interval.y) {
-            // TODO cannot filter distance against radius at here, no acces to c++ data
-            // TODO add j into output
-            output.pointers(start + j - interval.x) = info.indices(j);
+            let idx = (*hg).indices(j);
+//            let pos = toFloat3(hg, idx);
+            let distSqr = sqr(sub(query_pos, (*hg).photons(idx)));
+            if (distSqr <= (*hg).radius_sqr) {
+                arr.data(start + curCnt) = idx;
+                curCnt++;
+            }
         }
+
+        arr.size += curCnt;
     }
+
+    arr
 }
+
+extern fn destroy_hashgrid(hg: &PhotonHashGrid) -> () {
+}
+
+extern fn release_query(arr: &ArrayI32) -> () {
+}
+
