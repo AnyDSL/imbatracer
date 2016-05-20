@@ -1,0 +1,13 @@
+static THREAD_PER_BLOCK = 64;
+
+fn iterate_acc(size: i32, body: fn(i32) -> ()) -> () @{
+    let block = (THREAD_PER_BLOCK, 1, 1);
+    let grid  = (size, 1, 1);
+    
+    with acc(acc_dev(), grid, block) {
+        let i = acc_tidx() + acc_bidx() * acc_bdimx();
+        if (i < size) {
+            body(i);
+        }
+    }
+}
