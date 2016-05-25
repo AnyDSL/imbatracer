@@ -13,8 +13,9 @@ namespace imba {
 
 struct MeshAttributes {
     enum {
-        texcoords = 0,
-        normals = 1
+        TEXCOORDS = 0,
+        NORMALS = 1,
+        GEOM_NORMALS = 2
     };
 };
 
@@ -23,8 +24,6 @@ struct Scene {
     LightContainer lights;
     TextureContainer textures;
     MaterialContainer materials;
-
-    std::vector<float3> geom_normals;
 
     ThorinArray<::Node> nodes;
     ThorinArray<::Vec4> tris;

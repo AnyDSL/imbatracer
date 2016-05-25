@@ -187,8 +187,9 @@ void convert_materials(const Path& path, const obj::File& obj_file, const obj::M
 
 void create_mesh(const obj::File& obj_file, Scene& scene, MtlLightBuffer& mtl_to_light_intensity) {
     // Add attributes for texture coordinates and normals
-    scene.mesh.add_attribute(Mesh::ATTR_FLOAT2);
-    scene.mesh.add_attribute(Mesh::ATTR_FLOAT3);
+    scene.mesh.add_attribute(Mesh::AttributeType::FLOAT2);
+    scene.mesh.add_attribute(Mesh::AttributeType::FLOAT3);
+    scene.mesh.add_attribute(Mesh::AttributeType::FLOAT3, Mesh::AttributeBinding::PER_FACE);
 
     for (auto& obj: obj_file.objects) {
         // Convert the faces to triangles & build the new list of indices
@@ -257,7 +258,7 @@ void create_mesh(const obj::File& obj_file, Scene& scene, MtlLightBuffer& mtl_to
         }
 
         if (has_texcoords) {
-            auto texcoords = scene.mesh.attribute<float2>(MeshAttributes::texcoords);
+            auto texcoords = scene.mesh.attribute<float2>(MeshAttributes::TEXCOORDS);
             // Set up mesh texture coordinates
             for (auto& p : mapping) {
                 const auto& t = obj_file.texcoords[p.first.t];
@@ -266,7 +267,7 @@ void create_mesh(const obj::File& obj_file, Scene& scene, MtlLightBuffer& mtl_to
         }
 
         if (has_normals) {
-            auto normals = scene.mesh.attribute<float3>(MeshAttributes::normals);
+            auto normals = scene.mesh.attribute<float3>(MeshAttributes::NORMALS);
             // Set up mesh normals
             for (auto& p : mapping) {
                 const auto& n = obj_file.normals[p.first.n];
@@ -275,9 +276,15 @@ void create_mesh(const obj::File& obj_file, Scene& scene, MtlLightBuffer& mtl_to
         } else {
             // Recompute normals
             std::cout << "  Recomputing normals..." << std::flush;
-            scene.mesh.compute_normals(true, MeshAttributes::normals);
+            scene.mesh.compute_normals(MeshAttributes::NORMALS);
             std::cout << std::endl;
         }
+    }
+
+    auto geom_normals = scene.mesh.attribute<float3>(MeshAttributes::GEOM_NORMALS);
+    for (int i = 0; i < scene.mesh.triangle_count(); ++i) {
+        auto t = scene.mesh.triangle(i);
+        geom_normals[i] = normalize(cross(t[1] - t[0], t[2] - t[0]));
     }
 }
 
@@ -433,7 +440,7 @@ bool build_scene(const Path& path, Scene& scene, float3& cam_pos, float3& cam_di
     std::cout << "[6/8] Validating scene..." << std::endl;
 
     bool bad_normals = false;
-    auto normals = scene.mesh.attribute<float3>(MeshAttributes::normals);
+    auto normals = scene.mesh.attribute<float3>(MeshAttributes::NORMALS);
     for (int i = 0; i < scene.mesh.vertex_count(); i++) {
         auto& n = normals[i];
         if (isnan(n.x) || isnan(n.y) || isnan(n.z)) {
@@ -456,16 +463,9 @@ bool build_scene(const Path& path, Scene& scene, float3& cam_pos, float3& cam_di
         return false;
     }
 
-    // Compute geometry normals
-    scene.geom_normals.resize(scene.mesh.triangle_count());
-    for (int i = 0; i < scene.mesh.triangle_count(); ++i) {
-        auto t = scene.mesh.triangle(i);
-        scene.geom_normals[i] = normalize(cross(t[1] - t[0], t[2] - t[0]));
-    }
-
     scene.texcoords = std::move(ThorinArray<::Vec2>(scene.mesh.vertex_count()));
     {
-        auto texcoords = scene.mesh.attribute<float2>(MeshAttributes::texcoords);
+        auto texcoords = scene.mesh.attribute<float2>(MeshAttributes::TEXCOORDS);
         for (int i = 0; i < scene.mesh.vertex_count(); i++) {
             scene.texcoords[i].x = texcoords[i].x;
             scene.texcoords[i].y = texcoords[i].y;
