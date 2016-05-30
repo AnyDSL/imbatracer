@@ -18,7 +18,7 @@
 
 namespace imba {
 
-/// A fast binning BVH builder, which produces low-quality BVHs.
+/// A fast binning BVH builder, which produces medium-quality BVHs.
 /// Inspired from "On fast Construction of SAH-based Bounding Volume Hierarchies", I. Wald, 2007
 /// http://www.sci.utah.edu/~wald/Publications/2007/ParallelBVHBuild/fastbuild.pdf
 template <int N, typename CostFn>
