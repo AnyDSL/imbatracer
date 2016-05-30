@@ -1,6 +1,5 @@
 #include "adapter.h"
 #include "sbvh_builder.h"
-#include "fast_bvh_builder.h"
 #include "mesh.h"
 #include "stack.h"
 #include "common.h"

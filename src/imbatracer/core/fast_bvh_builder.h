@@ -68,53 +68,57 @@ public:
                 const BBox& parent_bb = node.bbox;
                 assert(end - begin != 0);
 
-                // Find longest axis
+                // Test longest axes first
                 float3 extents = parent_bb.max - parent_bb.min;
-                int axis = 0;
-                if (extents.y > extents[axis]) axis = 1;
-                if (extents.z > extents[axis]) axis = 2;
+                int axes[3] = {0, 1, 2};
+                if (extents[axes[0]] < extents[axes[1]]) std::swap(axes[0], axes[1]);
+                if (extents[axes[1]] < extents[axes[2]]) std::swap(axes[1], axes[2]);
+                if (extents[axes[0]] < extents[axes[1]]) std::swap(axes[0], axes[1]);
 
-                // Compute the min/max center position
-                float center_min = parent_bb.max[axis];
-                float center_max = parent_bb.min[axis];
-                for (int i = begin; i < end; i++) {
-                    const float c = centers[refs[i]][axis];
-                    center_min = std::min(center_min, c);
-                    center_max = std::max(center_max, c);
-                }
+                multi_node.nodes[node_id].tested = true;
+                for (int j = 0; j < 3; j++) {
+                    const int axis = axes[j];
 
-                // Put the triangles into the bins
-                Bin bins[num_bins];
-                bin_triangles(axis, bins, refs, bboxes, centers, center_min, center_max, begin, end);
-
-                // Find the best split position
-                const float parent_area = parent_bb.half_area();
-                int best_split = find_best_split(bins, CostFn::leaf_cost(end - begin, parent_area) - CostFn::traversal_cost(parent_area));
-                if (best_split >= 0) {
-                    // The node was succesfully split 
-                    const int begin_right = apply_split(axis, best_split, refs, centers, center_min, center_max, begin, end);
-                    const int end_right = end;
-                    const int begin_left = begin;
-                    const int end_left = begin_right;
-
-                    BBox left_bb  = BBox::empty();
-                    BBox right_bb = BBox::empty();
-                    if (num_bins < end - begin) {
-                        // Compute the bounding box using the bins
-                        for (int i = 0; i < best_split; i++) left_bb.extend(bins[i].bbox);
-                        for (int i = best_split; i < num_bins; i++) right_bb.extend(bins[i].bbox);
-                    } else {
-                        // Compute the bounding box using the objects
-                        for (int i = begin_left; i < end_left; i++) left_bb.extend(bboxes[refs[i]]);
-                        for (int i = begin_right; i < end_right; i++) right_bb.extend(bboxes[refs[i]]);
+                    // Compute the min/max center position
+                    float center_min = parent_bb.max[axis];
+                    float center_max = parent_bb.min[axis];
+                    for (int i = begin; i < end; i++) {
+                        const float c = centers[refs[i]][axis];
+                        center_min = std::min(center_min, c);
+                        center_max = std::max(center_max, c);
                     }
 
-                    multi_node.split_node(node_id,
-                                          Node(begin_left, end_left, left_bb),
-                                          Node(begin_right, end_right, right_bb));
-                } else {
-                    // The node cannot be split
-                    multi_node.nodes[node_id].tested = true;
+                    // Put the triangles into the bins
+                    Bin bins[num_bins];
+                    bin_triangles(axis, bins, refs, bboxes, centers, center_min, center_max, begin, end);
+
+                    // Find the best split position
+                    const float parent_area = parent_bb.half_area();
+                    int best_split = find_best_split(bins, CostFn::leaf_cost(end - begin, parent_area) - CostFn::traversal_cost(parent_area));
+                    if (best_split >= 0) {
+                        // The node was succesfully split
+                        const int begin_right = apply_split(axis, best_split, refs, centers, center_min, center_max, begin, end);
+                        const int end_right = end;
+                        const int begin_left = begin;
+                        const int end_left = begin_right;
+
+                        BBox left_bb  = BBox::empty();
+                        BBox right_bb = BBox::empty();
+                        if (num_bins < end - begin) {
+                            // Compute the bounding box using the bins
+                            for (int i = 0; i < best_split; i++) left_bb.extend(bins[i].bbox);
+                            for (int i = best_split; i < num_bins; i++) right_bb.extend(bins[i].bbox);
+                        } else {
+                            // Compute the bounding box using the objects
+                            for (int i = begin_left; i < end_left; i++) left_bb.extend(bboxes[refs[i]]);
+                            for (int i = begin_right; i < end_right; i++) right_bb.extend(bboxes[refs[i]]);
+                        }
+
+                        multi_node.split_node(node_id,
+                                              Node(begin_left, end_left, left_bb),
+                                              Node(begin_right, end_right, right_bb));
+                        break;
+                    }
                 }
             }
 
@@ -125,7 +129,8 @@ public:
                 stack.size() + multi_node.count >= stack.capacity()) {
                 // Store a leaf if it could not be split
                 const Node& node = multi_node.nodes[0];
-                //assert(node.tested);
+                assert(node.tested);
+
                 write_leaf(node.bbox, node.end - node.begin, [&] (int i) {
                     return refs[node.begin + i];
                 });
@@ -167,7 +172,7 @@ public:
 #endif
 
 private:
-    static constexpr int num_bins = 256;
+    static constexpr int num_bins = 64;
 
     struct Bin {
         int count;
