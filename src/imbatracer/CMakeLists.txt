@@ -23,7 +23,9 @@ add_library(imba_core
             core/mem_pool.h
             core/mesh.h
             core/mesh.cpp
+            core/bvh_helper.h
             core/sbvh_builder.h
+            core/fast_bvh_builder.h
             core/tri.h
             ${CORE_SRCS})
 
