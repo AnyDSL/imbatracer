@@ -39,8 +39,8 @@ struct float4 {
     }
 };
 
-inline float3::float3(const float4& f) : x(f.x), y(f.y), z(f.z)
-{}
+inline float3::float3(const float4& f) : x(f.x), y(f.y), z(f.z) {}
+inline float2::float2(const float4& f) : x(f.x), y(f.y) {}
 
 inline float4 operator * (float a, const float4& b) {
     return float4(a * b.x, a * b.y, a * b.z, a * b.w);

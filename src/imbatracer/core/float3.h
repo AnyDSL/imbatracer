@@ -36,6 +36,8 @@ struct float3 {
     }
 };
 
+inline float2::float2(const float3& f) : x(f.x), y(f.y) {}
+
 inline float3 operator * (float a, const float3& b) {
     return float3(a * b.x, a * b.y, a * b.z);
 }

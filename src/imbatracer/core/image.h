@@ -24,7 +24,7 @@ public:
         return float4(x, y, z, w);
     }
 
-    AtomicFloat4& operator= (const float4& a) {
+    AtomicFloat4& operator = (const float4& a) {
         x.store(a.x);
         y.store(a.y);
         z.store(a.z);
@@ -32,7 +32,7 @@ public:
         return *this;
     }
 
-    float4 operator+= (const float4& a) {
+    float4 operator += (const float4& a) {
         return float4(
             atomic_add(x, a.x),
             atomic_add(y, a.y),
@@ -77,9 +77,7 @@ public:
     }
 
     void clear() {
-        //std::memset(pixels_.data(), 0, sizeof(float4) * pixels_.size());
-        for(auto& p : pixels_)
-            p = float4(0.0f);
+        for(auto& p : pixels_) p = float4(0.0f);
     }
 
     int size() { return width_ * height_; }

@@ -114,6 +114,7 @@ public:
                             for (int i = begin_right; i < end_right; i++) right_bb.extend(bboxes[refs[i]]);
                         }
 
+                        // Exit once the first candidate is found
                         multi_node.split_node(node_id,
                                               Node(begin_left, end_left, left_bb),
                                               Node(begin_right, end_right, right_bb));
@@ -125,32 +126,26 @@ public:
             assert(multi_node.count > 0);
 
             // The multi-node is ready to be stored
-            if (multi_node.is_leaf() ||
-                stack.size() + multi_node.count >= stack.capacity()) {
+            if (multi_node.is_leaf()) {
                 // Store a leaf if it could not be split
                 const Node& node = multi_node.nodes[0];
                 assert(node.tested);
-
-                write_leaf(node.bbox, node.end - node.begin, [&] (int i) {
-                    return refs[node.begin + i];
-                });
-#ifdef STATISTICS
-                total_leaves_++;
-#endif
+                make_leaf(node, refs, write_leaf);
             } else {
                 // Store a multi-node
-                write_node(multi_node.bbox, multi_node.count, [&] (int i) {
-                    return multi_node.nodes[i].bbox;
-                });
-
+                make_node(multi_node, write_node);
                 assert(N > 2 || multi_node.count == 2);
 
-                for (int i = multi_node.count - 1; i >= 0; i--) {
-                    stack.push(multi_node.nodes[i]);
+                if (stack.size() + multi_node.count < stack.capacity()) {
+                    for (int i = multi_node.count - 1; i >= 0; i--) {
+                        stack.push(multi_node.nodes[i]);
+                    }
+                } else {
+                    // Insufficient space on the stack, we have to stop recursion here
+                    for (int i = 0; i < multi_node.count; i++) {
+                        make_leaf(multi_node.nodes[i], refs, write_leaf);
+                    }
                 }
-#ifdef STATISTICS
-                total_nodes_++;
-#endif
             }
         }
 
@@ -172,7 +167,7 @@ public:
 #endif
 
 private:
-    static constexpr int num_bins = 64;
+    static constexpr int num_bins = 32;
 
     struct Bin {
         int count;
@@ -192,6 +187,26 @@ private:
             , tested(false)
         {}
     };
+
+    template <typename NodeWriter>
+    void make_node(const MultiNode<Node, N>& multi_node, NodeWriter write_node) {
+        write_node(multi_node.bbox, multi_node.count, [&] (int i) {
+            return multi_node.nodes[i].bbox;
+        });
+#ifdef STATISTICS
+        total_nodes_++;
+#endif
+    }
+
+    template <typename LeafWriter>
+    void make_leaf(const Node& node, const int* refs, LeafWriter write_leaf) {
+        write_leaf(node.bbox, node.end - node.begin, [&] (int i) {
+            return refs[node.begin + i];
+        });
+#ifdef STATISTICS
+        total_leaves_++;
+#endif
+    }
 
     int compute_bin_id(float c, float min, float inv) {
         return std::min(num_bins - 1, std::max(0, (int)(num_bins * (c - min) * inv)));
