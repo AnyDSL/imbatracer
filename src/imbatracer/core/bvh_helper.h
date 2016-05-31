@@ -2,6 +2,7 @@
 #define BVH_HELPER_H
 
 #include <cfloat>
+#include <algorithm>
 
 #include "bbox.h"
 
@@ -21,6 +22,12 @@ struct MultiNode {
 
     bool full() const { return count == N; }
     bool is_leaf() const { return count == 1; }
+
+    void sort_nodes() {
+        std::sort(nodes, nodes + count, [] (const Node& a, const Node& b) {
+            return a.size() < b.size();
+        });
+    }
 
     int next_node() const {
         assert(node_available());
