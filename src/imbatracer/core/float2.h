@@ -5,10 +5,15 @@
 
 namespace imba {
 
+struct float3;
+struct float4;
+
 struct float2 {
     float x, y;
     float2() {}
     explicit float2(float x) : x(x), y(x) {}
+    explicit float2(const float3& f);
+    explicit float2(const float4& f);
     float2(float x, float y) : x(x), y(y) {}
 
     float operator [] (int axis) const { return *(&x + axis); }

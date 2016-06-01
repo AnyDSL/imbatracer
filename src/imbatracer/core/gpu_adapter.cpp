@@ -1,6 +1,5 @@
 #include "adapter.h"
 #include "sbvh_builder.h"
-#include "fast_bvh_builder.h"
 #include "mesh.h"
 #include "stack.h"
 #include "common.h"
@@ -15,7 +14,7 @@ public:
 
     void build_accel(const Mesh& mesh) override {
         mesh_ = &mesh;
-        builder_.build(mesh, NodeWriter(this), LeafWriter(this), 2, 1e-5f);
+        builder_.build(mesh, NodeWriter(this), LeafWriter(this), 2);
     }
 
 #ifdef STATISTICS

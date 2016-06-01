@@ -32,7 +32,6 @@ private:
     };
 
     typedef SplitBvhBuilder<4, CostFn> BvhBuilder;
-    typedef typename BvhBuilder::Ref Ref;
 
     struct NodeWriter {
         CpuAdapter* adapter;

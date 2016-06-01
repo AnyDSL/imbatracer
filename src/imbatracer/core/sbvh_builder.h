@@ -26,7 +26,7 @@ template <int N, typename CostFn>
 class SplitBvhBuilder {
 public:
     template <typename NodeWriter, typename LeafWriter>
-    void build(const Mesh& mesh, NodeWriter write_node, LeafWriter write_leaf, int leaf_threshold, float alpha) {
+    void build(const Mesh& mesh, NodeWriter write_node, LeafWriter write_leaf, int leaf_threshold, float alpha = 1e-5f) {
         assert(leaf_threshold >= 1);
 
 #ifdef STATISTICS
@@ -131,32 +131,26 @@ public:
             assert(multi_node.count > 0);
 
             // The multi-node is ready to be stored
-            if (multi_node.is_leaf() ||
-                stack.size() + multi_node.count >= stack.capacity()) {
+            if (multi_node.is_leaf()) {
                 // Store a leaf if it could not be split
                 const Node& node = multi_node.nodes[0];
                 assert(node.tested);
-                write_leaf(node.bbox, node.ref_count, [&] (int i) {
-                    return node.refs[i].id;
-                });
-#ifdef STATISTICS
-                total_leaves_++;
-                total_refs_ += node.ref_count;
-#endif
+                make_leaf(node, write_leaf);
             } else {
                 // Store a multi-node
-                write_node(multi_node.bbox, multi_node.count, [&] (int i) {
-                    return multi_node.nodes[i].bbox;
-                });
-
+                make_node(multi_node, write_node);
                 assert(N > 2 || multi_node.count == 2);
 
-                for (int i = multi_node.count - 1; i >= 0; i--) {
-                    stack.push(multi_node.nodes[i]);
+                if (stack.size() + multi_node.count < stack.capacity()) {
+                    for (int i = multi_node.count - 1; i >= 0; i--) {
+                        stack.push(multi_node.nodes[i]);
+                    }
+                } else {
+                    // Insufficient space on the stack, we have to stop recursion here
+                    for (int i = 0; i < multi_node.count; i++) {
+                        make_leaf(multi_node.nodes[i], write_leaf);
+                    }
                 }
-#ifdef STATISTICS
-                total_nodes_++;
-#endif
             }
         }
 
@@ -228,6 +222,27 @@ private:
             , tested(false)
         {}
     };
+
+    template <typename NodeWriter>
+    void make_node(const MultiNode<Node, N>& multi_node, NodeWriter write_node) {
+        write_node(multi_node.bbox, multi_node.count, [&] (int i) {
+            return multi_node.nodes[i].bbox;
+        });
+#ifdef STATISTICS
+        total_nodes_++;
+#endif
+    }
+
+    template <typename LeafWriter>
+    void make_leaf(const Node& node, LeafWriter write_leaf) {
+        write_leaf(node.bbox, node.ref_count, [&] (int i) {
+            return node.refs[i].id;
+        });
+#ifdef STATISTICS
+        total_leaves_++;
+        total_refs_ += node.ref_count;
+#endif
+    }
 
     void sort_refs(int axis, Ref* refs, int ref_count) {
         // Sort the primitives based on their centroids
