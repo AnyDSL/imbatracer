@@ -16,17 +16,20 @@
 
 namespace imba {
 
+// Offset to prevent self intersection.
 static const float offset = 0.0001f;
 
+// Thread-local storage for BSDF objects.
 using ThreadLocalMemArena = tbb::enumerable_thread_specific<MemoryArena, tbb::cache_aligned_allocator<MemoryArena>, tbb::ets_key_per_instance>;
 static ThreadLocalMemArena bsdf_memory_arenas;
 
+// Thread-local storage for the results of a photon query.
 using ThreadLocalPhotonContainer = tbb::enumerable_thread_specific<std::vector<PhotonIterator>, tbb::cache_aligned_allocator<std::vector<PhotonIterator>>, tbb::ets_key_per_instance>;
 static ThreadLocalPhotonContainer photon_containers;
 
 inline float mis_heuristic(float a) {
-    return sqr(a);
-    //return a;
+//  return sqr(a);  // Power heuristic with beta = 2.
+    return a;         // Balance heuristic.
 }
 
 /// Computes the cosine term for adjoint BSDFs that use shading normals.
