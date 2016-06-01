@@ -10,10 +10,11 @@
 
 namespace imba {
 
+/// Stores the current state of a ray during VCM or any sub-algorithm of VCM.
 struct VCMState : RayState {
     float4 throughput;
     int path_length : 7;
-    bool is_finite : 1; // Used to store whether the light source during light tracing was finite.
+    bool finite_light : 1;
 
     // Russian roulette probability for continuing this path.
     float continue_prob;

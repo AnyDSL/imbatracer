@@ -109,7 +109,7 @@ private:
             tris.back().w = int_as_float(0x80000000);
         }
     };
-    
+
     struct StackElem {
         int parent, child;
         StackElem() {}

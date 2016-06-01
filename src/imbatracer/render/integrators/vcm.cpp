@@ -25,8 +25,8 @@ using ThreadLocalPhotonContainer = tbb::enumerable_thread_specific<std::vector<P
 static ThreadLocalPhotonContainer photon_containers;
 
 inline float mis_heuristic(float a) {
-    //return sqr(a);
-    return a;
+    return sqr(a);
+    //return a;
 }
 
 /// Computes the cosine term for adjoint BSDFs that use shading normals.
@@ -34,7 +34,6 @@ inline float mis_heuristic(float a) {
 /// This function has to be used for all BSDFs during particle tracing to prevent brighness discontinuities.
 /// See Veach's PhD thesis for more details.
 inline float shading_normal_adjoint(const float3& normal, const float3& geom_normal, const float3& out_dir, const float3& in_dir) {
-    //return dot(in_dir, normal);
     return dot(out_dir, normal) * dot(in_dir, geom_normal) / dot(out_dir, geom_normal);
 }
 
@@ -44,14 +43,15 @@ inline float shading_normal_adjoint(const float3& normal, const float3& geom_nor
 
 VCM_TEMPLATE
 void VCM_INTEGRATOR::preprocess() {
-    if (algo == ALGO_LT || algo == ALGO_PT) // Vertex cache is only needed for bidirectional algorithms.
+    // Compute the size and allocate memory for the Light Vertex Cache.
+    // Only used with the bidirectional algorithms.
+    if (algo == ALGO_LT || algo == ALGO_PT)
         return;
 
-    // Trace a couple of light paths into the scene and calculate their average length.
-    // This information is than used to allocate the light vertex cache.
+    // Trace a couple of light paths into the scene and calculate the average number of
+    // vertices that would have been stored by these paths.
 
-    // Setup the queues. We need two: one for input and one for output during scattering.
-    // Make sure that the size of the queues follows the proper alignment constraints.
+    // Setup the queues. We need two: one for the current rays/hits and one for continuation rays.
     const int path_count = LIGHT_PATH_LEN_PROBES;
 
     RayQueue<VCMState>* queues[2] = {
@@ -93,9 +93,9 @@ void VCM_INTEGRATOR::preprocess() {
         queues[in_q]->push(ray_out, state_out);
     }
 
-    std::atomic<int> vertex_count(0);
-
     // Trace the light paths until they are (almost) all terminated.
+    // Count the vertices they would store.
+    std::atomic<int> vertex_count(0);
     while (queues[in_q]->size() > 256) {
         queues[in_q]->traverse(scene_);
 
@@ -170,7 +170,7 @@ void VCM_INTEGRATOR::add_vertex_to_cache(const LightPathVertex& v, int sample_id
 #ifdef ENABLE_VERTEX_CACHE_DEBUG
         printf("Attempted to store a vertex that does not fit into the cache.\n");
 #endif
-        return; // Discard vertices that do not fit. This is statistically very unlikely to happen.
+        return; // Discard vertices that do not fit. This is very unlikely to happen.
     }
 
     vertex_caches_[sample_id][i] = v;
@@ -242,7 +242,7 @@ void VCM_INTEGRATOR::trace_light_paths(AtomicImage& img) {
 
             state_out.dVM = state_out.dVC * mis_weight_vc_;
 
-            state_out.is_finite = l->is_finite();
+            state_out.finite_light = l->is_finite();
 
 #ifdef ENABLE_NAN_TESTS
             if (isnan(state_out.dVC) || isnan(state_out.dVCM) || isnan(state_out.dVM)) {
@@ -391,7 +391,7 @@ void VCM_INTEGRATOR::process_light_rays(RayQueue<VCMState>& rays_in, RayQueue<VC
                 continue;
 
             // Complete calculation of the partial weights.
-            if (states[i].path_length > 1 || states[i].is_finite)
+            if (states[i].path_length > 1 || states[i].finite_light)
                 states[i].dVCM *= mis_heuristic(sqr(isect.distance));
 
             states[i].dVCM *= 1.0f / mis_heuristic(cos_theta_o);
@@ -765,17 +765,11 @@ void VCM_INTEGRATOR::process_shadow_rays(RayQueue<VCMState>& rays_in, AtomicImag
     });
 }
 
-// Prevents linker errors from defining member functions of a template class outside of the header.
-void dummy_func_to_prevent_linker_errors_dont_call() {
-    Scene scene;
-    PerspectiveCamera cam(0,0,0.0f);
-    PixelRayGen<VCMState> ray_gen(1, 1, 1);
-    VCMIntegrator<ALGO_PPM> tmp1(scene, cam, ray_gen, 1, 1, 1, 1, 1);
-    VCMIntegrator<ALGO_PT > tmp2(scene, cam, ray_gen, 1, 1, 1, 1, 1);
-    VCMIntegrator<ALGO_LT > tmp3(scene, cam, ray_gen, 1, 1, 1, 1, 1);
-    VCMIntegrator<ALGO_BPT> tmp4(scene, cam, ray_gen, 1, 1, 1, 1, 1);
-    VCMIntegrator<ALGO_VCM> tmp5(scene, cam, ray_gen, 1, 1, 1, 1, 1);
-}
+template class VCMIntegrator<ALGO_PPM>;
+template class VCMIntegrator<ALGO_PT >;
+template class VCMIntegrator<ALGO_LT >;
+template class VCMIntegrator<ALGO_BPT>;
+template class VCMIntegrator<ALGO_VCM>;
 
 } // namespace imba
 
