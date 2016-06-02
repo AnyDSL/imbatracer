@@ -1,6 +1,7 @@
 #include <condition_variable>
 
 namespace imba {
+
 template<typename StateType>
 class RayQueuePool;
 

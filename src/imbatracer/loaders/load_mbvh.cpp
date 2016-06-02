@@ -4,11 +4,10 @@
 #include <cfloat>
 #include <cstring>
 #include <cassert>
-#include <thorin_runtime.hpp>
 
+#include "../core/thorin_array.h"
 #include "traversal.h"
 #include "bvh_format.h"
-#include "../render/thorin_mem.h"
 
 namespace imba {
 

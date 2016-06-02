@@ -89,6 +89,6 @@ private:
     std::vector<char *> blocks_;
 };
 
-}
+} // namespace imba
 
-#endif
+#endif // IMBA_MEM_ARENA_H

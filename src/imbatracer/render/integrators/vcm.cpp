@@ -72,8 +72,8 @@ void VCM_INTEGRATOR::preprocess() {
         state_out.rng = RNG(rd());
 
         // randomly choose one light source to sample
-        auto& l = scene_.lights[state_out.rng.random_int(0, scene_.lights.size())];
-        float pdf_lightpick = 1.0f / scene_.lights.size();
+        auto& l = scene_.light(state_out.rng.random_int(0, scene_.light_count()));
+        float pdf_lightpick = 1.0f / scene_.light_count();
 
         Light::EmitSample sample = l->sample_emit(state_out.rng);
         ray_out.org.x = sample.pos.x;
@@ -97,7 +97,7 @@ void VCM_INTEGRATOR::preprocess() {
 
     // Trace the light paths until they are (almost) all terminated.
     while (queues[in_q]->size() > 256) {
-        queues[in_q]->traverse(scene_);
+        queues[in_q]->traverse(scene_.traversal_data());
 
         // Process hitpoints and bounce or terminate paths.
         const int ray_count = queues[in_q]->size();
@@ -214,9 +214,9 @@ void VCM_INTEGRATOR::trace_light_paths(AtomicImage& img) {
         },
         [this] (int x, int y, ::Ray& ray_out, VCMState& state_out) {
             // randomly choose one light source to sample
-            int i = state_out.rng.random_int(0, scene_.lights.size());
-            auto& l = scene_.lights[i];
-            float pdf_lightpick = 1.0f / scene_.lights.size();
+            int i = state_out.rng.random_int(0, scene_.light_count());
+            auto& l = scene_.light(i);
+            float pdf_lightpick = 1.0f / scene_.light_count();
 
             Light::EmitSample sample = l->sample_emit(state_out.rng);
             ray_out.org.x = sample.pos.x;
@@ -533,7 +533,7 @@ void VCM_INTEGRATOR::process_camera_rays(RayQueue<VCMState>& rays_in, RayQueue<V
                 auto light_source = isect.mat->light();
 
                 // A light source was hit directly. Add the weighted contribution.
-                float pdf_lightpick = 1.0f / scene_.lights.size();
+                float pdf_lightpick = 1.0f / scene_.light_count();
                 float pdf_direct_a, pdf_emit_w;
                 float4 radiance = light_source->radiance(isect.out_dir, pdf_direct_a, pdf_emit_w);
 
@@ -577,8 +577,8 @@ void VCM_INTEGRATOR::process_camera_rays(RayQueue<VCMState>& rays_in, RayQueue<V
 VCM_TEMPLATE
 void VCM_INTEGRATOR::direct_illum(VCMState& cam_state, const Intersection& isect, BSDF* bsdf, RayQueue<VCMState>& rays_out_shadow) {
     // Generate the shadow ray (sample one point on one lightsource)
-    const auto ls = scene_.lights[cam_state.rng.random_int(0, scene_.lights.size())].get();
-    const float pdf_lightpick_inv = scene_.lights.size();
+    const auto& ls = scene_.light(cam_state.rng.random_int(0, scene_.light_count()));
+    const float pdf_lightpick_inv = scene_.light_count();
     const auto sample = ls->sample_direct(isect.pos, cam_state.rng);
     const float cos_theta_o = sample.cos_out;
     assert_normalized(sample.dir);
@@ -765,17 +765,11 @@ void VCM_INTEGRATOR::process_shadow_rays(RayQueue<VCMState>& rays_in, AtomicImag
     });
 }
 
-// Prevents linker errors from defining member functions of a template class outside of the header.
-void dummy_func_to_prevent_linker_errors_dont_call() {
-    Scene scene;
-    PerspectiveCamera cam(0,0,0.0f);
-    PixelRayGen<VCMState> ray_gen(1, 1, 1);
-    VCMIntegrator<ALGO_PPM> tmp1(scene, cam, ray_gen, 1, 1, 1, 1, 1);
-    VCMIntegrator<ALGO_PT > tmp2(scene, cam, ray_gen, 1, 1, 1, 1, 1);
-    VCMIntegrator<ALGO_LT > tmp3(scene, cam, ray_gen, 1, 1, 1, 1, 1);
-    VCMIntegrator<ALGO_BPT> tmp4(scene, cam, ray_gen, 1, 1, 1, 1, 1);
-    VCMIntegrator<ALGO_VCM> tmp5(scene, cam, ray_gen, 1, 1, 1, 1, 1);
-}
+// Explicit instantiations
+template class VCMIntegrator<ALGO_PPM>;
+template class VCMIntegrator<ALGO_PT >;
+template class VCMIntegrator<ALGO_LT >;
+template class VCMIntegrator<ALGO_BPT>;
+template class VCMIntegrator<ALGO_VCM>;
 
 } // namespace imba
-

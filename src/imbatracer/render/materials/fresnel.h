@@ -76,6 +76,7 @@ private:
     float eta_inside_;
 };
 
-}
+} // namespace imba
 
-#endif
+#endif // IMBA_FRESNEL_H
+

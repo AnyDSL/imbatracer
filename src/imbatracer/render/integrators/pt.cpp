@@ -17,8 +17,8 @@ static ThreadLocalMemArena bsdf_memory_arenas;
 
 void PathTracer::compute_direct_illum(const Intersection& isect, PTState& state, RayQueue<PTState>& ray_out_shadow, BSDF* bsdf) {
     // Generate the shadow ray (sample one point on one lightsource)
-    const auto ls = scene_.lights[state.rng.random_int(0, scene_.lights.size())].get();
-    const float pdf_lightpick_inv = scene_.lights.size();
+    const auto& ls = scene_.light(state.rng.random_int(0, scene_.light_count()));
+    const float pdf_lightpick_inv = scene_.light_count();
     const auto sample = ls->sample_direct(isect.pos, state.rng);
 
     const auto bsdf_value = bsdf->eval(isect.out_dir, sample.dir, BSDF_ALL);
@@ -139,4 +139,3 @@ void PathTracer::render(AtomicImage& out) {
 }
 
 } // namespace imba
-

@@ -185,12 +185,12 @@ private:
                 while (prim_q_in->size() < old_val && !primary_ray_min.compare_exchange_weak(old_val, prim_q_in->size()))
                     ;
 #endif
-                prim_q_in->traverse(scene_);
+                prim_q_in->traverse(scene_.traversal_data());
 
                 process_primary_rays(*prim_q_in, *prim_q_out, *shadow_q, image);
 
                 if (shadow_q->size() > MIN_QUEUE_SIZE) {
-                    shadow_q->traverse_occluded(scene_);
+                    shadow_q->traverse_occluded(scene_.traversal_data());
 
 #ifdef ENABLE_QUEUE_STATS
                     shadow_ray_total += shadow_q->size();

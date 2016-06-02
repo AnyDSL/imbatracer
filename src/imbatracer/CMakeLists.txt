@@ -2,11 +2,11 @@
 if(BACKEND STREQUAL "cpu" OR BACKEND STREQUAL "avx")
   add_definitions(-DCPU_TRAVERSAL)
   set(CORE_SRCS core/cpu_adapter.cpp)
-  set(LOADER_SRCS loaders/load_mbvh.cpp)
+  #set(LOADER_SRCS loaders/load_mbvh.cpp)
 elseif(BACKEND STREQUAL "nvvm" OR BACKEND STREQUAL "cuda" OR BACKEND STREQUAL "gpu")
   add_definitions(-DGPU_TRAVERSAL)
   set(CORE_SRCS core/gpu_adapter.cpp)
-  set(LOADER_SRCS loaders/load_bvh.cpp)
+  #set(LOADER_SRCS loaders/load_bvh.cpp)
 else()
   message(FATAL_ERROR "Backend not supported")
 endif()
@@ -51,7 +51,7 @@ add_library(imba_render
             render/intersection.h
             render/mem_arena.h
             render/scene.h
-            render/thorin_mem.h
+            render/scene.cpp
             render/texture_sampler.h
             render/ray_scheduler.h
             rangesearch/rangesearch.h)

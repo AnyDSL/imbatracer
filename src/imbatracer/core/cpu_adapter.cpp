@@ -7,10 +7,10 @@
 
 namespace imba {
 
-class CpuAdapter : public Adapter {
+class CpuMeshAdapter : public MeshAdapter {
 public:
-    CpuAdapter(std::vector<Node>& nodes, std::vector<Vec4>& tris)
-        : Adapter(nodes, tris)
+    CpuMeshAdapter(std::vector<Node>& nodes, std::vector<Vec4>& tris)
+        : MeshAdapter(nodes, tris)
     {}
 
     void build_accel(const Mesh& mesh) override {
@@ -35,9 +35,9 @@ private:
     typedef SplitBvhBuilder<4, CostFn> BvhBuilder;
 
     struct NodeWriter {
-        CpuAdapter* adapter;
+        CpuMeshAdapter* adapter;
 
-        NodeWriter(CpuAdapter* adapter)
+        NodeWriter(CpuMeshAdapter* adapter)
             : adapter(adapter)
         {}
 
@@ -82,9 +82,9 @@ private:
     };
 
     struct LeafWriter {
-        CpuAdapter* adapter;
+        CpuMeshAdapter* adapter;
 
-        LeafWriter(CpuAdapter* adapter)
+        LeafWriter(CpuMeshAdapter* adapter)
             : adapter(adapter)
         {}
 
@@ -190,8 +190,8 @@ private:
     BvhBuilder builder_;
 };
 
-std::unique_ptr<Adapter> new_adapter(std::vector<Node>& nodes, std::vector<Vec4>& tris) {
-    return std::unique_ptr<Adapter>(new CpuAdapter(nodes, tris));
+std::unique_ptr<MeshAdapter> new_mesh_adapter(std::vector<Node>& nodes, std::vector<Vec4>& tris) {
+    return std::unique_ptr<MeshAdapter>(new CpuMeshAdapter(nodes, tris));
 }
 
 } // namespace imba

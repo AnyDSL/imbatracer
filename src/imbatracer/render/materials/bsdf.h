@@ -243,6 +243,6 @@ private:
     BxDF* btdf_;
 };
 
-}
+} // namespace imba
 
-#endif
+#endif // IMBA_BSDF_H

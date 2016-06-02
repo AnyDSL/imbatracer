@@ -285,8 +285,6 @@ private:
     float3 pos_;
 };
 
-using LightContainer = std::vector<std::unique_ptr<Light>>;
-
 } // namespace imba
 
-#endif
+#endif // IMBA_LIGHT_H

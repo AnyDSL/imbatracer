@@ -1,9 +1,11 @@
 #ifndef IMBA_RANDOM_H
 #define IMBA_RANDOM_H
 
-#include "../core/float3.h"
-#include "../core/common.h"
 #include <random>
+
+#include "../core/common.h"
+#include "../core/float3.h"
+#include "../core/float4.h"
 
 namespace imba {
 
@@ -170,6 +172,6 @@ inline bool russian_roulette(const float4& throughput, float rnd_num, float& pdf
     return rnd_num < pdf;
 }
 
-}
+} // namespace imba
 
-#endif
+#endif // IMBA_RANDOM_H

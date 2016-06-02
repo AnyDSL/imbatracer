@@ -51,8 +51,6 @@ private:
     Image img_;
 };
 
-using TextureContainer = std::vector<std::unique_ptr<TextureSampler>>;
-
 } // namespace imba
 
 #endif

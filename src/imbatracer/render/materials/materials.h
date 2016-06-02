@@ -52,8 +52,6 @@ private:
     TextureSampler* bump_;
 };
 
-using MaterialContainer = std::vector<std::unique_ptr<Material>>;
-
 /// Very simple material with a lambertian BRDF.
 class DiffuseMaterial : public Material {
 public:
@@ -151,6 +149,6 @@ private:
     TextureSampler* diff_sampler_;
 };
 
-}
+} // namespace imba
 
-#endif
+#endif // IMBA_MATERIALS_H

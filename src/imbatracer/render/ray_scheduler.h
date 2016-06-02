@@ -1,5 +1,5 @@
-#ifndef RAY_SCHEDULER
-#define RAY_SCHEDULER
+#ifndef IMBA_RAY_SCHEDULER
+#define IMBA_RAY_SCHEDULER
 
 #include "ray_gen.h"
 
@@ -35,9 +35,9 @@ protected:
     Scene& scene_;
 };
 
-}
+} // namespace imba
 
 #include "queue_scheduler_impl.h"
 #include "tile_scheduler_impl.h"
 
-#endif
+#endif // IMBA_RAY_SCHEDULER

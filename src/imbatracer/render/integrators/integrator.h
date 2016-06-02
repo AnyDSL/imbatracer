@@ -14,7 +14,7 @@ namespace imba {
 
 class Integrator {
 public:
-    Integrator(Scene& scene, PerspectiveCamera& cam)
+    Integrator(const Scene& scene, const PerspectiveCamera& cam)
         : scene_(scene), cam_(cam)
     {}
 
@@ -25,16 +25,20 @@ public:
     virtual void preprocess() {}
 
 protected:
-    Scene& scene_;
-    PerspectiveCamera& cam_;
+    const Scene& scene_;
+    const PerspectiveCamera& cam_;
 
-    inline Intersection calculate_intersection(const Hit* const hits, const Ray* const rays, const int i) {
-        const int i0 = scene_.mesh.indices()[hits[i].tri_id * 4 + 0];
-        const int i1 = scene_.mesh.indices()[hits[i].tri_id * 4 + 1];
-        const int i2 = scene_.mesh.indices()[hits[i].tri_id * 4 + 2];
-        const int  m = scene_.mesh.indices()[hits[i].tri_id * 4 + 3];
+    inline Intersection calculate_intersection(const Hit* const hits, const Ray* const rays, const int i) const {
+        // TODO: Use correct instance ID
+        const Mesh::Instance& inst = scene_.instance(0);
+        const Mesh& mesh = scene_.mesh(inst.id);
 
-        const auto& mat = scene_.materials[m];
+        const int i0 = mesh.indices()[hits[i].tri_id * 4 + 0];
+        const int i1 = mesh.indices()[hits[i].tri_id * 4 + 1];
+        const int i2 = mesh.indices()[hits[i].tri_id * 4 + 2];
+        const int  m = mesh.indices()[hits[i].tri_id * 4 + 3];
+
+        const auto& mat = scene_.material(m);
 
         const float3     org(rays[i].org.x, rays[i].org.y, rays[i].org.z);
         const float3 out_dir(rays[i].dir.x, rays[i].dir.y, rays[i].dir.z);
@@ -43,12 +47,13 @@ protected:
         const float u = hits[i].u;
         const float v = hits[i].v;
 
-        const auto texcoords    = scene_.mesh.attribute<float2>(MeshAttributes::TEXCOORDS);
-        const auto normals      = scene_.mesh.attribute<float3>(MeshAttributes::NORMALS);
-        const auto geom_normals = scene_.mesh.attribute<float3>(MeshAttributes::GEOM_NORMALS);
+        const auto texcoords    = mesh.attribute<float2>(MeshAttributes::TEXCOORDS);
+        const auto normals      = mesh.attribute<float3>(MeshAttributes::NORMALS);
+        const auto geom_normals = mesh.attribute<float3>(MeshAttributes::GEOM_NORMALS);
 
         const float2 uv_coords   = lerp(texcoords[i0], texcoords[i1], texcoords[i2], u, v);
-        const float3    normal   = normalize(lerp(normals[i0], normals[i1], normals[i2], u, v));
+        const float4 inst_normal = float4(lerp(normals[i0], normals[i1], normals[i2], u, v), 0.0f);
+        const float3 normal      = normalize(float3(inst_normal * inst.inv_mat));
         const float3 geom_normal = geom_normals[hits[i].tri_id];
 
         const float3 w_out = -normalize(out_dir);
@@ -72,6 +77,6 @@ protected:
     }
 };
 
-}
+} // namespace imba
 
-#endif
+#endif // IMBA_INTEGRATOR_H
