@@ -1,6 +1,6 @@
 # Imbatracer
 
-Imbatracer is a raytracer using the Impala traversal code.
+Imbatracer is an interactive global illumination renderer. It uses a set of efficient ray traversal kernels written in AnyDSL.
 
 ![alt text](test/references/ref_still_life.png)
 
