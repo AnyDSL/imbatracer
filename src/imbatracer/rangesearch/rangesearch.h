@@ -38,37 +38,21 @@ public:
     void build(const Iter& photons_begin, const Iter& photons_end, float radius) {
 ///*
         if (hg) {
-            if (hg->photons) delete [] hg->photons;
-            if (hg->indices) delete [] hg->indices;
-            if (hg->cell_ends) delete [] hg->cell_ends;
+            destroy_hashgrid(hg);
+            if (hg->neighbor) delete [] hg->neighbor;
             delete hg;
             hg = nullptr;
         }
 
-        //destroy_hashgrid(hg);
-
         it_begin = photons_begin;
 
-//
-	int photon_count = std::distance(photons_begin, photons_end);	
+	    int photon_count = std::distance(photons_begin, photons_end);	
 
-	struct RawDataInfo rdi;
-	rdi.begin = &(photons_begin->position()[0]);
-        rdi.stride = sizeof(*photons_begin);
-//
+	    struct RawDataInfo rdi;
+	    rdi.begin = &(photons_begin->position()[0]);
+        rdi.stride = sizeof(*photons_begin) / sizeof(float);
 
-        struct Float3 *photon_poses = new struct Float3 [photon_count];
-
-	int i = 0;
-        for(Iter it = photons_begin; it != photons_end; ++it) { // TODO How to paralleliz? concurrent access for bbox_max_(rw) and bbox_min_(rw) and photon_count(w)
-            const float3 &pos = it->position();
-            photon_poses[i].x = pos[0];
-            photon_poses[i].y = pos[1];
-            photon_poses[i].z = pos[2];
-	    ++i;
-        }
-
-	hg = build_hashgrid(&rdi, photon_poses, photon_count, cell_ends_.size(), radius);
+	    hg = build_hashgrid(&rdi, photon_count, cell_ends_.size(), radius);
 //*/
 /*
         radius_        = radius;
@@ -122,31 +106,33 @@ public:
     template<typename Container>
     void process(Container& output, const float3& query_pos) {
 ///*
+        std::lock_guard<std::mutex> lock(traversal_mutex); // TODO test purpose only, have to switch the tbb parallel framwork into impala on gpu to get rid of this
+
         if (!hg) return;
-	std::lock_guard<std::mutex> lock(traversal_mutex);
-	struct ArrayI32 *result = query_hashgrid(hg, query_pos[0], query_pos[1], query_pos[2]);
+	    
+	    struct QueryResult *result = query_hashgrid(hg, query_pos[0], query_pos[1], query_pos[2]);
 
         for (int i = 0; i<result->size; ++i) {
             output.push_back(std::next(it_begin, result->data[i]));
         }
         //std::cout << output.size() << std::endl;
 
-        //release_query(result);
-
         if (result) {
-            if (result->data) delete [] result->data;
+            release_query(result);
             delete result; 
+            result = nullptr;
         }
 
 //*/
+
 /*
         const float3 dist_min = query_pos - bbox_min_;
         const float3 dist_max = bbox_max_ - query_pos;
 
         // Check if the position is outside the bounding box.
         for(int i = 0; i < 3; i++) {
-            //if(dist_min[i] < 0.f) return;
-            //if(dist_max[i] < 0.f) return;
+            if(dist_min[i] < 0.f) return;
+            if(dist_max[i] < 0.f) return;
         }
 
         const float3 cell = inv_cell_size_ * dist_min;

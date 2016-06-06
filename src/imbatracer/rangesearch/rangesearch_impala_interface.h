@@ -17,6 +17,11 @@ struct Float3 {
     float z;
 };
 
+struct Buffer {
+    int device;
+    char* data;
+};
+
 struct PhotonHashGrid {
     float radius;
     float radius_sqr;
@@ -28,20 +33,29 @@ struct PhotonHashGrid {
     struct Float3 bbox_min;
     struct Float3 bbox_max;
     struct RawDataInfo raw_data_info;
-    struct Float3* photons;
     int* indices;
     int* cell_ends;
+    float* photons;
+    int* neighbor;
+    struct Buffer host_photons_buf;
+    struct Buffer host_indices_buf;
+    struct Buffer host_cell_ends_buf;
+    struct Buffer dev_photons_buf;
+    struct Buffer dev_indices_buf;
+    struct Buffer dev_mask_buf;
+    struct Buffer dev_pfs_buf;
 };
 
-struct ArrayI32 {
+struct QueryResult {
     int size;
     int* data;
+    struct Buffer buffer;
 };
 
-struct PhotonHashGrid* build_hashgrid(struct RawDataInfo* info, struct Float3* photon_poses, int photon_cnt, int cell_size, float rad);
-struct ArrayI32* query_hashgrid(struct PhotonHashGrid* hg, float x, float y, float z);
+struct PhotonHashGrid* build_hashgrid(struct RawDataInfo* info, int photon_cnt, int cell_size, float rad);
+struct QueryResult* query_hashgrid(struct PhotonHashGrid* hg, float x, float y, float z);
 void destroy_hashgrid(struct PhotonHashGrid* hg);
-void release_query(struct ArrayI32* arr);
+void release_query(struct QueryResult* arr);
 
 #ifdef __cplusplus
 }

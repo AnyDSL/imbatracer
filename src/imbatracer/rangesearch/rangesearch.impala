@@ -27,19 +27,30 @@ struct PhotonHashGrid {
     bbox_min       : Float3,
     bbox_max       : Float3,
     raw_data_info  : RawDataInfo,
-    photons        : &[Float3],
     indices        : &[i32],
-    cell_ends      : &[i32]
+    cell_ends      : &[i32],
+    photons        : &[f32],
+    neighbor       : &[i32],
+
+    host_photons_buf   : Buffer,
+    host_indices_buf   : Buffer,
+    host_cell_ends_buf : Buffer,
+
+    dev_photons_buf    : Buffer,
+    dev_indices_buf    : Buffer,
+    dev_mask_buf       : Buffer,
+    dev_pfs_buf        : Buffer,
 }
 
 struct RawDataInfo {
-    begin : &[f32],
-    stride: i32
+    begin  : &[f32],
+    stride : i32
 }
 
-struct ArrayI32 {
-    size : i32,
-    data : &[i32],
+struct QueryResult {
+    size   : i32,
+    data   : &[i32],
+    buffer : Buffer
 }
 
 fn sub(a: Float3, b: Float3) -> Float3 {
@@ -107,7 +118,11 @@ fn floorf32(f : f32) -> f32 {
 }
 
 fn ceilf32(f : f32) -> f32 {
-    floorf32(f) + 1f32
+    let tmp = floorf32(f);
+    if (tmp == f) {
+        return (tmp)
+    }
+    tmp + 1f32
 }
 
 fn min(a: f32, b : f32) -> f32 {
@@ -133,7 +148,19 @@ fn toFloat3(hg: &PhotonHashGrid, index: i32) -> Float3 {
 }
 
 // Interfaces
-extern fn build_hashgrid(info: &RawDataInfo, photon_poses: &[Float3], photon_cnt: i32, cell_size: i32, rad: f32) -> &PhotonHashGrid {
+extern fn build_hashgrid(info: &RawDataInfo, photon_cnt: i32, cell_size: i32, rad: f32) -> &PhotonHashGrid {
+    let indices_buf   = alloc_cpu(photon_cnt * sizeof[i32]());
+    let cell_ends_buf = alloc_cpu(cell_size * sizeof[i32]());
+    let photons_buf   = alloc_cpu(photon_cnt * 3 * sizeof[f32]());
+    let photons_buf2  = acc_alloc(acc_dev(), photon_cnt * 3 * sizeof[f32]());
+
+    let mut ptr_photons = bitcast[&[f32]](photons_buf.data);
+    for i in range (0, photon_cnt) {
+        for j in @unroll(0, 3) {
+            ptr_photons(3 * i + j) = (*info).begin(i * (*info).stride + j); 
+        }
+    }
+
     let mut hg = ~PhotonHashGrid {
         radius         : rad,
         radius_sqr     : rad * rad,
@@ -148,9 +175,19 @@ extern fn build_hashgrid(info: &RawDataInfo, photon_poses: &[Float3], photon_cnt
             begin : (*info).begin,
             stride: (*info).stride
         },
-        photons        : photon_poses,
-        indices        : ~[photon_cnt : i32],
-        cell_ends      : ~[cell_size  : i32]
+        indices        : bitcast[&[i32]](indices_buf.data),
+        cell_ends      : bitcast[&[i32]](cell_ends_buf.data),
+        photons        : bitcast[&[f32]](photons_buf.data),     
+        neighbor       : ~[8 : i32],
+
+        host_photons_buf        : photons_buf,
+        host_indices_buf        : indices_buf,
+        host_cell_ends_buf      : cell_ends_buf,
+        
+        dev_photons_buf         : photons_buf2, 
+        dev_indices_buf         : acc_alloc(acc_dev(), photon_cnt * sizeof[i32]()),
+        dev_mask_buf            : acc_alloc(acc_dev(), photon_cnt * sizeof[i32]()),
+        dev_pfs_buf             : acc_alloc(acc_dev(), photon_cnt * sizeof[i32]())
     };
 
     // initialize array
@@ -160,18 +197,18 @@ extern fn build_hashgrid(info: &RawDataInfo, photon_poses: &[Float3], photon_cnt
 
     // construct hashgrids
     for i in range(0, photon_cnt) {
-//        let pos = toFloat3(hg, i);
-        hg.bbox_max.x = max(hg.bbox_max.x, hg.photons(i).x);
-        hg.bbox_max.y = max(hg.bbox_max.y, hg.photons(i).y);
-        hg.bbox_max.z = max(hg.bbox_max.z, hg.photons(i).z);
-        hg.bbox_min.x = min(hg.bbox_min.x, hg.photons(i).x);
-        hg.bbox_min.y = min(hg.bbox_min.y, hg.photons(i).y);
-        hg.bbox_min.z = min(hg.bbox_min.z, hg.photons(i).z);
+        let pos = toFloat3(hg, i);
+        hg.bbox_max.x = max(hg.bbox_max.x, pos.x);
+        hg.bbox_max.y = max(hg.bbox_max.y, pos.y);
+        hg.bbox_max.z = max(hg.bbox_max.z, pos.z);
+        hg.bbox_min.x = min(hg.bbox_min.x, pos.x);
+        hg.bbox_min.y = min(hg.bbox_min.y, pos.y);
+        hg.bbox_min.z = min(hg.bbox_min.z, pos.z);
     }
 
     for i in range(0, photon_cnt) {
-//        let pos = toFloat3(hg, i);
-        hg.cell_ends(cell_index(hg.photons(i), hg))++;
+        let pos = toFloat3(hg, i);
+        hg.cell_ends(cell_index(pos, hg))++;
     }
 
     let mut sum = 0;
@@ -182,31 +219,39 @@ extern fn build_hashgrid(info: &RawDataInfo, photon_poses: &[Float3], photon_cnt
     }
 
     for i in range(0, photon_cnt) {
-//        let pos = toFloat3(hg, i);
-        let idx = hg.cell_ends(cell_index(hg.photons(i), hg))++;
+        let pos = toFloat3(hg, i);
+        let idx = hg.cell_ends(cell_index(pos, hg))++;
         hg.indices(idx) = i;
     }
+
+    // copy
+    copy(hg.host_indices_buf, hg.dev_indices_buf, photon_cnt * sizeof[i32]());
+    copy(hg.host_photons_buf, hg.dev_photons_buf, photon_cnt * 3 * sizeof[f32]());
 
     hg
 }
 
-extern fn query_hashgrid(hg: &PhotonHashGrid, x: f32, y: f32, z: f32) -> &ArrayI32 {
+extern fn query_hashgrid(mut hg: &PhotonHashGrid, x: f32, y: f32, z: f32) -> &QueryResult {
+    let size = (*hg).photons_size;
+    
     let query_pos = Float3 {
         x : x,
         y : y,
         z : z
     };
     
-    let mut arr = ~ArrayI32 {
-        size : 0,
-        data : ~[(*hg).indices_size : i32],
-    };
 
     let dist_min = sub(query_pos, (*hg).bbox_min);
     let dist_max = sub((*hg).bbox_max, query_pos);
 
-    if (has_negative(dist_min)) { return(arr) }
-    if (has_negative(dist_max)) { return(arr) }    
+    if (has_negative(dist_min) || has_negative(dist_max)) { 
+        let dummy_buf = alloc_cpu(sizeof[i32]()); 
+        return(~QueryResult {
+                   size   : 0,
+                   data   : bitcast[&[i32]](dummy_buf.data),
+                   buffer : dummy_buf
+               }) 
+    }
     
     let cell = scalar((*hg).inv_cell_size, dist_min);
 
@@ -230,58 +275,137 @@ extern fn query_hashgrid(hg: &PhotonHashGrid, x: f32, y: f32, z: f32) -> &ArrayI
     let pyo = py + dy;
     let pzo = pz + dz;
 
-    //let size = (*hg).photons_size;
-    let size = 128;
-    let dev_mask_buf = acc_alloc(acc_dev(), size * sizeof[f32]());
-    let host_mask_buf = alloc_cpu(size * sizeof[f32]());
-
-    with acc(acc_dev(), (128, 1, 1), (64, 1, 1)) {
-        let mut mask_ptr = bitcast[&[f32]](dev_mask_buf.data);
-        let i = acc_gidx();
-        if (i < 128) {
-            mask_ptr(i) = 0f32;
-        }
-        acc_barrier();
-    }
-
-    copy(dev_mask_buf, host_mask_buf, size * sizeof[f32]());
-
-    //for i in iterate_acc(size) {
-    //    let mut mask_ptr = bitcast[&[i8]](dev_mask_buf.data);
-    //    mask_ptr(i) = 0i8;
-    //}
-
-    release(dev_mask_buf);
-    release(host_mask_buf);
+    let elements_per_block = 512;
+    let threads_per_block  = 256;
+    let num_blocks         = size / elements_per_block;
+    let cell_ends_size     = (*hg).cell_ends_size;
+    let inv_cell_size      = (*hg).inv_cell_size;
+    let radius_sqr         = (*hg).radius_sqr;
+    let ptr_photons  = bitcast[&[f32]]((*hg).dev_photons_buf.data); 
+    let ptr_indices  = bitcast[&[i32]]((*hg).dev_indices_buf.data); 
+    let mut ptr_mask = bitcast[&[i32]]((*hg).dev_mask_buf.data);
+    let ptr_pfs      = bitcast[&[i32]]((*hg).dev_pfs_buf.data);
 
     for i in @unroll(0, 8) {
         let z = if ((i & 1) != 0) { pzo } else { pz };
         let y = if ((i & 2) != 0) { pyo } else { py };
         let x = if ((i & 4) != 0) { pxo } else { px };
 
-        let interval = cell_range(hash_func(x as u32, y as u32, z as u32, (*hg).cell_ends_size as u32), (*hg).cell_ends);  
-        let start = arr.size;
-        let mut curCnt = 0;
+        //let interval = cell_range(hash_func(x as u32, y as u32, z as u32, (*hg).cell_ends_size as u32), (*hg).cell_ends);  
+        (*hg).neighbor(i) = hash_func(x as u32, y as u32, z as u32, (*hg).cell_ends_size as u32);  
+        //let start = arr.size;
+        //let mut curCnt = 0;
 
-        for j in range(interval.x, interval.y) {
-            let idx = (*hg).indices(j);
-//            let pos = toFloat3(hg, idx);
-            let distSqr = sqr(sub(query_pos, (*hg).photons(idx)));
-            if (distSqr <= (*hg).radius_sqr) {
-                arr.data(start + curCnt) = idx;
-                curCnt++;
-            }
-        }
+        //for j in $range(interval.x, interval.y) {
+        //    let idx = (*hg).indices(j);
+        //    let pos = toFloat3(hg, idx);
+        //    let distSqr = sqr(sub(query_pos, pos));
+        //    if (distSqr <= (*hg).radius_sqr) {
+        //        arr.data(start + curCnt) = idx;
+        //        curCnt++;
+        //    }
+        //}
 
-        arr.size += curCnt;
+        //arr.size += curCnt;
     }
 
-    arr
+    let n0 = (*hg).neighbor(0);
+    let n1 = (*hg).neighbor(1);
+    let n2 = (*hg).neighbor(2);
+    let n3 = (*hg).neighbor(3);
+    let n4 = (*hg).neighbor(4);
+    let n5 = (*hg).neighbor(5);
+    let n6 = (*hg).neighbor(6);
+    let n7 = (*hg).neighbor(7);
+
+    let bbox_min_x = (*hg).bbox_min.x;
+    let bbox_min_y = (*hg).bbox_min.y;
+    let bbox_min_z = (*hg).bbox_min.z;
+
+    // TODO: all codes above should be dealt in c++ and passed in as args
+
+    // kernel 1: filtering based on neighbor grids and radius
+    for i in iterate_acc(threads_per_block, size) {
+        ptr_mask(i) = 0;
+        let idx = ptr_indices(i);
+        let x2  = ptr_photons(3 * idx);
+        let y2  = ptr_photons(3 * idx + 1);
+        let z2  = ptr_photons(3 * idx + 2);
+        let x3  = floorf32(inv_cell_size * (x2 - bbox_min_x));
+        let y3  = floorf32(inv_cell_size * (y2 - bbox_min_y));
+        let z3  = floorf32(inv_cell_size * (z2 - bbox_min_z));
+        let h   = hash_func(x3 as u32, y3 as u32, z3 as u32, cell_ends_size as u32);  
+        
+        // TODO: neighbor filtering should be also moved into c++ and passed in as the initial mask
+
+        if (h == n0) { ptr_mask(i) = 1; }
+        else if (h == n1) { ptr_mask(i) = 1; }
+        else if (h == n2) { ptr_mask(i) = 1; }
+        else if (h == n3) { ptr_mask(i) = 1; }
+        else if (h == n4) { ptr_mask(i) = 1; }
+        else if (h == n5) { ptr_mask(i) = 1; }
+        else if (h == n6) { ptr_mask(i) = 1; }
+        else if (h == n7) { ptr_mask(i) = 1; }
+        if (ptr_mask(i) == 1) {
+            let dx = x - x2;
+            let dy = y - y2;
+            let dz = z - z2;
+            let distSqr = dx * dx + dy * dy + dz * dz;
+            if (distSqr > radius_sqr) {
+                ptr_mask(i) = 0;
+            }
+        }
+    }
+
+    // kernel 2: scan(prefix-sum)
+    //let mut start = thorin_get_kernel_time() as i32;
+    gpu_prefix_sum(ptr_mask, ptr_pfs, size);
+    //let mut end   = thorin_get_kernel_time() as i32;
+    //print_int(end - start);
+    //print_char('\n');
+    
+    // kernel 3: stream compaction
+    // try to get the size of the compacted array, is this the only way to do it?
+    let tmp_buf1 = alloc_cpu(sizeof[i32]());
+    let tmp_buf2 = alloc_cpu(sizeof[i32]());
+    copy_offset((*hg).dev_pfs_buf , (size - 1) * sizeof[i32](), tmp_buf1, 0, sizeof[i32]());
+    copy_offset((*hg).dev_mask_buf, (size - 1) * sizeof[i32](), tmp_buf2, 0, sizeof[i32]());
+    let sc_size = bitcast[&[i32]](tmp_buf1.data)(0) + bitcast[&[i32]](tmp_buf2.data)(0);   
+    release(tmp_buf1);
+    release(tmp_buf2);
+    
+    let dev_sc_buf  = acc_alloc(acc_dev(), sc_size * sizeof[i32]());
+    let host_sc_buf = alloc_cpu(sc_size * sizeof[i32]()); 
+
+    //start = thorin_get_kernel_time() as i32;
+    gpu_stream_compaction(ptr_pfs, ptr_mask, ptr_indices, bitcast[&[i32]](dev_sc_buf.data), size);
+    //end   = thorin_get_kernel_time() as i32;
+    //print_int(end - start);
+    //print_char('\n');
+    
+    copy(dev_sc_buf, host_sc_buf, sc_size * sizeof[i32]());
+    release(dev_sc_buf);
+//print_int(sc_size);
+//print_char('\n');
+    //
+    ~QueryResult {
+        size   : sc_size,
+        data   : bitcast[&[i32]](host_sc_buf.data),
+        buffer : host_sc_buf
+    }
 }
 
 extern fn destroy_hashgrid(hg: &PhotonHashGrid) -> () {
+    release((*hg).host_photons_buf);
+    release((*hg).host_indices_buf);
+    release((*hg).host_cell_ends_buf);
+    release((*hg).dev_photons_buf);
+    release((*hg).dev_indices_buf);
+    release((*hg).dev_mask_buf);
+    release((*hg).dev_pfs_buf);
 }
 
-extern fn release_query(arr: &ArrayI32) -> () {
+extern fn release_query(arr: &QueryResult) -> () {
+    release((*arr).buffer);
 }
 
