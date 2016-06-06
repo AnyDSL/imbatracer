@@ -92,10 +92,10 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
-    if (settings.accel_output != "") {
+    /*if (settings.accel_output != "") {
         if (!store_accel(settings.accel_output, scene.nodes, scene.tris))
             std::cerr << "ERROR: Could not write acceleration structure data." << std::endl;
-    }
+    }*/
 
     std::cout << "The scene has been loaded successfully." << std::endl;
 

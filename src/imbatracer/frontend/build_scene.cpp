@@ -63,9 +63,9 @@ void convert_materials(const Path& path, const obj::File& obj_file, const obj::M
         Image img;
         int id;
         if (load_image(name, img)) {
-            id = scene.textures.size();
+            id = scene.texture_count();
             tex_map.emplace(name, id);
-            scene.textures.emplace_back(new TextureSampler(std::move(img)));
+            scene.textures().emplace_back(new TextureSampler(std::move(img)));
             std::cout << std::endl;
         } else {
             id = -1;
@@ -79,7 +79,7 @@ void convert_materials(const Path& path, const obj::File& obj_file, const obj::M
     std::unordered_map<int, int> mask_map;
 
     // Add a dummy material, for objects that have no material
-    scene.materials.push_back(std::unique_ptr<DiffuseMaterial>(new DiffuseMaterial));
+    scene.materials().emplace_back(new DiffuseMaterial);
     masks.add_desc();
 
     for (int i = 1; i < obj_file.materials.size(); i++) {
@@ -89,7 +89,7 @@ void convert_materials(const Path& path, const obj::File& obj_file, const obj::M
         int mask_id = -1;
         if (it == mtl_lib.end()) {
             // Add a dummy material in this case
-            scene.materials.push_back(std::unique_ptr<DiffuseMaterial>(new DiffuseMaterial));
+            scene.materials().emplace_back(new DiffuseMaterial);
         } else {
             const obj::Material& mat = it->second;
 
@@ -109,7 +109,7 @@ void convert_materials(const Path& path, const obj::File& obj_file, const obj::M
             bool is_phong = /*!mat.map_ks.empty() ||*/(mat.ks.x > 0.0f || mat.ks.y > 0.0f || mat.ks.z > 0.0f);
 
             if (is_emissive)
-                mtl_to_light_intensity.insert(std::make_pair(scene.materials.size(), float4(mat.ke, 1.0f)));
+                mtl_to_light_intensity.insert(std::make_pair(scene.material_count(), float4(mat.ke, 1.0f)));
 
             TextureSampler* bump_sampler = nullptr;
             if (!mat.map_bump.empty()) {
@@ -117,13 +117,13 @@ void convert_materials(const Path& path, const obj::File& obj_file, const obj::M
                 const std::string img_file = path.base_name() + "/" + mat.map_bump;
                 int sampler_id = load_texture(img_file);
                 if (sampler_id >= 0)
-                    bump_sampler = scene.textures[sampler_id].get();
+                    bump_sampler = scene.texture(sampler_id).get();
             }
 
             if (mat.illum == 5)
-                scene.materials.push_back(std::unique_ptr<MirrorMaterial>(new MirrorMaterial(1.0f, mat.ns, float4(mat.ks, 1.0f), bump_sampler)));
+                scene.materials().emplace_back(new MirrorMaterial(1.0f, mat.ns, float4(mat.ks, 1.0f), bump_sampler));
             else if (mat.illum == 7) ///* HACK !!! */ || mat.ni != 0)
-                scene.materials.push_back(std::unique_ptr<GlassMaterial>(new GlassMaterial(mat.ni, /* HACK !!! mat.kd*/ float4(mat.tf, 1.0f), float4(mat.ks, 1.0f), bump_sampler)));
+                scene.materials().emplace_back(new GlassMaterial(mat.ni, /* HACK !!! mat.kd*/ float4(mat.tf, 1.0f), float4(mat.ks, 1.0f), bump_sampler));
             else if (is_phong){
                 Material* mtl;
                 if (!mat.map_kd.empty()) {
@@ -133,13 +133,13 @@ void convert_materials(const Path& path, const obj::File& obj_file, const obj::M
                     if (sampler_id < 0) {
                         mtl = new GlossyMaterial(mat.ns, float4(mat.ks, 1.0f), float4(1.0f, 0.0f, 1.0f, 1.0f), bump_sampler);
                     } else {
-                        mtl = new GlossyMaterial(mat.ns, float4(mat.ks, 1.0f), scene.textures[sampler_id].get(), bump_sampler);
+                        mtl = new GlossyMaterial(mat.ns, float4(mat.ks, 1.0f), scene.texture(sampler_id).get(), bump_sampler);
                     }
                 } else {
                     mtl = new GlossyMaterial(mat.ns, float4(mat.ks, 1.0f), float4(mat.kd, 1.0f), bump_sampler);
                 }
 
-                scene.materials.push_back(std::unique_ptr<Material>(mtl));
+                scene.materials().emplace_back(mtl);
             } else {
                 Material* mtl;
                 if (!mat.map_kd.empty()) {
@@ -149,13 +149,13 @@ void convert_materials(const Path& path, const obj::File& obj_file, const obj::M
                     if (sampler_id < 0) {
                         mtl = new DiffuseMaterial(float4(1.0f, 0.0f, 1.0f, 1.0f), bump_sampler);
                     } else {
-                        mtl = new DiffuseMaterial(scene.textures[sampler_id].get(), bump_sampler);
+                        mtl = new DiffuseMaterial(scene.texture(sampler_id).get(), bump_sampler);
                     }
                 } else {
                     mtl = new DiffuseMaterial(float4(mat.kd, 1.0f), bump_sampler);
                 }
 
-                scene.materials.push_back(std::unique_ptr<Material>(mtl));
+                scene.materials().emplace_back(mtl);
             }
 
             // If specified, load the alpha map
@@ -166,7 +166,7 @@ void convert_materials(const Path& path, const obj::File& obj_file, const obj::M
 
         if (mask_id >= 0) {
             auto offset = mask_map.find(mask_id);
-            const auto& image = scene.textures[mask_id]->image();
+            const auto& image = scene.texture(mask_id)->image();
             if (offset != mask_map.end()) {
                 masks.add_desc(MaskBuffer::MaskDesc(image.width(), image.height(), offset->second));
             } else {
@@ -178,18 +178,19 @@ void convert_materials(const Path& path, const obj::File& obj_file, const obj::M
         }
     }
 
-    // Send the masks to the GPU
-    scene.masks = std::move(ThorinArray<::TransparencyMask>(masks.mask_count()));
-    memcpy(scene.masks.begin(), masks.descs(), sizeof(MaskBuffer::MaskDesc) * masks.mask_count());
-    scene.mask_buffer = std::move(ThorinArray<char>(masks.buffer_size()));
-    memcpy(scene.mask_buffer.begin(), masks.buffer(), masks.buffer_size());
+    scene.upload_mask_buffer(masks);
 }
 
 void create_mesh(const obj::File& obj_file, Scene& scene, MtlLightBuffer& mtl_to_light_intensity) {
+    // This function creates a big mesh out of the whole scene.
+    scene.meshes().emplace_back();
+
+    auto mesh = scene.mesh(0);
+
     // Add attributes for texture coordinates and normals
-    scene.mesh.add_attribute(Mesh::AttributeType::FLOAT2);
-    scene.mesh.add_attribute(Mesh::AttributeType::FLOAT3);
-    scene.mesh.add_attribute(Mesh::AttributeType::FLOAT3, Mesh::AttributeBinding::PER_FACE);
+    mesh.add_attribute(Mesh::AttributeType::FLOAT2);
+    mesh.add_attribute(Mesh::AttributeType::FLOAT3);
+    mesh.add_attribute(Mesh::AttributeType::FLOAT3, Mesh::AttributeBinding::PER_FACE);
 
     for (auto& obj: obj_file.objects) {
         // Convert the faces to triangles & build the new list of indices
@@ -218,16 +219,15 @@ void create_mesh(const obj::File& obj_file, Scene& scene, MtlLightBuffer& mtl_to
 
                     auto iter = mtl_to_light_intensity.find(face.material);
                     if (iter != mtl_to_light_intensity.end()) {
-                        auto mat = scene.materials[face.material].get();
+                        auto mat = scene.material(face.material).get();
 
                         auto p0 = obj_file.vertices[face.indices[0].v];
                         auto p1 = obj_file.vertices[face.indices[i].v];
                         auto p2 = obj_file.vertices[face.indices[i+1].v];
 
                         // Create a light source for this emissive object.
-                        scene.lights.push_back(std::unique_ptr<TriangleLight>(new TriangleLight(iter->second, p0, p1, p2)));
-
-                        mat->set_light(scene.lights.back().get());
+                        scene.lights().emplace_back(new TriangleLight(iter->second, p0, p1, p2));
+                        mat->set_light(scene.lights().back().get());
                     }
 
                     prev = next;
@@ -238,27 +238,27 @@ void create_mesh(const obj::File& obj_file, Scene& scene, MtlLightBuffer& mtl_to
         if (triangles.size() == 0) continue;
 
         // Create a mesh for this object
-        int vert_offset = scene.mesh.vertex_count();
-        int idx_offset = scene.mesh.index_count();
-        scene.mesh.set_index_count(idx_offset + triangles.size() * 4);
+        int vert_offset = mesh.vertex_count();
+        int idx_offset = mesh.index_count();
+        mesh.set_index_count(idx_offset + triangles.size() * 4);
         for (TriIdx t : triangles) {
-            scene.mesh.indices()[idx_offset++] = t.v0 + vert_offset;
-            scene.mesh.indices()[idx_offset++] = t.v1 + vert_offset;
-            scene.mesh.indices()[idx_offset++] = t.v2 + vert_offset;
-            scene.mesh.indices()[idx_offset++] = t.m;
+            mesh.indices()[idx_offset++] = t.v0 + vert_offset;
+            mesh.indices()[idx_offset++] = t.v1 + vert_offset;
+            mesh.indices()[idx_offset++] = t.v2 + vert_offset;
+            mesh.indices()[idx_offset++] = t.m;
         }
 
-        scene.mesh.set_vertex_count(vert_offset + mapping.size());
+        mesh.set_vertex_count(vert_offset + mapping.size());
 
         for (auto& p : mapping) {
             const auto& v = obj_file.vertices[p.first.v];
-            scene.mesh.vertices()[vert_offset + p.second].x = v.x;
-            scene.mesh.vertices()[vert_offset + p.second].y = v.y;
-            scene.mesh.vertices()[vert_offset + p.second].z = v.z;
+            mesh.vertices()[vert_offset + p.second].x = v.x;
+            mesh.vertices()[vert_offset + p.second].y = v.y;
+            mesh.vertices()[vert_offset + p.second].z = v.z;
         }
 
         if (has_texcoords) {
-            auto texcoords = scene.mesh.attribute<float2>(MeshAttributes::TEXCOORDS);
+            auto texcoords = mesh.attribute<float2>(MeshAttributes::TEXCOORDS);
             // Set up mesh texture coordinates
             for (auto& p : mapping) {
                 const auto& t = obj_file.texcoords[p.first.t];
@@ -267,7 +267,7 @@ void create_mesh(const obj::File& obj_file, Scene& scene, MtlLightBuffer& mtl_to
         }
 
         if (has_normals) {
-            auto normals = scene.mesh.attribute<float3>(MeshAttributes::NORMALS);
+            auto normals = mesh.attribute<float3>(MeshAttributes::NORMALS);
             // Set up mesh normals
             for (auto& p : mapping) {
                 const auto& n = obj_file.normals[p.first.n];
@@ -276,14 +276,14 @@ void create_mesh(const obj::File& obj_file, Scene& scene, MtlLightBuffer& mtl_to
         } else {
             // Recompute normals
             std::cout << "  Recomputing normals..." << std::flush;
-            scene.mesh.compute_normals(MeshAttributes::NORMALS);
+            mesh.compute_normals(MeshAttributes::NORMALS);
             std::cout << std::endl;
         }
     }
 
-    auto geom_normals = scene.mesh.attribute<float3>(MeshAttributes::GEOM_NORMALS);
-    for (int i = 0; i < scene.mesh.triangle_count(); ++i) {
-        auto t = scene.mesh.triangle(i);
+    auto geom_normals = mesh.attribute<float3>(MeshAttributes::GEOM_NORMALS);
+    for (int i = 0; i < mesh.triangle_count(); ++i) {
+        auto t = mesh.triangle(i);
         geom_normals[i] = normalize(cross(t[1] - t[0], t[2] - t[0]));
     }
 }
@@ -356,7 +356,7 @@ bool parse_scene_file(const Path& path, Scene& scene, std::string& obj_filename,
                 return false;
             }
 
-            scene.lights.emplace_back(new DirectionalLight(normalize(dir), float4(intensity, 1.0f), scene.sphere));
+            scene.lights().emplace_back(new DirectionalLight(normalize(dir), float4(intensity, 1.0f), scene.bounding_sphere()));
         } else if (cmd == "point_light") {
             float3 pos;
             float3 intensity;
@@ -375,7 +375,7 @@ bool parse_scene_file(const Path& path, Scene& scene, std::string& obj_filename,
                 return false;
             }
 
-            scene.lights.emplace_back(new PointLight(pos, float4(intensity, 1.0f)));
+            scene.lights().emplace_back(new PointLight(pos, float4(intensity, 1.0f)));
         } else if (cmd == "accel") {
             if (accel_filename != "") {
                 std::cout << " Multiple acceleration structure files in one scene are not supported." << std::endl;
@@ -440,7 +440,7 @@ bool build_scene(const Path& path, Scene& scene, float3& cam_pos, float3& cam_di
     std::cout << "[6/8] Validating scene..." << std::endl;
 
     bool bad_normals = false;
-    auto normals = scene.mesh.attribute<float3>(MeshAttributes::NORMALS);
+    auto normals = scene.mesh(0).attribute<float3>(MeshAttributes::NORMALS);
     for (int i = 0; i < scene.mesh.vertex_count(); i++) {
         auto& n = normals[i];
         if (isnan(n.x) || isnan(n.y) || isnan(n.z)) {
@@ -453,12 +453,12 @@ bool build_scene(const Path& path, Scene& scene, float3& cam_pos, float3& cam_di
 
     if (bad_normals) std::cout << "  Normals containing invalid values have been replaced" << std::endl;
 
-    if (scene.mesh.triangle_count() == 0) {
+    if (scene.mesh(0).triangle_count() == 0) {
         std::cout << " There is no triangle in the scene." << std::endl;
         return false;
     }
 
-    if (scene.lights.empty()) {
+    if (scene.lights().empty()) {
         std::cout << "  There are no lights in the scene." << std::endl;
         return false;
     }

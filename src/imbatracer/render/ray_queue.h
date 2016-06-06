@@ -27,8 +27,8 @@ struct RayState {
 
 #define TRAVERSAL_DEVICE    thorin::Device(0)
 #define TRAVERSAL_PLATFORM  thorin::Platform::CUDA
-#define TRAVERSAL_INTERSECT intersect_masked_gpu
-#define TRAVERSAL_OCCLUDED  occluded_masked_gpu
+#define TRAVERSAL_INTERSECT intersect_gpu_masked
+#define TRAVERSAL_OCCLUDED  occluded_gpu_masked
 
 // Do not allow running multiple traversal instances at the same time on the GPU.
 static std::mutex traversal_mutex;
@@ -40,8 +40,8 @@ static constexpr int traversal_block_size() { return 8; }
 
 #define TRAVERSAL_DEVICE    thorin::Device(0)
 #define TRAVERSAL_PLATFORM  thorin::Platform::HOST
-#define TRAVERSAL_INTERSECT intersect_masked_cpu
-#define TRAVERSAL_OCCLUDED  occluded_masked_cpu
+#define TRAVERSAL_INTERSECT intersect_cpu_masked
+#define TRAVERSAL_OCCLUDED  occluded_cpu_masked
 
 #endif
 

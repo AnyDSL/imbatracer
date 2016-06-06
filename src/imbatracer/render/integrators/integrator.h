@@ -29,8 +29,7 @@ protected:
     const PerspectiveCamera& cam_;
 
     inline Intersection calculate_intersection(const Hit* const hits, const Ray* const rays, const int i) const {
-        // TODO: Use correct instance ID
-        const Mesh::Instance& inst = scene_.instance(0);
+        const Mesh::Instance& inst = scene_.instance(hits[i].inst_id);
         const Mesh& mesh = scene_.mesh(inst.id);
 
         const int i0 = mesh.indices()[hits[i].tri_id * 4 + 0];
@@ -44,8 +43,12 @@ protected:
         const float3 out_dir(rays[i].dir.x, rays[i].dir.y, rays[i].dir.z);
         const float3 pos = org + (hits[i].tmax) * out_dir;
 
+        // Recompute u & v
         const float u = hits[i].u;
-        const float v = hits[i].v;
+        const float3 v0 = float3(mesh.vertices()[i0]);
+        const float3 e1 = float3(mesh.vertices()[i1]) - v0;
+        const float3 e2 = float3(mesh.vertices()[i2]) - v0;
+        const float v = dot(pos - v0 + u * e1, e2) / dot(e2, e2);
 
         const auto texcoords    = mesh.attribute<float2>(MeshAttributes::TEXCOORDS);
         const auto normals      = mesh.attribute<float3>(MeshAttributes::NORMALS);
