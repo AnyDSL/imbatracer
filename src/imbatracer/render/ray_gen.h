@@ -55,8 +55,8 @@ public:
         uint64_t seed_base = rd();
         for (int i = next_pixel_; i < next_pixel_ + count; ++i) {
             // Compute coordinates, id etc.
-            int pixel_idx = i % (width_ * height_);
-            int sample_idx = i / (width_ * height_);
+            int pixel_idx = i / n_samples_;
+            int sample_idx = i % n_samples_;
             int y = pixel_idx / width_;
             int x = pixel_idx % width_;
 

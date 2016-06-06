@@ -18,11 +18,11 @@ struct UserSettings {
     std::string accel_output;
 
     // Camera and canvas
-    int width, height;
+    unsigned int width, height;
     float fov;
 
     // Execution properties
-    int max_samples;
+    unsigned int max_samples;
     float max_time_sec;
     bool background;
 
@@ -40,13 +40,13 @@ struct UserSettings {
     } algorithm;
 
     float base_radius;
-    int max_path_len;
+    unsigned int max_path_len;
 
     // Scheduler
-    int concurrent_spp;
-    int tile_size;
-    int thread_count;
-    int num_connections;
+    unsigned int concurrent_spp;
+    unsigned int tile_size;
+    unsigned int thread_count;
+    unsigned int num_connections;
 
     UserSettings()
         : input_file(""), accel_output(""), output_file("render.png"), algorithm(PT),
@@ -76,7 +76,7 @@ inline void print_help() {
               << "    --thread-count <nr>        Specifies the number of threads for processing tiles. (default: 4)" << std::endl
               << "    --intermediate-time <sec>  Specifies the rate in seconds at which to store intermediate results. (default: 10)" << std::endl
               << "    --intermediate-path <path> When given, store intermediate results with filename starting with <path>. (default: not given)" << std::endl
-              << "  If time (-t) and number of samples (-s) are both given, time has higher priority." << std::endl;
+              << "  If time (-t) and number of samples (-s) are both given, rendering will be stopped once either of the two has been reached." << std::endl;
 }
 
 namespace {
@@ -183,6 +183,11 @@ inline bool parse_cmd_line(int argc, char* argv[], UserSettings& settings) {
     if (settings.background && (settings.max_samples > MAX_ALLOWED_SAMPLES && settings.max_time_sec > MAX_ALLOWED_TIME)) {
         std::cout << "You need to specify a valid maximum time (-t) or maximum number of samples (-s) to use background rendering." << std::endl;
         return false;
+    }
+
+    if (settings.num_connections < 1 || settings.num_connections > 8) {
+        std::cout << "Number of connections has to be in [1,8]. Using default value one." << std::endl;
+        settings.num_connections = 1;
     }
 
     return settings.input_file != "" && settings.output_file != "";

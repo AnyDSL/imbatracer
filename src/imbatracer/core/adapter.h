@@ -21,6 +21,10 @@ public:
     /// sequentially in the array of nodes.
     virtual void build_accel(const Mesh& mesh) = 0;
 
+#ifdef STATISTICS
+    virtual void print_stats() const {};
+#endif
+
 protected:
     std::vector<Node>& nodes_;
     std::vector<Vec4>& tris_;

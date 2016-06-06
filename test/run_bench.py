@@ -5,55 +5,55 @@ import datetime
 
 # contains a dictionary of settings for every benchmark test
 bench_settings = [
-    # {
-    #     'name': 'Cornell box',
-    #     'scene': 'scenes/cornell/cornell_org.scene',
-    #     'reference': 'references/ref_cornell_org.png',
-    #     'width': 1024,
-    #     'height': 1024,
-    #     'base_filename': 'cornell',
-    #     'args': ['-r', '0.003']
-    # },
+    {
+        'name': 'Cornell box',
+        'scene': 'scenes/cornell/cornell_org.scene',
+        'reference': 'references/ref_cornell_org.png',
+        'width': 1024,
+        'height': 1024,
+        'base_filename': 'cornell',
+        'args': ['-r', '0.003']
+    },
 
-    # {
-    #     'name': 'Cornell specular balls',
-    #     'scene': 'scenes/cornell/cornell_specular_front.scene',
-    #     'reference': 'references/ref_cornell_specular_front.png',
-    #     'width': 1024,
-    #     'height': 1024,
-    #     'base_filename': 'cornell_specular_front',
-    #     'args': ['-r', '0.003']
-    # },
+    {
+        'name': 'Cornell specular balls',
+        'scene': 'scenes/cornell/cornell_specular_front.scene',
+        'reference': 'references/ref_cornell_specular_front.png',
+        'width': 1024,
+        'height': 1024,
+        'base_filename': 'cornell_specular_front',
+        'args': ['-r', '0.003']
+    },
 
-    # {
-    #     'name': 'Cornell specular balls close',
-    #     'scene': 'scenes/cornell/cornell_specular.scene',
-    #     'reference': 'references/ref_cornell_specular.png',
-    #     'width': 1024,
-    #     'height': 1024,
-    #     'base_filename': 'cornell_specular',
-    #     'args': ['-r', '0.003']
-    # },
+    {
+        'name': 'Cornell specular balls close',
+        'scene': 'scenes/cornell/cornell_specular.scene',
+        'reference': 'references/ref_cornell_specular.png',
+        'width': 1024,
+        'height': 1024,
+        'base_filename': 'cornell_specular',
+        'args': ['-r', '0.003']
+    },
 
-    # {
-    #     'name': 'Cornell indirect',
-    #     'scene': 'scenes/cornell/cornell_indirect.scene',
-    #     'reference': 'references/ref_cornell_indirect.png',
-    #     'width': 1024,
-    #     'height': 1024,
-    #     'base_filename': 'cornell_indirect',
-    #     'args': ['-r', '0.003']
-    # },
+    {
+        'name': 'Cornell indirect',
+        'scene': 'scenes/cornell/cornell_indirect.scene',
+        'reference': 'references/ref_cornell_indirect.png',
+        'width': 1024,
+        'height': 1024,
+        'base_filename': 'cornell_indirect',
+        'args': ['-r', '0.003']
+    },
 
-    # {
-    #     'name': 'Cornell water',
-    #     'scene': 'scenes/cornell/cornell_water.scene',
-    #     'reference': 'references/ref_cornell_water.png',
-    #     'width': 1024,
-    #     'height': 1024,
-    #     'base_filename': 'cornell_water',
-    #     'args': ['-r', '0.003']
-    # },
+    {
+        'name': 'Cornell water',
+        'scene': 'scenes/cornell/cornell_water.scene',
+        'reference': 'references/ref_cornell_water.png',
+        'width': 1024,
+        'height': 1024,
+        'base_filename': 'cornell_water',
+        'args': ['-r', '0.003']
+    },
 
     {
         'name': 'Sponza behind curtain',
@@ -69,18 +69,18 @@ bench_settings = [
         'name': 'Still Life',
         'scene': 'scenes/stilllife/still_life.scene',
         'reference': 'references/ref_still_life.png',
-        'width': 960,
-        'height': 540,
+        'width': 1280,
+        'height': 720,
         'base_filename': 'still_life',
         'args': ['-r', '0.02', '--max-path-len', '12']
     },
 ]
 
 
-thread_counts = [8]
-sample_counts = [16]
-tilesizes     = [128]
-connections   = [1, 2, 4, 8]
+thread_counts = [4]
+sample_counts = [4]
+tilesizes     = [256]
+connections   = [1]
 
 scheduler_args = []
 for t in thread_counts:
@@ -90,12 +90,13 @@ for t in thread_counts:
                 scheduler_args.append({
                     'name': 'tilesize: ' + str(tile) + ', threads: ' + str(t) + ', samples: ' + str(s) + ', connections: ' + str(c),
                     'abbr': str(tile) + str(t) + str(s) + str(c),
-                    'args': ['-c', str(c), '--thread-count', str(t), '--tile-size', str(tile), '--spp', str(s)]
+                    'args': ['-c', str(c), '--thread-count', str(t), '--tile-size', str(tile), '--spp', str(s)],
+                    'samples_per_frame': s
                     })
 
-times_in_seconds = [1]
-algorithms = ['bpt', 'vcm']
-convergence = False
+times_in_seconds = [300]
+algorithms = ['bpt', 'vcm', 'ppm']
+convergence = True
 convergence_step_sec = 5
 
 
@@ -147,7 +148,8 @@ def run_benchmark(app, setting, path, time_sec):
             output, err = p.communicate()
 
             output_lines = output.splitlines()
-            perf_result = output_lines[len(output_lines) - 1]
+            perf_result = output_lines[len(output_lines) - 2]
+            ray_count = output_lines[len(output_lines) - 1]
 
             print '   > ' + perf_result
 
@@ -164,11 +166,13 @@ def run_benchmark(app, setting, path, time_sec):
             ms_per_frame = m.group(4)
 
             rmse = compute_rmse(out_filename, setting['reference'])
+            rays_per_sec = str(float(ray_count) / float(time));
 
             print '   > RMSE: ' + rmse
+            print '   > Rays per second: ' + rays_per_sec
             print '   > '
 
-            results[0] += setting['name'] + ',' + alg + ',' + time + ',' + samples + ',' + fps + ',' + ms_per_frame + ',' + rmse + ',' + scheduling['name'] + '\n'
+            results[0] += setting['name'] + ',' + alg + ',' + time + ',' + samples + ',' + fps + ',' + ms_per_frame + ',' + rmse + ',' + rays_per_sec + ',' + scheduling['name'] + '\n'
 
             # Compute RMSE values for the image in the convergence test
             if convergence:
@@ -262,7 +266,7 @@ if __name__ == '__main__':
 
     for time_sec in times_in_seconds:
         res_file = open('results/result_' + timestamp + '_' + str(time_sec) + 'sec.csv', 'w')
-        res_file.write('name, algorithm, time (seconds), samples, frames per second, ms per frame, RMSE, scheduling scheme\n')
+        res_file.write('name, algorithm, time (seconds), samples, frames per second, ms per frame, RMSE, rays per second, scheduling scheme\n')
 
         if convergence:
             conv_res_file = open('results/converge_' + timestamp + '_' + str(time_sec) + 'sec.csv', 'w')

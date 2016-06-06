@@ -18,15 +18,11 @@ public:
     }
 
 #ifdef STATISTICS
-    void print_stats() const { builder_.print_stats(); }
+    void print_stats() const override { builder_.print_stats(); }
 #endif
 
 private:
     struct CostFn {
-        static float split_cost(int left_count, float left_area, int right_count, float right_area) {
-            return ((left_count  - 1) / 4 + 1) * left_area +
-                   ((right_count - 1) / 4 + 1) * right_area;
-        }
         static float leaf_cost(int count, float area) {
             return ((count - 1) / 4 + 1) * area;
         }
@@ -34,6 +30,8 @@ private:
             return area * 0.5f;
         }
     };
+
+    typedef SplitBvhBuilder<4, CostFn> BvhBuilder;
 
     struct NodeWriter {
         CpuAdapter* adapter;
@@ -83,15 +81,14 @@ private:
     };
 
     struct LeafWriter {
-        typedef SplitBvhBuilder<4, CostFn>::Ref Ref;
-
         CpuAdapter* adapter;
 
         LeafWriter(CpuAdapter* adapter)
             : adapter(adapter)
         {}
 
-        void operator() (const BBox& leaf_bb, const Ref* refs, int ref_count) {
+        template <typename RefFn>
+        void operator() (const BBox& leaf_bb, int ref_count, RefFn refs) {
             auto& nodes = adapter->nodes_;
             auto& stack = adapter->stack_;
             auto& tris = adapter->tris_;
@@ -115,7 +112,7 @@ private:
                 } data;
 
                 for (int j = 0; j < c; j++) {
-                    const int id = refs[i + j].id;
+                    const int id = refs(i + j);
                     const Tri& tri = mesh->triangle(id);
                     const float3 e1 = tri.v0 - tri.v1;
                     const float3 e2 = tri.v2 - tri.v0;
@@ -189,7 +186,7 @@ private:
 
     Stack<StackElem> stack_;
     const Mesh* mesh_;
-    SplitBvhBuilder<4, CostFn> builder_;
+    BvhBuilder builder_;
 };
 
 std::unique_ptr<Adapter> new_adapter(std::vector<Node>& nodes, std::vector<Vec4>& tris) {

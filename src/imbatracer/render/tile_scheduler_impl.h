@@ -2,6 +2,7 @@
 #include <atomic>
 
 //#define ENABLE_QUEUE_STATS
+#define ENABLE_MERGING
 
 namespace imba {
 
@@ -52,11 +53,15 @@ public:
 
     ~TileScheduler() {
 #ifdef ENABLE_QUEUE_STATS
-        printf("Queue stats:\n\tprimary_rays: %d\t\tshadow_rays: %d\n\tprimary_min: %d\t\t\tshadow_min: %d\n\ttraversal_calls: %d\t\tshadow_calls: %d\n\tprimary_avg: %d\t\tshadow_avg: %d\n",
-            primary_ray_total.load(), shadow_ray_total.load(),
-            primary_ray_min.load(), shadow_ray_min.load(),
-            traversal_calls.load(), shadow_traversal_calls.load(),
-            primary_ray_total / traversal_calls, shadow_ray_total / shadow_traversal_calls);
+        std::cout << "Queue stats:" << std::endl
+                  << "   primary rays    : " << primary_ray_total << std::endl
+                  << "   shadow rays     : " << shadow_ray_total << std::endl
+                  << "   primary min     : " << primary_ray_min << std::endl
+                  << "   shadow min      : " << shadow_ray_min << std::endl
+                  << "   traversal calls : " << traversal_calls << std::endl
+                  << "   traversal calls (shadow) : " << shadow_traversal_calls << std::endl
+                  << "   average primary : " << primary_ray_total / traversal_calls << std::endl
+                  << "   average shadow  : " << shadow_ray_total / traversal_calls << std::endl;
 #endif
 
         RayQueue<StateType>::release_device_buffer();
@@ -68,18 +73,18 @@ public:
             delete q;
     }
 
-    template<typename Obj>
-    void derived_run_iteration(AtomicImage& image, Obj* integrator,
-                               void (Obj::*process_shadow_rays)(RayQueue<StateType>&, AtomicImage&),
-                               void (Obj::*process_primary_rays)(RayQueue<StateType>&, RayQueue<StateType>&, RayQueue<StateType>&, AtomicImage&),
+    template<typename ShFunc, typename PrimFunc>
+    void derived_run_iteration(AtomicImage& image,
+                               ShFunc process_shadow_rays,
+                               PrimFunc process_primary_rays,
                                SamplePixelFn sample_fn) {
         next_tile_ = 0;
 
         std::vector<std::thread> threads;
         for (int i = 0; i < num_threads_; ++i) {
-            threads.emplace_back([this, i, &image, integrator, process_shadow_rays, process_primary_rays, sample_fn]()
+            threads.emplace_back([this, i, &image, process_shadow_rays, process_primary_rays, sample_fn]()
                 {
-                    render_thread(i, image, integrator, process_shadow_rays, process_primary_rays, sample_fn);
+                    render_thread(i, image, process_shadow_rays, process_primary_rays, sample_fn);
                 });
         }
 
@@ -118,6 +123,7 @@ private:
         int tile_width  = std::min(ray_gen_.width() - tile_pos_x, tile_size_);
         int tile_height = std::min(ray_gen_.height() - tile_pos_y, tile_size_);
 
+#ifdef ENABLE_MERGING
         // If the next tile is smaller than half the size, acquire it as well.
         // If this tile is smaller than half the size, skip it (was acquired by one of its neighbours)
         if (tile_width < tile_size_ / 2 ||
@@ -129,6 +135,7 @@ private:
 
         if (ray_gen_.height() - (tile_pos_y + tile_height) < tile_size_ / 2)
             tile_height += ray_gen_.height() - (tile_pos_y + tile_height);
+#endif
 
         out = TiledRayGen<StateType>(tile_pos_x, tile_pos_y, tile_width, tile_height,
                                      ray_gen_.num_samples(), ray_gen_.width(), ray_gen_.height());
@@ -137,10 +144,10 @@ private:
         return true;
     }
 
-    template<typename Obj>
-    void render_thread(int thread_idx, AtomicImage& image, Obj* integrator,
-                       void (Obj::*process_shadow_rays)(RayQueue<StateType>&, AtomicImage&),
-                       void (Obj::*process_primary_rays)(RayQueue<StateType>&, RayQueue<StateType>&, RayQueue<StateType>&, AtomicImage&),
+    template<typename ShFunc, typename PrimFunc>
+    void render_thread(int thread_idx, AtomicImage& image,
+                       ShFunc process_shadow_rays,
+                       PrimFunc process_primary_rays,
                        SamplePixelFn sample_fn) {
         auto cur_tile = next_tile_++;
         while (cur_tile < tile_count_) {
@@ -161,12 +168,14 @@ private:
             while(!tile_ray_gen.is_empty() || prim_q_in->size() > MIN_QUEUE_SIZE) {
                 tile_ray_gen.fill_queue(*prim_q_in, sample_fn);
 
-                if (prim_q_in->size() < tile_size_ * tile_size_ * 0.5) {
+#ifdef ENABLE_MERGING
+                if (prim_q_in->size() < (tile_size_ * tile_size_ * ray_gen_.num_samples()) / 2) {
                     // Acquire another tile, if available, to keep ray count high.
                     cur_tile = next_tile_++;
                     while (cur_tile < tile_count_ && !acquire_tile(cur_tile, tile_ray_gen))
                         cur_tile = next_tile_++;
                 }
+#endif
 
 #ifdef ENABLE_QUEUE_STATS
                 primary_ray_total += prim_q_in->size();
@@ -178,7 +187,7 @@ private:
 #endif
                 prim_q_in->traverse(scene_);
 
-                (integrator->*process_primary_rays)(*prim_q_in, *prim_q_out, *shadow_q, image);
+                process_primary_rays(*prim_q_in, *prim_q_out, *shadow_q, image);
 
                 if (shadow_q->size() > MIN_QUEUE_SIZE) {
                     shadow_q->traverse_occluded(scene_);
@@ -192,7 +201,7 @@ private:
                         ;
 #endif
 
-                    (integrator->*process_shadow_rays)(*shadow_q, image);
+                    process_shadow_rays(*shadow_q, image);
                 }
 
                 shadow_q->clear();

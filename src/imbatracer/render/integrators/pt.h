@@ -5,6 +5,8 @@
 #include "../ray_scheduler.h"
 #include "../ray_gen.h"
 
+//#define QUEUE_SCHEDULING
+
 namespace imba {
 
 struct PTState : RayState {
@@ -19,15 +21,23 @@ public:
     PathTracer(Scene& scene, PerspectiveCamera& cam, RayGen<PTState>& ray_gen, int max_path_len, int thread_count, int tile_size)
         : Integrator(scene, cam)
         , ray_gen_(ray_gen)
+#ifdef QUEUE_SCHEDULING
+        , scheduler_(ray_gen, scene)
+#else
         , scheduler_(ray_gen, scene, thread_count, tile_size)
+#endif
         , max_path_len_(max_path_len)
     {}
 
     virtual void render(AtomicImage& out) override;
 
 private:
-    //QueueScheduler<PTState, 8, 8, 1> scheduler_;
+#ifdef QUEUE_SCHEDULING
+    QueueScheduler<PTState, 8, 1> scheduler_;
+#else
     TileScheduler<PTState, 1> scheduler_;
+#endif
+
     RayGen<PTState>& ray_gen_;
 
     const int max_path_len_;

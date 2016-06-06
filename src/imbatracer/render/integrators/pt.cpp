@@ -121,7 +121,11 @@ void PathTracer::process_shadow_rays(RayQueue<PTState>& ray_in, AtomicImage& out
 }
 
 void PathTracer::render(AtomicImage& out) {
-    scheduler_.run_iteration(out, this, &PathTracer::process_shadow_rays, &PathTracer::process_primary_rays,
+    scheduler_.run_iteration(out,
+        [this] (RayQueue<PTState>& ray_in, AtomicImage& out) { process_shadow_rays(ray_in, out); },
+        [this] (RayQueue<PTState>& ray_in, RayQueue<PTState>& ray_out, RayQueue<PTState>& ray_out_shadow, AtomicImage& out) {
+            process_primary_rays(ray_in, ray_out, ray_out_shadow, out);
+        },
         [this] (int x, int y, ::Ray& ray_out, PTState& state_out) {
             const float sample_x = static_cast<float>(x) + state_out.rng.random_float();
             const float sample_y = static_cast<float>(y) + state_out.rng.random_float();

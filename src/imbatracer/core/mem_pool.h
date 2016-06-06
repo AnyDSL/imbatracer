@@ -23,6 +23,7 @@ public:
     void cleanup() {
         for (auto chunk: chunks_)
             alloc_.deallocate(chunk.first, chunk.second);
+        chunks_.clear();
     }
 
 private:

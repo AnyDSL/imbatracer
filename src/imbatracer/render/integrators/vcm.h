@@ -6,17 +6,18 @@
 #include "../ray_gen.h"
 #include "../../rangesearch/rangesearch.h"
 
+//#define QUEUE_SCHEDULING
+
 namespace imba {
 
+/// Stores the current state of a ray during VCM or any sub-algorithm of VCM.
 struct VCMState : RayState {
     float4 throughput;
-    int path_length;
+    int path_length : 7;
+    bool finite_light : 1;
 
     // Russian roulette probability for continuing this path.
     float continue_prob;
-
-    // Used to store whether the light source during light tracing was finite.
-    bool is_finite;
 
     // partial weights for MIS, see VCM technical report
     float dVC;
@@ -73,7 +74,11 @@ public:
         , base_radius_(base_radius)
         , radius_alpha_(radius_alpha)
         , cur_iteration_(0)
+#ifdef QUEUE_SCHEDULING
+        , scheduler_(ray_gen, scene)
+#else
         , scheduler_(ray_gen, scene, thread_count, tile_size)
+#endif
         , max_path_len_(max_path_len)
         , spp_(spp)
         , vertex_caches_(spp)
@@ -112,7 +117,12 @@ private:
     float mis_weight_vm_;
 
     RayGen<VCMState>& ray_gen_;
+
+#ifdef QUEUE_SCHEDULING
+    QueueScheduler<VCMState, 8, MAX_NUM_CONNECTIONS + 1> scheduler_;
+#else
     TileScheduler<VCMState, MAX_NUM_CONNECTIONS + 1> scheduler_;
+#endif
 
     // Light path vertices and associated data are stored separately per sample / iteration.
     std::vector<std::vector<LightPathVertex> > vertex_caches_;

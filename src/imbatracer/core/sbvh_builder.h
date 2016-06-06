@@ -9,6 +9,7 @@
 
 #include "common.h"
 #include "mem_pool.h"
+#include "bvh_helper.h"
 #include "float3.h"
 #include "stack.h"
 #include "mesh.h"
@@ -24,16 +25,8 @@ namespace imba {
 template <int N, typename CostFn>
 class SplitBvhBuilder {
 public:
-    struct Ref {
-        uint32_t id;
-        BBox bb;
-
-        Ref() {}
-        Ref(uint32_t id, const BBox& bb) : id(id), bb(bb) {}
-    };
-
     template <typename NodeWriter, typename LeafWriter>
-    void build(const Mesh& mesh, NodeWriter write_node, LeafWriter write_leaf, int leaf_threshold, float alpha) {
+    void build(const Mesh& mesh, NodeWriter write_node, LeafWriter write_leaf, int leaf_threshold, float alpha = 1e-5f) {
         assert(leaf_threshold >= 1);
 
 #ifdef STATISTICS
@@ -43,12 +36,10 @@ public:
 
         const int tri_count = mesh.triangle_count();
 
-        mem_pool_.cleanup();
-
         Ref* initial_refs = mem_pool_.alloc<Ref>(tri_count);
         right_bbs_ = mem_pool_.alloc<BBox>(std::max((int)spatial_bins, tri_count));
         BBox mesh_bb = BBox::empty();
-        for (size_t i = 0; i < tri_count; i++) {
+        for (int i = 0; i < tri_count; i++) {
             const Tri& tri = mesh.triangle(i);
             tri.compute_bbox(initial_refs[i].bb);
             mesh_bb.extend(initial_refs[i].bb);
@@ -61,11 +52,11 @@ public:
         stack.push(initial_refs, tri_count, mesh_bb);
 
         while (!stack.empty()) {
-            MultiNode multi_node(stack.pop());
+            MultiNode<Node, N> multi_node(stack.pop());
 
             // Iterate over the available split candidates in the multi-node
             while (!multi_node.full() && multi_node.node_available()) {
-                int node_id = multi_node.next_node();
+                const int node_id = multi_node.next_node();
                 Node node = multi_node.nodes[node_id];
                 Ref* refs = node.refs;
                 int ref_count = node.ref_count;
@@ -140,30 +131,26 @@ public:
             assert(multi_node.count > 0);
 
             // The multi-node is ready to be stored
-            if (multi_node.is_leaf() ||
-                stack.size() + multi_node.count >= stack.capacity()) {
+            if (multi_node.is_leaf()) {
                 // Store a leaf if it could not be split
                 const Node& node = multi_node.nodes[0];
                 assert(node.tested);
-                write_leaf(node.bbox, node.refs, node.ref_count);
-#ifdef STATISTICS
-                total_leaves_++;
-                total_refs_ += node.ref_count;
-#endif
+                make_leaf(node, write_leaf);
             } else {
                 // Store a multi-node
-                write_node(multi_node.bbox, multi_node.count, [&] (int i) {
-                    return multi_node.nodes[i].bbox;
-                });
-
+                make_node(multi_node, write_node);
                 assert(N > 2 || multi_node.count == 2);
 
-                for (int i = multi_node.count - 1; i >= 0; i--) {
-                    stack.push(multi_node.nodes[i]);
+                if (stack.size() + multi_node.count < stack.capacity()) {
+                    for (int i = multi_node.count - 1; i >= 0; i--) {
+                        stack.push(multi_node.nodes[i]);
+                    }
+                } else {
+                    // Insufficient space on the stack, we have to stop recursion here
+                    for (int i = 0; i < multi_node.count; i++) {
+                        make_leaf(multi_node.nodes[i], write_leaf);
+                    }
                 }
-#ifdef STATISTICS
-                total_nodes_++;
-#endif
             }
         }
 
@@ -171,6 +158,8 @@ public:
         auto time_end = std::chrono::high_resolution_clock::now();
         total_time_ += std::chrono::duration_cast<std::chrono::milliseconds>(time_end - time_start).count();
 #endif
+
+        mem_pool_.cleanup();
     }
 
 #ifdef STATISTICS
@@ -187,6 +176,14 @@ public:
 
 private:
     static constexpr int spatial_bins = 256;
+
+    struct Ref {
+        uint32_t id;
+        BBox bb;
+
+        Ref() {}
+        Ref(uint32_t id, const BBox& bb) : id(id), bb(bb) {}
+    };
 
     struct Bin {
         BBox bb;
@@ -220,56 +217,32 @@ private:
 
         Node() {}
         Node(Ref* refs, int ref_count, const BBox& bbox)
-            : refs(refs), ref_count(ref_count), bbox(bbox),
-              cost(CostFn::leaf_cost(ref_count, bbox.half_area())),
-              tested(false)
+            : refs(refs), ref_count(ref_count), bbox(bbox)
+            , cost(CostFn::leaf_cost(ref_count, bbox.half_area()))
+            , tested(false)
         {}
     };
 
-    struct MultiNode {
-        Node nodes[N];
-        BBox bbox;
-        int count;
+    template <typename NodeWriter>
+    void make_node(const MultiNode<Node, N>& multi_node, NodeWriter write_node) {
+        write_node(multi_node.bbox, multi_node.count, [&] (int i) {
+            return multi_node.nodes[i].bbox;
+        });
+#ifdef STATISTICS
+        total_nodes_++;
+#endif
+    }
 
-        MultiNode(const Node& node) {
-            nodes[0] = node;
-            bbox = node.bbox;
-            count = 1;
-        }
-
-        bool full() const { return count == N; }
-        bool is_leaf() const { return count == 1; }
-
-        int next_node() const {
-            assert(node_available());
-            if (N == 2)
-                return 0;
-            else {
-                float min_cost = FLT_MAX;
-                int min_idx = 0;
-                for (int i = 0; i < count; i++) {
-                    if (!nodes[i].tested && min_cost > nodes[i].cost) {
-                        min_idx = i;
-                        min_cost = nodes[i].cost;
-                    }
-                }
-                return min_idx;
-            }
-        }
-
-        bool node_available() const {
-            for (int i = 0; i < count; i++) {
-                if (!nodes[i].tested) return true;
-            }
-            return false;
-        }
-
-        void split_node(int i, const Node& left, const Node& right) {
-            assert(count < N);
-            nodes[i] = left;
-            nodes[count++] = right;
-        }
-    };
+    template <typename LeafWriter>
+    void make_leaf(const Node& node, LeafWriter write_leaf) {
+        write_leaf(node.bbox, node.ref_count, [&] (int i) {
+            return node.refs[i].id;
+        });
+#ifdef STATISTICS
+        total_leaves_++;
+        total_refs_ += node.ref_count;
+#endif
+    }
 
     void sort_refs(int axis, Ref* refs, int ref_count) {
         // Sort the primitives based on their centroids
@@ -296,7 +269,7 @@ private:
         cur_bb = BBox::empty();
         for (int i = 0; i < ref_count - 1; i++) {
             cur_bb.extend(refs[i].bb);
-            const float cost = CostFn::split_cost(i + 1, cur_bb.half_area(), ref_count - i - 1, right_bbs_[i].half_area());
+            const float cost = CostFn::leaf_cost(i + 1, cur_bb.half_area()) + CostFn::leaf_cost(ref_count - i - 1, right_bbs_[i].half_area());
             if (cost < split.cost) {
                 split.axis = axis;
                 split.cost = cost;
@@ -368,7 +341,7 @@ private:
             right_count -= bins[i].exit;
             cur_bb.extend(bins[i].bb);
 
-            const float cost = CostFn::split_cost(left_count, cur_bb.half_area(), right_count, right_bbs_[i].half_area());
+            const float cost = CostFn::leaf_cost(left_count, cur_bb.half_area()) + CostFn::leaf_cost(right_count, right_bbs_[i].half_area());
             if (cost < split.cost) {
                 split.axis = axis;
                 split.cost = cost;
@@ -426,9 +399,9 @@ private:
             const float right_dup_area = right_dup_bb.half_area();
 
             // Compute the cost of unsplitting to the left and the right
-            const float unsplit_left_cost  = CostFn::split_cost(left_count + 1, left_unsplit_area,   right_count,     right_bb.half_area());
-            const float unsplit_right_cost = CostFn::split_cost(left_count,     left_bb.half_area(), right_count + 1, right_unsplit_area);
-            const float dup_cost           = CostFn::split_cost(left_count + 1, left_dup_area,       right_count + 1, right_dup_area);
+            const float unsplit_left_cost  = CostFn::leaf_cost(left_count + 1, left_unsplit_area)   + CostFn::leaf_cost(right_count,     right_bb.half_area());
+            const float unsplit_right_cost = CostFn::leaf_cost(left_count,     left_bb.half_area()) + CostFn::leaf_cost(right_count + 1, right_unsplit_area);
+            const float dup_cost           = CostFn::leaf_cost(left_count + 1, left_dup_area)       + CostFn::leaf_cost(right_count + 1, right_dup_area);
 
             const float min_cost = std::min(dup_cost, std::min(unsplit_left_cost, unsplit_right_cost));
 

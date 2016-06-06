@@ -43,12 +43,13 @@ protected:
         const float u = hits[i].u;
         const float v = hits[i].v;
 
-        const auto texcoords   = scene_.mesh.attribute<float2>(MeshAttributes::texcoords);
-        const auto normals     = scene_.mesh.attribute<float3>(MeshAttributes::normals);
-        const auto geom_normal = scene_.geom_normals[hits[i].tri_id];
+        const auto texcoords    = scene_.mesh.attribute<float2>(MeshAttributes::TEXCOORDS);
+        const auto normals      = scene_.mesh.attribute<float3>(MeshAttributes::NORMALS);
+        const auto geom_normals = scene_.mesh.attribute<float3>(MeshAttributes::GEOM_NORMALS);
 
-        const float2 uv_coords = lerp(texcoords[i0], texcoords[i1], texcoords[i2], u, v);
-        const float3    normal = normalize(lerp(normals[i0], normals[i1], normals[i2], u, v));
+        const float2 uv_coords   = lerp(texcoords[i0], texcoords[i1], texcoords[i2], u, v);
+        const float3    normal   = normalize(lerp(normals[i0], normals[i1], normals[i2], u, v));
+        const float3 geom_normal = geom_normals[hits[i].tri_id];
 
         const float3 w_out = -normalize(out_dir);
 
