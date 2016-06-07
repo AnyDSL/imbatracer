@@ -4,6 +4,7 @@
 #include "../core/float4.h"
 
 #include <vector>
+#include <tbb/tbb.h>
 
 namespace imba {
 
@@ -20,9 +21,7 @@ struct CellIdx {
 template<typename Iter>
 class HashGrid {
 public:
-    void reserve(int num_cells) {
-        cell_ends_.resize(num_cells);
-    }
+    HashGrid() : cell_ends_(1000000) {}
 
     void build(const Iter& photons_begin, const Iter& photons_end, float radius) {
         radius_        = radius;
@@ -30,30 +29,33 @@ public:
         cell_size_     = radius_ * 2.f;
         inv_cell_size_ = 1.f / cell_size_;
 
+        // Compute the extents of the bounding box.
         bbox_min_ = float3( 1e36f);
         bbox_max_ = float3(-1e36f);
-
-        int photon_count = 0;
         for(Iter it = photons_begin; it != photons_end; ++it) {
             const float3 &pos = it->position();
             for(int j=0; j<3; j++) {
                 bbox_max_[j] = std::max(bbox_max_[j], pos[j]);
                 bbox_min_[j] = std::min(bbox_min_[j], pos[j]);
             }
-            ++photon_count;
         }
 
+        // Distribute the photons to the HashGrid cells using Counting Sort.
+
+        int photon_count = photons_end - photons_begin;
         indices_.resize(photon_count);
         memset(&cell_ends_[0], 0, cell_ends_.size() * sizeof(int));
 
-        // set cell_ends_[x] to number of particles within x
-        for(Iter it = photons_begin; it != photons_end; ++it) {
-            const float3 &pos = it->position();
-            cell_ends_[cell_index(pos)]++;
-        }
+        // Count the number of photons in each cell.
+        tbb::parallel_for(tbb::blocked_range<Iter>(photons_begin, photons_end), [this](const tbb::blocked_range<Iter>& range){
+            //for (Iter it = photons_begin; it != photons_end; ++it) {
+            for (Iter it = range.begin(); it != range.end(); ++it) {
+                const float3 &pos = it->position();
+                cell_ends_[cell_index(pos)]++;
+            }
+        });
 
-        // run exclusive prefix sum to really get the cell starts
-        // cell_ends_[x] is now where the cell starts
+        // Set the cell_ends_[x] to the first index that belongs to the respective cell.
         int sum = 0;
         for(size_t i = 0; i < cell_ends_.size(); i++) {
             int temp = cell_ends_[i];
@@ -61,11 +63,15 @@ public:
             sum += temp;
         }
 
-        for(Iter it = photons_begin; it != photons_end; ++it) {
-            const float3 &pos = it->position();
-            const int target_idx = cell_ends_[cell_index(pos)]++;
-            indices_[target_idx] = it;
-        }
+        // Assign the photons to the cells.
+        tbb::parallel_for(tbb::blocked_range<Iter>(photons_begin, photons_end), [this](const tbb::blocked_range<Iter>& range){
+            //for (Iter it = photons_begin; it != photons_end; ++it) {
+            for (Iter it = range.begin(); it != range.end(); ++it) {
+                const float3 &pos = it->position();
+                const int target_idx = cell_ends_[cell_index(pos)]++;
+                indices_[target_idx] = it;
+            }
+        });
     }
 
     template<typename Container>
@@ -85,15 +91,15 @@ public:
             std::floor(cell.y),
             std::floor(cell.z));
 
-        const int  px = int(coord.x);
-        const int  py = int(coord.y);
-        const int  pz = int(coord.z);
+        const int px = int(coord.x);
+        const int py = int(coord.y);
+        const int pz = int(coord.z);
 
         const float3 fract_coord = cell - coord;
 
-        const int  pxo = px + (fract_coord.x < 0.5f ? -1 : 1);
-        const int  pyo = py + (fract_coord.y < 0.5f ? -1 : 1);
-        const int  pzo = pz + (fract_coord.z < 0.5f ? -1 : 1);
+        const int pxo = px + (fract_coord.x < 0.5f ? -1 : 1);
+        const int pyo = py + (fract_coord.y < 0.5f ? -1 : 1);
+        const int pzo = pz + (fract_coord.z < 0.5f ? -1 : 1);
 
         for(int j = 0; j < 8; j++) {
             const int x = j & 4 ? pxo : px;
@@ -137,7 +143,7 @@ private:
     float3 bbox_min_;
     float3 bbox_max_;
     std::vector<Iter> indices_;
-    std::vector<int> cell_ends_;
+    std::vector<std::atomic<int> > cell_ends_;
 
     float radius_;
     float radius_sqr_;

@@ -4,16 +4,19 @@
 #include "integrator.h"
 #include "../ray_scheduler.h"
 #include "../ray_gen.h"
+
 #include "../../rangesearch/rangesearch.h"
+#include "light_vertices.h"
 
 //#define QUEUE_SCHEDULING
 
 namespace imba {
 
+/// Stores the current state of a ray during VCM or any sub-algorithm of VCM.
 struct VCMState : RayState {
     float4 throughput;
     int path_length : 7;
-    bool is_finite : 1; // Used to store whether the light source during light tracing was finite.
+    bool finite_light : 1;
 
     // Russian roulette probability for continuing this path.
     float continue_prob;
@@ -23,30 +26,6 @@ struct VCMState : RayState {
     float dVCM;
     float dVM;
 };
-
-struct LightPathVertex {
-    Intersection isect;
-    float4 throughput;
-
-    float continue_prob;
-    int path_length;
-
-    // partial weights for MIS, see VCM technical report
-    float dVC;
-    float dVCM;
-    float dVM;
-
-    LightPathVertex(Intersection isect, float4 tp, float continue_prob, float dVC, float dVCM, float dVM, int path_length)
-        : isect(isect), throughput(tp), continue_prob(continue_prob), dVC(dVC), dVCM(dVCM), dVM(dVM), path_length(path_length)
-    {}
-
-    LightPathVertex() {}
-
-    float3& position() { return isect.pos; }
-    const float3& position() const { return isect.pos; }
-};
-
-using PhotonIterator = std::vector<LightPathVertex>::iterator;
 
 enum VCMSubAlgorithm {
     ALGO_VCM,
@@ -58,16 +37,13 @@ enum VCMSubAlgorithm {
 
 template<VCMSubAlgorithm algo>
 class VCMIntegrator : public Integrator {
-    // Number of light paths to be traced when computing the average length and thus vertex cache size.
-    static constexpr int LIGHT_PATH_LEN_PROBES = 10000;
-    static constexpr int MAX_NUM_CONNECTIONS = 8;
+    static const int MAX_NUM_CONNECTIONS = 8;
 public:
     VCMIntegrator(Scene& scene, PerspectiveCamera& cam, RayGen<VCMState>& ray_gen,
         int max_path_len, int thread_count, int tile_size, int spp, int num_connections, float base_radius=0.03f, float radius_alpha=0.75f)
         : Integrator(scene, cam)
         , width_(cam.width())
         , height_(cam.height())
-        , ray_gen_(ray_gen)
         , light_path_count_(cam.width() * cam.height())
         , pm_radius_(base_radius)
         , base_radius_(base_radius)
@@ -80,14 +56,9 @@ public:
 #endif
         , max_path_len_(max_path_len)
         , spp_(spp)
-        , vertex_caches_(spp)
-        , vertex_cache_last_(spp)
-        , light_vertices_count_(spp)
-        , photon_grid_(spp)
         , num_connections_(num_connections)
+        , light_vertices_(cam.width() * cam.height(), spp)
     {
-        for (auto& grid : photon_grid_)
-            grid.reserve(cam.width() * cam.height());
     }
 
     virtual void render(AtomicImage& out) override;
@@ -96,15 +67,21 @@ public:
         cur_iteration_ = 0;
     }
 
-    virtual void preprocess() override;
+    virtual void preprocess() override {
+        if (algo != ALGO_LT && algo != ALGO_PT)
+            light_vertices_.compute_cache_size(scene_);
+    }
 
 private:
-    int width_, height_;
-    int spp_;
-    float light_path_count_;
+    // Maximum path length and number of connections. Can be used to tweak performance.
     const int max_path_len_;
     const int num_connections_;
 
+    // Information on the current image.
+    int width_, height_;
+    int spp_;
+
+    float light_path_count_;
     float base_radius_;
     float radius_alpha_;
 
@@ -112,10 +89,8 @@ private:
     int cur_iteration_;
     float pm_radius_;
     float vm_normalization_;
-    float mis_weight_vc_;
-    float mis_weight_vm_;
-
-    RayGen<VCMState>& ray_gen_;
+    float mis_eta_vc_;
+    float mis_eta_vm_;
 
 #ifdef QUEUE_SCHEDULING
     QueueScheduler<VCMState, 8, MAX_NUM_CONNECTIONS + 1> scheduler_;
@@ -123,14 +98,21 @@ private:
     TileScheduler<VCMState, MAX_NUM_CONNECTIONS + 1> scheduler_;
 #endif
 
-    // Light path vertices and associated data are stored separately per sample / iteration.
-    std::vector<std::vector<LightPathVertex> > vertex_caches_;
-    std::vector<std::atomic<int> > vertex_cache_last_;
-    std::vector<int> light_vertices_count_;
-    std::vector<HashGrid<PhotonIterator> > photon_grid_;
+    LightVertices light_vertices_;
 
-    void reset_buffers();
-    void add_vertex_to_cache(const LightPathVertex& v, int sample_id);
+    /// Computes the power for the power heuristic.
+    inline float mis_pow(float a) {
+        constexpr float power = 1.0f;
+        return powf(a, power);
+    }
+
+    /// Computes the cosine term for adjoint BSDFs that use shading normals.
+    ///
+    /// This function has to be used for all BSDFs while tracing paths from the light sources, to prevent brighness discontinuities.
+    /// See Veach's thesis for more details.
+    inline static float shading_normal_adjoint(const float3& normal, const float3& geom_normal, const float3& out_dir, const float3& in_dir) {
+        return dot(out_dir, normal) * dot(in_dir, geom_normal) / dot(out_dir, geom_normal);
+    }
 
     void process_light_rays(RayQueue<VCMState>& rays_in, RayQueue<VCMState>& rays_out, RayQueue<VCMState>& rays_out_shadow, AtomicImage& img);
     void process_camera_rays(RayQueue<VCMState>& rays_in, RayQueue<VCMState>& rays_out, RayQueue<VCMState>& shadow_rays, AtomicImage& img);

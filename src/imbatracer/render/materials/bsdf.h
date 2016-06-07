@@ -199,6 +199,13 @@ public:
         in_dir = local_to_world(local_in);
         pdf *= component_pdf;
 
+        // Ensure that BRDF samples are always in the same hemisphere, and that BTDF samples are always in the opposite hemisphere.
+        if ((chosen_bxdf == brdf_ && dot(in_dir, isect_.geom_normal) * dot(out_dir, isect_.geom_normal) <= 0.0f) ||
+            (chosen_bxdf == btdf_ && dot(in_dir, isect_.geom_normal) * dot(out_dir, isect_.geom_normal) >= 0.0f)) {
+            sampled_flags = BxDFFlags(0);
+            return float4(0.0f);
+        }
+
         return value;
     }
 
