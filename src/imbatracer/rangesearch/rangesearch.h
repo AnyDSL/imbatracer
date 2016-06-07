@@ -4,6 +4,7 @@
 #include "../core/float4.h"
 
 #include <vector>
+#include <tbb/tbb.h>
 
 namespace imba {
 
@@ -20,12 +21,7 @@ struct CellIdx {
 template<typename Iter>
 class HashGrid {
 public:
-
     HashGrid() : cell_ends_(1000000) {}
-
-    void reserve(int num_cells) {
-        //cell_ends_.resize(num_cells);
-    }
 
     void build(const Iter& photons_begin, const Iter& photons_end, float radius) {
         radius_        = radius;

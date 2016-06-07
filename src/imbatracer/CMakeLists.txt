@@ -46,6 +46,8 @@ add_library(imba_render
             render/integrators/pt.cpp
             render/integrators/vcm.h
             render/integrators/vcm.cpp
+            render/integrators/light_vertices.h
+            render/integrators/light_vertices.cpp
             render/ray_queue.h
             render/random.h
             render/intersection.h

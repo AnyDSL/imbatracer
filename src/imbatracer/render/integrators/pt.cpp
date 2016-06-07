@@ -83,7 +83,7 @@ void PathTracer::process_primary_rays(RayQueue<PTState>& ray_in, RayQueue<PTStat
 
             bsdf_mem_arena.free_all();
 
-            const auto isect = calculate_intersection(hits, rays, i);
+            const auto isect = calculate_intersection(scene_, hits, rays, i);
 
             if (isect.mat->light()) {
                 // If a light source is hit after a specular bounce or as the first intersection along the path, add its contribution.
