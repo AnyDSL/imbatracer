@@ -1,5 +1,5 @@
 #include "pt.h"
-#include "../../core/float4.h"
+#include "../../core/rgb.h"
 #include "../../core/common.h"
 #include "../random.h"
 
@@ -93,7 +93,7 @@ void PathTracer::process_primary_rays(RayQueue<PTState>& ray_in, RayQueue<PTStat
                     float pdf_direct_a, pdf_emit_w;
                     const auto li = light_source->radiance(isect.out_dir, pdf_direct_a, pdf_emit_w);
 
-                    out.pixels()[states[i].pixel_id] += states[i].throughput * li;
+                    add_contribution(out, states[i].pixel_id, states[i].throughput * li);
                 }
             }
 
@@ -114,7 +114,7 @@ void PathTracer::process_shadow_rays(RayQueue<PTState>& ray_in, AtomicImage& out
         for (size_t i = range.begin(); i != range.end(); ++i) {
             if (hits[i].tri_id < 0) {
                 // Nothing was hit, the light source is visible.
-                out.pixels()[states[i].pixel_id] += states[i].throughput;
+                add_contribution(out, states[i].pixel_id, states[i].throughput);
             }
         }
     });
@@ -132,7 +132,7 @@ void PathTracer::render(AtomicImage& out) {
 
             ray_out = cam_.generate_ray(sample_x, sample_y);
 
-            state_out.throughput = float4(1.0f);
+            state_out.throughput = rgb(1.0f);
             state_out.bounces = 0;
             state_out.last_specular = false;
         });

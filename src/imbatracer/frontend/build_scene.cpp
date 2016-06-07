@@ -47,7 +47,7 @@ struct CompareIndex {
     }
 };
 
-using MtlLightBuffer = std::unordered_map<int, float4>;
+using MtlLightBuffer = std::unordered_map<int, rgb>;
 
 void convert_materials(const Path& path, const obj::File& obj_file, const obj::MaterialLib& mtl_lib, Scene& scene, MtlLightBuffer& mtl_to_light_intensity) {
     MaskBuffer masks;
@@ -109,7 +109,7 @@ void convert_materials(const Path& path, const obj::File& obj_file, const obj::M
             bool is_phong = /*!mat.map_ks.empty() ||*/(mat.ks.x > 0.0f || mat.ks.y > 0.0f || mat.ks.z > 0.0f);
 
             if (is_emissive)
-                mtl_to_light_intensity.insert(std::make_pair(scene.materials.size(), float4(mat.ke, 1.0f)));
+                mtl_to_light_intensity.insert(std::make_pair(scene.materials.size(), mat.ke));
 
             TextureSampler* bump_sampler = nullptr;
             if (!mat.map_bump.empty()) {
@@ -121,9 +121,9 @@ void convert_materials(const Path& path, const obj::File& obj_file, const obj::M
             }
 
             if (mat.illum == 5)
-                scene.materials.push_back(std::unique_ptr<MirrorMaterial>(new MirrorMaterial(1.0f, mat.ns, float4(mat.ks, 1.0f), bump_sampler)));
+                scene.materials.push_back(std::unique_ptr<MirrorMaterial>(new MirrorMaterial(1.0f, mat.ns, mat.ks, bump_sampler)));
             else if (mat.illum == 7) ///* HACK !!! */ || mat.ni != 0)
-                scene.materials.push_back(std::unique_ptr<GlassMaterial>(new GlassMaterial(mat.ni, /* HACK !!! mat.kd*/ float4(mat.tf, 1.0f), float4(mat.ks, 1.0f), bump_sampler)));
+                scene.materials.push_back(std::unique_ptr<GlassMaterial>(new GlassMaterial(mat.ni, /* HACK !!! mat.kd*/ mat.tf, mat.ks, bump_sampler)));
             else if (is_phong){
                 Material* mtl;
                 if (!mat.map_kd.empty()) {
@@ -131,12 +131,12 @@ void convert_materials(const Path& path, const obj::File& obj_file, const obj::M
 
                     int sampler_id = load_texture(img_file);
                     if (sampler_id < 0) {
-                        mtl = new GlossyMaterial(mat.ns, float4(mat.ks, 1.0f), float4(1.0f, 0.0f, 1.0f, 1.0f), bump_sampler);
+                        mtl = new GlossyMaterial(mat.ns, mat.ks, rgb(1.0f, 0.0f, 1.0f), bump_sampler);
                     } else {
-                        mtl = new GlossyMaterial(mat.ns, float4(mat.ks, 1.0f), scene.textures[sampler_id].get(), bump_sampler);
+                        mtl = new GlossyMaterial(mat.ns, mat.ks, scene.textures[sampler_id].get(), bump_sampler);
                     }
                 } else {
-                    mtl = new GlossyMaterial(mat.ns, float4(mat.ks, 1.0f), float4(mat.kd, 1.0f), bump_sampler);
+                    mtl = new GlossyMaterial(mat.ns, mat.ks, mat.kd, bump_sampler);
                 }
 
                 scene.materials.push_back(std::unique_ptr<Material>(mtl));
@@ -147,12 +147,12 @@ void convert_materials(const Path& path, const obj::File& obj_file, const obj::M
 
                     int sampler_id = load_texture(img_file);
                     if (sampler_id < 0) {
-                        mtl = new DiffuseMaterial(float4(1.0f, 0.0f, 1.0f, 1.0f), bump_sampler);
+                        mtl = new DiffuseMaterial(rgb(1.0f, 0.0f, 1.0f), bump_sampler);
                     } else {
                         mtl = new DiffuseMaterial(scene.textures[sampler_id].get(), bump_sampler);
                     }
                 } else {
-                    mtl = new DiffuseMaterial(float4(mat.kd, 1.0f), bump_sampler);
+                    mtl = new DiffuseMaterial(mat.kd, bump_sampler);
                 }
 
                 scene.materials.push_back(std::unique_ptr<Material>(mtl));
@@ -356,7 +356,7 @@ bool parse_scene_file(const Path& path, Scene& scene, std::string& obj_filename,
                 return false;
             }
 
-            scene.lights.emplace_back(new DirectionalLight(normalize(dir), float4(intensity, 1.0f), scene.sphere));
+            scene.lights.emplace_back(new DirectionalLight(normalize(dir), intensity, scene.sphere));
         } else if (cmd == "point_light") {
             float3 pos;
             float3 intensity;
@@ -375,7 +375,7 @@ bool parse_scene_file(const Path& path, Scene& scene, std::string& obj_filename,
                 return false;
             }
 
-            scene.lights.emplace_back(new PointLight(pos, float4(intensity, 1.0f)));
+            scene.lights.emplace_back(new PointLight(pos, intensity));
         } else if (cmd == "accel") {
             if (accel_filename != "") {
                 std::cout << " Multiple acceleration structure files in one scene are not supported." << std::endl;

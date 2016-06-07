@@ -18,7 +18,8 @@ add_library(imba_core
             core/float2.h
             core/float3.h
             core/float4.h
-            core/float4x4.h
+            core/rgb.h
+            core/matrix.h
             core/mask.h
             core/mem_pool.h
             core/mesh.h

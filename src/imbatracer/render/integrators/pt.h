@@ -10,9 +10,9 @@
 namespace imba {
 
 struct PTState : RayState {
-    float4 throughput;
-    int bounces;
-    bool last_specular;
+    rgb throughput;
+    int bounces : 31;
+    bool last_specular : 1;
 };
 
 /// Renders a scene using path tracing starting at the camera.

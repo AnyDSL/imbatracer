@@ -104,17 +104,6 @@ inline float4 normalize(const float4& a) {
     return a * (1.0f / length(a));
 }
 
-inline bool is_black(const float4& a) {
-    return a.x <= 0.0f && a.y <= 0.0f && a.z <= 0.0f;
-}
-
-inline float4 clamp(const float4& val, const float4& min, const float4& max) {
-    return float4(clamp(val.x, min.x, max.x),
-                  clamp(val.y, min.y, max.y),
-                  clamp(val.z, min.z, max.z),
-                  clamp(val.w, min.w, max.w));
-}
-
 } // namespace imba
 
 #endif // IMBA_FLOAT4_H

@@ -13,7 +13,7 @@ using ThreadLocalMemArena = tbb::enumerable_thread_specific<MemoryArena, tbb::ca
 static ThreadLocalMemArena bsdf_memory_arenas;
 
 struct ProbePathState : RayState {
-    float4 throughput;
+    rgb throughput;
 };
 
 void imba::LightVertices::compute_cache_size(Scene& scene) {

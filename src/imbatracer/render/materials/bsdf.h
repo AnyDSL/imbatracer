@@ -1,7 +1,7 @@
 #ifndef IMBA_BSDF_H
 #define IMBA_BSDF_H
 
-#include "../../core/float4.h"
+#include "../../core/rgb.h"
 
 #include "../mem_arena.h"
 #include "../random.h"
@@ -48,10 +48,10 @@ public:
 
     bool matches_flags(BxDFFlags f) const { return (flags & f) == flags; }
 
-    virtual float4 eval(const float3& out_dir, const float3& in_dir) const = 0;
+    virtual rgb eval(const float3& out_dir, const float3& in_dir) const = 0;
 
     /// Default implementation cosine-samples the hemisphere.
-    virtual float4 sample(const float3& out_dir, float3& in_dir, RNG& rng, float& pdf) const {
+    virtual rgb sample(const float3& out_dir, float3& in_dir, RNG& rng, float& pdf) const {
         DirectionSample ds = sample_cos_hemisphere(rng.random_float(), rng.random_float());
         in_dir = ds.dir;
         pdf = ds.pdf;
@@ -76,12 +76,12 @@ class CombineBxDF : public BxDF {
 public:
     CombineBxDF(BxDF* a, BxDF* b) : BxDF(BxDFFlags(a->flags | b->flags)), a_(a), b_(b) {}
 
-    virtual float4 eval(const float3& out_dir, const float3& in_dir) const override {
+    virtual rgb eval(const float3& out_dir, const float3& in_dir) const override {
         return a_->eval(out_dir, in_dir) + b_->eval(out_dir, in_dir);
     }
 
     /// Default implementation cosine-samples the hemisphere.
-    virtual float4 sample(const float3& out_dir, float3& in_dir, RNG& rng, float& pdf) const override {
+    virtual rgb sample(const float3& out_dir, float3& in_dir, RNG& rng, float& pdf) const override {
         BxDF* chosen_bxdf;
 
         const float tr = rng.random_float();
@@ -133,7 +133,7 @@ public:
         local_coordinates(isect.normal, tangent_, binormal_);
     }
 
-    float4 eval(const float3& out_dir, const float3& in_dir, BxDFFlags flags = BSDF_ALL) const {
+    rgb eval(const float3& out_dir, const float3& in_dir, BxDFFlags flags = BSDF_ALL) const {
         float3 local_out = world_to_local(out_dir);
         float3 local_in = world_to_local(in_dir);
 
@@ -147,15 +147,15 @@ public:
             chosen_bxdf = brdf_; // in and out are on the same side: ignore transmission
 
         if (chosen_bxdf == nullptr)
-            return float4(0.0f);
+            return rgb(0.0f);
 
-        float4 res(0.0f);
+        rgb res(0.0f);
         if (chosen_bxdf->matches_flags(flags))
             res = chosen_bxdf->eval(local_out, local_in);
         return res;
     }
 
-    float4 sample(const float3& out_dir, float3& in_dir, RNG& rng, BxDFFlags flags, BxDFFlags& sampled_flags, float& pdf) const {
+    rgb sample(const float3& out_dir, float3& in_dir, RNG& rng, BxDFFlags flags, BxDFFlags& sampled_flags, float& pdf) const {
         float3 local_out = world_to_local(out_dir);
 
         // Select which to sample: BRDF or BTDF, based on importance specified by the BTDF.
@@ -172,7 +172,7 @@ public:
         else {
             pdf = 0.0f;
             sampled_flags = BxDFFlags(0);
-            return float4(0.0f);
+            return rgb(0.0f);
         }
 
         BxDF* chosen_bxdf;
@@ -188,11 +188,11 @@ public:
 
         // Sample the BxDF
         float3 local_in;
-        float4 value = chosen_bxdf->sample(local_out, local_in, rng, pdf);
+        rgb value = chosen_bxdf->sample(local_out, local_in, rng, pdf);
 
         if (pdf == 0.0f) {
             sampled_flags = BxDFFlags(0);
-            return float4(0.0f);
+            return rgb(0.0f);
         }
 
         sampled_flags = chosen_bxdf->flags;
@@ -203,7 +203,7 @@ public:
         if ((chosen_bxdf == brdf_ && dot(in_dir, isect_.geom_normal) * dot(out_dir, isect_.geom_normal) <= 0.0f) ||
             (chosen_bxdf == btdf_ && dot(in_dir, isect_.geom_normal) * dot(out_dir, isect_.geom_normal) >= 0.0f)) {
             sampled_flags = BxDFFlags(0);
-            return float4(0.0f);
+            return rgb(0.0f);
         }
 
         return value;

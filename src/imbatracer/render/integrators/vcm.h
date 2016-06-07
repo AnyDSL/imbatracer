@@ -14,8 +14,8 @@ namespace imba {
 
 /// Stores the current state of a ray during VCM or any sub-algorithm of VCM.
 struct VCMState : RayState {
-    float4 throughput;
-    int path_length : 7;
+    rgb throughput;
+    int path_length : 31;
     bool finite_light : 1;
 
     // Russian roulette probability for continuing this path.

@@ -5,7 +5,7 @@
 #include "ray_queue.h"
 #include "random.h"
 
-#include "../core/float4x4.h"
+#include "../core/matrix.h"
 
 namespace imba {
 
@@ -32,13 +32,13 @@ public:
 
         // Camera is represented by a matrix. The image plane is at such a distance from the position that the pixels have area one.
         const float3 local_p(dot(up, pos), dot(-right, pos), dot(-dir, pos));
-        const float4x4 world_to_cam(float4(    up, -local_p.x),
+        const matrix world_to_cam(float4(    up, -local_p.x),
                                     float4(-right, -local_p.y),
                                     float4(  -dir, -local_p.z),
                                     float4(0.0f, 0.0f, 0.0f, 1.0f));
-        const float4x4 persp = perspective_matrix(fov_, width_ / height_, near_plane, far_plane);
-        const float4x4 world_to_screen = persp * world_to_cam;
-        const float4x4 screen_to_world = invert(world_to_screen);
+        const matrix persp = perspective_matrix(fov_, width_ / height_, near_plane, far_plane);
+        const matrix world_to_screen = persp * world_to_cam;
+        const matrix screen_to_world = invert(world_to_screen);
 
         world_to_raster_ = scale_matrix(width_ * 0.5f, height_ * 0.5f, 0.0f) *
                            translate_matrix(1.0f, 1.0f, 0.0f) *
@@ -104,8 +104,8 @@ private:
     float3 forward_;
     float img_plane_dist_;
 
-    float4x4 world_to_raster_;
-    float4x4 raster_to_world_;
+    matrix world_to_raster_;
+    matrix raster_to_world_;
 };
 
 }

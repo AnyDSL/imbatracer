@@ -106,9 +106,9 @@ void RenderWindow::render() {
         const auto* accum_row = accum_buffer_.row(y);
 
         for (int x = 0; x < surface->w; x++) {
-            row[x * 4 + r] = 255.0f * clamp(powf(accum_row[x].x * weight, gamma), 0.0f, 1.0f);
-            row[x * 4 + g] = 255.0f * clamp(powf(accum_row[x].y * weight, gamma), 0.0f, 1.0f);
-            row[x * 4 + b] = 255.0f * clamp(powf(accum_row[x].z * weight, gamma), 0.0f, 1.0f);
+            row[x * 4 + r] = 255.0f * clamp(powf(accum_row[x][0] * weight, gamma), 0.0f, 1.0f);
+            row[x * 4 + g] = 255.0f * clamp(powf(accum_row[x][1] * weight, gamma), 0.0f, 1.0f);
+            row[x * 4 + b] = 255.0f * clamp(powf(accum_row[x][2] * weight, gamma), 0.0f, 1.0f);
         }
     }
 
@@ -215,9 +215,9 @@ bool RenderWindow::write_image(const char* file_name) {
         const auto* accum_row = accum_buffer_.row(y);
         png_bytep img_row = row.get();
         for (int x = 0; x < accum_buffer_.width(); x++) {
-            img_row[x * 4 + 0] = (png_byte)(255.0f * clamp(powf(accum_row[x].x * weight, gamma), 0.0f, 1.0f));
-            img_row[x * 4 + 1] = (png_byte)(255.0f * clamp(powf(accum_row[x].y * weight, gamma), 0.0f, 1.0f));
-            img_row[x * 4 + 2] = (png_byte)(255.0f * clamp(powf(accum_row[x].z * weight, gamma), 0.0f, 1.0f));
+            img_row[x * 4 + 0] = (png_byte)(255.0f * clamp(powf(accum_row[x][0] * weight, gamma), 0.0f, 1.0f));
+            img_row[x * 4 + 1] = (png_byte)(255.0f * clamp(powf(accum_row[x][1] * weight, gamma), 0.0f, 1.0f));
+            img_row[x * 4 + 2] = (png_byte)(255.0f * clamp(powf(accum_row[x][2] * weight, gamma), 0.0f, 1.0f));
             img_row[x * 4 + 3] = (png_byte)(255.0f);
         }
         png_write_row(png_ptr, row.get());

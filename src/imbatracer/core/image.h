@@ -5,50 +5,9 @@
 #include <cstring>
 #include <atomic>
 
-#include "float4.h"
+#include "rgb.h"
 
 namespace imba {
-
-/// Implementation of an atomic type for float4 that supports assignment and addition.
-class AtomicFloat4 {
-public:
-    std::atomic<float> x, y, z, w;
-
-    AtomicFloat4(const float4& a)
-        : x(a.x), y(a.y), z(a.z), w(a.w)
-    {}
-
-    AtomicFloat4() {}
-
-    operator float4() {
-        return float4(x, y, z, w);
-    }
-
-    AtomicFloat4& operator = (const float4& a) {
-        x.store(a.x);
-        y.store(a.y);
-        z.store(a.z);
-        w.store(a.w);
-        return *this;
-    }
-
-    float4 operator += (const float4& a) {
-        return float4(
-            atomic_add(x, a.x),
-            atomic_add(y, a.y),
-            atomic_add(z, a.z),
-            atomic_add(w, a.w));
-    }
-
-private:
-    float atomic_add(std::atomic<float>& a, float b) {
-        float old_val = a.load();
-        float desired_val = old_val + b;
-        while(!a.compare_exchange_weak(old_val, desired_val))
-            desired_val = old_val + b;
-        return desired_val;
-    }
-};
 
 template<typename T>
 class ImageBase {
@@ -77,7 +36,7 @@ public:
     }
 
     void clear() {
-        for(auto& p : pixels_) p = float4(0.0f);
+        for(auto& p : pixels_) p = rgb(0.0f);
     }
 
     int size() { return width_ * height_; }
@@ -87,8 +46,8 @@ private:
     int width_, height_;
 };
 
-using Image = ImageBase<float4>;
-using AtomicImage = ImageBase<AtomicFloat4>;
+using Image = ImageBase<rgba>;
+using AtomicImage = ImageBase<atomic_rgb>;
 
 } // namespace imba
 

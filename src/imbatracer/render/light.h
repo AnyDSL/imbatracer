@@ -20,7 +20,7 @@ public:
         float3 dir;
         float distance;
 
-        float4 radiance;
+        rgb radiance;
 
         float cos_out;
 
@@ -34,7 +34,7 @@ public:
         float3 pos;
         float3 dir;
 
-        float4 radiance;
+        rgb radiance;
 
         float cos_out;
 
@@ -51,7 +51,7 @@ public:
     virtual DirectIllumSample sample_direct(const float3& from, RNG& rng) = 0;
 
     /// Computes the amount of outgoing radiance from this light source in a given direction
-    virtual float4 radiance(const float3& out_dir, float& pdf_direct_a, float& pdf_emit_w) = 0;
+    virtual rgb radiance(const float3& out_dir, float& pdf_direct_a, float& pdf_emit_w) = 0;
 
     virtual bool is_delta() const { return false; }
     virtual bool is_finite() const { return true; }
@@ -61,7 +61,7 @@ public:
 
 class TriangleLight : public Light {
 public:
-    TriangleLight(float4 intensity, float3 p0, float3 p1, float3 p2) : intensity_(intensity), p0_(p0), p1_(p1), p2_(p2) {
+    TriangleLight(rgb intensity, float3 p0, float3 p1, float3 p2) : intensity_(intensity), p0_(p0), p1_(p1), p2_(p2) {
         normal_ = cross(p1 - p0, p2 - p0);
         area_   = length(normal_) * 0.5f;
         normal_ = normalize(normal_);
@@ -94,7 +94,7 @@ public:
             sample.pdf_emit_w   = (cos_out * 1.0f / pi) / area_;
             sample.pdf_direct_w = 1.0f / area_ * distsq / cos_out;
         } else {
-            sample.radiance = float4(0.0f);
+            sample.radiance = rgb(0.0f);
 
             // Prevent NaNs in the integrator
             sample.cos_out      = 1.0f;
@@ -123,7 +123,7 @@ public:
             // To prevent NaNs (cosine and pdf are divided by each other for the MIS weight), set values appropriately.
             // Numerical inaccuracies also cause this issue if the cosine is almost zero and the division by pi turns the pdf into zero
             sample.dir = world_dir;
-            sample.radiance = float4(0.0f);
+            sample.radiance = rgb(0.0f);
             sample.cos_out = 0.0f;
             sample.pdf_emit_w = 1.0f;
             sample.pdf_direct_a = 1.0f;
@@ -140,14 +140,14 @@ public:
         return sample;
     }
 
-    virtual float4 radiance(const float3& out_dir, float& pdf_direct_a, float& pdf_emit_w) override {
+    virtual rgb radiance(const float3& out_dir, float& pdf_direct_a, float& pdf_emit_w) override {
         const float cos_theta_o = dot(normal_, out_dir);
 
         if (cos_theta_o <= 0.0f) {
             // set pdf to 1 to prevent NaNs
             pdf_direct_a = 1.0f;
             pdf_emit_w = 1.0f;
-            return float4(0.0f);
+            return rgb(0.0f);
         }
 
         pdf_direct_a = 1.0f / area_;
@@ -174,14 +174,14 @@ private:
     float3 normal_;
     float3 tangent_;
     float3 binormal_;
-    float4 intensity_;
+    rgb intensity_;
     float area_;
 };
 
 class DirectionalLight : public Light {
 public:
     // Keeps a reference to the bounding sphere of the scene, because the scene might change after the light is created.
-    DirectionalLight(const float3& dir, const float4& intensity, BoundingSphere& scene_bounds)
+    DirectionalLight(const float3& dir, const rgb& intensity, BoundingSphere& scene_bounds)
         : dir_(dir), intensity_(intensity), scene_bounds_(scene_bounds)
     {
         local_coordinates(dir_, tangent_, binormal_);
@@ -218,13 +218,13 @@ public:
     }
 
     // You cannot randomly intersect a directional light.
-    virtual float4 radiance(const float3& out_dir, float& pdf_direct_a, float& pdf_emit_w) override { return float4(0.0f); }
+    virtual rgb radiance(const float3& out_dir, float& pdf_direct_a, float& pdf_emit_w) override { return rgb(0.0f); }
 
     virtual bool is_delta() const override { return true; }
     virtual bool is_finite() const override { return false; }
 
 private:
-    float4 intensity_;
+    rgb intensity_;
     float3 dir_;
     float3 tangent_, binormal_;
     BoundingSphere& scene_bounds_;
@@ -232,12 +232,12 @@ private:
 
 class PointLight : public Light {
 public:
-    PointLight(const float3& pos, const float4& intensity)
+    PointLight(const float3& pos, const rgb& intensity)
         : pos_(pos), intensity_(intensity)
     {}
 
-    virtual float4 radiance(const float3& out_dir, float& pdf_direct_a, float& pdf_emit_w) override {
-        return float4(0.0f); // Point lights cannot be hit.
+    virtual rgb radiance(const float3& out_dir, float& pdf_direct_a, float& pdf_emit_w) override {
+        return rgb(0.0f); // Point lights cannot be hit.
     }
 
     virtual DirectIllumSample sample_direct(const float3& from, RNG& rng) override {
@@ -281,7 +281,7 @@ public:
     }
 
 private:
-    float4 intensity_;
+    rgb intensity_;
     float3 pos_;
 };
 

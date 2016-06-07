@@ -16,7 +16,7 @@ namespace imba {
 /// Stores the data required for connecting (or merging) a camera vertex to (with) a light vertex.
 struct LightPathVertex {
     Intersection isect;
-    float4 throughput;
+    rgb throughput;
 
     float continue_prob;
     int path_length;
@@ -26,7 +26,7 @@ struct LightPathVertex {
     float dVCM;
     float dVM;
 
-    LightPathVertex(Intersection isect, float4 tp, float continue_prob, float dVC, float dVCM, float dVM, int path_length)
+    LightPathVertex(Intersection isect, rgb tp, float continue_prob, float dVC, float dVCM, float dVM, int path_length)
         : isect(isect), throughput(tp), continue_prob(continue_prob), dVC(dVC), dVCM(dVCM), dVM(dVM), path_length(path_length)
     {}
 

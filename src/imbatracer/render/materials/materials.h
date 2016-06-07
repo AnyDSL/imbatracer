@@ -58,11 +58,11 @@ using MaterialContainer = std::vector<std::unique_ptr<Material>>;
 class DiffuseMaterial : public Material {
 public:
     DiffuseMaterial(TextureSampler* bump = nullptr) : Material(bump), color_(1.0f), sampler_(nullptr) {}
-    DiffuseMaterial(const float4& color, TextureSampler* bump = nullptr) : Material(bump), color_(color), sampler_(nullptr) {}
+    DiffuseMaterial(const rgb& color, TextureSampler* bump = nullptr) : Material(bump), color_(color), sampler_(nullptr) {}
     DiffuseMaterial(TextureSampler* sampler, TextureSampler* bump = nullptr) : Material(bump), sampler_(sampler) {}
 
     virtual BSDF* get_bsdf(const Intersection& isect, MemoryArena& mem_arena, bool adjoint) const override {
-        float4 color = color_;
+        rgb color = color_;
         if (sampler_)
             color = sampler_->sample(isect.uv);
 
@@ -71,14 +71,14 @@ public:
     }
 
 private:
-    float4 color_;
+    rgb color_;
     TextureSampler* sampler_;
 };
 
 /// Simple mirror with perfect specular reflection.
 class MirrorMaterial : public Material {
 public:
-    MirrorMaterial(float eta, float kappa, const float4& scale, TextureSampler* bump = nullptr)
+    MirrorMaterial(float eta, float kappa, const rgb& scale, TextureSampler* bump = nullptr)
         : Material(bump), fresnel_(eta, kappa), scale_(scale) {}
 
     virtual BSDF* get_bsdf(const Intersection& isect, MemoryArena& mem_arena, bool adjoint) const override {
@@ -90,13 +90,13 @@ public:
 
 private:
     FresnelConductor fresnel_;
-    float4 scale_;
+    rgb scale_;
 };
 
 /// Simple glass material
 class GlassMaterial : public Material {
 public:
-    GlassMaterial(float eta, const float4& transmittance, const float4& reflectance, TextureSampler* bump = nullptr)
+    GlassMaterial(float eta, const rgb& transmittance, const rgb& reflectance, TextureSampler* bump = nullptr)
         : Material(bump), eta_(eta), transmittance_(transmittance), reflectance_(reflectance), fresnel_(1.0f, eta) {}
 
     virtual BSDF* get_bsdf(const Intersection& isect, MemoryArena& mem_arena, bool adjoint) const override {
@@ -115,23 +115,23 @@ public:
 
 private:
     float eta_;
-    float4 transmittance_;
-    float4 reflectance_;
+    rgb transmittance_;
+    rgb reflectance_;
     FresnelDielectric fresnel_;
 };
 
 class GlossyMaterial : public Material {
 public:
-    GlossyMaterial(float exponent, const float4& specular_color, const float4& diffuse_color, TextureSampler* bump = nullptr)
+    GlossyMaterial(float exponent, const rgb& specular_color, const rgb& diffuse_color, TextureSampler* bump = nullptr)
         : Material(bump), exponent_(exponent), specular_color_(specular_color), diffuse_color_(diffuse_color), diff_sampler_(nullptr)
     {}
 
-    GlossyMaterial(float exponent, const float4& specular_color, TextureSampler* diff_sampler, TextureSampler* bump = nullptr)
+    GlossyMaterial(float exponent, const rgb& specular_color, TextureSampler* diff_sampler, TextureSampler* bump = nullptr)
         : Material(bump), exponent_(exponent), specular_color_(specular_color), diffuse_color_(0.0f), diff_sampler_(diff_sampler)
     {}
 
     virtual BSDF* get_bsdf(const Intersection& isect, MemoryArena& mem_arena, bool adjoint) const override {
-        float4 diff_color = diffuse_color_;
+        rgb diff_color = diffuse_color_;
         if (diff_sampler_)
             diff_color = diff_sampler_->sample(isect.uv);
 
@@ -146,8 +146,8 @@ public:
 
 private:
     float exponent_;
-    float4 specular_color_;
-    float4 diffuse_color_;
+    rgb specular_color_;
+    rgb diffuse_color_;
     TextureSampler* diff_sampler_;
 };
 

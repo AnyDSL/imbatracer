@@ -9,6 +9,9 @@
 
 #include "../../core/mesh.h"
 #include "../../core/image.h"
+#include "../../core/rgb.h"
+
+#include <functional>
 
 namespace imba {
 
@@ -76,6 +79,10 @@ public:
 protected:
     Scene& scene_;
     PerspectiveCamera& cam_;
+
+    inline static void add_contribution(AtomicImage& out, int pixel_id, const rgb& contrib) {
+        out.pixels()[pixel_id].apply<std::plus<float>, rgb>(contrib);
+    }
 };
 
 }

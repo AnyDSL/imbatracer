@@ -1,5 +1,5 @@
 #include "vcm.h"
-#include "../../core/float4.h"
+#include "../../core/rgb.h"
 #include "../../core/common.h"
 #include "../random.h"
 
@@ -106,7 +106,7 @@ void VCM_INTEGRATOR::trace_camera_paths(AtomicImage& img) {
 
             ray_out = cam_.generate_ray(sample_x, sample_y);
 
-            state_out.throughput = float4(1.0f);
+            state_out.throughput = rgb(1.0f);
             state_out.path_length = 1;
             state_out.continue_prob = 1.0f;
 
@@ -328,7 +328,7 @@ void VCM_INTEGRATOR::process_camera_rays(RayQueue<VCMState>& rays_in, RayQueue<V
                 // A light source was hit directly. Add the weighted contribution.
                 float pdf_lightpick = 1.0f / scene_.lights.size();
                 float pdf_direct_a, pdf_emit_w;
-                float4 radiance = light_source->radiance(isect.out_dir, pdf_direct_a, pdf_emit_w);
+                rgb radiance = light_source->radiance(isect.out_dir, pdf_direct_a, pdf_emit_w);
 
                 const float pdf_di = pdf_direct_a * pdf_lightpick;
                 const float pdf_e = pdf_emit_w * pdf_lightpick;
@@ -337,12 +337,12 @@ void VCM_INTEGRATOR::process_camera_rays(RayQueue<VCMState>& rays_in, RayQueue<V
                 const float mis_weight = 1.0f / (mis_weight_camera + 1.0f);
 
                 if (states[i].path_length > 1) {
-                    float4 color = states[i].throughput * radiance * (algo == ALGO_PPM ? 1.0f : mis_weight);
+                    rgb color = states[i].throughput * radiance * (algo == ALGO_PPM ? 1.0f : mis_weight);
 
                     if (algo != ALGO_PT)
-                        img.pixels()[states[i].pixel_id] += color;
+                        add_contribution(img, states[i].pixel_id, color);
                 } else
-                    img.pixels()[states[i].pixel_id] += radiance; // Light directly visible, no weighting required.
+                    add_contribution(img, states[i].pixel_id, radiance); // Light directly visible, no weighting required.
             }
 
             // Compute direct illumination.
@@ -495,7 +495,7 @@ void VCM_INTEGRATOR::vertex_merging(const VCMState& state, const Intersection& i
 
     light_vertices_.get_merge(state.sample_id, isect.pos, photons);
 
-    float4 contrib(0.0f);
+    rgb contrib(0.0f);
     const float radius_sqr = pm_radius_ * pm_radius_;
     for (PhotonIterator p : photons) {
         // Ignore the path if it would be too small. Don't count the merged vertices twice.
@@ -526,7 +526,7 @@ void VCM_INTEGRATOR::vertex_merging(const VCMState& state, const Intersection& i
         contrib += mis_weight * bsdf_value * kernel * p->throughput;
     }
 
-    img.pixels()[state.pixel_id] += state.throughput * contrib * vm_normalization_ * 2.0f; // Factor 2.0f is part of the Epanechnikov filter
+    add_contribution(img, state.pixel_id, state.throughput * contrib * vm_normalization_ * 2.0f); // Factor 2.0f is part of the Epanechnikov filter
 }
 
 VCM_TEMPLATE
@@ -539,7 +539,7 @@ void VCM_INTEGRATOR::process_shadow_rays(RayQueue<VCMState>& rays_in, AtomicImag
     {
         for (size_t i = range.begin(); i != range.end(); ++i)
             if (hits[i].tri_id < 0) // Nothing was hit, the light is visible.
-                img.pixels()[states[i].pixel_id] += states[i].throughput;
+                add_contribution(img, states[i].pixel_id, states[i].throughput);
     });
 }
 
