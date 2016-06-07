@@ -124,6 +124,8 @@ public:
             }
 
             assert(multi_node.count > 0);
+            // Process the smallest nodes first
+            multi_node.sort_nodes();
 
             // The multi-node is ready to be stored
             if (multi_node.is_leaf()) {
@@ -186,6 +188,7 @@ private:
             , cost(CostFn::leaf_cost(end - begin, bbox.half_area()))
             , tested(false)
         {}
+        int size() const { return end - begin; }
     };
 
     template <typename NodeWriter>
