@@ -257,9 +257,8 @@ void VCM_INTEGRATOR::connect_to_camera(const VCMState& light_state, const Inters
     float dist_to_cam = sqrt(dist_to_cam_sqr);
     dir_to_cam = dir_to_cam / dist_to_cam;
 
-    const float cos_theta_i = fabsf(dot(cam_.dir(), -dir_to_cam));
-    //float cos_theta_o = fabsf(dot(isect.normal, dir_to_cam));
-    const float cos_theta_o = fabsf(shading_normal_adjoint(isect.normal, isect.geom_normal, isect.out_dir, dir_to_cam));
+    const float cos_theta_cam = fabsf(dot(cam_.dir(), -dir_to_cam));
+    const float cos_theta_surf = fabsf(shading_normal_adjoint(isect.normal, isect.geom_normal, isect.out_dir, dir_to_cam));
 
     // Evaluate the material and compute the pdf values.
     auto bsdf_value = bsdf->eval(isect.out_dir, dir_to_cam, BSDF_ALL);
@@ -271,8 +270,8 @@ void VCM_INTEGRATOR::connect_to_camera(const VCMState& light_state, const Inters
         return;
 
     // Compute conversion factor from surface area to image plane and vice versa.
-    const float img_to_surf = (sqr(cam_.image_plane_dist()) * cos_theta_o) /
-                              (dist_to_cam_sqr * cos_theta_i * sqr(cos_theta_i));
+    const float img_to_surf = (sqr(cam_.image_plane_dist()) * cos_theta_surf) /
+                              (dist_to_cam_sqr * cos_theta_cam * sqr(cos_theta_cam));
     const float surf_to_img = 1.0f / img_to_surf;
 
     // Compute the MIS weight.

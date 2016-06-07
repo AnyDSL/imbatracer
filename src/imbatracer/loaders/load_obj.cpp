@@ -1,5 +1,5 @@
 #include <fstream>
-#include <iostream> 
+#include <iostream>
 #include <cstring>
 #include <cstdlib>
 
@@ -42,7 +42,7 @@ inline char* strip_spaces(char* ptr) {
 inline bool read_index(char** ptr, obj::Index& idx) {
     char* base = *ptr;
 
-    // Detect end of line (negative indices are supported) 
+    // Detect end of line (negative indices are supported)
     base = strip_spaces(base);
     if (!std::isdigit(*base) && *base != '-') return false;
 
@@ -208,7 +208,7 @@ static bool parse_obj(std::istream& stream, obj::File& file) {
 
             cur_mtl = std::find(file.materials.begin(), file.materials.end(), mtl_name) - file.materials.begin();
             if (cur_mtl == (int)file.materials.size()) {
-                file.materials.push_back(mtl_name);            
+                file.materials.push_back(mtl_name);
             }
         } else if (!std::strncmp(ptr, "mtllib", 6) && std::isspace(ptr[6])) {
             ptr += 6;
@@ -330,7 +330,7 @@ static bool parse_mtl(std::istream& stream, obj::MaterialLib& mtl_lib) {
         } else if (!std::strncmp(ptr, "map_Ke", 6) && std::isspace(ptr[6])) {
             auto& mat = current_material();
             mat.map_ke = std::string(strip_spaces(ptr + 7));
-        } else if (!std::strncmp(ptr, "map_bump", 8) && std::isspace(ptr[8])) {
+        } else if ((!std::strncmp(ptr, "map_bump", 8) || !std::strncmp(ptr, "map_Bump", 8)) && std::isspace(ptr[8])) {
             auto& mat = current_material();
             mat.map_bump = std::string(strip_spaces(ptr + 9));
         } else if (!std::strncmp(ptr, "bump", 4) && std::isspace(ptr[4])) {
