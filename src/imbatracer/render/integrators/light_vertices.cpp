@@ -126,6 +126,8 @@ void imba::LightVertices::compute_cache_size(Scene& scene) {
 
     for (auto& vc : vertex_caches_)
         vc.resize(vc_size);
+
+    RayQueue<ProbePathState>::release_device_buffer();
 }
 
 } // namespace imba
