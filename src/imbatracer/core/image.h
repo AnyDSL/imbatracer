@@ -9,7 +9,7 @@
 
 namespace imba {
 
-template<typename T>
+template <typename T>
 class ImageBase {
 public:
     ImageBase() {}
@@ -36,7 +36,7 @@ public:
     }
 
     void clear() {
-        for(auto& p : pixels_) p = rgb(0.0f);
+        for(auto& p : pixels_) p = T::zero();
     }
 
     int size() { return width_ * height_; }

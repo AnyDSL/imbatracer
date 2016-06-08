@@ -31,12 +31,12 @@ public:
         float du = 0.001f;
         float dv = 0.001f;
         float vscale = 0.02f;
-        auto u_displace = vscale * bump_->sample(float2(isect.uv.x + du, isect.uv.y));
-        auto v_displace = vscale * bump_->sample(float2(isect.uv.x, isect.uv.y + dv));
-        auto displace   = vscale * bump_->sample(isect.uv);
+        auto u_displace = bump_->sample(float2(isect.uv.x + du, isect.uv.y));
+        auto v_displace = bump_->sample(float2(isect.uv.x, isect.uv.y + dv));
+        auto displace   = bump_->sample(isect.uv);
 
-        auto diff_u = (u_displace - displace).x / du;
-        auto diff_v = (v_displace - displace).x / dv;
+        auto diff_u = vscale * (u_displace - displace)[0] / du;
+        auto diff_v = vscale * (v_displace - displace)[0] / dv;
 
         auto n = cross(isect.v_tangent, isect.u_tangent);
         auto u = isect.u_tangent + diff_u * n;

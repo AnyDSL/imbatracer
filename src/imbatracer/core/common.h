@@ -16,15 +16,6 @@ inline float degrees(float x) {
     return x * 180.0f / pi;
 }
 
-inline float sqr(float x) {
-    return x * x;
-}
-
-template <typename T>
-inline T clamp(T a, T b, T c) {
-    return (a < b) ? b : ((a > c) ? c : a);
-}
-
 inline int float_as_int(float f) {
     union { float vf; int vi; } v;
     v.vf = f;
@@ -35,6 +26,21 @@ inline float int_as_float(int i) {
     union { float vf; int vi; } v;
     v.vi = i;
     return v.vf;
+}
+
+template <typename T>
+T sqr(T x) {
+    return x * x;
+}
+
+template <typename T>
+T rcp(T x) {
+    return T(1) / x;
+}
+
+template <typename T>
+T clamp(T a, T b, T c) {
+    return (a < b) ? b : ((a > c) ? c : a);
 }
 
 template <typename T, typename U>
@@ -50,6 +56,11 @@ T lerp(T a, T b, T c, U u, U v) {
 template <typename T>
 T reflect(T v, T n) {
     return v - (2 * dot(n, v)) * n;
+}
+
+template <typename T>
+auto normalize(T v) -> decltype(v * 1.0f) {
+    return v * (1.0f / length(v));
 }
 
 #define assert_normalized(x) check_normalized(x, __FILE__, __LINE__)

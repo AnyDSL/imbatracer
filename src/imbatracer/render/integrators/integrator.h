@@ -81,7 +81,7 @@ protected:
     PerspectiveCamera& cam_;
 
     inline static void add_contribution(AtomicImage& out, int pixel_id, const rgb& contrib) {
-        out.pixels()[pixel_id].apply<std::plus<float>, rgb>(contrib);
+        out.pixels()[pixel_id].apply<std::plus<float> >(contrib);
     }
 };
 
