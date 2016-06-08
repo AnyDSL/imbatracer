@@ -15,9 +15,8 @@ add_library(imba_core
             core/adapter.h
             core/bbox.h
             core/common.h
-            core/float2.h
-            core/float3.h
-            core/float4.h
+            core/expr.h
+            core/vector.h
             core/rgb.h
             core/matrix.h
             core/mask.h

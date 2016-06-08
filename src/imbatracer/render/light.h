@@ -1,7 +1,7 @@
 #ifndef IMBA_LIGHT_H
 #define IMBA_LIGHT_H
 
-#include "../core/float3.h"
+#include "../core/vector.h"
 #include "random.h"
 #include <cfloat>
 #include <memory>

@@ -1,7 +1,7 @@
 #ifndef IMBA_MATRIX
 #define IMBA_MATRIX
 
-#include "float3.h"
+#include "vector.h"
 
 namespace imba {
 
