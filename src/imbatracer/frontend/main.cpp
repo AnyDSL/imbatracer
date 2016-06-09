@@ -79,7 +79,7 @@ private:
 };
 
 int main(int argc, char* argv[]) {
-    std::cout << "Imbatracer - A ray-tracer written with Impala" << std::endl;
+    std::cout << "Imbatracer - An interactive raytracer" << std::endl;
 
     UserSettings settings;
     if (!parse_cmd_line(argc, argv, settings))

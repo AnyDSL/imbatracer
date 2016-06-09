@@ -84,7 +84,7 @@ void imba::LightVertices::compute_cache_size(Scene& scene) {
 
                 bsdf_mem_arena.free_all();
 
-                Intersection isect = Integrator::calculate_intersection(scene, hits, rays, i);
+                const auto isect = calculate_intersection(scene, hits[i], rays[i]);
                 auto bsdf = isect.mat->get_bsdf(isect, bsdf_mem_arena, true);
 
                 if (!isect.mat->is_specular())

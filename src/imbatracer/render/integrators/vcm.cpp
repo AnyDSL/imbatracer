@@ -199,8 +199,8 @@ void VCM_INTEGRATOR::process_light_rays(RayQueue<VCMState>& rays_in, RayQueue<VC
             bsdf_mem_arena.free_all();
 
             RNG& rng = states[i].rng;
-            Intersection isect = calculate_intersection(scene_, hits, rays, i);
-            float cos_theta_o = fabsf(dot(isect.out_dir, isect.normal));
+            const auto isect = calculate_intersection(scene_, hits[i], rays[i]);
+            const float cos_theta_o = fabsf(dot(isect.out_dir, isect.normal));
 
             if (cos_theta_o == 0.0f) // Prevent NaNs
                 continue;
@@ -309,8 +309,8 @@ void VCM_INTEGRATOR::process_camera_rays(RayQueue<VCMState>& rays_in, RayQueue<V
             bsdf_mem_arena.free_all();
 
             RNG& rng = states[i].rng;
-            Intersection isect = calculate_intersection(scene_, hits, rays, i);
-            float cos_theta_o = fabsf(dot(isect.out_dir, isect.normal));
+            const auto isect = calculate_intersection(scene_, hits[i], rays[i]);
+            const float cos_theta_o = fabsf(dot(isect.out_dir, isect.normal));
 
             auto bsdf = isect.mat->get_bsdf(isect, bsdf_mem_arena);
 

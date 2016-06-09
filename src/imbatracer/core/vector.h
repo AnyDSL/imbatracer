@@ -29,7 +29,7 @@ struct VectorElements {
 };
 
 template <typename T>
-struct alignas(16) VectorElements<T, 4> {
+struct VectorElements<T, 4> {
     VectorElements() {}
     union {
         struct { T x, y, z, w; };
@@ -69,6 +69,7 @@ struct Vector : public Expr<T, N, Vector<T, N> >, public VectorElements<T, N> {
     // This constructor has to be explicit since it may truncate a bigger vector
     template <typename... Args>
     explicit Vector(const Args&... args) { set(args...); }
+    // This constructor has to be explicit since it fills the vector with one constant
     explicit Vector(T t) { set(ConstantExpr<T, N>(t)); }
 
     template <typename E>
