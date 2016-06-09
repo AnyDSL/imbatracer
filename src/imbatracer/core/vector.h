@@ -29,7 +29,8 @@ struct VectorElements {
 };
 
 template <typename T>
-struct VectorElements<T, 4> {
+struct alignas(16) VectorElements<T, 4> {
+    VectorElements() {}
     union {
         struct { T x, y, z, w; };
         T values[4];
@@ -38,6 +39,7 @@ struct VectorElements<T, 4> {
 
 template <typename T>
 struct VectorElements<T, 3> {
+    VectorElements() {}
     union {
         struct { T x, y, z; };
         T values[3];
@@ -46,6 +48,7 @@ struct VectorElements<T, 3> {
 
 template <typename T>
 struct VectorElements<T, 2> {
+    VectorElements() {}
     union {
         struct { T x, y; };
         T values[2];
@@ -65,7 +68,7 @@ struct Vector : public Expr<T, N, Vector<T, N> >, public VectorElements<T, N> {
 
     // This constructor has to be explicit since it may truncate a bigger vector
     template <typename... Args>
-    explicit Vector(Args... args) { set(args...); }
+    explicit Vector(const Args&... args) { set(args...); }
     explicit Vector(T t) { set(ConstantExpr<T, N>(t)); }
 
     template <typename E>
@@ -97,7 +100,7 @@ struct Vector : public Expr<T, N, Vector<T, N> >, public VectorElements<T, N> {
     }
 
     template <int I = 0, typename... Args>
-    void set(T x, Args... args) {
+    void set(T x, const Args&... args) {
         // This will warn if the number of *scalar* initializers is greater than N
         static_assert(I < N, "Too many initializers for vector");
         VectorElements<T, N>::values[I] = x;
@@ -105,7 +108,7 @@ struct Vector : public Expr<T, N, Vector<T, N> >, public VectorElements<T, N> {
     }
 
     template <int I = 0, typename E, int M, typename... Args>
-    void set(const Expr<T, M, E>& e, Args... args) {
+    void set(const Expr<T, M, E>& e, const Args&... args) {
         SetVector<min(I, N), min(I + M, N), 0>::set(*this, e);
         set<I + M>(args...);
     }
@@ -145,6 +148,11 @@ Vector<T, 3> rotate(const Vector<T, 3>& v, const Vector<T, 3>& axis, T angle) {
     return Vector<T, 3>(p[3] * -q[0] + p[0] * q[3] + p[1] * -q[2] - p[2] * -q[1],
                             p[3] * -q[1] - p[0] * -q[2] + p[1] * q[3] + p[2] * -q[0],
                             p[3] * -q[2] + p[0] * -q[1] - p[1] * -q[0] + p[2] * q[3]);
+}
+
+template <typename T, int N, typename E>
+auto normalize(const Expr<T, N, E>& e) -> decltype(e / length(e)) {
+    return e / length(e);
 }
 
 typedef Vector<float, 2> float2;

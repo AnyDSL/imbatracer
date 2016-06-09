@@ -55,8 +55,8 @@ public:
     void compute_cache_size(Scene& scene);
 
     void build(float radius, bool use_merging) {
-        tbb::parallel_for(tbb::blocked_range<size_t>(0, spp_), [this, radius, use_merging] (const tbb::blocked_range<size_t>& range) {
-            for (size_t i = range.begin(); i != range.end(); ++i) {
+        tbb::parallel_for(tbb::blocked_range<int>(0, spp_), [&] (const tbb::blocked_range<int>& range) {
+            for (auto i = range.begin(); i != range.end(); ++i) {
                 light_vertices_count_[i] = std::min(static_cast<int>(vertex_caches_[i].size()), static_cast<int>(vertex_cache_last_[i]));
                 if (use_merging) {
                     photon_grid_[i].build(vertex_caches_[i].begin(), vertex_caches_[i].begin() + light_vertices_count_[i], radius);

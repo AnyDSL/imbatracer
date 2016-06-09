@@ -72,11 +72,11 @@ void imba::LightVertices::compute_cache_size(Scene& scene) {
         const Hit* hits     = queues[in_q]->hits();
         const Ray* rays     = queues[in_q]->rays();
         auto& rays_out      = *queues[out_q];
-        tbb::parallel_for(tbb::blocked_range<size_t>(0, ray_count),
-                          [this, states, hits, rays, &rays_out, &vertex_count, &scene] (const tbb::blocked_range<size_t>& range) {
+        tbb::parallel_for(tbb::blocked_range<int>(0, ray_count),
+                          [&] (const tbb::blocked_range<int>& range) {
             auto& bsdf_mem_arena = bsdf_memory_arenas.local();
 
-            for (size_t i = range.begin(); i != range.end(); ++i) {
+            for (auto i = range.begin(); i != range.end(); ++i) {
                 float rr_pdf;
                 RNG& rng = states[i].rng;
                 if (hits[i].tri_id < 0 || !russian_roulette(states[i].throughput, rng.random_float(), rr_pdf))

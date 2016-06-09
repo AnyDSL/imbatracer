@@ -32,28 +32,28 @@ public:
 
         // Camera is represented by a matrix. The image plane is at such a distance from the position that the pixels have area one.
         const float3 local_p(dot(up, pos), dot(-right, pos), dot(-dir, pos));
-        const matrix world_to_cam(float4(    up, -local_p.x),
+        const float4x4 world_to_cam(float4(    up, -local_p.x),
                                     float4(-right, -local_p.y),
                                     float4(  -dir, -local_p.z),
-                                    float4(0.0f, 0.0f, 0.0f, 1.0f));
-        const matrix persp = perspective_matrix(fov_, width_ / height_, near_plane, far_plane);
-        const matrix world_to_screen = persp * world_to_cam;
-        const matrix screen_to_world = invert(world_to_screen);
+                                    float4(0, 0, 0, 1));
+        const float4x4 persp = perspective(fov_, width_ / height_, near_plane, far_plane);
+        const float4x4 world_to_screen = persp * world_to_cam;
+        const float4x4 screen_to_world = invert(world_to_screen);
 
-        world_to_raster_ = scale_matrix(width_ * 0.5f, height_ * 0.5f, 0.0f) *
-                           translate_matrix(1.0f, 1.0f, 0.0f) *
+        world_to_raster_ = scale(width_ * 0.5f, height_ * 0.5f, 1.0f, 1.0f) *
+                           translate(1.0f, 1.0f, 0.0f) *
                            world_to_screen;
 
         raster_to_world_ = screen_to_world *
-                           translate_matrix(-1.0f, -1.0f, 0.0f) *
-                           scale_matrix(2.0f / width_, 2.0f / height_, 0.0f);
+                           translate(-1.0f, -1.0f, 0.0f) *
+                           scale(2.0f / width_, 2.0f / height_, 1.0f, 1.0f);
 
         const float tan_half = std::tan(fov_ * pi / 360.0f);
         img_plane_dist_ = width_ / (2.0f * tan_half);
     }
 
     Ray generate_ray(const float2& raster_pos) const {
-        float3 w = raster_to_world(raster_pos);
+        const auto w = raster_to_world(raster_pos);
         const float3 dir = normalize(w - pos_);
 
         return Ray {
@@ -67,18 +67,16 @@ public:
     }
 
     float2 world_to_raster(const float3& world_pos) const {
-        float3 t = transform_point(world_to_raster_, world_pos);
-        return float2(t.y, t.x);
+        return float2(project(world_to_raster_, world_pos));
     }
 
     float3 raster_to_world(const float2& raster_pos) const {
-        float2 rp(raster_pos.y, raster_pos.x);
-        return transform_point(raster_to_world_, float3(rp, 0.0f));
+        return project(raster_to_world_, float3(raster_pos.y, raster_pos.x, 0));
     }
 
     int raster_to_id(const float2& pos) const {
-        int x = std::floor(pos.x);
-        int y = std::floor(pos.y);
+        const int x = std::floor(pos.x);
+        const int y = std::floor(pos.y);
 
         if (x < 0 || x >= width_ ||
             y < 0 || y >= height_)
@@ -104,8 +102,8 @@ private:
     float3 forward_;
     float img_plane_dist_;
 
-    matrix world_to_raster_;
-    matrix raster_to_world_;
+    float4x4 world_to_raster_;
+    float4x4 raster_to_world_;
 };
 
 }

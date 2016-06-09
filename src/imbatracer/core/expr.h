@@ -1,8 +1,9 @@
 #ifndef IMBA_EXPR_H
 #define IMBA_EXPR_H
 
-#include "common.h"
 #include <cmath>
+
+#include "common.h"
 
 namespace imba {
 
@@ -217,11 +218,6 @@ T lensqr(const Expr<T, N, E>& e) {
 template <typename T, int N, typename E>
 T length(const Expr<T, N, E>& e) {
     return std::sqrt(lensqr(e));
-}
-
-template <typename T, int N, typename E>
-auto normalize(const Expr<T, N, E>& e) -> decltype(e / length(e)) {
-    return e / length(e);
 }
 
 } // namespace imba

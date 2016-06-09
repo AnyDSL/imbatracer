@@ -72,12 +72,12 @@ void PathTracer::process_primary_rays(RayQueue<PTState>& ray_in, RayQueue<PTStat
     Hit* hits = ray_in.hits();
     Ray* rays = ray_in.rays();
 
-    tbb::parallel_for(tbb::blocked_range<size_t>(0, ray_in.size()),
-        [this, states, hits, rays, &ray_out, &ray_out_shadow, &out] (const tbb::blocked_range<size_t>& range)
+    tbb::parallel_for(tbb::blocked_range<int>(0, ray_in.size()),
+        [&] (const tbb::blocked_range<int>& range)
     {
         auto& bsdf_mem_arena = bsdf_memory_arenas.local();
 
-        for (size_t i = range.begin(); i != range.end(); ++i) {
+        for (auto i = range.begin(); i != range.end(); ++i) {
             if (hits[i].tri_id < 0)
                 continue;
 
@@ -108,10 +108,10 @@ void PathTracer::process_shadow_rays(RayQueue<PTState>& ray_in, AtomicImage& out
     PTState* states = ray_in.states();
     Hit* hits = ray_in.hits();
 
-    tbb::parallel_for(tbb::blocked_range<size_t>(0, ray_in.size()),
-        [states, hits, &out] (const tbb::blocked_range<size_t>& range)
+    tbb::parallel_for(tbb::blocked_range<int>(0, ray_in.size()),
+        [&] (const tbb::blocked_range<int>& range)
     {
-        for (size_t i = range.begin(); i != range.end(); ++i) {
+        for (auto i = range.begin(); i != range.end(); ++i) {
             if (hits[i].tri_id < 0) {
                 // Nothing was hit, the light source is visible.
                 add_contribution(out, states[i].pixel_id, states[i].throughput);

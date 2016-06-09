@@ -186,10 +186,10 @@ void VCM_INTEGRATOR::process_light_rays(RayQueue<VCMState>& rays_in, RayQueue<VC
     const Hit* hits = rays_in.hits();
     const Ray* rays = rays_in.rays();
 
-    tbb::parallel_for(tbb::blocked_range<size_t>(0, ray_count), [this, states, hits, rays, &rays_out, &ray_out_shadow] (const tbb::blocked_range<size_t>& range) {
+    tbb::parallel_for(tbb::blocked_range<int>(0, ray_count), [&] (const tbb::blocked_range<int>& range) {
         auto& bsdf_mem_arena = bsdf_memory_arenas.local();
 
-        for (size_t i = range.begin(); i != range.end(); ++i) {
+        for (auto i = range.begin(); i != range.end(); ++i) {
             if (hits[i].tri_id < 0)
                 continue;
 
@@ -299,10 +299,10 @@ void VCM_INTEGRATOR::process_camera_rays(RayQueue<VCMState>& rays_in, RayQueue<V
     const Hit* hits = rays_in.hits();
     const Ray* rays = rays_in.rays();
 
-    tbb::parallel_for(tbb::blocked_range<size_t>(0, ray_count), [this, states, hits, rays, &rays_out, &ray_out_shadow, &img] (const tbb::blocked_range<size_t>& range) {
+    tbb::parallel_for(tbb::blocked_range<int>(0, ray_count), [&] (const tbb::blocked_range<int>& range) {
         auto& bsdf_mem_arena = bsdf_memory_arenas.local();
 
-        for (size_t i = range.begin(); i != range.end(); ++i) {
+        for (auto i = range.begin(); i != range.end(); ++i) {
             if (hits[i].tri_id < 0)
                 continue;
 
@@ -534,10 +534,10 @@ void VCM_INTEGRATOR::process_shadow_rays(RayQueue<VCMState>& rays_in, AtomicImag
     const VCMState* states = rays_in.states();
     const Hit* hits = rays_in.hits();
 
-    tbb::parallel_for(tbb::blocked_range<size_t>(0, rays_in.size()),
-        [states, hits, &img] (const tbb::blocked_range<size_t>& range)
+    tbb::parallel_for(tbb::blocked_range<int>(0, rays_in.size()),
+        [&] (const tbb::blocked_range<int>& range)
     {
-        for (size_t i = range.begin(); i != range.end(); ++i)
+        for (auto i = range.begin(); i != range.end(); ++i)
             if (hits[i].tri_id < 0) // Nothing was hit, the light is visible.
                 add_contribution(img, states[i].pixel_id, states[i].throughput);
     });

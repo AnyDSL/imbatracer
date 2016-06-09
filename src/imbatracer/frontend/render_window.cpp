@@ -6,6 +6,8 @@
 #include <unistd.h>
 #include <png.h>
 
+#include <tbb/tbb.h>
+
 #include "render_window.h"
 
 namespace imba {
@@ -100,17 +102,18 @@ void RenderWindow::render() {
     const int b = surface->format->Bshift / 8;
     const float weight = 1.0f / (frames_ * spp_);
 
-    #pragma omp parallel for
-    for (int y = 0; y < surface->h; y++) {
-        unsigned char* row = (unsigned char*)surface->pixels + surface->pitch * y;
-        const auto* accum_row = accum_buffer_.row(y);
+    tbb::parallel_for(tbb::blocked_range<int>(0, surface->h), [&] (const tbb::blocked_range<int>& range) {
+        for (int y = range.begin(); y != range.end(); ++y) {
+            unsigned char* row = (unsigned char*)surface->pixels + surface->pitch * y;
+            const auto* accum_row = accum_buffer_.row(y);
 
-        for (int x = 0; x < surface->w; x++) {
-            row[x * 4 + r] = 255.0f * clamp(powf(accum_row[x][0] * weight, gamma), 0.0f, 1.0f);
-            row[x * 4 + g] = 255.0f * clamp(powf(accum_row[x][1] * weight, gamma), 0.0f, 1.0f);
-            row[x * 4 + b] = 255.0f * clamp(powf(accum_row[x][2] * weight, gamma), 0.0f, 1.0f);
+            for (int x = 0; x < surface->w; x++) {
+                row[x * 4 + r] = 255.0f * clamp(powf(accum_row[x][0] * weight, gamma), 0.0f, 1.0f);
+                row[x * 4 + g] = 255.0f * clamp(powf(accum_row[x][1] * weight, gamma), 0.0f, 1.0f);
+                row[x * 4 + b] = 255.0f * clamp(powf(accum_row[x][2] * weight, gamma), 0.0f, 1.0f);
+            }
         }
-    }
+    });
 
     SDL_UnlockSurface(surface);
     SDL_UpdateWindowSurface(window_);

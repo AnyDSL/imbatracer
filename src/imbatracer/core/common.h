@@ -58,11 +58,6 @@ T reflect(T v, T n) {
     return v - (2 * dot(n, v)) * n;
 }
 
-template <typename T>
-auto normalize(T v) -> decltype(v * 1.0f) {
-    return v * (1.0f / length(v));
-}
-
 #define assert_normalized(x) check_normalized(x, __FILE__, __LINE__)
 
 template <typename T>

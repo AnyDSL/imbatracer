@@ -5,180 +5,196 @@
 
 namespace imba {
 
-struct matrix {
-    float4 rows[4];
+template <typename T, int N, int M>
+struct Matrix {
+    Vector<Vector<T, M>, N> rows;
 
-    matrix() {}
-    matrix(const float4& r0, const float4& r1, const float4& r2, const float4& r3) : rows{r0, r1, r2, r3} {}
+    Matrix() {}
+    template <typename... Args>
+    Matrix(const Args&... args) : rows{args...} {}    
 
-    float4 operator [] (int row) const { return rows[row]; }
-    float4& operator [] (int row) { return rows[row]; }
+    Vector<T, M> operator [] (int i) const { return rows[i]; }
+    Vector<T, M>& operator [] (int i) { return rows[i]; }
+
+    static Matrix<T, N, M> constant(T t) {
+        Matrix<T, N, M> m;
+        #pragma unroll
+        for (int i = 0; i < N; i++) {
+            #pragma unroll
+            for (int j = 0; j < M; j++) {
+                m[i][j] = t;
+            }
+        }
+        return m;
+    }
+
+    static Matrix<T, N, M> identity() {
+        Matrix<T, N, M> m;
+        #pragma unroll
+        for (int i = 0; i < N; i++) {
+            #pragma unroll
+            for (int j = 0; j < M; j++) {
+                m[i][j] = i == j ? 1 : 0;
+            }
+        }
+        return m;
+    }
+
+    static Matrix<T, N, M> zero() { return constant(0); }
+    static Matrix<T, N, M> one()  { return constant(1); }
 };
 
-inline matrix identity_matrix() {
-    return matrix(float4(1.0f, 0.0f, 0.0f, 0.0f),
-                  float4(0.0f, 1.0f, 0.0f, 0.0f),
-                  float4(0.0f, 0.0f, 1.0f, 0.0f),
-                  float4(0.0f, 0.0f, 0.0f, 1.0f));
+template <typename T>
+Matrix<T, 4, 4> scale(T x, T y, T z, T w) {
+    return Matrix<T, 4, 4>(Vector<T, 4>(x, 0, 0, 0),
+                           Vector<T, 4>(0, y, 0, 0),
+                           Vector<T, 4>(0, 0, z, 0),
+                           Vector<T, 4>(0, 0, 0, w));
 }
 
-inline matrix zero_matrix() {
-    return matrix(float4(0.0f, 0.0f, 0.0f, 0.0f),
-                  float4(0.0f, 0.0f, 0.0f, 0.0f),
-                  float4(0.0f, 0.0f, 0.0f, 0.0f),
-                  float4(0.0f, 0.0f, 0.0f, 0.0f));
+template <typename T>
+Matrix<T, 4, 4> translate(T x, T y, T z) {
+    return Matrix<T, 4, 4>(Vector<T, 4>(1, 0, 0, x),
+                           Vector<T, 4>(0, 1, 0, y),
+                           Vector<T, 4>(0, 0, 1, z),
+                           Vector<T, 4>(0, 0, 0, 1));
 }
 
-inline matrix perspective_matrix(float fov, float aspect, float near, float far) {
+template <typename T>
+Matrix<T, 4, 4> perspective(T fov, T aspect, T near, T far) {
     // Camera points towards -z.  0 < near < far.
     // Matrix maps z range [-near, -far] to [-1, 1], after homogeneous division.
-    const float f_h =   1.0f / std::tan(fov * pi / 360.0f);
-    const float f_v = aspect / std::tan(fov * pi / 360.0f);
-    const float d = 1.0f / (near - far);
+    const T f_h =   T(1) / std::tan(fov * pi / T(360));
+    const T f_v = aspect / std::tan(fov * pi / T(360));
+    const T d   = T(1) / (near - far);
 
-    matrix r;
-    r[0][0] = f_h;  r[0][1] = 0.0f; r[0][2] = 0.0f;             r[0][3] = 0.0f;
-    r[1][0] = 0.0f; r[1][1] = -f_v; r[1][2] = 0.0f;             r[1][3] = 0.0f;
-    r[2][0] = 0.0f; r[2][1] = 0.0f; r[2][2] = (near + far) * d; r[2][3] = 2.0f * near * far * d;
-    r[3][0] = 0.0f; r[3][1] = 0.0f; r[3][2] = -1.0f;            r[3][3] = 0.0f;
-
-    return r;
+    const T p1 = (near + far) * d;
+    const T p2 = 2 * near * far * d;
+    return Matrix<T, 4, 4>(Vector<T, 4>(f_h,    0,  0,  0),
+                           Vector<T, 4>(0,   -f_v,  0,  0),
+                           Vector<T, 4>(0,      0, p1, p2),
+                           Vector<T, 4>(0,      0, -1,  0));
 }
 
-inline matrix scale_matrix(float x, float y, float z) {
-    return matrix(float4(   x, 0.0f, 0.0f, 0.0f),
-                  float4(0.0f,    y, 0.0f, 0.0f),
-                  float4(0.0f, 0.0f,    z, 0.0f),
-                  float4(0.0f, 0.0f, 0.0f, 1.0f));
+template <typename T>
+T determinant(const Matrix<T, 4, 4>& a) {
+    const T m0 =  a[1][1] * a[2][2] * a[3][3] - a[1][1] * a[2][3] * a[3][2] - a[2][1] * a[1][2] * a[3][3]
+                 +a[2][1] * a[1][3] * a[3][2] + a[3][1] * a[1][2] * a[2][3] - a[3][1] * a[1][3] * a[2][2];
+    const T m1 = -a[1][0] * a[2][2] * a[3][3] + a[1][0] * a[2][3] * a[3][2] + a[2][0] * a[1][2] * a[3][3]
+                 -a[2][0] * a[1][3] * a[3][2] - a[3][0] * a[1][2] * a[2][3] + a[3][0] * a[1][3] * a[2][2];
+    const T m2 =  a[1][0] * a[2][1] * a[3][3] - a[1][0] * a[2][3] * a[3][1] - a[2][0] * a[1][1] * a[3][3]
+                 +a[2][0] * a[1][3] * a[3][1] + a[3][0] * a[1][1] * a[2][3] - a[3][0] * a[1][3] * a[2][1];
+    const T m3 = -a[1][0] * a[2][1] * a[3][2] + a[1][0] * a[2][2] * a[3][1] + a[2][0] * a[1][1] * a[3][2]
+                 -a[2][0] * a[1][2] * a[3][1] - a[3][0] * a[1][1] * a[2][2] + a[3][0] * a[1][2] * a[2][1];
+    return a[0][0] * m0 + a[0][1] * m1 + a[0][2] * m2 + a[0][3] * m3;
 }
 
-inline matrix translate_matrix(float x, float y, float z) {
-    return matrix(float4(1.0f, 0.0f, 0.0f,    x),
-                  float4(0.0f, 1.0f, 0.0f,    y),
-                  float4(0.0f, 0.0f, 1.0f,    z),
-                  float4(0.0f, 0.0f, 0.0f, 1.0f));
+template <typename T, int N, int M>
+Matrix<T, M, N> transpose(const Matrix<T, N, M>& a) {
+    Matrix<T, M, N> m;
+    #pragma unroll
+    for (int i = 0; i < N; i++) {
+        #pragma unroll
+        for (int j = 0; j < M; j++) {
+            m[j][i] = a[i][j];
+        }
+    }
+    return m;
 }
 
-inline float determinant(const matrix& a) {
-    float m0 = a[1][1] * a[2][2] * a[3][3] - a[1][1] * a[2][3] * a[3][2] - a[2][1] * a[1][2] * a[3][3] +
-               a[2][1] * a[1][3] * a[3][2] + a[3][1] * a[1][2] * a[2][3] - a[3][1] * a[1][3] * a[2][2];
+template <typename T>
+Matrix<T, 4, 4> invert(const Matrix<T, 4, 4>& a) {
+    Matrix<T, 4, 4> result;
 
-    float m1 = -a[1][0] * a[2][2] * a[3][3] + a[1][0] * a[2][3] * a[3][2] + a[2][0] * a[1][2] * a[3][3] -
-               a[2][0] * a[1][3] * a[3][2] - a[3][0] * a[1][2] * a[2][3] + a[3][0] * a[1][3] * a[2][2];
+    //Taken from http://stackoverflow.com/questions/1148309/inverting-a-4x4-matrix
+    result[0][0] = +a[1][1] * a[2][2] * a[3][3] - a[1][1] * a[2][3] * a[3][2] - a[2][1] * a[1][2] * a[3][3]
+                   +a[2][1] * a[1][3] * a[3][2] + a[3][1] * a[1][2] * a[2][3] - a[3][1] * a[1][3] * a[2][2];
+    result[1][0] = -a[1][0] * a[2][2] * a[3][3] + a[1][0] * a[2][3] * a[3][2] + a[2][0] * a[1][2] * a[3][3]
+                   -a[2][0] * a[1][3] * a[3][2] - a[3][0] * a[1][2] * a[2][3] + a[3][0] * a[1][3] * a[2][2];
+    result[2][0] = +a[1][0] * a[2][1] * a[3][3] - a[1][0] * a[2][3] * a[3][1] - a[2][0] * a[1][1] * a[3][3]
+                   +a[2][0] * a[1][3] * a[3][1] + a[3][0] * a[1][1] * a[2][3] - a[3][0] * a[1][3] * a[2][1];
+    result[3][0] = -a[1][0] * a[2][1] * a[3][2] + a[1][0] * a[2][2] * a[3][1] + a[2][0] * a[1][1] * a[3][2]
+                   -a[2][0] * a[1][2] * a[3][1] - a[3][0] * a[1][1] * a[2][2] + a[3][0] * a[1][2] * a[2][1];
 
-    float m2 = a[1][0] * a[2][1] * a[3][3] - a[1][0] * a[2][3] * a[3][1] - a[2][0] * a[1][1] * a[3][3] +
-               a[2][0] * a[1][3] * a[3][1] + a[3][0] * a[1][1] * a[2][3] - a[3][0] * a[1][3] * a[2][1];
+    const T det = a[0][0] * result[0][0] + a[0][1] * result[1][0] + a[0][2] * result[2][0] + a[0][3] * result[3][0];
+    if (det == 0)
+        return Matrix<T, 4, 4>::zero();
 
-    float m3 = -a[1][0] * a[2][1] * a[3][2] + a[1][0] * a[2][2] * a[3][1] + a[2][0] * a[1][1] * a[3][2] -
-               a[2][0] * a[1][2] * a[3][1] - a[3][0] * a[1][1] * a[2][2] + a[3][0] * a[1][2] * a[2][1];
+    result[0][1] = -a[0][1] * a[2][2] * a[3][3] + a[0][1] * a[2][3] * a[3][2] + a[2][1] * a[0][2] * a[3][3]
+                   -a[2][1] * a[0][3] * a[3][2] - a[3][1] * a[0][2] * a[2][3] + a[3][1] * a[0][3] * a[2][2];
+    result[1][1] = +a[0][0] * a[2][2] * a[3][3] - a[0][0] * a[2][3] * a[3][2] - a[2][0] * a[0][2] * a[3][3]
+                   +a[2][0] * a[0][3] * a[3][2] + a[3][0] * a[0][2] * a[2][3] - a[3][0] * a[0][3] * a[2][2];
+    result[2][1] = -a[0][0] * a[2][1] * a[3][3] + a[0][0] * a[2][3] * a[3][1] + a[2][0] * a[0][1] * a[3][3]
+                   -a[2][0] * a[0][3] * a[3][1] - a[3][0] * a[0][1] * a[2][3] + a[3][0] * a[0][3] * a[2][1];
+    result[3][1] = +a[0][0] * a[2][1] * a[3][2] - a[0][0] * a[2][2] * a[3][1] - a[2][0] * a[0][1] * a[3][2]
+                   +a[2][0] * a[0][2] * a[3][1] + a[3][0] * a[0][1] * a[2][2] - a[3][0] * a[0][2] * a[2][1];
+    result[0][2] = +a[0][1] * a[1][2] * a[3][3] - a[0][1] * a[1][3] * a[3][2] - a[1][1] * a[0][2] * a[3][3]
+                   +a[1][1] * a[0][3] * a[3][2] + a[3][1] * a[0][2] * a[1][3] - a[3][1] * a[0][3] * a[1][2];
+    result[1][2] = -a[0][0] * a[1][2] * a[3][3] + a[0][0] * a[1][3] * a[3][2] + a[1][0] * a[0][2] * a[3][3]
+                   -a[1][0] * a[0][3] * a[3][2] - a[3][0] * a[0][2] * a[1][3] + a[3][0] * a[0][3] * a[1][2];
+    result[2][2] = +a[0][0] * a[1][1] * a[3][3] - a[0][0] * a[1][3] * a[3][1] - a[1][0] * a[0][1] * a[3][3]
+                   +a[1][0] * a[0][3] * a[3][1] + a[3][0] * a[0][1] * a[1][3] - a[3][0] * a[0][3] * a[1][1];
+    result[3][2] = -a[0][0] * a[1][1] * a[3][2] + a[0][0] * a[1][2] * a[3][1] + a[1][0] * a[0][1] * a[3][2]
+                   -a[1][0] * a[0][2] * a[3][1] - a[3][0] * a[0][1] * a[1][2] + a[3][0] * a[0][2] * a[1][1];
+    result[0][3] = -a[0][1] * a[1][2] * a[2][3] + a[0][1] * a[1][3] * a[2][2] + a[1][1] * a[0][2] * a[2][3]
+                   -a[1][1] * a[0][3] * a[2][2] - a[2][1] * a[0][2] * a[1][3] + a[2][1] * a[0][3] * a[1][2];
+    result[1][3] = +a[0][0] * a[1][2] * a[2][3] - a[0][0] * a[1][3] * a[2][2] - a[1][0] * a[0][2] * a[2][3]
+                   +a[1][0] * a[0][3] * a[2][2] + a[2][0] * a[0][2] * a[1][3] - a[2][0] * a[0][3] * a[1][2];
+    result[2][3] = -a[0][0] * a[1][1] * a[2][3] + a[0][0] * a[1][3] * a[2][1] + a[1][0] * a[0][1] * a[2][3]
+                   -a[1][0] * a[0][3] * a[2][1] - a[2][0] * a[0][1] * a[1][3] + a[2][0] * a[0][3] * a[1][1];
+    result[3][3] = +a[0][0] * a[1][1] * a[2][2] - a[0][0] * a[1][2] * a[2][1] - a[1][0] * a[0][1] * a[2][2]
+                   +a[1][0] * a[0][2] * a[2][1] + a[2][0] * a[0][1] * a[1][2] - a[2][0] * a[0][2] * a[1][1];
 
-    float det = a[0][0] * m0 + a[0][1] * m1 + a[0][2] * m2 + a[0][3] * m3;
-
-    return det;
+    return result * (1.0f / det);
 }
 
-inline matrix transpose(const matrix& a) {
-    return matrix(float4(a.rows[0][0], a.rows[1][0], a.rows[2][0], a.rows[3][0]),
-                  float4(a.rows[0][1], a.rows[1][1], a.rows[2][1], a.rows[3][1]),
-                  float4(a.rows[0][2], a.rows[1][2], a.rows[2][2], a.rows[3][2]),
-                  float4(a.rows[0][3], a.rows[1][3], a.rows[2][3], a.rows[3][3]));
+template <typename T, int N, int M, int P>
+Matrix<T, N, P> operator * (const Matrix<T, N, M>& a, const Matrix<T, M, P>& b) {
+    Matrix<T, N, P> p;
+    #pragma unroll
+    for (int i = 0; i < N; i++) {
+        #pragma unroll
+        for (int j = 0; j < P; j++) {
+            T d(0);
+            #pragma unroll
+            for (int k = 0; k < M; k++) d += a[i][k] * b[k][j];
+            p[i][j] = d;
+        }
+    }
+    return p;
 }
 
-inline matrix operator * (const matrix& a, const matrix& b) {
-    matrix t = transpose(b);
-    return matrix(float4(dot(a[0], t[0]), dot(a[0], t[1]), dot(a[0], t[2]), dot(a[0], t[3])),
-                  float4(dot(a[1], t[0]), dot(a[1], t[1]), dot(a[1], t[2]), dot(a[1], t[3])),
-                  float4(dot(a[2], t[0]), dot(a[2], t[1]), dot(a[2], t[2]), dot(a[2], t[3])),
-                  float4(dot(a[3], t[0]), dot(a[3], t[1]), dot(a[3], t[2]), dot(a[3], t[3])));
+template <typename T, int N, int M>
+Matrix<T, N, M> operator * (const Matrix<T, N, M>& a, T b) {
+    Matrix<T, N, M> p;
+    #pragma unroll
+    for (int i = 0; i < N; i++) p[i] = a[i] * b;
+    return p;
 }
 
-inline matrix operator * (const matrix& a, float b) {
-    return matrix(a.rows[0] * b, a.rows[1] * b, a.rows[2] * b, a.rows[3] * b);
-}
-
-inline matrix operator * (float a, const matrix& b) {
+template <typename T, int N, int M>
+Matrix<T, N, M> operator * (T a, const Matrix<T, N, M>& b) {
     return b * a;
 }
 
-inline matrix invert(const matrix& a) {
-    matrix result;
-
-    //Taken from http://stackoverflow.com/questions/1148309/inverting-a-4x4-matrix
-    result[0][0] = a[1][1] * a[2][2] * a[3][3] - a[1][1] * a[2][3] * a[3][2] - a[2][1] * a[1][2] * a[3][3] +
-                   a[2][1] * a[1][3] * a[3][2] + a[3][1] * a[1][2] * a[2][3] - a[3][1] * a[1][3] * a[2][2];
-
-    result[1][0] = -a[1][0] * a[2][2] * a[3][3] + a[1][0] * a[2][3] * a[3][2] + a[2][0] * a[1][2] * a[3][3] -
-                   a[2][0] * a[1][3] * a[3][2] - a[3][0] * a[1][2] * a[2][3] + a[3][0] * a[1][3] * a[2][2];
-
-    result[2][0] = a[1][0] * a[2][1] * a[3][3] - a[1][0] * a[2][3] * a[3][1] - a[2][0] * a[1][1] * a[3][3] +
-                   a[2][0] * a[1][3] * a[3][1] + a[3][0] * a[1][1] * a[2][3] - a[3][0] * a[1][3] * a[2][1];
-
-    result[3][0] = -a[1][0] * a[2][1] * a[3][2] + a[1][0] * a[2][2] * a[3][1] + a[2][0] * a[1][1] * a[3][2] -
-                   a[2][0] * a[1][2] * a[3][1] - a[3][0] * a[1][1] * a[2][2] + a[3][0] * a[1][2] * a[2][1];
-
-    float det = a[0][0] * result[0][0] + a[0][1] * result[1][0] + a[0][2] * result[2][0] + a[0][3] * result[3][0];
-
-    if (det == 0)
-        return zero_matrix();
-
-    result[0][1] = -a[0][1] * a[2][2] * a[3][3] + a[0][1] * a[2][3] * a[3][2] + a[2][1] * a[0][2] * a[3][3] -
-                   a[2][1] * a[0][3] * a[3][2] - a[3][1] * a[0][2] * a[2][3] + a[3][1] * a[0][3] * a[2][2];
-
-    result[1][1] = a[0][0] * a[2][2] * a[3][3] - a[0][0] * a[2][3] * a[3][2] - a[2][0] * a[0][2] * a[3][3] +
-                   a[2][0] * a[0][3] * a[3][2] + a[3][0] * a[0][2] * a[2][3] - a[3][0] * a[0][3] * a[2][2];
-
-    result[2][1] = -a[0][0] * a[2][1] * a[3][3] + a[0][0] * a[2][3] * a[3][1] + a[2][0] * a[0][1] * a[3][3] -
-                   a[2][0] * a[0][3] * a[3][1] - a[3][0] * a[0][1] * a[2][3] + a[3][0] * a[0][3] * a[2][1];
-
-    result[3][1] = a[0][0] * a[2][1] * a[3][2] - a[0][0] * a[2][2] * a[3][1] - a[2][0] * a[0][1] * a[3][2] +
-                   a[2][0] * a[0][2] * a[3][1] + a[3][0] * a[0][1] * a[2][2] - a[3][0] * a[0][2] * a[2][1];
-
-    result[0][2] = a[0][1] * a[1][2] * a[3][3] - a[0][1] * a[1][3] * a[3][2] - a[1][1] * a[0][2] * a[3][3] +
-                   a[1][1] * a[0][3] * a[3][2] + a[3][1] * a[0][2] * a[1][3] - a[3][1] * a[0][3] * a[1][2];
-
-    result[1][2] = -a[0][0] * a[1][2] * a[3][3] + a[0][0] * a[1][3] * a[3][2] + a[1][0] * a[0][2] * a[3][3] -
-                   a[1][0] * a[0][3] * a[3][2] - a[3][0] * a[0][2] * a[1][3] + a[3][0] * a[0][3] * a[1][2];
-
-    result[2][2] = a[0][0] * a[1][1] * a[3][3] - a[0][0] * a[1][3] * a[3][1] - a[1][0] * a[0][1] * a[3][3] +
-                   a[1][0] * a[0][3] * a[3][1] + a[3][0] * a[0][1] * a[1][3] - a[3][0] * a[0][3] * a[1][1];
-
-    result[3][2] = -a[0][0] * a[1][1] * a[3][2] + a[0][0] * a[1][2] * a[3][1] + a[1][0] * a[0][1] * a[3][2] -
-                   a[1][0] * a[0][2] * a[3][1] - a[3][0] * a[0][1] * a[1][2] + a[3][0] * a[0][2] * a[1][1];
-
-    result[0][3] = -a[0][1] * a[1][2] * a[2][3] + a[0][1] * a[1][3] * a[2][2] + a[1][1] * a[0][2] * a[2][3] -
-                   a[1][1] * a[0][3] * a[2][2] - a[2][1] * a[0][2] * a[1][3] + a[2][1] * a[0][3] * a[1][2];
-
-    result[1][3] = a[0][0] * a[1][2] * a[2][3] - a[0][0] * a[1][3] * a[2][2] - a[1][0] * a[0][2] * a[2][3] +
-                   a[1][0] * a[0][3] * a[2][2] + a[2][0] * a[0][2] * a[1][3] - a[2][0] * a[0][3] * a[1][2];
-
-    result[2][3] = -a[0][0] * a[1][1] * a[2][3] + a[0][0] * a[1][3] * a[2][1] + a[1][0] * a[0][1] * a[2][3] -
-                   a[1][0] * a[0][3] * a[2][1] - a[2][0] * a[0][1] * a[1][3] + a[2][0] * a[0][3] * a[1][1];
-
-    result[3][3] = a[0][0] * a[1][1] * a[2][2] - a[0][0] * a[1][2] * a[2][1] - a[1][0] * a[0][1] * a[2][2] +
-                   a[1][0] * a[0][2] * a[2][1] + a[2][0] * a[0][1] * a[1][2] - a[2][0] * a[0][2] * a[1][1];
-
-    result = result * (1.0f / det);
-    return result;
+template <typename T, int N, int M, typename E>
+Vector<T, N> operator * (const Matrix<T, M, N>& a, const Expr<T, N, E>& b) {
+    Vector<T, N> v;
+    #pragma unroll
+    for (int i = 0; i < N; i++) v[i] = dot(a[i], b);
+    return v;
 }
 
-inline float4 transform(const matrix& a, const float4& b) {
-    return float4(dot(a.rows[0], b),
-                  dot(a.rows[1], b),
-                  dot(a.rows[2], b),
-                  dot(a.rows[3], b));
+template <typename T, typename E>
+Vector<T, 3> project(const Matrix<T, 4, 4>& a, const Expr<T, 3, E>& b) {
+    const auto t = a * Vector<T, 4>(b, 1);
+    return Vector<T, 3>(t.x, t.y, t.z) / t.w;
 }
 
-inline float3 transform_point(const matrix& a, const float3& b) {
-    float4 t = transform(a, float4(b, 1.0f));
-    t *= 1.0f / t.w;
-    return float3(t.x, t.y, t.z);
-}
+typedef Matrix<float, 3, 3> float3x3;
+typedef Matrix<float, 3, 4> float3x4;
+typedef Matrix<float, 4, 4> float4x4;
 
-inline float3 transform_vector(const matrix& a, const float3& b) {
-    float4 t = transform(a, float4(b, 0.0f));
-    return float3(t.x, t.y, t.z);
-}
+} // namespace imba
 
-}
-
-#endif
+#endif // IMBA_MATRIX_H
