@@ -40,14 +40,15 @@ static constexpr int traversal_block_size() { return 8; }
 
 #define TRAVERSAL_DEVICE    thorin::Device(0)
 #define TRAVERSAL_PLATFORM  thorin::Platform::HOST
-#define TRAVERSAL_INTERSECT intersect_cpu_masked
-#define TRAVERSAL_OCCLUDED  occluded_cpu_masked
+#define TRAVERSAL_INTERSECT intersect_cpu_instanced//_masked
+#define TRAVERSAL_OCCLUDED  occluded_cpu_instanced//_masked
 
 #endif
 
 /// Structure that contains the traversal data, such as the BVH nodes or opacity masks.
 struct TraversalData {
     thorin::Array<::Node> nodes;
+    thorin::Array<::InstanceNode> instances;
     thorin::Array<::Vec4> tris;
     thorin::Array<::Vec2> texcoords;
     thorin::Array<int> indices;
@@ -177,13 +178,14 @@ public:
         }
 #else
         TRAVERSAL_INTERSECT(data.nodes.data(),
+                            data.instances.data(),
                             data.tris.data(),
                             ray_buffer_.data(),
                             hit_buffer_.data(),
-                            data.indices.data(),
-                            data.texcoords.data(),
-                            data.masks.data(),
-                            data.mask_buffer.data(),
+                            //data.indices.data(),
+                            // data.texcoords.data(),
+                            // data.masks.data(),
+                            // data.mask_buffer.data(),
                             count);
 #endif
     }
@@ -214,54 +216,55 @@ public:
         }
 #else
         TRAVERSAL_OCCLUDED(data.nodes.data(),
+                           data.instances.data(),
                            data.tris.data(),
                            ray_buffer_.data(),
                            hit_buffer_.data(),
-                           data.indices.data(),
-                           data.texcoords.data(),
-                           data.masks.data(),
-                           data.mask_buffer.data(),
+                           // data.indices.data(),
+                           // data.texcoords.data(),
+                           // data.masks.data(),
+                           // data.mask_buffer.data(),
                            count);
 #endif
     }
 
     // Traverses all queues within a range of queue pointers at once.
-    template<typename QIter>
-    static void traverse_occluded_multi(QIter first, QIter last, const TraversalData& c_data) {
-        // ASSUMES GPU TRAVERSAL + QUEUE SCHEDULER!
-#ifdef GPU_TRAVERSAL
-        // Copy all rays to the device.
-        size_t offset = 0;
-        for (QIter it = first; it != last; ++it) {
-            thorin::copy((*it)->ray_buffer_, 0, *device_ray_buffer.get(), offset, (*it)->size());
-            offset += (*it)->size();
-        }
+//     template<typename QIter>
+//     static void traverse_occluded_multi(QIter first, QIter last, const TraversalData& c_data) {
+//         // ASSUMES GPU TRAVERSAL + QUEUE SCHEDULER!
+// #ifdef GPU_TRAVERSAL
+//         // Copy all rays to the device.
+//         size_t offset = 0;
+//         for (QIter it = first; it != last; ++it) {
+//             thorin::copy((*it)->ray_buffer_, 0, *device_ray_buffer.get(), offset, (*it)->size());
+//             offset += (*it)->size();
+//         }
 
-        if (offset == 0) // All queues were empty.
-            return;
+//         if (offset == 0) // All queues were empty.
+//             return;
 
-        TraversalData& data = const_cast<TraversalData&>(c_data);
+//         TraversalData& data = const_cast<TraversalData&>(c_data);
 
-        printf("traversing shadow rays: %d\n", offset);
+//         printf("traversing shadow rays: %d\n", offset);
 
-        TRAVERSAL_OCCLUDED(data.nodes.data(),
-                           data.tris.data(),
-                           device_ray_buffer->data(),
-                           device_hit_buffer->data(),
-                           data.indices.data(),
-                           data.texcoords.data(),
-                           data.masks.data(),
-                           data.mask_buffer.data(),
-                           align(offset));
+//         TRAVERSAL_OCCLUDED(data.nodes.data(),
+//                            data.tris.data(),
+//                            device_ray_buffer->data(),
+//                            device_hit_buffer->data(),
+//                            data.indices.data(),
+//                            data.texcoords.data(),
+//                            data.masks.data(),
+//                            data.mask_buffer.data(),
+//                            align(offset));
 
-        // Copy the hits back into the individual queues.
-        offset = 0;
-        for (QIter it = first; it != last; ++it) {
-            thorin::copy(*device_hit_buffer.get(), 0, (*it)->hit_buffer_, offset, (*it)->size());
-            offset += (*it)->size();
-        }
-#endif
-    }
+//         // Copy the hits back into the individual queues.
+//         offset = 0;
+//         for (QIter it = first; it != last; ++it) {
+//             thorin::copy(*device_hit_buffer.get(), 0, (*it)->hit_buffer_, offset, (*it)->size());
+//             offset += (*it)->size();
+//         }
+// #endif
+//     }
 
 #ifdef GPU_TRAVERSAL
 private:

@@ -84,6 +84,7 @@ private:
     std::vector<Node> nodes_;
     std::vector<Vec4> tris_;
     std::vector<int>  layout_;
+    std::vector<InstanceNode> instance_nodes_;
 
     BoundingSphere sphere_;
 };

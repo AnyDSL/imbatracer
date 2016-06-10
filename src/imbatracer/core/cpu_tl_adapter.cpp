@@ -13,23 +13,26 @@ namespace imba {
 
 class CpuTopLevelAdapter : public TopLevelAdapter {
 public:
-    CpuTopLevelAdapter(std::vector<Node>& nodes)
-        : TopLevelAdapter(nodes)
+    CpuTopLevelAdapter(std::vector<Node>& nodes, std::vector<InstanceNode>& instance_nodes)
+        : TopLevelAdapter(nodes, instance_nodes)
     {}
 
     virtual void build_accel(const std::vector<Mesh>& meshes,
                              const std::vector<Mesh::Instance>& instances,
                              const std::vector<int>& layout) override {
         // Copy the bounding boxes and centers of all meshes into an array.
-        std::vector<BBox> bounds(meshes.size());
-        std::vector<float3> centers(meshes.size());
-        for (int i = 0; i < meshes.size(); ++i) {
-            bounds[i] = meshes[i].bounding_box();
+        std::vector<BBox> bounds(instances.size());
+        std::vector<float3> centers(instances.size());
+        for (int i = 0; i < instances.size(); ++i) {
+            bounds[i] = meshes[instances[i].id].bounding_box();
+            bounds[i].min = transform_point(instances[i].mat, bounds[i].min);
+            bounds[i].max = transform_point(instances[i].mat, bounds[i].max);
+
             centers[i] = (bounds[i].min + bounds[i].max) * 0.5f;
         }
 
         // Build the acceleration structure.
-        builder_.build(bounds.data(), centers.data(), meshes.size(),
+        builder_.build(bounds.data(), centers.data(), instances.size(),
             NodeWriter(this, meshes, instances, layout),
             LeafWriter(this, meshes, instances, layout), 1);
     }
@@ -102,6 +105,8 @@ private:
             if (count < 4) {
                 nodes[i].children[count] = 0;
             }
+
+            printf("wrote node: %d children\n", count);
         }
     };
 
@@ -116,35 +121,36 @@ private:
             : adapter(adapter), meshes(meshes), instances(instances), layout(layout)
         {}
 
-        struct InstNode {
-            float4 transf[3];
-            int id;
-            int next;
-        };
-
         template <typename RefFn>
         void operator() (const BBox& leaf_bb, int ref_count, RefFn refs) {
-            assert(ref_count == 1); // Leaves must contain exactly one primitive, i.e. one instance.
-
+            auto& instance_nodes = adapter->instance_nodes_;
             auto& nodes = adapter->nodes_;
             auto& stack = adapter->stack_;
 
-            int inst_idx = refs(0);
-            Mesh::Instance inst = instances[inst_idx];
-
-            // Create a leaf node.
-            int i = nodes.size();
-            nodes.emplace_back();
-
-            // Write instance data to the node.
-            InstNode* inst_node = reinterpret_cast<InstNode*>(nodes.data() + i);
-            memcpy(inst_node->transf, &inst.mat, sizeof(inst_node->transf));
-            inst_node->id = inst_idx; // id
-            inst_node->next = layout[inst.id]; // sub-bvh
+            printf("wrote instance node! %d instances \n", ref_count);
 
             // Link the node as the child node of the parent.
             const StackElem& elem = stack.pop();
-            nodes[elem.parent].children[elem.child] = ~i; // Negative values mark leaf nodes.
+            nodes[elem.parent].children[elem.child] = ~instance_nodes.size(); // Negative values mark leaf nodes.
+
+            for (int j = 0; j < ref_count; ++j) {
+                int inst_idx = refs(j);
+                Mesh::Instance inst = instances[inst_idx];
+
+                // Create an instance node.
+                int i = instance_nodes.size();
+                instance_nodes.emplace_back();
+
+                // Write instance data to the node.
+                auto& inst_node = instance_nodes[i];
+                memcpy(&inst_node.transf, &inst.mat, sizeof(inst_node.transf));
+                inst_node.id = inst_idx; // id
+                inst_node.next = layout[inst.id]; // sub-bvh
+                inst_node.pad[0] = 0;
+            }
+
+            // Write sentinel value
+            instance_nodes.back().pad[0] = 0x00ABABAB;
         }
     };
 
@@ -159,8 +165,8 @@ private:
     BvhBuilder builder_;
 };
 
-std::unique_ptr<TopLevelAdapter> new_top_level_adapter(std::vector<Node>& nodes) {
-    return std::unique_ptr<TopLevelAdapter>(new CpuTopLevelAdapter(nodes));
+std::unique_ptr<TopLevelAdapter> new_top_level_adapter(std::vector<Node>& nodes, std::vector<InstanceNode>& instance_nodes) {
+    return std::unique_ptr<TopLevelAdapter>(new CpuTopLevelAdapter(nodes, instance_nodes));
 }
 
 } // namespace imba

@@ -13,21 +13,28 @@ int Scene::get_top_level_node_count() const {
 
 void Scene::setup_traversal_buffers() {
     // Make sure the buffers have the right size
-    const int node_count = get_top_level_node_count() + nodes_.size();
+    const int node_count = top_nodes_.size() + nodes_.size();
     if (traversal_.nodes.size() < node_count) {
         traversal_.nodes = std::move(thorin::Array<Node>(TRAVERSAL_PLATFORM, TRAVERSAL_DEVICE, node_count));
     }
     if (traversal_.tris.size() < tris_.size()) {
         traversal_.tris = std::move(thorin::Array<Vec4>(TRAVERSAL_PLATFORM, TRAVERSAL_DEVICE, tris_.size()));
     }
+    if (traversal_.instances.size() < instance_nodes_.size()) {
+        traversal_.instances = std::move(thorin::Array<InstanceNode>(TRAVERSAL_PLATFORM, TRAVERSAL_DEVICE, instance_nodes_.size()));
+    }
 }
 
 void Scene::build_mesh_accels() {
-    const int top_count = get_top_level_node_count();
+    const int top_count = 1; // Only the root is stored in front of the mesh BVHs.
     layout_.clear();
     nodes_.clear();
     tris_.clear();
 
+    // Add a dummy for the root node (will be added when building the top level acceleration structure)
+    nodes_.emplace_back();
+
+    // Add the nodes for all meshes. Assumes that the adapter appends nodes to the array.
     auto adapter = new_mesh_adapter(nodes_, tris_);
     for (auto& mesh : meshes_) {
         layout_.push_back(top_count + nodes_.size());
@@ -40,8 +47,11 @@ void Scene::build_top_level_accel() {
 
     top_nodes_.clear();
 
-    auto adapter = new_top_level_adapter(top_nodes_);
+    auto adapter = new_top_level_adapter(top_nodes_, instance_nodes_);
     adapter->build_accel(meshes_, instances_, layout_);
+
+    // Copy the root node to the beginning of the nodes array.
+    nodes_[0] = top_nodes_[0];
 }
 
 void Scene::upload_mask_buffer(const MaskBuffer& masks) {
@@ -59,7 +69,7 @@ void Scene::upload_mask_buffer(const MaskBuffer& masks) {
 void Scene::upload_mesh_accels() {
     setup_traversal_buffers();
     thorin_copy(0, nodes_.data(), 0,
-                traversal_.nodes.device(), traversal_.nodes.data(), get_top_level_node_count(),
+                traversal_.nodes.device(), traversal_.nodes.data(), 0,
                 sizeof(Node) * nodes_.size());
     thorin_copy(0, tris_.data(), 0,
                 traversal_.tris.device(), traversal_.tris.data(), 0,
@@ -72,9 +82,16 @@ void Scene::upload_mesh_accels() {
 
 void Scene::upload_top_level_accel() {
     setup_traversal_buffers();
+
+    // TODO if dynamic changes are allowed, the first node (root node)
+    //      has to be updated as well.
+
     thorin_copy(0, top_nodes_.data(), 0,
-                traversal_.nodes.device(), traversal_.nodes.data(), 0,
+                traversal_.nodes.device(), traversal_.nodes.data(), nodes_.size(),
                 sizeof(Node) * top_nodes_.size());
+    thorin_copy(0, instance_nodes_.data(), 0,
+                traversal_.instances.device(), traversal_.instances.data(), 0,
+                sizeof(InstanceNode) * instance_nodes_.size());
 
     // Release the memory associated with the top-level nodes
     std::vector<Node>().swap(top_nodes_);

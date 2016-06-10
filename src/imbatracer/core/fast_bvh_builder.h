@@ -63,6 +63,8 @@ public:
                 const int node_id = multi_node.next_node();
                 Node node = multi_node.nodes[node_id];
 
+                multi_node.nodes[node_id].tested = true;
+
                 const int begin = node.begin;
                 const int end = node.end;
                 const BBox& parent_bb = node.bbox;
@@ -74,8 +76,6 @@ public:
                 if (extents[axes[0]] < extents[axes[1]]) std::swap(axes[0], axes[1]);
                 if (extents[axes[1]] < extents[axes[2]]) std::swap(axes[1], axes[2]);
                 if (extents[axes[0]] < extents[axes[1]]) std::swap(axes[0], axes[1]);
-
-                multi_node.nodes[node_id].tested = true;
                 for (int j = 0; j < 3; j++) {
                     const int axis = axes[j];
 
@@ -94,8 +94,8 @@ public:
 
                     // Find the best split position
                     const float parent_area = parent_bb.half_area();
-                    int best_split = find_best_split(bins, FLT_MAX);//CostFn::leaf_cost(end - begin, parent_area) - CostFn::traversal_cost(parent_area));
-                    if (best_split >= 0) {
+                    int best_split = find_best_split(bins, CostFn::leaf_cost(end - begin, parent_area) - CostFn::traversal_cost(parent_area));
+                    if (best_split >= 0 && best_split < num_bins - 1) {
                         // The node was succesfully split
                         const int begin_right = apply_split(axis, best_split, refs, centers, center_min, center_max, begin, end);
                         const int end_right = end;

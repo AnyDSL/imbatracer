@@ -510,7 +510,21 @@ bool build_scene(const Path& path, Scene& scene, float3& cam_pos, float3& cam_di
 //     }
 
     scene.build_mesh_accels();
-    //scene.build_top_level_accel();
+
+    // TEST
+
+    for (auto& m : scene.meshes()) {
+        m.compute_bounding_box();
+    }
+
+    for (int i = 0; i < 6; ++i) {
+        float4x4 mat = float4x4::translation(1.0f * i, 0.0f, 0.0f);
+        scene.instances().emplace_back(0, mat);
+    }
+
+    // END TEST
+
+    scene.build_top_level_accel();
 
     // Compute bounding sphere.
     // BBox mesh_bb = BBox::empty();
@@ -533,7 +547,7 @@ bool build_scene(const Path& path, Scene& scene, float3& cam_pos, float3& cam_di
     // scene.texcoords.upload();
 
     scene.upload_mesh_accels();
-    //scene.upload_top_level_accel();
+    scene.upload_top_level_accel();
 
     std::cout << std::endl;
 

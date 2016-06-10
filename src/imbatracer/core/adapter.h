@@ -33,8 +33,8 @@ protected:
 
 class TopLevelAdapter {
 public:
-    TopLevelAdapter(std::vector<Node>& nodes)
-        : nodes_(nodes)
+    TopLevelAdapter(std::vector<Node>& nodes, std::vector<InstanceNode>& instance_nodes)
+        : nodes_(nodes), instance_nodes_(instance_nodes)
     {}
 
     virtual ~TopLevelAdapter() {}
@@ -51,12 +51,13 @@ public:
 
 protected:
     std::vector<Node>& nodes_;
+    std::vector<InstanceNode>& instance_nodes_;
 };
 
 /// Returns the correct mesh acceleration structure adapter for the traversal implementation.
 std::unique_ptr<MeshAdapter> new_mesh_adapter(std::vector<Node>& nodes, std::vector<Vec4>& tris);
 /// Returns the correct top-level acceleration structure adapter for the traversal implementation.
-std::unique_ptr<TopLevelAdapter> new_top_level_adapter(std::vector<Node>& nodes);
+std::unique_ptr<TopLevelAdapter> new_top_level_adapter(std::vector<Node>& nodes, std::vector<InstanceNode>& instance_nodes);
 
 } // namespace imba
 
