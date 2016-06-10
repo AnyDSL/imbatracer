@@ -1,5 +1,7 @@
 //static THREAD_PER_BLOCK = 64;
 
+
+// TODO cannot handle if grid.x / block.x > 65535, this is the limit for cc2.x 
 fn iterate_acc(thread_per_block: i32, size: i32, body: fn(i32) -> ()) -> () {
     let block = (thread_per_block, 1, 1);
     let grid  = (ceilf32((size as f32) / (thread_per_block as f32)) as i32 * thread_per_block, 1, 1);
@@ -19,7 +21,7 @@ fn for_loop(i: i32, step_stmt: fn(i32) -> i32, condi_stmt: fn(i32) -> bool, body
     }
 }
 
-// gpu scan (exculsive prefix-sum)
+// gpu scan (exclusive prefix-sum)
 // based on report from Mark Harris: Parallel Prefix Sum (Scan) with CUDA
 fn gpu_prefix_sum(input: &[i32], mut output: &[i32], size: i32) -> () {
     let log_num_banks = 5; // 32 banks
@@ -128,8 +130,7 @@ fn gpu_prefix_sum(input: &[i32], mut output: &[i32], size: i32) -> () {
 }
 
 // gpu stream compaction
-fn gpu_stream_compaction(sum: &[i32], mask: &[i32], input: &[i32], mut output: &[i32], size: i32) -> () {
-    let threads_per_block = 256;
+fn gpu_stream_compaction(sum: &[i32], mask: &[i32], input: &[i32], mut output: &[i32], threads_per_block: i32, size: i32) -> () {
     for i in iterate_acc(threads_per_block, size) {
         if (mask(i) == 1) {
             output(sum(i)) = input(i);

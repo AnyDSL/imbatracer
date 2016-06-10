@@ -38,6 +38,7 @@ struct PhotonHashGrid {
 
     dev_photons_buf    : Buffer,
     dev_indices_buf    : Buffer,
+    dev_cell_ends_buf  : Buffer,
     dev_mask_buf       : Buffer,
     dev_pfs_buf        : Buffer,
 }
@@ -51,6 +52,14 @@ struct QueryResult {
     size   : i32,
     data   : &[i32],
     buffer : Buffer
+}
+
+struct BatchQueryResult {
+    size : i32,           // size of indices
+    indices : &[i32],
+    offsets : &[i32],
+    indices_buf : Buffer, // indices for all queried photons
+    offsets_buf : Buffer  // prefix-sum of the number of queried photons for all query positions
 }
 
 fn sub(a: Float3, b: Float3) -> Float3 {
@@ -86,6 +95,16 @@ fn has_negative(a: Float3) -> bool {
     false
 }
 
+fn is_query_out_of_bbox(query_x: f32, query_y: f32, query_z: f32, bbox_min_x: f32, bbox_min_y: f32, bbox_min_z: f32, bbox_max_x: f32, bbox_max_y: f32, bbox_max_z: f32) -> bool {
+    if (query_x - bbox_min_x < 0.f) { return(true) }
+    if (query_y - bbox_min_y < 0.f) { return(true) }
+    if (query_z - bbox_min_z < 0.f) { return(true) }
+    if (bbox_max_x - query_x < 0.f) { return(true) }
+    if (bbox_max_y - query_y < 0.f) { return(true) }
+    if (bbox_max_z - query_z < 0.f) { return(true) }
+    false
+}
+
 fn cell_range(cell_idx: i32, cell_ends: &[i32]) -> Integer2 {
     let mut interval = Integer2 {
         x : 0,
@@ -111,6 +130,35 @@ fn cell_index(pos: Float3, hg: &PhotonHashGrid) -> i32 {
         z : floorf32(((*hg).inv_cell_size * dist_min.z))
     };
     hash_func(coord.x as u32, coord.y as u32, coord.z as u32, (*hg).cell_ends_size as u32)
+}
+
+fn iterate_neighbor_cells(query_x: f32, query_y: f32, query_z: f32, bbox_min_x: f32, bbox_min_y: f32, bbox_min_z: f32, inv_cell_size: f32, body: fn(i32, i32, i32) -> ()) -> () {
+    let cell_x = inv_cell_size * (query_x - bbox_min_x);
+    let cell_y = inv_cell_size * (query_y - bbox_min_y);
+    let cell_z = inv_cell_size * (query_z - bbox_min_z);
+    
+    let px = floorf32(cell_x);
+    let py = floorf32(cell_y);
+    let pz = floorf32(cell_z);
+
+    let frac_coord_x = cell_x - px;
+    let frac_coord_y = cell_y - py;
+    let frac_coord_z = cell_z - pz;
+
+    let dx = if (frac_coord_x < 0.5f) { -1f } else { 1f };
+    let dy = if (frac_coord_y < 0.5f) { -1f } else { 1f };
+    let dz = if (frac_coord_z < 0.5f) { -1f } else { 1f };
+
+    let pxo = px + dx;
+    let pyo = py + dy;
+    let pzo = pz + dz;
+
+    for i in @unroll(0, 8) {
+        let z = if ((i & 1) != 0) { pzo as i32 } else { pz as i32 };
+        let y = if ((i & 2) != 0) { pyo as i32 } else { py as i32 };
+        let x = if ((i & 4) != 0) { pxo as i32 } else { px as i32 };
+        body(x, y, z);
+    }
 }
 
 fn floorf32(f : f32) -> f32 {
@@ -186,6 +234,7 @@ extern fn build_hashgrid(info: &RawDataInfo, photon_cnt: i32, cell_size: i32, ra
         
         dev_photons_buf         : photons_buf2, 
         dev_indices_buf         : acc_alloc(acc_dev(), photon_cnt * sizeof[i32]()),
+        dev_cell_ends_buf       : acc_alloc(acc_dev(), cell_size  * sizeof[i32]()),
         dev_mask_buf            : acc_alloc(acc_dev(), photon_cnt * sizeof[i32]()),
         dev_pfs_buf             : acc_alloc(acc_dev(), photon_cnt * sizeof[i32]())
     };
@@ -227,6 +276,7 @@ extern fn build_hashgrid(info: &RawDataInfo, photon_cnt: i32, cell_size: i32, ra
     // copy
     copy(hg.host_indices_buf, hg.dev_indices_buf, photon_cnt * sizeof[i32]());
     copy(hg.host_photons_buf, hg.dev_photons_buf, photon_cnt * 3 * sizeof[f32]());
+    copy(hg.host_cell_ends_buf, hg.dev_cell_ends_buf, cell_size * sizeof[i32]());
 
     hg
 }
@@ -378,7 +428,7 @@ extern fn query_hashgrid(mut hg: &PhotonHashGrid, x: f32, y: f32, z: f32) -> &Qu
     let host_sc_buf = alloc_cpu(sc_size * sizeof[i32]()); 
 
     //start = thorin_get_kernel_time() as i32;
-    gpu_stream_compaction(ptr_pfs, ptr_mask, ptr_indices, bitcast[&[i32]](dev_sc_buf.data), size);
+    gpu_stream_compaction(ptr_pfs, ptr_mask, ptr_indices, bitcast[&[i32]](dev_sc_buf.data), 256, size);
     //end   = thorin_get_kernel_time() as i32;
     //print_int(end - start);
     //print_char('\n');
@@ -395,17 +445,202 @@ extern fn query_hashgrid(mut hg: &PhotonHashGrid, x: f32, y: f32, z: f32) -> &Qu
     }
 }
 
+extern fn batch_query_hashgrid(hg: &PhotonHashGrid, query_poses: &[f32], size: i32) -> &BatchQueryResult {
+    let THREADS_PER_BLOCK = 1024;
+    //
+    let radius_sqr     = (*hg).radius_sqr;
+    let cell_ends_size = (*hg).cell_ends_size;
+    let inv_cell_size  = (*hg).inv_cell_size;
+    let bbox_min_x = (*hg).bbox_min.x;
+    let bbox_min_y = (*hg).bbox_min.y;
+    let bbox_min_z = (*hg).bbox_min.z;
+    let bbox_max_x = (*hg).bbox_max.x;
+    let bbox_max_y = (*hg).bbox_max.y;
+    let bbox_max_z = (*hg).bbox_max.z;
+    let ptr_cell_ends = bitcast[&[i32]]((*hg).dev_cell_ends_buf.data); 
+    let ptr_indices   = bitcast[&[i32]]((*hg).dev_indices_buf.data); 
+    let ptr_photons   = bitcast[&[f32]]((*hg).dev_photons_buf.data); 
+    //
+    let host_query_poses_buf = alloc_cpu(size * 3 * sizeof[f32]());
+    let dev_query_poses_buf  = acc_alloc(acc_dev(), size * 3 * sizeof[f32]());
+    let mut ptr_host_query_poses = bitcast[&[f32]](host_query_poses_buf.data);
+    let ptr_dev_query_poses      = bitcast[&[f32]](dev_query_poses_buf.data);
+    for i in range(0, size) {
+        ptr_host_query_poses(i * 3)     = query_poses(i * 3); 
+        ptr_host_query_poses(i * 3 + 1) = query_poses(i * 3 + 1); 
+        ptr_host_query_poses(i * 3 + 2) = query_poses(i * 3 + 2); 
+    }
+    copy(host_query_poses_buf, dev_query_poses_buf, size * 3 * sizeof[f32]());
+    //
+    let dev_batch_count_buf     = acc_alloc(acc_dev(), size * sizeof[i32]());
+    let dev_batch_count_pfs_buf = acc_alloc(acc_dev(), size * sizeof[i32]()); 
+    let mut ptr_batch_count     = bitcast[&[i32]](dev_batch_count_buf.data);
+    let     ptr_batch_count_pfs = bitcast[&[i32]](dev_batch_count_pfs_buf.data);
+
+    // kernel 1: count number of photons in neighbor cells for each query position
+    for i in iterate_acc(THREADS_PER_BLOCK, size) {
+        let mut cnt = 0;
+        let qx = ptr_dev_query_poses(i * 3);
+        let qy = ptr_dev_query_poses(i * 3 + 1);
+        let qz = ptr_dev_query_poses(i * 3 + 2);
+        if (!is_query_out_of_bbox(qx, qy, qz, bbox_min_x, bbox_min_y, bbox_min_z, bbox_max_x, bbox_max_y, bbox_max_z)) {
+            for x, y, z in iterate_neighbor_cells(qx, qy, qz, bbox_min_x, bbox_min_y, bbox_min_z, inv_cell_size)
+            {
+                let cell_idx = hash_func(x as u32, y as u32, z as u32, cell_ends_size as u32);
+                let mut start = 0;
+                let end = ptr_cell_ends(cell_idx);
+                if ( cell_idx > 0) {
+                    start = ptr_cell_ends(cell_idx - 1);
+                }
+                cnt += end - start;
+            }
+        }
+        ptr_batch_count(i) = cnt;
+    }
+
+    // kernel 2: prefix_sum for photon counts for all queries
+    gpu_prefix_sum(ptr_batch_count, ptr_batch_count_pfs, size);
+
+    // compute size of batch photons and alloc memory on device respectively 
+    let host_last_batch_count_buf     = alloc_cpu(sizeof[i32]());
+    let host_last_batch_count_pfs_buf = alloc_cpu(sizeof[i32]());
+    copy_offset(dev_batch_count_buf,     (size - 1) * sizeof[i32](), host_last_batch_count_buf,     0, sizeof[i32]());
+    copy_offset(dev_batch_count_pfs_buf, (size - 1) * sizeof[i32](), host_last_batch_count_pfs_buf, 0, sizeof[i32]());
+    let batch_photons_count = bitcast[&[i32]](host_last_batch_count_buf.data)(0)
+                            + bitcast[&[i32]](host_last_batch_count_pfs_buf.data)(0);
+    release(host_last_batch_count_buf);
+    release(host_last_batch_count_pfs_buf);
+    // DEBUG ONLY
+    if (batch_photons_count > 100000000) {
+        print_string("batch_photons_count = ");
+        print_int(batch_photons_count);
+        print_char('\n');
+    }
+    //
+    let dev_batch_indices_buf   = acc_alloc(acc_dev(), batch_photons_count * sizeof[i32]());
+    let dev_isect_indices_buf   = acc_alloc(acc_dev(), batch_photons_count * sizeof[i32]());
+    let dev_batch_mask_buf      = acc_alloc(acc_dev(), batch_photons_count * sizeof[i32]());
+    let dev_batch_mask_pfs_buf  = acc_alloc(acc_dev(), batch_photons_count * sizeof[i32]());
+    let mut ptr_batch_indices   = bitcast[&[i32]](dev_batch_indices_buf.data); 
+    let mut ptr_isect_indices   = bitcast[&[i32]](dev_isect_indices_buf.data); 
+    let mut ptr_batch_mask      = bitcast[&[i32]](dev_batch_mask_buf.data); 
+    let     ptr_batch_mask_pfs  = bitcast[&[i32]](dev_batch_mask_pfs_buf.data); 
+
+    // kernel 3: create batch indices for all photons
+    for i in iterate_acc(THREADS_PER_BLOCK, size) {
+        let mut cnt = 0;
+        let offset  = ptr_batch_count_pfs(i);
+        let qx = ptr_dev_query_poses(i * 3);
+        let qy = ptr_dev_query_poses(i * 3 + 1);
+        let qz = ptr_dev_query_poses(i * 3 + 2);
+        if (ptr_batch_count(i) > 0) {
+            for x, y, z in iterate_neighbor_cells(qx, qy, qz, bbox_min_x, bbox_min_y, bbox_min_z, inv_cell_size) {
+                let cell_idx = hash_func(x as u32, y as u32, z as u32, cell_ends_size as u32);
+                let mut start = 0;
+                let end = ptr_cell_ends(cell_idx);
+                if ( cell_idx > 0) {
+                    start = ptr_cell_ends(cell_idx - 1);
+                }
+                for j in range(start, end) {
+                    ptr_batch_indices(cnt + offset) = ptr_indices(j);
+                    ptr_isect_indices(cnt + offset) = i;
+                    ++cnt;
+                }
+            }
+        }
+        // reset to 0 for output usage
+        ptr_batch_count(i) = 0;
+    }
+
+    // kernel 4: radius based filtering
+    for i in iterate_acc(THREADS_PER_BLOCK, batch_photons_count) {
+        ptr_batch_mask(i) = 0;
+        let isect_idx  = ptr_isect_indices(i);
+        let photon_idx = ptr_batch_indices(i);
+        let qx = ptr_dev_query_poses(isect_idx * 3);
+        let qy = ptr_dev_query_poses(isect_idx * 3 + 1);
+        let qz = ptr_dev_query_poses(isect_idx * 3 + 2);
+        let px = ptr_photons(photon_idx * 3); 
+        let py = ptr_photons(photon_idx * 3 + 1); 
+        let pz = ptr_photons(photon_idx * 3 + 2);
+        let dx = qx - px;
+        let dy = qy - py;
+        let dz = qz - pz;
+        let dist_sqr = dx * dx + dy * dy + dz * dz;
+        if (dist_sqr <= radius_sqr) {
+            ptr_batch_mask(i) = 1;
+        }
+    }
+
+    // kernel 5: prefix-sum on mask
+    gpu_prefix_sum(ptr_batch_mask, ptr_batch_mask_pfs, batch_photons_count);
+
+    // alloc memory for outputs
+    let host_last_batch_mask_buf     = alloc_cpu(sizeof[i32]());
+    let host_last_batch_mask_pfs_buf = alloc_cpu(sizeof[i32]());
+    copy_offset(dev_batch_mask_buf,     (batch_photons_count - 1) * sizeof[i32](), host_last_batch_mask_buf,     0, sizeof[i32]());
+    copy_offset(dev_batch_mask_pfs_buf, (batch_photons_count - 1) * sizeof[i32](), host_last_batch_mask_pfs_buf, 0, sizeof[i32]());
+    let output_size = bitcast[&[i32]](host_last_batch_mask_buf.data)(0) + bitcast[&[i32]](host_last_batch_mask_pfs_buf.data)(0);
+    release(host_last_batch_mask_buf);
+    release(host_last_batch_mask_pfs_buf);
+
+    let dev_output_indices_buf = acc_alloc(acc_dev(), output_size * sizeof[i32]());
+    let mut ptr_output_indices = bitcast[&[i32]](dev_output_indices_buf.data); 
+
+    // kernel 6: stream compaction
+    for i in iterate_acc(THREADS_PER_BLOCK, batch_photons_count) {
+        if (ptr_batch_mask(i) == 1) {
+            ptr_output_indices(ptr_batch_mask_pfs(i)) = ptr_batch_indices(i);
+            atomic_add(&ptr_batch_count(ptr_isect_indices(i)), 1);
+        }
+    }
+
+    // kernel 7: recompute prefix-sum of ptr_batch_count as part of the output data
+    gpu_prefix_sum(ptr_batch_count, ptr_batch_count_pfs, size);
+    
+    // copy output from device to host
+    let host_output_indices_buf = alloc_cpu(output_size * sizeof[i32]());
+    let host_output_offsets_buf = alloc_cpu(size * sizeof[i32]());
+    copy(dev_output_indices_buf,  host_output_indices_buf, output_size * sizeof[i32]());
+    copy(dev_batch_count_pfs_buf, host_output_offsets_buf, size * sizeof[i32]());
+
+    // release buffer
+    release(host_query_poses_buf);
+    release(dev_query_poses_buf);
+    release(dev_batch_count_buf);
+    release(dev_batch_count_pfs_buf);
+    release(dev_batch_indices_buf);
+    release(dev_isect_indices_buf);
+    release(dev_batch_mask_buf);
+    release(dev_batch_mask_pfs_buf);
+    release(dev_output_indices_buf);
+
+    ~BatchQueryResult {
+        size : output_size,
+        indices : bitcast[&[i32]](host_output_indices_buf.data),
+        offsets : bitcast[&[i32]](host_output_offsets_buf.data),
+        indices_buf : host_output_indices_buf,
+        offsets_buf : host_output_offsets_buf
+    }
+}
+
 extern fn destroy_hashgrid(hg: &PhotonHashGrid) -> () {
     release((*hg).host_photons_buf);
     release((*hg).host_indices_buf);
     release((*hg).host_cell_ends_buf);
     release((*hg).dev_photons_buf);
     release((*hg).dev_indices_buf);
+    release((*hg).dev_cell_ends_buf);
     release((*hg).dev_mask_buf);
     release((*hg).dev_pfs_buf);
 }
 
 extern fn release_query(arr: &QueryResult) -> () {
     release((*arr).buffer);
+}
+
+extern fn release_batch_query(query: &BatchQueryResult) -> () {
+    release((*query).indices_buf);
+    release((*query).offsets_buf);
 }
 

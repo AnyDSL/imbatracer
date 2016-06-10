@@ -2,6 +2,7 @@
 #include "../../core/float4.h"
 #include "../../core/common.h"
 #include "../random.h"
+#include "../../rangesearch/rangesearch_impala_interface.h"
 
 #include <cfloat>
 #include <cassert>
@@ -502,17 +503,25 @@ void VCM_INTEGRATOR::process_camera_rays(RayQueue<VCMState>& rays_in, RayQueue<V
     const Hit* hits = rays_in.hits();
     const Ray* rays = rays_in.rays();
 
-    tbb::parallel_for(tbb::blocked_range<size_t>(0, ray_count), [this, states, hits, rays, &rays_out, &ray_out_shadow, &img] (const tbb::blocked_range<size_t>& range) {
+    Intersection intersections[ray_count];
+    bool mask[ray_count];
+
+    tbb::parallel_for(tbb::blocked_range<size_t>(0, ray_count), [this, states, hits, rays, &intersections, &mask, &rays_out, &ray_out_shadow, &img] (const tbb::blocked_range<size_t>& range) {
         auto& bsdf_mem_arena = bsdf_memory_arenas.local();
 
         for (size_t i = range.begin(); i != range.end(); ++i) {
-            if (hits[i].tri_id < 0)
+            mask[i] = true;            
+            if (hits[i].tri_id < 0) {
+                mask[i] = false;                
                 continue;
+            }
 
             bsdf_mem_arena.free_all();
 
             RNG& rng = states[i].rng;
-            Intersection isect = calculate_intersection(hits, rays, i);
+            //Intersection isect = calculate_intersection(hits, rays, i);
+            intersections[i] = calculate_intersection(hits, rays, i);
+            Intersection &isect = intersections[i];
             float cos_theta_o = fabsf(dot(isect.out_dir, isect.normal));
 
             auto bsdf = isect.mat->get_bsdf(isect, bsdf_mem_arena);
@@ -522,8 +531,10 @@ void VCM_INTEGRATOR::process_camera_rays(RayQueue<VCMState>& rays_in, RayQueue<V
             states[i].dVC *= 1.0f / mis_heuristic(cos_theta_o);
             states[i].dVM *= 1.0f / mis_heuristic(cos_theta_o);
 
-            if (cos_theta_o == 0.0f) // Prevent NaNs
+            if (cos_theta_o == 0.0f) { // Prevent NaNs
+                mask[i] = false;                
                 continue;
+            }
 
 #ifdef ENABLE_NAN_TESTS
             if (isnan(states[i].dVCM) || isnan(states[i].dVC) || isnan(states[i].dVM))
@@ -558,22 +569,38 @@ void VCM_INTEGRATOR::process_camera_rays(RayQueue<VCMState>& rays_in, RayQueue<V
             if (states[i].path_length < max_path_len_) {
                 if (algo != ALGO_PPM)
                     direct_illum(states[i], isect, bsdf, ray_out_shadow);
-            } else
-                continue; // No point in continuing this path. It is too long already
+            } else {
+                mask[i] = false;                
+                continue; // No point in continuing this path. It is too long already            
+            }
 
             // Connect to light path vertices.
             if (algo != ALGO_PT && algo != ALGO_PPM && !isect.mat->is_specular())
-                connect(states[i], isect, bsdf, bsdf_mem_arena, ray_out_shadow);
-
-            if (algo != ALGO_BPT) {
-                if (!isect.mat->is_specular()) 
-                    vertex_merging(states[i], isect, bsdf, img);
-            }
-
-            // Continue the path using russian roulette.
-            bounce(states[i], isect, bsdf, rays_out, false);
+                connect(states[i], isect, bsdf, bsdf_mem_arena, ray_out_shadow);     
         }
     });
+
+    // batch vertex merging so as to run all photon queries by launching GPU kernels in a single pass
+    // TODO not work if compile in CPU version, need some more abstraction
+    if (algo != ALGO_BPT) {
+        //if (!isect.mat->is_specular()) 
+            //vertex_merging(states[i], isect, bsdf, img);
+            batch_vertex_merging(states, intersections, mask, ray_count, img); 
+    }
+
+    tbb::parallel_for(tbb::blocked_range<size_t>(0, ray_count), [this, states, hits, rays, &intersections, &mask, &rays_out, &ray_out_shadow, &img] (const tbb::blocked_range<size_t>& range) {  
+        auto& bsdf_mem_arena = bsdf_memory_arenas.local();
+        for (size_t i = range.begin(); i != range.end(); ++i) {
+            if (mask[i]) {
+                bsdf_mem_arena.free_all();
+                Intersection& isect = intersections[i];
+                auto bsdf = isect.mat->get_bsdf(isect, bsdf_mem_arena);
+                // Continue the path using russian roulette
+                bounce(states[i], isect, bsdf, rays_out, false);
+            }        
+        }
+    });
+
 }
 
 VCM_TEMPLATE
@@ -751,6 +778,93 @@ void VCM_INTEGRATOR::vertex_merging(const VCMState& state, const Intersection& i
     }
 
     img.pixels()[state.pixel_id] += state.throughput * contrib * vm_normalization_ * 2.0f; // Factor 2.0f is part of the Epanechnikov filter
+}
+
+// TODO only work for 1 concurrent spp atm
+VCM_TEMPLATE
+void VCM_INTEGRATOR::batch_vertex_merging(VCMState* states, Intersection* intersections, bool* mask, const int size, AtomicImage& img) {
+    int query_count = 0;
+    std::vector<const VCMState*> new_states;
+    std::vector<const Intersection*> new_intersections;
+    std::vector<float3> isect_poses;
+    for (int i = 0; i < size; ++i) {
+        if (mask[i]) {
+            Intersection& isect = intersections[i];
+            if (!isect.mat->is_specular()) {
+                new_states.push_back(&states[i]);
+                new_intersections.push_back(&isect);
+                isect_poses.push_back(isect.pos);
+                ++query_count;
+            }
+        }
+    }
+    if (query_count == 0) return;
+    // 
+    uintptr_t ptr_begin_iter;
+    BatchQueryResult* result = photon_grid_[0].batch_process(ptr_begin_iter, isect_poses.data(), query_count);
+    int output_size = result->size;
+    int* indices = result->indices;
+    int* offsets = result->offsets;
+
+    //
+    const float radius_sqr = pm_radius_ * pm_radius_;
+    tbb::parallel_for(tbb::blocked_range<size_t>(0, query_count), [this, radius_sqr, output_size, query_count, ptr_begin_iter, indices, offsets, new_states, new_intersections, &img] (const tbb::blocked_range<size_t>& range) {  
+        auto& bsdf_mem_arena = bsdf_memory_arenas.local();
+        for (size_t i = range.begin(); i != range.end(); ++i) {
+            bsdf_mem_arena.free_all();
+            const Intersection* isect = new_intersections[i];
+            const VCMState* state = new_states[i];
+            auto bsdf = isect->mat->get_bsdf(*isect, bsdf_mem_arena);      
+       
+            int start = offsets[i];
+            int end;
+            if (i < query_count - 1) {
+                end = offsets[i + 1];
+            }
+            else
+                end = output_size;
+                
+            float4 contrib(0.0f);
+            for (int i = start; i < end; ++i) {
+                PhotonIterator p = std::next(*(reinterpret_cast<PhotonIterator*>(ptr_begin_iter)), indices[i]);
+                
+                // Ignore the path if it would be too small. Don't count the merged vertices twice.
+                if (state->path_length + p->path_length - 1 > max_path_len_)
+                    continue;
+
+                const auto photon_in_dir = p->isect.out_dir;
+
+                const auto bsdf_value = bsdf->eval(isect->out_dir, photon_in_dir);
+                const float pdf_dir_w = bsdf->pdf(isect->out_dir, photon_in_dir);
+                const float pdf_rev_w = bsdf->pdf(photon_in_dir, isect->out_dir);
+
+                if (pdf_dir_w == 0.0f || pdf_rev_w == 0.0f || is_black(bsdf_value))
+                    continue;
+
+                // Compute MIS weight.
+                const float pdf_forward = pdf_dir_w * state->continue_prob;
+                const float pdf_reverse = pdf_rev_w * state->continue_prob;
+
+                const float mis_weight_light = p->dVCM * mis_weight_vc_ + p->dVM * mis_heuristic(pdf_forward);
+                const float mis_weight_camera = state->dVCM * mis_weight_vc_ + state->dVM * mis_heuristic(pdf_reverse);
+
+                const float mis_weight = algo == ALGO_PPM ? 1.0f : (1.0f / (mis_weight_light + 1.0f + mis_weight_camera));
+
+                // Epanechnikov filter
+                const float kernel = 1.0f - dot(isect->pos - p->isect.pos, isect->pos - p->isect.pos) / radius_sqr;
+
+                contrib += mis_weight * bsdf_value * kernel * p->throughput;
+            }
+            img.pixels()[state->pixel_id] += state->throughput * contrib * vm_normalization_ * 2.0f; // Factor 2.0f is part of the Epanechnikov filter
+        }
+    });
+
+    //
+    if (result) {
+        release_batch_query(result);
+        delete result;
+        result = nullptr;
+    }
 }
 
 VCM_TEMPLATE

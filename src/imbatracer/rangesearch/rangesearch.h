@@ -28,15 +28,17 @@ extern "C" { float floorf32(float); }
 template<typename Iter>
 class HashGrid {
 public:
-<<<<<<< HEAD
     ~HashGrid() {
-        
+        if (hg) {
+            destroy_hashgrid(hg);
+            if (hg->neighbor) delete [] hg->neighbor;
+            delete hg;
+            hg = nullptr;
+        }
     }
-=======
 
     HashGrid() : cell_ends_(1000000) {}
 
->>>>>>> master
     void reserve(int num_cells) {
         //cell_ends_.resize(num_cells);
     }
@@ -180,6 +182,12 @@ public:
         }
 */
 
+    }
+
+    BatchQueryResult* batch_process(uintptr_t& ptr_begin_iter, float3* query_poses, const int size) {
+        std::lock_guard<std::mutex> lock(traversal_mutex);
+        ptr_begin_iter = reinterpret_cast<uintptr_t>(&it_begin);
+        return batch_query_hashgrid(hg, &(query_poses[0].x), size);
     }
 
 private:
