@@ -181,7 +181,7 @@ private:
 class DirectionalLight : public Light {
 public:
     // Keeps a reference to the bounding sphere of the scene, because the scene might change after the light is created.
-    DirectionalLight(const float3& dir, const float4& intensity, BoundingSphere& scene_bounds)
+    DirectionalLight(const float3& dir, const float4& intensity, const BoundingSphere& scene_bounds)
         : dir_(dir), intensity_(intensity), scene_bounds_(scene_bounds)
     {
         local_coordinates(dir_, tangent_, binormal_);
@@ -227,7 +227,7 @@ private:
     float4 intensity_;
     float3 dir_;
     float3 tangent_, binormal_;
-    BoundingSphere& scene_bounds_;
+    BoundingSphere scene_bounds_;
 };
 
 class PointLight : public Light {

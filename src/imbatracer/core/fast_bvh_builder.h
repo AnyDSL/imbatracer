@@ -94,7 +94,7 @@ public:
 
                     // Find the best split position
                     const float parent_area = parent_bb.half_area();
-                    int best_split = find_best_split(bins, CostFn::leaf_cost(end - begin, parent_area) - CostFn::traversal_cost(parent_area));
+                    int best_split = find_best_split(bins, FLT_MAX);//CostFn::leaf_cost(end - begin, parent_area) - CostFn::traversal_cost(parent_area));
                     if (best_split >= 0) {
                         // The node was succesfully split
                         const int begin_right = apply_split(axis, best_split, refs, centers, center_min, center_max, begin, end);
@@ -264,7 +264,7 @@ private:
     int apply_split(int axis, int split, int* refs, const float3* centers, float center_min, float center_max, int begin, int end) {
         const float inv = 1.0f / (center_max - center_min);
         return std::partition(refs + begin, refs + end, [&] (const int ref) {
-            return compute_bin_id(centers[ref][axis], center_min, inv) < split; 
+            return compute_bin_id(centers[ref][axis], center_min, inv) < split;
         }) - refs;
     }
 

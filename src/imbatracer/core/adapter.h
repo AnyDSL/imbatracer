@@ -43,7 +43,7 @@ public:
     /// sequentially in the array of nodes.
     virtual void build_accel(const std::vector<Mesh>& meshes,
                              const std::vector<Mesh::Instance>& instances,
-                             const std::vector<int> layout) = 0;
+                             const std::vector<int>& layout) = 0;
 
 #ifdef STATISTICS
     virtual void print_stats() const {};

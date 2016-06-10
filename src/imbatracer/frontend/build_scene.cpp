@@ -185,7 +185,7 @@ void create_mesh(const obj::File& obj_file, Scene& scene, MtlLightBuffer& mtl_to
     // This function creates a big mesh out of the whole scene.
     scene.meshes().emplace_back();
 
-    auto mesh = scene.mesh(0);
+    auto& mesh = scene.mesh(0);
 
     // Add attributes for texture coordinates and normals
     mesh.add_attribute(Mesh::AttributeType::FLOAT2);
@@ -439,9 +439,11 @@ bool build_scene(const Path& path, Scene& scene, float3& cam_pos, float3& cam_di
     // Check for invalid normals
     std::cout << "[6/8] Validating scene..." << std::endl;
 
-    bool bad_normals = false;
-    auto normals = scene.mesh(0).attribute<float3>(MeshAttributes::NORMALS);
-    for (int i = 0; i < scene.mesh.vertex_count(); i++) {
+    /*bool bad_normals = false;
+
+    auto& mesh = scene.mesh(0);
+    auto normals = mesh.attribute<float3>(MeshAttributes::NORMALS);
+    for (int i = 0; i < mesh.vertex_count(); i++) {
         auto& n = normals[i];
         if (isnan(n.x) || isnan(n.y) || isnan(n.z)) {
             n.x = 0;
@@ -453,7 +455,7 @@ bool build_scene(const Path& path, Scene& scene, float3& cam_pos, float3& cam_di
 
     if (bad_normals) std::cout << "  Normals containing invalid values have been replaced" << std::endl;
 
-    if (scene.mesh(0).triangle_count() == 0) {
+    if (mesh.triangle_count() == 0) {
         std::cout << " There is no triangle in the scene." << std::endl;
         return false;
     }
@@ -461,25 +463,25 @@ bool build_scene(const Path& path, Scene& scene, float3& cam_pos, float3& cam_di
     if (scene.lights().empty()) {
         std::cout << "  There are no lights in the scene." << std::endl;
         return false;
-    }
+    }*/
 
-    scene.texcoords = std::move(ThorinArray<::Vec2>(scene.mesh.vertex_count()));
+    /*scene.texcoords = std::move(ThorinArray<::Vec2>(mesh.vertex_count()));
     {
-        auto texcoords = scene.mesh.attribute<float2>(MeshAttributes::TEXCOORDS);
-        for (int i = 0; i < scene.mesh.vertex_count(); i++) {
+        auto texcoords = mesh.attribute<float2>(MeshAttributes::TEXCOORDS);
+        for (int i = 0; i < mesh.vertex_count(); i++) {
             scene.texcoords[i].x = texcoords[i].x;
             scene.texcoords[i].y = texcoords[i].y;
         }
     }
 
-    scene.indices = std::move(ThorinArray<int>(scene.mesh.index_count()));
+    scene.indices = std::move(ThorinArray<int>(mesh.index_count()));
     {
-        for (int i = 0; i < scene.mesh.index_count(); i++)
-            scene.indices[i] = scene.mesh.indices()[i];
-    }
+        for (int i = 0; i < mesh.index_count(); i++)
+            scene.indices[i] = mesh.indices()[i];
+    }*/
 
     bool accel_loaded = false;
-    if (accel_filename != "") {
+    /*if (accel_filename != "") {
         std::cout << "[7/8] Loading acceleration structure from file..." << std::flush;
 
         auto accel_path = path.base_name() + '/' + accel_filename;
@@ -490,41 +492,49 @@ bool build_scene(const Path& path, Scene& scene, float3& cam_pos, float3& cam_di
             accel_loaded = true;
             std::cout << std::endl;
         }
-    }
+    }*/
 
     // If no bvh file was specified, or loading has failed, build a new one.
-    if (!accel_loaded) {
+    //if (!accel_loaded) {
         std::cout << "[7/8] Building acceleration structure..." << std::endl;
 
-        std::vector<::Node> nodes;
-        std::vector<::Vec4> tris;
-        std::unique_ptr<Adapter> adapter = new_adapter(nodes, tris);
-        adapter->build_accel(scene.mesh);
-#ifdef STATISTICS
-        std::cout << "  "; adapter->print_stats();
-#endif
-        scene.nodes = nodes;
-        scene.tris = tris;
-    }
+//         std::vector<::Node> nodes;
+//         std::vector<::Vec4> tris;
+//         std::unique_ptr<Adapter> adapter = new_adapter(nodes, tris);
+//         adapter->build_accel(scene.mesh);
+// #ifdef STATISTICS
+//         std::cout << "  "; adapter->print_stats();
+// #endif
+//         scene.nodes = nodes;
+//         scene.tris = tris;
+//     }
+
+    scene.build_mesh_accels();
+    //scene.build_top_level_accel();
 
     // Compute bounding sphere.
-    BBox mesh_bb = BBox::empty();
-    for (size_t i = 0; i < scene.mesh.vertex_count(); i++) {
-        const float3 v(scene.mesh.vertices()[i]);
-        mesh_bb.extend(v);
-    }
-    const float radius = length(mesh_bb.max - mesh_bb.min) * 0.5f;
-    scene.sphere.inv_radius_sqr = 1.0f / sqr(radius);
-    scene.sphere.radius = radius;
-    scene.sphere.center = (mesh_bb.max + mesh_bb.min) * 0.5f;
+    // BBox mesh_bb = BBox::empty();
+    // for (size_t i = 0; i < scene.mesh.vertex_count(); i++) {
+    //     const float3 v(scene.mesh.vertices()[i]);
+    //     mesh_bb.extend(v);
+    // }
+    // const float radius = length(mesh_bb.max - mesh_bb.min) * 0.5f;
+    // scene.sphere.inv_radius_sqr = 1.0f / sqr(radius);
+    // scene.sphere.radius = radius;
+    // scene.sphere.center = (mesh_bb.max + mesh_bb.min) * 0.5f;
+    scene.compute_bounding_sphere();
 
     std::cout << "[8/8] Moving the scene to the device..." << std::flush;
-    scene.nodes.upload();
-    scene.tris.upload();
-    scene.masks.upload();
-    scene.mask_buffer.upload();
-    scene.indices.upload();
-    scene.texcoords.upload();
+    // scene.nodes.upload();
+    // scene.tris.upload();
+    // scene.masks.upload();
+    // scene.mask_buffer.upload();
+    // scene.indices.upload();
+    // scene.texcoords.upload();
+
+    scene.upload_mesh_accels();
+    //scene.upload_top_level_accel();
+
     std::cout << std::endl;
 
     return true;

@@ -8,7 +8,7 @@ namespace imba {
 int Scene::get_top_level_node_count() const {
     // (num_instance - 1) * sizeof(Node) + num_instance * sizeof(Leaf) for the top-level
     // Each leaf occupies two nodes in our case.
-    return instances_.size() * 3 - 1;
+    return 0; // TODO instances_.size() * 3 - 1;
 }
 
 void Scene::setup_traversal_buffers() {
@@ -23,8 +23,6 @@ void Scene::setup_traversal_buffers() {
 }
 
 void Scene::build_mesh_accels() {
-    assert(mesh_id < meshes_.size());
-
     const int top_count = get_top_level_node_count();
     layout_.clear();
     nodes_.clear();
