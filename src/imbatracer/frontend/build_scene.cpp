@@ -519,8 +519,9 @@ bool build_scene(const Path& path, Scene& scene, float3& cam_pos, float3& cam_di
         m.compute_bounding_box();
     }
 
-    for (int i = 0; i < 1; ++i) {
-        float4x4 mat = float4x4::translation(1.0f * i, 0.0f, 0.0f);
+    for (int i = 0; i < 2; ++i) {
+        float4x4 mat = float4x4::translation(1.0f * (i), 0.0f, 0.0f);
+        //float4x4 mat = float4x4::scaling(2.0f, 2.0f, 2.0f);
         scene.instances().emplace_back(0, mat);
     }
 

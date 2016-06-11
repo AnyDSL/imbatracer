@@ -56,7 +56,7 @@ protected:
 
         const float2 uv_coords   = lerp(texcoords[i0], texcoords[i1], texcoords[i2], u, v);
         const float4 inst_normal = float4(lerp(normals[i0], normals[i1], normals[i2], u, v), 0.0f);
-        const float3 normal      = normalize(float3(inst_normal  * inst.inv_mat));
+        const float3 normal      = float3(inst_normal);//normalize(float3(inst_normal * inst.inv_mat));
         const float3 geom_normal = geom_normals[hits[i].tri_id];
 
         const float3 w_out = -normalize(out_dir);

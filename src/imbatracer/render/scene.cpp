@@ -91,7 +91,10 @@ void Scene::build_top_level_accel() {
         std::cout << "   [" << node_idx << "] = " << std::endl;
         std::cout << "         id = " << n.id << std::endl
                   << "         next = " << n.next << std::endl
-                  << "         pad[0] = " << n.pad[0] << std::endl;
+                  << "         pad[0] = " << n.pad[0] << std::endl
+                  << "         mat = " << n.transf.c00 << " " << n.transf.c01 << " " << n.transf.c02 << " " << n.transf.c03 << " " << std::endl
+                  << "               " << n.transf.c10 << " " << n.transf.c11 << " " << n.transf.c12 << " " << n.transf.c13 << " " << std::endl
+                  << "               " << n.transf.c20 << " " << n.transf.c21 << " " << n.transf.c22 << " " << n.transf.c23 << " " << std::endl;
         node_idx++;
     }
 }

@@ -154,7 +154,7 @@ private:
 
                 // Write instance data to the node.
                 auto& inst_node = instance_nodes[i];
-                memcpy(&inst_node.transf, &inst.mat, sizeof(inst_node.transf));
+                memcpy(&inst_node.transf, &inst.inv_mat, sizeof(inst_node.transf));
                 inst_node.id = inst_idx; // id
                 inst_node.next = layout[inst.id]; // sub-bvh
                 inst_node.pad[0] = 0;
