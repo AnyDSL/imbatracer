@@ -5,12 +5,6 @@
 
 namespace imba {
 
-int Scene::get_top_level_node_count() const {
-    // (num_instance - 1) * sizeof(Node) + num_instance * sizeof(Leaf) for the top-level
-    // Each leaf occupies two nodes in our case.
-    return 0; // TODO instances_.size() * 3 - 1;
-}
-
 void Scene::setup_traversal_buffers() {
     // Make sure the buffers have the right size
     const int node_count = top_nodes_.size() + nodes_.size();
@@ -26,7 +20,6 @@ void Scene::setup_traversal_buffers() {
 }
 
 void Scene::build_mesh_accels() {
-    const int top_count = 1; // Only the root is stored in front of the mesh BVHs.
     layout_.clear();
     nodes_.clear();
     tris_.clear();
@@ -37,8 +30,9 @@ void Scene::build_mesh_accels() {
     // Add the nodes for all meshes. Assumes that the adapter appends nodes to the array.
     auto adapter = new_mesh_adapter(nodes_, tris_);
     for (auto& mesh : meshes_) {
-        layout_.push_back(top_count + nodes_.size());
+        layout_.push_back(nodes_.size());
         adapter->build_accel(mesh);
+        adapter->print_stats();
     }
 }
 
@@ -52,6 +46,54 @@ void Scene::build_top_level_accel() {
 
     // Copy the root node to the beginning of the nodes array.
     nodes_[0] = top_nodes_[0];
+
+    // DEBUG print the BVH (instances and meshes)
+    std::cout << "BVH with " << nodes_.size() - 1 << " mesh and " << top_nodes_.size() << " top level nodes." << std::endl
+              << "nodes: " << std::endl;
+    int node_idx = 0;
+    for (auto& n : nodes_) {
+        std::cout << "   [" << node_idx << "] = " << std::endl;
+        for (int i = 0; i < 4; ++i) {
+            if (n.children[i] == 0)
+                break;
+            std::cout << "         min_x = " << n.min_x[i] << " max_x = " << n.max_x[i]
+                      << " min_y = " << n.min_y[i] << " max_y = " << n.max_y[i] << " min_z = " << n.min_z[i] << " max_z = " << n.max_z[i] << std::endl;
+
+            if (n.children[i] < 0)
+                std::cout << "         child (leaf) = " << ~n.children[i] << std::endl;
+            else
+                std::cout << "         child (inner) = " << n.children[i] << std::endl;
+        }
+        node_idx++;
+    }
+
+    for (auto& n: top_nodes_) {
+        std::cout << "   [" << node_idx << "] = " << std::endl;
+        for (int i = 0; i < 4; ++i) {
+            if (n.children[i] == 0)
+                break;
+            std::cout << "         min_x = " << n.min_x[i] << " max_x = " << n.max_x[i]
+                      << " min_y = " << n.min_y[i] << " max_y = " << n.max_y[i] << " min_z = " << n.min_z[i] << " max_z = " << n.max_z[i] << std::endl;
+
+            if (n.children[i] < 0)
+                std::cout << "         child (leaf) = " << ~n.children[i] << std::endl;
+            else
+                std::cout << "         child (inner) = " << n.children[i] << std::endl;
+        }
+        node_idx++;
+    }
+
+    std::cout << "tri count: " << tris_.size() << std::endl;
+    std::cout << "instance nodes: " << std::endl;
+
+    node_idx = 0;
+    for (auto& n: instance_nodes_) {
+        std::cout << "   [" << node_idx << "] = " << std::endl;
+        std::cout << "         id = " << n.id << std::endl
+                  << "         next = " << n.next << std::endl
+                  << "         pad[0] = " << n.pad[0] << std::endl;
+        node_idx++;
+    }
 }
 
 void Scene::upload_mask_buffer(const MaskBuffer& masks) {

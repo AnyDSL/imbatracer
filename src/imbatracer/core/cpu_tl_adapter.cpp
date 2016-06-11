@@ -100,13 +100,9 @@ private:
                 nodes[i].max_x[j] = -FLT_MAX;
                 nodes[i].max_y[j] = -FLT_MAX;
                 nodes[i].max_z[j] = -FLT_MAX;
-            }
 
-            if (count < 4) {
-                nodes[i].children[count] = 0;
+                nodes[i].children[j] = 0;
             }
-
-            printf("wrote node: %d children\n", count);
         }
     };
 
@@ -127,11 +123,26 @@ private:
             auto& nodes = adapter->nodes_;
             auto& stack = adapter->stack_;
 
-            printf("wrote instance node! %d instances \n", ref_count);
+            if (stack.empty()) {
+                // No parent node was created, because there were too few primitives and no split was performed.
+                // Create and link a parent node.
+                int i = nodes.size();
+                nodes.emplace_back();
+                nodes[i].children[0] = ~instance_nodes.size();
+                nodes[i].children[1] = 0;
 
-            // Link the node as the child node of the parent.
-            const StackElem& elem = stack.pop();
-            nodes[elem.parent].children[elem.child] = ~instance_nodes.size(); // Negative values mark leaf nodes.
+                nodes[i].min_x[0] = leaf_bb.min.x;
+                nodes[i].min_y[0] = leaf_bb.min.y;
+                nodes[i].min_z[0] = leaf_bb.min.z;
+
+                nodes[i].max_x[0] = leaf_bb.max.x;
+                nodes[i].max_y[0] = leaf_bb.max.y;
+                nodes[i].max_z[0] = leaf_bb.max.z;
+            } else {
+                // Link the node as the child node of the parent.
+                const StackElem& elem = stack.pop();
+                nodes[elem.parent].children[elem.child] = ~instance_nodes.size(); // Negative values mark leaf nodes.
+            }
 
             for (int j = 0; j < ref_count; ++j) {
                 int inst_idx = refs(j);

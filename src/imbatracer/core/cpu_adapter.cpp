@@ -178,7 +178,7 @@ private:
             tris.emplace_back(sentinel);
         }
     };
-    
+
     struct StackElem {
         int parent, child;
         StackElem() {}

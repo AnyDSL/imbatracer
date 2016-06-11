@@ -281,6 +281,8 @@ void create_mesh(const obj::File& obj_file, Scene& scene, MtlLightBuffer& mtl_to
         }
     }
 
+    printf("triangles: %d \n", mesh.triangle_count());
+
     auto geom_normals = mesh.attribute<float3>(MeshAttributes::GEOM_NORMALS);
     for (int i = 0; i < mesh.triangle_count(); ++i) {
         auto t = mesh.triangle(i);
@@ -517,7 +519,7 @@ bool build_scene(const Path& path, Scene& scene, float3& cam_pos, float3& cam_di
         m.compute_bounding_box();
     }
 
-    for (int i = 0; i < 6; ++i) {
+    for (int i = 0; i < 1; ++i) {
         float4x4 mat = float4x4::translation(1.0f * i, 0.0f, 0.0f);
         scene.instances().emplace_back(0, mat);
     }

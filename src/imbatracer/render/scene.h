@@ -69,7 +69,6 @@ public:
     const BoundingSphere& bounding_sphere() const { return sphere_; }
 
 private:
-    int get_top_level_node_count() const;
     void setup_traversal_buffers();
 
     LightContainer     lights_;
