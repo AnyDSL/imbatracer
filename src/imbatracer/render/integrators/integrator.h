@@ -41,23 +41,24 @@ protected:
 
         const float3     org(rays[i].org.x, rays[i].org.y, rays[i].org.z);
         const float3 out_dir(rays[i].dir.x, rays[i].dir.y, rays[i].dir.z);
-        const float3 pos = org + (hits[i].tmax) * out_dir;
+        const float3       pos(org + (hits[i].tmax) * out_dir);
+        const float3 local_pos(inst.inv_mat * float4(pos, 1));
 
         // Recompute u & v
         const float u = hits[i].u;
         const float3 v0 = float3(mesh.vertices()[i0]);
         const float3 e1 = float3(mesh.vertices()[i1]) - v0;
         const float3 e2 = float3(mesh.vertices()[i2]) - v0;
-        const float v = dot(pos - v0 + u * e1, e2) / dot(e2, e2);
+        const float v = dot(local_pos - v0 - u * e1, e2) / dot(e2, e2);
 
         const auto texcoords    = mesh.attribute<float2>(MeshAttributes::TEXCOORDS);
         const auto normals      = mesh.attribute<float3>(MeshAttributes::NORMALS);
         const auto geom_normals = mesh.attribute<float3>(MeshAttributes::GEOM_NORMALS);
 
         const float2 uv_coords   = lerp(texcoords[i0], texcoords[i1], texcoords[i2], u, v);
-        const float4 inst_normal = float4(lerp(normals[i0], normals[i1], normals[i2], u, v), 0.0f);
-        const float3 normal      = float3(inst_normal);//normalize(float3(inst_normal * inst.inv_mat));
-        const float3 geom_normal = geom_normals[hits[i].tri_id];
+        const float4 local_normal = float4(lerp(normals[i0], normals[i1], normals[i2], u, v), 0.0f);
+        const float3 normal       = normalize(float3(local_normal * inst.inv_mat));
+        const float3 geom_normal  = normalize(float3(float4(geom_normals[hits[i].tri_id], 0) * inst.inv_mat));;
 
         const float3 w_out = -normalize(out_dir);
 
