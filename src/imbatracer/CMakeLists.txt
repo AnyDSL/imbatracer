@@ -14,6 +14,7 @@ endif()
 add_library(imba_core
             core/adapter.h
             core/bbox.h
+            core/bsphere.h
             core/common.h
             core/float2.h
             core/float3.h

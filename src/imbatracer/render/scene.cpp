@@ -48,6 +48,7 @@ void Scene::build_top_level_accel() {
     nodes_[0] = top_nodes_[0];
 
     // DEBUG print the BVH (instances and meshes)
+#ifndef NDEBUG
     std::cout << "BVH with " << nodes_.size() - 1 << " mesh and " << top_nodes_.size() << " top level nodes." << std::endl
               << "nodes: " << std::endl;
     int node_idx = 0;
@@ -97,6 +98,7 @@ void Scene::build_top_level_accel() {
                   << "               " << n.transf.c20 << " " << n.transf.c21 << " " << n.transf.c22 << " " << n.transf.c23 << " " << std::endl;
         node_idx++;
     }
+#endif
 }
 
 void Scene::upload_mask_buffer(const MaskBuffer& masks) {

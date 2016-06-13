@@ -529,13 +529,11 @@ void VCM_INTEGRATOR::process_camera_rays(RayQueue<VCMState>& rays_in, RayQueue<V
                     states[i].dVCM, states[i].dVC, states[i].dVM, cos_theta_o);
 #endif
 
-            if (isect.mat->light()) {
-                auto light_source = isect.mat->light();
-
+            if (auto emit = isect.mat->emitter()) {
                 // A light source was hit directly. Add the weighted contribution.
                 float pdf_lightpick = 1.0f / scene_.light_count();
                 float pdf_direct_a, pdf_emit_w;
-                float4 radiance = light_source->radiance(isect.out_dir, pdf_direct_a, pdf_emit_w);
+                float4 radiance = emit->radiance(isect.out_dir, isect.geom_normal, pdf_direct_a, pdf_emit_w);
 
                 const float pdf_di = pdf_direct_a * pdf_lightpick;
                 const float pdf_e = pdf_emit_w * pdf_lightpick;

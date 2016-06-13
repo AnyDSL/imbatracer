@@ -66,7 +66,7 @@ public:
 
     const TraversalData& traversal_data() const { return traversal_; }
 
-    const BoundingSphere& bounding_sphere() const { return sphere_; }
+    const BSphere& bounding_sphere() const { return sphere_; }
 
 private:
     void setup_traversal_buffers();
@@ -85,7 +85,7 @@ private:
     std::vector<int>  layout_;
     std::vector<InstanceNode> instance_nodes_;
 
-    BoundingSphere sphere_;
+    BSphere sphere_;
 };
 
 } // namespace imba

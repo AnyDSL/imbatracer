@@ -1,17 +1,43 @@
 #ifndef IMBA_LIGHT_H
 #define IMBA_LIGHT_H
 
-#include "../core/float3.h"
-#include "random.h"
 #include <cfloat>
 #include <memory>
 
+#include "../core/float3.h"
+#include "../core/bsphere.h"
+#include "random.h"
+
 namespace imba {
 
-struct BoundingSphere {
-    float3 center;
-    float radius;
-    float inv_radius_sqr; // Precomputed, needed for sampling emission from directional light sources.
+/// Utility class to describe a surface that emits light.
+struct AreaEmitter {
+    /// Computes the amount of outgoing radiance from this emitter in a given direction
+    float4 radiance(const float3& out_dir, const float3& normal, float& pdf_direct_a, float& pdf_emit_w) const {
+        const float cos_theta_o = dot(normal, out_dir);
+
+        if (cos_theta_o <= 0.0f) {
+            // set pdf to 1 to prevent NaNs
+            pdf_direct_a = 1.0f;
+            pdf_emit_w = 1.0f;
+            return float4(0.0f);
+        }
+
+        pdf_direct_a = 1.0f / area;
+
+        float3 tangent, binormal;
+        local_coordinates(normal, tangent, binormal);
+
+        auto local_out_dir = float3(dot(binormal, out_dir),
+                                    dot(tangent, out_dir),
+                                    dot(normal, out_dir));
+        pdf_emit_w   = 1.0f / area * cos_hemisphere_pdf(local_out_dir);
+
+        return intensity;
+    }
+
+    float4 intensity;
+    float area;
 };
 
 class Light {
@@ -50,8 +76,8 @@ public:
     /// Samples a point on the light source. Used for shadow rays.
     virtual DirectIllumSample sample_direct(const float3& from, RNG& rng) = 0;
 
-    /// Computes the amount of outgoing radiance from this light source in a given direction
-    virtual float4 radiance(const float3& out_dir, float& pdf_direct_a, float& pdf_emit_w) = 0;
+    /// Returns the area emitter associated with this light, or null if the light has no area.
+    virtual const AreaEmitter* emitter() const { return nullptr; }
 
     virtual bool is_delta() const { return false; }
     virtual bool is_finite() const { return true; }
@@ -61,14 +87,17 @@ public:
 
 class TriangleLight : public Light {
 public:
-    TriangleLight(float4 intensity, float3 p0, float3 p1, float3 p2) : intensity_(intensity), p0_(p0), p1_(p1), p2_(p2) {
-        normal_ = cross(p1 - p0, p2 - p0);
-        area_   = length(normal_) * 0.5f;
-        normal_ = normalize(normal_);
+    TriangleLight(float4 intensity, float3 p0, float3 p1, float3 p2) : p0_(p0), p1_(p1), p2_(p2) {
+        emit_.intensity = intensity;
+
+        normal_    = cross(p1 - p0, p2 - p0);
+        emit_.area = length(normal_) * 0.5f;
+        normal_    = normalize(normal_);
+
         local_coordinates(normal_, tangent_, binormal_);
     }
 
-    inline float area() const { return area_; }
+    virtual const AreaEmitter* emitter() const override { return &emit_; }
 
     virtual DirectIllumSample sample_direct(const float3& from, RNG& rng) override {
         DirectIllumSample sample;
@@ -88,11 +117,11 @@ public:
 
         // directions form the opposite side of the light have zero intensity
         if (cos_out > 0.0f && cos_out < 1.0f) {
-            sample.radiance = intensity_ * cos_out * (area_ / distsq);
+            sample.radiance = emit_.intensity * cos_out * (emit_.area / distsq);
 
             sample.cos_out      = cos_out;
-            sample.pdf_emit_w   = (cos_out * 1.0f / pi) / area_;
-            sample.pdf_direct_w = 1.0f / area_ * distsq / cos_out;
+            sample.pdf_emit_w   = (cos_out * 1.0f / pi) / emit_.area;
+            sample.pdf_direct_w = 1.0f / emit_.area * distsq / cos_out;
         } else {
             sample.radiance = float4(0.0f);
 
@@ -131,58 +160,34 @@ public:
         }
 
         sample.dir      = world_dir;
-        sample.radiance = intensity_ * area_ * pi; // The cosine cancels out with the pdf
+        sample.radiance = emit_.intensity * emit_.area * pi; // The cosine cancels out with the pdf
 
         sample.cos_out      = cos_out;
-        sample.pdf_emit_w   = dir_sample.pdf / area_;
-        sample.pdf_direct_a = 1.0f / area_;
+        sample.pdf_emit_w   = dir_sample.pdf / emit_.area;
+        sample.pdf_direct_a = 1.0f / emit_.area;
 
         return sample;
     }
 
-    virtual float4 radiance(const float3& out_dir, float& pdf_direct_a, float& pdf_emit_w) override {
-        const float cos_theta_o = dot(normal_, out_dir);
-
-        if (cos_theta_o <= 0.0f) {
-            // set pdf to 1 to prevent NaNs
-            pdf_direct_a = 1.0f;
-            pdf_emit_w = 1.0f;
-            return float4(0.0f);
-        }
-
-        pdf_direct_a = 1.0f / area_;
-        auto local_out_dir = world_to_local(out_dir);
-        pdf_emit_w   = 1.0f / area_ * cos_hemisphere_pdf(local_out_dir);
-
-        return intensity_;
-    }
-
-    float3 world_to_local(const float3& dir) const {
-        return float3(dot(binormal_, dir),
-                      dot(tangent_, dir),
-                      dot(normal_, dir));
-    }
-
+private:
     float3 local_to_world(const float3& dir) const {
         return float3(binormal_.x * dir.x + tangent_.x * dir.y + normal_.x * dir.z,
                       binormal_.y * dir.x + tangent_.y * dir.y + normal_.y * dir.z,
                       binormal_.z * dir.x + tangent_.z * dir.y + normal_.z * dir.z);
     }
 
-private:
     float3 p0_, p1_, p2_;
     float3 normal_;
     float3 tangent_;
     float3 binormal_;
-    float4 intensity_;
-    float area_;
+    AreaEmitter emit_;
 };
 
 class DirectionalLight : public Light {
 public:
     // Keeps a reference to the bounding sphere of the scene, because the scene might change after the light is created.
-    DirectionalLight(const float3& dir, const float4& intensity, const BoundingSphere& scene_bounds)
-        : dir_(dir), intensity_(intensity), scene_bounds_(scene_bounds)
+    DirectionalLight(const float3& dir, const float4& intensity, const BSphere& bsphere)
+        : dir_(dir), intensity_(intensity), bsphere_(bsphere)
     {
         local_coordinates(dir_, tangent_, binormal_);
     }
@@ -191,11 +196,11 @@ public:
         float2 disc_pos = sample_concentric_disc(rng.random_float(), rng.random_float());
 
         EmitSample sample;
-        sample.pos = scene_bounds_.center + scene_bounds_.radius * (-dir_ + binormal_ * disc_pos.x + tangent_ * disc_pos.y);
+        sample.pos = bsphere_.center + bsphere_.radius * (-dir_ + binormal_ * disc_pos.x + tangent_ * disc_pos.y);
         sample.dir = dir_;
 
         sample.pdf_direct_a = 1.0f;
-        sample.pdf_emit_w   = concentric_disc_pdf() * scene_bounds_.inv_radius_sqr;
+        sample.pdf_emit_w   = concentric_disc_pdf() * bsphere_.inv_radius_sqr;
         sample.cos_out      = 1.0f;
 
         sample.radiance = intensity_ / sample.pdf_emit_w;
@@ -211,14 +216,11 @@ public:
         sample.radiance = intensity_;
 
         sample.pdf_direct_w = 1.0f;
-        sample.pdf_emit_w   = concentric_disc_pdf() * scene_bounds_.inv_radius_sqr;
+        sample.pdf_emit_w   = concentric_disc_pdf() * bsphere_.inv_radius_sqr;
         sample.cos_out      = 1.0f;
 
         return sample;
     }
-
-    // You cannot randomly intersect a directional light.
-    virtual float4 radiance(const float3& out_dir, float& pdf_direct_a, float& pdf_emit_w) override { return float4(0.0f); }
 
     virtual bool is_delta() const override { return true; }
     virtual bool is_finite() const override { return false; }
@@ -227,7 +229,7 @@ private:
     float4 intensity_;
     float3 dir_;
     float3 tangent_, binormal_;
-    BoundingSphere scene_bounds_;
+    BSphere bsphere_;
 };
 
 class PointLight : public Light {
@@ -235,10 +237,6 @@ public:
     PointLight(const float3& pos, const float4& intensity)
         : pos_(pos), intensity_(intensity)
     {}
-
-    virtual float4 radiance(const float3& out_dir, float& pdf_direct_a, float& pdf_emit_w) override {
-        return float4(0.0f); // Point lights cannot be hit.
-    }
 
     virtual DirectIllumSample sample_direct(const float3& from, RNG& rng) override {
         float3 dir = pos_ - from;

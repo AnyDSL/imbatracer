@@ -227,7 +227,7 @@ void create_mesh(const obj::File& obj_file, Scene& scene, MtlLightBuffer& mtl_to
 
                         // Create a light source for this emissive object.
                         scene.lights().emplace_back(new TriangleLight(iter->second, p0, p1, p2));
-                        mat->set_light(scene.lights().back().get());
+                        mat->set_emitter(scene.lights().back()->emitter());
                     }
 
                     prev = next;

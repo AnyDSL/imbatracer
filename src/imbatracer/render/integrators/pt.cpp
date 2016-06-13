@@ -85,13 +85,12 @@ void PathTracer::process_primary_rays(RayQueue<PTState>& ray_in, RayQueue<PTStat
 
             const auto isect = calculate_intersection(hits, rays, i);
 
-            if (isect.mat->light()) {
+            if (auto emit = isect.mat->emitter()) {
                 // If a light source is hit after a specular bounce or as the first intersection along the path, add its contribution.
                 // otherwise the light has to be ignored because it was already sampled as direct illumination.
                 if (states[i].bounces == 0 || states[i].last_specular) {
-                    const auto light_source = isect.mat->light();
                     float pdf_direct_a, pdf_emit_w;
-                    const auto li = light_source->radiance(isect.out_dir, pdf_direct_a, pdf_emit_w);
+                    const auto li = emit->radiance(isect.out_dir, isect.geom_normal, pdf_direct_a, pdf_emit_w);
 
                     out.pixels()[states[i].pixel_id] += states[i].throughput * li;
                 }
