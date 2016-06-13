@@ -4,7 +4,6 @@
 namespace imba {
 
 namespace {
-
     inline float fresnel_conductor(float cosi, float eta, float kappa)
     {
         const float ekc = (eta*eta + kappa*kappa) * cosi*cosi;
@@ -27,7 +26,6 @@ namespace {
 
         return (par * par + perp * perp) / 2.f;
     }
-
 }
 
 class Fresnel {

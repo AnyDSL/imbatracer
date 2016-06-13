@@ -119,7 +119,7 @@ protected:
     using BaseType::ray_gen_;
     using BaseType::scene_;
 
-    inline int primary_queue_count(RayGen<StateType>& ray_gen, int queue_size) {
+    static int primary_queue_count(RayGen<StateType>& ray_gen, int queue_size) {
         double size = ray_gen.width() * ray_gen.height() * ray_gen.num_samples() / static_cast<double>(queue_size);
         return std::ceil(size);
     }

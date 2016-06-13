@@ -13,22 +13,22 @@ class Material {
 public:
     Material(const TextureSampler* bump = nullptr,
              const AreaEmitter* emit = nullptr)
-        : emit_(nullptr)
-        , bump_(bump)
+        : bump_(bump)
+        , emit_(emit)
     {}
 
     virtual BSDF* get_bsdf(const Intersection& isect, MemoryArena& mem_arena, bool adjoint = false) const = 0;
 
     /// Associates the material with a light source.
-    inline void set_emitter(const AreaEmitter* e) { emit_ = e; }
+    void set_emitter(const AreaEmitter* e) { emit_.reset(e); }
 
     /// If the material is attached to a light source, this returns the lightsource, otherwise nullptr.
-    inline const AreaEmitter* emitter() { return emit_; }
+    const AreaEmitter* emitter() { return emit_.get(); }
 
     virtual bool is_specular() { return false; }
 
     /// Updates the shading normal of the given intersection using bump mapping.
-    inline void bump(Intersection& isect) {
+    void bump(Intersection& isect) {
         if (!bump_)
             return;
 
@@ -52,8 +52,8 @@ public:
     }
 
 private:
-    const AreaEmitter*    emit_;
     const TextureSampler* bump_;
+    std::unique_ptr<const AreaEmitter> emit_;
 };
 
 /// Very simple material with a lambertian BRDF.

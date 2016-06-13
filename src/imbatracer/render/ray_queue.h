@@ -59,7 +59,7 @@ struct TraversalData {
 /// Stores a set of rays for traversal along with their state.
 template <typename StateType>
 class RayQueue {
-    static inline int align(int v) { return v % traversal_block_size() == 0 ? v : v + traversal_block_size() - v % traversal_block_size(); }
+    static int align(int v) { return v % traversal_block_size() == 0 ? v : v + traversal_block_size() - v % traversal_block_size(); }
 
 public:
     RayQueue() { }
@@ -273,21 +273,21 @@ private:
     static std::unique_ptr<thorin::Array<Hit> > device_hit_buffer;
     static size_t device_buffer_size;
 public:
-    static inline void setup_device_buffer(size_t max_count) {
+    static void setup_device_buffer(size_t max_count) {
         device_ray_buffer.reset(new thorin::Array<Ray>(TRAVERSAL_PLATFORM, TRAVERSAL_DEVICE, align(max_count)));
         device_hit_buffer.reset(new thorin::Array<Hit>(TRAVERSAL_PLATFORM, TRAVERSAL_DEVICE, align(max_count)));
         device_buffer_size = max_count;
     }
 
-    static inline void release_device_buffer() {
+    static void release_device_buffer() {
         device_hit_buffer.reset(nullptr);
         device_ray_buffer.reset(nullptr);
     }
 
 #else
 public:
-    static inline void setup_device_buffer(size_t max_count) {}
-    static inline void release_device_buffer() {}
+    static void setup_device_buffer(size_t max_count) {}
+    static void release_device_buffer() {}
 #endif
 
 private:

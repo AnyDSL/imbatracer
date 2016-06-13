@@ -12,6 +12,12 @@ namespace imba {
 
 /// Utility class to describe a surface that emits light.
 struct AreaEmitter {
+    AreaEmitter() {}
+    AreaEmitter(const float4& i, float a)
+        : intensity(i)
+        , area(a)
+    {}
+
     /// Computes the amount of outgoing radiance from this emitter in a given direction
     float4 radiance(const float3& out_dir, const float3& normal, float& pdf_direct_a, float& pdf_emit_w) const {
         const float cos_theta_o = dot(normal, out_dir);
@@ -70,6 +76,8 @@ public:
         float pdf_direct_a;
     };
 
+    virtual ~Light() {}
+
     /// Samples an outgoing ray from the light source.
     virtual EmitSample sample_emit(RNG& rng) = 0;
 
@@ -81,13 +89,15 @@ public:
 
     virtual bool is_delta() const { return false; }
     virtual bool is_finite() const { return true; }
-
-    virtual ~Light() { }
 };
 
 class TriangleLight : public Light {
 public:
-    TriangleLight(float4 intensity, float3 p0, float3 p1, float3 p2) : p0_(p0), p1_(p1), p2_(p2) {
+    TriangleLight(const float4& intensity,
+                  const float3& p0,
+                  const float3& p1,
+                  const float3& p2)
+        : verts_{p0, p1, p2} {
         emit_.intensity = intensity;
 
         normal_    = cross(p1 - p0, p2 - p0);
@@ -97,7 +107,42 @@ public:
         local_coordinates(normal_, tangent_, binormal_);
     }
 
-    virtual const AreaEmitter* emitter() const override { return &emit_; }
+    virtual EmitSample sample_emit(RNG& rng) override {
+        EmitSample sample;
+
+        // Sample a point on the light source
+        float u, v;
+        sample_uniform_triangle(rng.random_float(), rng.random_float(), u, v);
+        sample.pos = u * verts_[0] + v * verts_[1] + (1.0f - u - v) * verts_[2];
+
+        // Sample an outgoing direction
+        DirectionSample dir_sample = sample_cos_hemisphere(rng.random_float(), rng.random_float());
+        const auto world_dir = dir_sample.dir.x * binormal_ +
+                               dir_sample.dir.y * tangent_ +
+                               dir_sample.dir.z * normal_;
+        const float cos_out = dir_sample.dir.z;
+
+        if (dir_sample.pdf <= 0.0f) {
+            // pdf and cosine are zero! In theory impossible, but happens roughly once in a thousand frames in practice.
+            // To prevent NaNs (cosine and pdf are divided by each other for the MIS weight), set values appropriately.
+            // Numerical inaccuracies also cause this issue if the cosine is almost zero and the division by pi turns the pdf into zero
+            sample.dir = world_dir;
+            sample.radiance = float4(0.0f);
+            sample.cos_out = 0.0f;
+            sample.pdf_emit_w = 1.0f;
+            sample.pdf_direct_a = 1.0f;
+            return sample;
+        }
+
+        sample.dir      = world_dir;
+        sample.radiance = emit_.intensity * emit_.area * pi; // The cosine cancels out with the pdf
+
+        sample.cos_out      = cos_out;
+        sample.pdf_emit_w   = dir_sample.pdf / emit_.area;
+        sample.pdf_direct_a = 1.0f / emit_.area;
+
+        return sample;
+    }
 
     virtual DirectIllumSample sample_direct(const float3& from, RNG& rng) override {
         DirectIllumSample sample;
@@ -105,7 +150,7 @@ public:
         // sample a point on the light source
         float u, v;
         sample_uniform_triangle(rng.random_float(), rng.random_float(), u, v);
-        const float3 pos = u * p0_ + v * p1_ + (1.0f - u - v) * p2_;
+        const float3 pos = u * verts_[0] + v * verts_[1] + (1.0f - u - v) * verts_[2];
 
         // compute distance and shadow ray direction
         sample.dir         = pos - from;
@@ -134,49 +179,12 @@ public:
         return sample;
     }
 
-    virtual EmitSample sample_emit(RNG& rng) override {
-        EmitSample sample;
+    virtual const AreaEmitter* emitter() const override { return &emit_; }
 
-        // Sample a point on the light source
-        float u, v;
-        sample_uniform_triangle(rng.random_float(), rng.random_float(), u, v);
-        sample.pos = u * p0_ + v * p1_ + (1.0f - u - v) * p2_;
-
-        // Sample an outgoing direction
-        DirectionSample dir_sample = sample_cos_hemisphere(rng.random_float(), rng.random_float());
-        const auto world_dir = local_to_world(dir_sample.dir);
-        const float cos_out = dir_sample.dir.z;
-
-        if (dir_sample.pdf <= 0.0f) {
-            // pdf and cosine are zero! In theory impossible, but happens roughly once in a thousand frames in practice.
-            // To prevent NaNs (cosine and pdf are divided by each other for the MIS weight), set values appropriately.
-            // Numerical inaccuracies also cause this issue if the cosine is almost zero and the division by pi turns the pdf into zero
-            sample.dir = world_dir;
-            sample.radiance = float4(0.0f);
-            sample.cos_out = 0.0f;
-            sample.pdf_emit_w = 1.0f;
-            sample.pdf_direct_a = 1.0f;
-            return sample;
-        }
-
-        sample.dir      = world_dir;
-        sample.radiance = emit_.intensity * emit_.area * pi; // The cosine cancels out with the pdf
-
-        sample.cos_out      = cos_out;
-        sample.pdf_emit_w   = dir_sample.pdf / emit_.area;
-        sample.pdf_direct_a = 1.0f / emit_.area;
-
-        return sample;
-    }
+    const float3& vertex(int i) { return verts_[i]; }
 
 private:
-    float3 local_to_world(const float3& dir) const {
-        return float3(binormal_.x * dir.x + tangent_.x * dir.y + normal_.x * dir.z,
-                      binormal_.y * dir.x + tangent_.y * dir.y + normal_.y * dir.z,
-                      binormal_.z * dir.x + tangent_.z * dir.y + normal_.z * dir.z);
-    }
-
-    float3 p0_, p1_, p2_;
+    float3 verts_[3];
     float3 normal_;
     float3 tangent_;
     float3 binormal_;
@@ -238,6 +246,23 @@ public:
         : pos_(pos), intensity_(intensity)
     {}
 
+    virtual EmitSample sample_emit(RNG& rng) override {
+        EmitSample sample;
+
+        sample.pos      = pos_;
+        sample.radiance = intensity_;
+
+        auto dir_sample = sample_uniform_sphere(rng.random_float(), rng.random_float());
+        sample.dir = dir_sample.dir;
+
+        sample.pdf_direct_a = 1.0f;
+        sample.pdf_emit_w   = dir_sample.pdf;
+
+        sample.cos_out = 1.0f; // Points do not have a normal.
+
+        return sample;
+    }
+
     virtual DirectIllumSample sample_direct(const float3& from, RNG& rng) override {
         float3 dir = pos_ - from;
         const float sqdist = dot(dir, dir);
@@ -257,26 +282,7 @@ public:
         return sample;
     }
 
-    virtual EmitSample sample_emit(RNG& rng) override {
-        EmitSample sample;
-
-        sample.pos      = pos_;
-        sample.radiance = intensity_;
-
-        auto dir_sample = sample_uniform_sphere(rng.random_float(), rng.random_float());
-        sample.dir = dir_sample.dir;
-
-        sample.pdf_direct_a = 1.0f;
-        sample.pdf_emit_w   = dir_sample.pdf;
-
-        sample.cos_out = 1.0f; // Points do not have a normal.
-
-        return sample;
-    }
-
-    virtual bool is_delta() const override {
-        return true;
-    }
+    virtual bool is_delta() const override { return true; }
 
 private:
     float4 intensity_;

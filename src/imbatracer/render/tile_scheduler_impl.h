@@ -116,7 +116,7 @@ private:
     std::atomic<int64_t> shadow_traversal_calls;
 #endif
 
-    inline bool acquire_tile(int tile_id, TiledRayGen<StateType>& out) {
+    bool acquire_tile(int tile_id, TiledRayGen<StateType>& out) {
         // Get the next tile and compute its extents
         int tile_pos_x  = (tile_id % tiles_per_row_) * tile_size_;
         int tile_pos_y  = (tile_id / tiles_per_row_) * tile_size_;

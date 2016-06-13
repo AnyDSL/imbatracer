@@ -181,7 +181,7 @@ void convert_materials(const Path& path, const obj::File& obj_file, const obj::M
     scene.upload_mask_buffer(masks);
 }
 
-void create_mesh(const obj::File& obj_file, Scene& scene, MtlLightBuffer& mtl_to_light_intensity) {
+void create_mesh(const obj::File& obj_file, Scene& scene, std::vector<TriangleLight>& tri_lights, MtlLightBuffer& mtl_to_light_intensity) {
     // This function creates a big mesh out of the whole scene.
     scene.meshes().emplace_back();
 
@@ -226,8 +226,8 @@ void create_mesh(const obj::File& obj_file, Scene& scene, MtlLightBuffer& mtl_to
                         auto p2 = obj_file.vertices[face.indices[i+1].v];
 
                         // Create a light source for this emissive object.
-                        scene.lights().emplace_back(new TriangleLight(iter->second, p0, p1, p2));
-                        mat->set_emitter(scene.lights().back()->emitter());
+                        tri_lights.emplace_back(iter->second, p0, p1, p2);
+                        mat->set_emitter(new AreaEmitter(iter->second, Tri(p0, p1, p2).area()));
                     }
 
                     prev = next;
@@ -437,8 +437,10 @@ bool build_scene(const Path& path, Scene& scene, float3& cam_pos, float3& cam_di
     convert_materials(obj_path, obj_file, mtl_lib, scene, mtl_to_light_intensity);
 
     // Create a scene from the OBJ file.
+    std::vector<TriangleLight> tri_lights;
+
     std::cout << "[5/8] Creating scene..." << std::endl;
-    create_mesh(obj_file, scene, mtl_to_light_intensity);
+    create_mesh(obj_file, scene, tri_lights, mtl_to_light_intensity);
 
     // Check for invalid normals
     std::cout << "[6/8] Validating scene..." << std::endl;
@@ -524,10 +526,16 @@ bool build_scene(const Path& path, Scene& scene, float3& cam_pos, float3& cam_di
         m.compute_bounding_box();
     }
 
-    for (int i = 0; i < 1; ++i) {
-        float4x4 mat = float4x4::translation(1.0f * (i), 0.0f, 0.0f);
+    for (int i = 0; i < 2; ++i) {
+        float4x4 mat = float4x4::translation(2.0f * i, 0.0f, 0.0f);
         //float4x4 mat = float4x4::scaling(2.0f, 2.0f, 2.0f);
         scene.instances().emplace_back(0, mat);
+        for (auto& light : tri_lights) {
+            auto p0 = float3(mat * float4(light.vertex(0), 1));
+            auto p1 = float3(mat * float4(light.vertex(1), 1));
+            auto p2 = float3(mat * float4(light.vertex(2), 1));
+            scene.lights().emplace_back(new TriangleLight(light.emitter()->intensity, p0, p1, p2));
+        }
     }
 
     // END TEST

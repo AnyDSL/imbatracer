@@ -28,7 +28,7 @@ protected:
     const Scene& scene_;
     const PerspectiveCamera& cam_;
 
-    inline Intersection calculate_intersection(const Hit* const hits, const Ray* const rays, const int i) const {
+    Intersection calculate_intersection(const Hit* const hits, const Ray* const rays, const int i) const {
         const Mesh::Instance& inst = scene_.instance(hits[i].inst_id);
         const Mesh& mesh = scene_.mesh(inst.id);
 
