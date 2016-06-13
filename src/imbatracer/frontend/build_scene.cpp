@@ -281,7 +281,8 @@ void create_mesh(const obj::File& obj_file, Scene& scene, MtlLightBuffer& mtl_to
         }
     }
 
-    printf("triangles: %d \n", mesh.triangle_count());
+    // TODO: REMOVE
+    // printf("triangles: %d \n", mesh.triangle_count());
 
     auto geom_normals = mesh.attribute<float3>(MeshAttributes::GEOM_NORMALS);
     for (int i = 0; i < mesh.triangle_count(); ++i) {
@@ -385,6 +386,7 @@ bool parse_scene_file(const Path& path, Scene& scene, std::string& obj_filename,
             }
 
             // The BVH filename is the entire remainder of this line (can include whitespace)
+            // TODO: REMOVE
             //std::getline(stream, accel_filename);
             if (!(stream >> accel_filename)) {
                 std::cout << " Error reading the acceleration structure filename" << std::endl;
@@ -441,6 +443,7 @@ bool build_scene(const Path& path, Scene& scene, float3& cam_pos, float3& cam_di
     // Check for invalid normals
     std::cout << "[6/8] Validating scene..." << std::endl;
 
+    // TODO: Do this for each mesh
     /*bool bad_normals = false;
 
     auto& mesh = scene.mesh(0);
@@ -467,6 +470,7 @@ bool build_scene(const Path& path, Scene& scene, float3& cam_pos, float3& cam_di
         return false;
     }*/
 
+    // TODO: REMOVE
     /*scene.texcoords = std::move(ThorinArray<::Vec2>(mesh.vertex_count()));
     {
         auto texcoords = mesh.attribute<float2>(MeshAttributes::TEXCOORDS);
@@ -483,6 +487,7 @@ bool build_scene(const Path& path, Scene& scene, float3& cam_pos, float3& cam_di
     }*/
 
     bool accel_loaded = false;
+    // TODO: Re-implement this
     /*if (accel_filename != "") {
         std::cout << "[7/8] Loading acceleration structure from file..." << std::flush;
 
@@ -529,6 +534,7 @@ bool build_scene(const Path& path, Scene& scene, float3& cam_pos, float3& cam_di
 
     scene.build_top_level_accel();
 
+    // TODO: REMOVE
     // Compute bounding sphere.
     // BBox mesh_bb = BBox::empty();
     // for (size_t i = 0; i < scene.mesh.vertex_count(); i++) {
@@ -542,6 +548,7 @@ bool build_scene(const Path& path, Scene& scene, float3& cam_pos, float3& cam_di
     scene.compute_bounding_sphere();
 
     std::cout << "[8/8] Moving the scene to the device..." << std::flush;
+    // TODO: REMOVE
     // scene.nodes.upload();
     // scene.tris.upload();
     // scene.masks.upload();

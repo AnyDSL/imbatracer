@@ -44,7 +44,7 @@ protected:
         const float3       pos(org + (hits[i].tmax) * out_dir);
         const float3 local_pos(inst.inv_mat * float4(pos, 1));
 
-        // Recompute u & v
+        // Recompute v based on u and local_pos
         const float u = hits[i].u;
         const float3 v0 = float3(mesh.vertices()[i0]);
         const float3 e1 = float3(mesh.vertices()[i1]) - v0;

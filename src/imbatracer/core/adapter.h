@@ -8,8 +8,6 @@
 
 #include "mesh.h"
 
-#define STATISTICS
-
 namespace imba {
 
 class MeshAdapter {

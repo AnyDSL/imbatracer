@@ -1,7 +1,7 @@
 # Configure traversal platform
 if(BACKEND STREQUAL "cpu" OR BACKEND STREQUAL "avx")
   add_definitions(-DCPU_TRAVERSAL)
-  list(APPEND CORE_SRCS core/cpu_adapter.cpp core/cpu_tl_adapter.cpp)
+  list(APPEND CORE_SRCS core/cpu_adapter.cpp)
   #set(LOADER_SRCS loaders/load_mbvh.cpp)
 elseif(BACKEND STREQUAL "nvvm" OR BACKEND STREQUAL "cuda" OR BACKEND STREQUAL "gpu")
   add_definitions(-DGPU_TRAVERSAL)
