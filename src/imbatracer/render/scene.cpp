@@ -32,7 +32,9 @@ void Scene::build_mesh_accels() {
     for (auto& mesh : meshes_) {
         layout_.push_back(nodes_.size());
         adapter->build_accel(mesh);
+#ifndef NDEBUG
         adapter->print_stats();
+#endif
     }
 }
 

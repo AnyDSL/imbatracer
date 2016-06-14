@@ -181,11 +181,11 @@ void convert_materials(const Path& path, const obj::File& obj_file, const obj::M
     scene.upload_mask_buffer(masks);
 }
 
-void create_mesh(const obj::File& obj_file, Scene& scene, std::vector<TriangleLight>& tri_lights, MtlLightBuffer& mtl_to_light_intensity) {
+void create_mesh(const obj::File& obj_file, Scene& scene, std::vector<TriangleLight>& tri_lights, MtlLightBuffer& mtl_to_light_intensity, int mtl_offset) {
     // This function creates a big mesh out of the whole scene.
     scene.meshes().emplace_back();
 
-    auto& mesh = scene.mesh(0);
+    auto& mesh = scene.meshes().back();
 
     // Add attributes for texture coordinates and normals
     mesh.add_attribute(Mesh::AttributeType::FLOAT2);
@@ -215,11 +215,12 @@ void create_mesh(const obj::File& obj_file, Scene& scene, std::vector<TriangleLi
                 int prev = mapping[face.indices[1]];
                 for (int i = 1; i < face.index_count - 1; i++) {
                     const int next = mapping[face.indices[i + 1]];
-                    triangles.emplace_back(v0, prev, next, face.material);
+                    int mtl_idx = face.material + mtl_offset;
+                    triangles.emplace_back(v0, prev, next, mtl_idx);
 
-                    auto iter = mtl_to_light_intensity.find(face.material);
+                    auto iter = mtl_to_light_intensity.find(mtl_idx);
                     if (iter != mtl_to_light_intensity.end()) {
-                        auto mat = scene.material(face.material).get();
+                        auto mat = scene.material(mtl_idx).get();
 
                         auto p0 = obj_file.vertices[face.indices[0].v];
                         auto p1 = obj_file.vertices[face.indices[i].v];
@@ -281,9 +282,6 @@ void create_mesh(const obj::File& obj_file, Scene& scene, std::vector<TriangleLi
         }
     }
 
-    // TODO: REMOVE
-    // printf("triangles: %d \n", mesh.triangle_count());
-
     auto geom_normals = mesh.attribute<float3>(MeshAttributes::GEOM_NORMALS);
     for (int i = 0; i < mesh.triangle_count(); ++i) {
         auto t = mesh.triangle(i);
@@ -291,7 +289,17 @@ void create_mesh(const obj::File& obj_file, Scene& scene, std::vector<TriangleLi
     }
 }
 
-bool parse_scene_file(const Path& path, Scene& scene, std::string& obj_filename, float3& cam_pos, float3& cam_dir, float3& cam_up, std::string& accel_filename) {
+struct SceneInfo {
+    std::vector<std::string> mesh_filenames;
+    float3 cam_pos;
+    float3 cam_dir;
+    float3 cam_up;
+};
+
+/// Loads the scene from a file.
+/// Light sources and instances are written to the scene file directly.
+/// Everything else is stored in the SceneInfo structure.
+bool parse_scene_file(const Path& path, Scene& scene, SceneInfo& info) {
     std::ifstream stream(path);
 
     std::string cmd;
@@ -301,46 +309,46 @@ bool parse_scene_file(const Path& path, Scene& scene, std::string& obj_filename,
     bool up_given = false;
 
     while (stream >> cmd) {
+        UGLY_HACK:
         if (cmd[0] == '#') {
             // Ignore comments
             stream.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
         }
         if (cmd == "pos") {
-            if (!(stream >> cam_pos.x) ||
-                !(stream >> cam_pos.y) ||
-                !(stream >> cam_pos.z)) {
-                std::cout << " Unexpected EOF in camera position" << std::endl;
+            if (!(stream >> info.cam_pos.x) ||
+                !(stream >> info.cam_pos.y) ||
+                !(stream >> info.cam_pos.z)) {
+                std::cout << " Unexpected EOF in camera position." << std::endl;
                 return false;
             }
             pos_given = true;
         } else if (cmd == "dir") {
-            if (!(stream >> cam_dir.x) ||
-                !(stream >> cam_dir.y) ||
-                !(stream >> cam_dir.z)) {
-                std::cout << " Unexpected EOF in camera direction" << std::endl;
+            if (!(stream >> info.cam_dir.x) ||
+                !(stream >> info.cam_dir.y) ||
+                !(stream >> info.cam_dir.z)) {
+                std::cout << " Unexpected EOF in camera direction." << std::endl;
                 return false;
             }
             dir_given = true;
         } else if (cmd == "up") {
-            if (!(stream >> cam_up.x) ||
-                !(stream >> cam_up.y) ||
-                !(stream >> cam_up.z)) {
-                std::cout << " Unexpected EOF in camera up vector" << std::endl;
+            if (!(stream >> info.cam_up.x) ||
+                !(stream >> info.cam_up.y) ||
+                !(stream >> info.cam_up.z)) {
+                std::cout << " Unexpected EOF in camera up vector." << std::endl;
                 return false;
             }
             up_given = true;
         } else if (cmd == "mesh") {
-            if (obj_filename != "") {
-                std::cout << " Multiple .obj files in one scene are not supported yet." << std::endl;
+            info.mesh_filenames.emplace_back();
+
+            // Mesh file is the entire remainder of this line (can include whitespace)
+            if (!(stream >> info.mesh_filenames.back())) {
+                std::cout << " Error reading the obj filename." << std::endl;
                 return false;
             }
 
-            // Mesh file is the entire remainder of this line (can include whitespace)
-            //std::getline(stream, obj_filename);
-            if (!(stream >> obj_filename)) {
-                std::cout << " Error reading the obj filename" << std::endl;
-                return false;
-            }
+            // Mesh file paths are relative to the scene file.
+            info.mesh_filenames.back() = path.base_name() + '/' + info.mesh_filenames.back();
         } else if (cmd == "dir_light") {
             float3 dir;
             float3 intensity;
@@ -348,14 +356,14 @@ bool parse_scene_file(const Path& path, Scene& scene, std::string& obj_filename,
             if (!(stream >> dir.x) ||
                 !(stream >> dir.y) ||
                 !(stream >> dir.z)) {
-                std::cout << " Unexpected EOF in directional light direction" << std::endl;
+                std::cout << " Unexpected EOF in directional light direction." << std::endl;
                 return false;
             }
 
             if (!(stream >> intensity.x) ||
                 !(stream >> intensity.y) ||
                 !(stream >> intensity.z)) {
-                std::cout << " Unexpected EOF in directional light intensity" << std::endl;
+                std::cout << " Unexpected EOF in directional light intensity." << std::endl;
                 return false;
             }
 
@@ -367,203 +375,191 @@ bool parse_scene_file(const Path& path, Scene& scene, std::string& obj_filename,
             if (!(stream >> pos.x) ||
                 !(stream >> pos.y) ||
                 !(stream >> pos.z)) {
-                std::cout << " Unexpected EOF in point light position" << std::endl;
+                std::cout << " Unexpected EOF in point light position." << std::endl;
                 return false;
             }
 
             if (!(stream >> intensity.x) ||
                 !(stream >> intensity.y) ||
                 !(stream >> intensity.z)) {
-                std::cout << " Unexpected EOF in point light intensity" << std::endl;
+                std::cout << " Unexpected EOF in point light intensity." << std::endl;
                 return false;
             }
 
             scene.lights().emplace_back(new PointLight(pos, float4(intensity, 1.0f)));
-        } else if (cmd == "accel") {
-            if (accel_filename != "") {
-                std::cout << " Multiple acceleration structure files in one scene are not supported." << std::endl;
+        } else if (cmd == "instance") {
+            // Read the mesh index.
+            int idx;
+            if (!(stream >> idx)) {
+                std::cout << " Unexpected EOF in instance." << std::endl;
                 return false;
             }
 
-            // The BVH filename is the entire remainder of this line (can include whitespace)
-            // TODO: REMOVE
-            //std::getline(stream, accel_filename);
-            if (!(stream >> accel_filename)) {
-                std::cout << " Error reading the acceleration structure filename" << std::endl;
-                return false;
+            // The next lines specify the position, scale and rotation.
+            int flags = 0;
+            float3 pos(0.0f);
+            float3 scale(1.0f);
+            float3 euler(0.0f);
+            while (flags != 7 && stream >> cmd) {
+                if (cmd == "pos" && !(flags & 1)) {
+                    if (!(stream >> pos.x) ||
+                        !(stream >> pos.y) ||
+                        !(stream >> pos.z)) {
+                        std::cout << " Unexpected EOF in instance position." << std::endl;
+                        return false;
+                    }
+                    flags |= 1;
+                } else if (cmd == "scale" && !(flags & 2)) {
+                    if (!(stream >> scale.x) ||
+                        !(stream >> scale.y) ||
+                        !(stream >> scale.z)) {
+                        std::cout << " Unexpected EOF in instance scaling." << std::endl;
+                        return false;
+                    }
+                    flags |= 2;
+                } else if (cmd == "rot" && !(flags & 4)) {
+                    if (!(stream >> euler.x) ||
+                        !(stream >> euler.y) ||
+                        !(stream >> euler.z)) {
+                        std::cout << " Unexpected EOF in instance rotation." << std::endl;
+                        return false;
+                    }
+
+                    // Convert degree to radians
+                    euler.x = radians(euler.x);
+                    euler.y = radians(euler.y);
+                    euler.z = radians(euler.z);
+
+                    flags |= 4;
+                } else
+                    // Stop at the first unknown or duplicated command. Not all attributes have to be specified.
+                    break;
             }
+
+            std::cout << "instance: " << idx << " " << pos.x << "," << pos.y << "," << pos.z << ","
+                      << scale.x << "," << scale.x << "," << scale.x << ","
+                      << euler.x << "," << euler.x << "," << euler.x << "  " << flags << std::endl;
+
+            float4x4 mat = float4x4::translation(pos) * float4x4::euler(euler) * float4x4::scaling(scale);
+
+            scene.instances().emplace_back(idx, mat);
+            goto UGLY_HACK;
         }
     }
 
-    return obj_filename != "" && pos_given && dir_given && up_given;
+    // Validate the scene attributes.
+    if (!pos_given || !dir_given || !up_given) {
+        std::cout << " Camera settings not specified." << std::endl;
+        return false;
+    } else if (info.mesh_filenames.size() == 0) {
+        std::cout << " No meshes specified." << std::endl;
+        return false;
+    }
+
+    if (scene.instances().size() == 0) {
+        // No instances were specified. Add an identity instance for every mesh.
+        for (int i = 0; i < info.mesh_filenames.size(); ++i)
+            scene.instances().emplace_back(i, float4x4::identity());
+    }
+
+    return true;
 }
 
 bool build_scene(const Path& path, Scene& scene, float3& cam_pos, float3& cam_dir, float3& cam_up) {
-    std::string obj_filename;
-    std::string accel_filename;
-    std::cout << "[1/8] Parsing Scene File..." << std::flush;
-    if (!parse_scene_file(path, scene, obj_filename, cam_pos, cam_dir, cam_up, accel_filename)) {
+    SceneInfo scene_info;
+    std::cout << "[1/5] Parsing Scene File..." << std::flush;
+    if (!parse_scene_file(path, scene, scene_info)) {
         std::cout << " FAILED" << std::endl;
         return false;
     }
+    cam_pos = scene_info.cam_pos;
+    cam_dir = scene_info.cam_dir;
+    cam_up  = scene_info.cam_up;
     std::cout << std::endl;
 
-    Path obj_path(path.base_name() + '/' + obj_filename);
-    obj::File obj_file;
+    std::cout << "[2/5] Loading mesh files..." << std::endl;
+    std::vector<std::vector<TriangleLight> > tri_lights;
+    for (int i = 0; i < scene_info.mesh_filenames.size(); ++i) {
+        std::cout << " Mesh " << i + 1 << " of " << scene_info.mesh_filenames.size() << "..." << std::endl;
 
-    std::cout << "[2/8] Loading OBJ..." << std::flush;
-    if (!load_obj(obj_path, obj_file)) {
-        std::cout << " FAILED" << std::endl;
-        return false;
-    }
-    std::cout << std::endl;
-
-    obj::MaterialLib mtl_lib;
-
-    // Parse the associated MTL files
-    std::cout << "[3/8] Loading MTLs..." << std::flush;
-    for (auto& lib : obj_file.mtl_libs) {
-        if (!load_mtl(obj_path.base_name() + "/" + lib, mtl_lib)) {
-            std::cout << " FAILED" << std::endl;
+        Path obj_path(scene_info.mesh_filenames[i]);
+        obj::File obj_file;
+        if (!load_obj(obj_path, obj_file)) {
+            std::cout << " FAILED loading obj" << std::endl;
             return false;
         }
-    }
-    std::cout << std::endl;
 
-    // Store the light intensities read from the materials. Used to create the actual light sources once the geometry is known.
-    MtlLightBuffer mtl_to_light_intensity;
+        obj::MaterialLib mtl_lib;
 
-    std::cout << "[4/8] Converting materials..." << std::endl;
-    convert_materials(obj_path, obj_file, mtl_lib, scene, mtl_to_light_intensity);
-
-    // Create a scene from the OBJ file.
-    std::vector<TriangleLight> tri_lights;
-
-    std::cout << "[5/8] Creating scene..." << std::endl;
-    create_mesh(obj_file, scene, tri_lights, mtl_to_light_intensity);
-
-    // Check for invalid normals
-    std::cout << "[6/8] Validating scene..." << std::endl;
-
-    // TODO: Do this for each mesh
-    /*bool bad_normals = false;
-
-    auto& mesh = scene.mesh(0);
-    auto normals = mesh.attribute<float3>(MeshAttributes::NORMALS);
-    for (int i = 0; i < mesh.vertex_count(); i++) {
-        auto& n = normals[i];
-        if (isnan(n.x) || isnan(n.y) || isnan(n.z)) {
-            n.x = 0;
-            n.y = 1;
-            n.z = 0;
-            bad_normals = true;
+        // Parse the associated MTL files
+        for (auto& lib : obj_file.mtl_libs) {
+            if (!load_mtl(obj_path.base_name() + "/" + lib, mtl_lib)) {
+                std::cout << " FAILED loading materials" << std::endl;
+                return false;
+            }
         }
+
+        MtlLightBuffer mtl_to_light_intensity;
+        int mtl_offset = scene.materials().size();
+        convert_materials(obj_path, obj_file, mtl_lib, scene, mtl_to_light_intensity);
+
+        tri_lights.emplace_back();
+        create_mesh(obj_file, scene, tri_lights.back(), mtl_to_light_intensity, mtl_offset);
+
+        std::cout << "  validating..." << std::flush;
+
+        bool bad_normals = false;
+
+        auto& mesh = scene.meshes().back();
+        auto normals = mesh.attribute<float3>(MeshAttributes::NORMALS);
+        for (int i = 0; i < mesh.vertex_count(); i++) {
+            auto& n = normals[i];
+            if (isnan(n.x) || isnan(n.y) || isnan(n.z)) {
+                n.x = 0;
+                n.y = 1;
+                n.z = 0;
+                bad_normals = true;
+            }
+        }
+
+        if (bad_normals) std::cout << "  Normals containing invalid values have been replaced" << std::endl;
+
+        if (mesh.triangle_count() == 0) {
+            std::cout << " There is no triangle in the mesh." << std::endl;
+            return false;
+        }
+
+        std::cout << " done." << std::endl;
     }
 
-    if (bad_normals) std::cout << "  Normals containing invalid values have been replaced" << std::endl;
+    std::cout << "[3/5] Instancing light sources..." << std::endl;
 
-    if (mesh.triangle_count() == 0) {
-        std::cout << " There is no triangle in the scene." << std::endl;
-        return false;
+    for (auto& inst : scene.instances()) {
+        // Copy the triangle lights if there are any.
+        for (auto& light : tri_lights[inst.id]) {
+            auto p0 = float3(inst.mat * float4(light.vertex(0), 1));
+            auto p1 = float3(inst.mat * float4(light.vertex(1), 1));
+            auto p2 = float3(inst.mat * float4(light.vertex(2), 1));
+            scene.lights().emplace_back(new TriangleLight(light.emitter()->intensity, p0, p1, p2));
+        }
     }
 
     if (scene.lights().empty()) {
-        std::cout << "  There are no lights in the scene." << std::endl;
+        std::cout << "  ERROR: There are no lights in the scene." << std::endl;
         return false;
-    }*/
-
-    // TODO: REMOVE
-    /*scene.texcoords = std::move(ThorinArray<::Vec2>(mesh.vertex_count()));
-    {
-        auto texcoords = mesh.attribute<float2>(MeshAttributes::TEXCOORDS);
-        for (int i = 0; i < mesh.vertex_count(); i++) {
-            scene.texcoords[i].x = texcoords[i].x;
-            scene.texcoords[i].y = texcoords[i].y;
-        }
     }
 
-    scene.indices = std::move(ThorinArray<int>(mesh.index_count()));
-    {
-        for (int i = 0; i < mesh.index_count(); i++)
-            scene.indices[i] = mesh.indices()[i];
-    }*/
-
-    bool accel_loaded = false;
-    // TODO: Re-implement this
-    /*if (accel_filename != "") {
-        std::cout << "[7/8] Loading acceleration structure from file..." << std::flush;
-
-        auto accel_path = path.base_name() + '/' + accel_filename;
-
-        if (!load_accel(accel_path, scene.nodes, scene.tris))
-            std::cout << " FAILED. Rebuilding..." << std::endl;
-        else {
-            accel_loaded = true;
-            std::cout << std::endl;
-        }
-    }*/
-
-    // If no bvh file was specified, or loading has failed, build a new one.
-    //if (!accel_loaded) {
-        std::cout << "[7/8] Building acceleration structure..." << std::endl;
-
-//         std::vector<::Node> nodes;
-//         std::vector<::Vec4> tris;
-//         std::unique_ptr<Adapter> adapter = new_adapter(nodes, tris);
-//         adapter->build_accel(scene.mesh);
-// #ifdef STATISTICS
-//         std::cout << "  "; adapter->print_stats();
-// #endif
-//         scene.nodes = nodes;
-//         scene.tris = tris;
-//     }
-
-    scene.build_mesh_accels();
-
-    // TEST
+    std::cout << "[4/5] Building acceleration structure..." << std::endl;
 
     for (auto& m : scene.meshes()) {
         m.compute_bounding_box();
     }
 
-    for (int i = 0; i < 2; ++i) {
-        float4x4 mat = float4x4::translation(2.0f * i, 0.0f, 0.0f);
-        //float4x4 mat = float4x4::scaling(2.0f, 2.0f, 2.0f);
-        scene.instances().emplace_back(0, mat);
-        for (auto& light : tri_lights) {
-            auto p0 = float3(mat * float4(light.vertex(0), 1));
-            auto p1 = float3(mat * float4(light.vertex(1), 1));
-            auto p2 = float3(mat * float4(light.vertex(2), 1));
-            scene.lights().emplace_back(new TriangleLight(light.emitter()->intensity, p0, p1, p2));
-        }
-    }
-
-    // END TEST
-
+    scene.build_mesh_accels();
     scene.build_top_level_accel();
-
-    // TODO: REMOVE
-    // Compute bounding sphere.
-    // BBox mesh_bb = BBox::empty();
-    // for (size_t i = 0; i < scene.mesh.vertex_count(); i++) {
-    //     const float3 v(scene.mesh.vertices()[i]);
-    //     mesh_bb.extend(v);
-    // }
-    // const float radius = length(mesh_bb.max - mesh_bb.min) * 0.5f;
-    // scene.sphere.inv_radius_sqr = 1.0f / sqr(radius);
-    // scene.sphere.radius = radius;
-    // scene.sphere.center = (mesh_bb.max + mesh_bb.min) * 0.5f;
     scene.compute_bounding_sphere();
 
-    std::cout << "[8/8] Moving the scene to the device..." << std::flush;
-    // TODO: REMOVE
-    // scene.nodes.upload();
-    // scene.tris.upload();
-    // scene.masks.upload();
-    // scene.mask_buffer.upload();
-    // scene.indices.upload();
-    // scene.texcoords.upload();
-
+    std::cout << "[5/5] Moving the scene to the device..." << std::flush;
     scene.upload_mesh_accels();
     scene.upload_top_level_accel();
 

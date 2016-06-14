@@ -54,11 +54,46 @@ struct float4x4 {
                         float4(0.0f, 0.0f, 0.0f, 1.0f));
     }
 
+    static float4x4 scaling(const float3& v) {
+        return scaling(v.x, v.y, v.z);
+    }
+
     static float4x4 translation(float x, float y, float z) {
         return float4x4(float4(1.0f, 0.0f, 0.0f,    x),
                         float4(0.0f, 1.0f, 0.0f,    y),
                         float4(0.0f, 0.0f, 1.0f,    z),
                         float4(0.0f, 0.0f, 0.0f, 1.0f));
+    }
+
+    static float4x4 translation(const float3& v) {
+        return translation(v.x, v.y, v.z);
+    }
+
+    static float4x4 rotate_x(float angle) {
+        return float4x4(float4(1.0f,         0.0f,        0.0f, 0.0f),
+                        float4(0.0f,  cosf(angle), sinf(angle), 0.0f),
+                        float4(0.0f, -sinf(angle), cosf(angle), 0.0f),
+                        float4(0.0f,         0.0f,        0.0f, 1.0f));
+    }
+
+    static float4x4 rotate_y(float angle) {
+        return float4x4(float4(cosf(angle), 0.0f, -sinf(angle), 0.0f),
+                        float4(       0.0f, 1.0f,         0.0f, 0.0f),
+                        float4(sinf(angle), 0.0f,  cosf(angle), 0.0f),
+                        float4(       0.0f, 0.0f,         0.0f, 1.0f));
+    }
+
+    static float4x4 rotate_z(float angle) {
+        return float4x4(float4( cosf(angle), sinf(angle), 0.0f, 0.0f),
+                        float4(-sinf(angle), cosf(angle), 0.0f, 0.0f),
+                        float4(        0.0f,        0.0f, 1.0f, 0.0f),
+                        float4(        0.0f,        0.0f, 0.0f, 1.0f));
+    }
+
+    static float4x4 euler(float x, float y, float z);
+
+    static float4x4 euler(const float3& v) {
+        return euler(v.x, v.y, v.z);
     }
 };
 
@@ -181,6 +216,10 @@ inline float3 transform_point(const float4x4& a, const float3& b) {
 inline float3 transform_vector(const float4x4& a, const float3& b) {
     const float4 t = a * float4(b, 0.0f);
     return float3(t.x, t.y, t.z);
+}
+
+inline float4x4 float4x4::euler(float x, float y, float z) {
+    return rotate_x(x) * rotate_y(y) * rotate_z(z);
 }
 
 }
