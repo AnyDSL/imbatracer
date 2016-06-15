@@ -79,6 +79,8 @@ private:
                 nodes[i].max_x[j] = -FLT_MAX;
                 nodes[i].max_y[j] = -FLT_MAX;
                 nodes[i].max_z[j] = -FLT_MAX;
+
+                nodes[i].children[j] = 0;
             }
         }
     };
@@ -206,11 +208,13 @@ public:
         std::vector<BBox> bounds(instances.size());
         std::vector<float3> centers(instances.size());
         for (int i = 0; i < instances.size(); ++i) {
-            bounds[i] = meshes[instances[i].id].bounding_box();
-            bounds[i].min = transform_point(instances[i].mat, bounds[i].min);
-            bounds[i].max = transform_point(instances[i].mat, bounds[i].max);
+            auto bb = meshes[instances[i].id].bounding_box();
 
-            centers[i] = (bounds[i].min + bounds[i].max) * 0.5f;
+            centers[i] = transform_point (instances[i].mat, (bb.max + bb.min) * 0.5f);
+            float3 abs_ext = transform_vector(abs(instances[i].mat), (bb.max - bb.min) * 0.5f);
+
+            bounds[i].min = centers[i] - abs_ext;
+            bounds[i].max = centers[i] + abs_ext;
         }
 
         // Build the acceleration structure.

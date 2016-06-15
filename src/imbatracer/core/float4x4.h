@@ -114,6 +114,10 @@ inline float determinant(const float4x4& a) {
     return det;
 }
 
+inline float4x4 abs(const float4x4& a) {
+    return float4x4(abs(a[0]), abs(a[1]), abs(a[2]), abs(a[3]));
+}
+
 inline float4x4 transpose(const float4x4& a) {
     return float4x4(a.col(0), a.col(1), a.col(2), a.col(3));
 }

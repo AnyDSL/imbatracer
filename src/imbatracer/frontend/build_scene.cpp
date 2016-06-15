@@ -436,10 +436,6 @@ bool parse_scene_file(const Path& path, Scene& scene, SceneInfo& info) {
                     break;
             }
 
-            std::cout << "instance: " << idx << " " << pos.x << "," << pos.y << "," << pos.z << ","
-                      << scale.x << "," << scale.x << "," << scale.x << ","
-                      << euler.x << "," << euler.x << "," << euler.x << "  " << flags << std::endl;
-
             float4x4 mat = float4x4::translation(pos) * float4x4::euler(euler) * float4x4::scaling(scale);
 
             scene.instances().emplace_back(idx, mat);
