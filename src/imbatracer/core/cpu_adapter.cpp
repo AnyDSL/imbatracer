@@ -200,7 +200,8 @@ public:
 
     virtual void build_accel(const std::vector<Mesh>& meshes,
                              const std::vector<Mesh::Instance>& instances,
-                             const std::vector<int>& layout) override {
+                             const std::vector<int>& layout,
+                             int root_offset) override {
         // Copy the bounding boxes and centers of all meshes into an array.
         std::vector<BBox> bounds(instances.size());
         std::vector<float3> centers(instances.size());
@@ -214,7 +215,7 @@ public:
 
         // Build the acceleration structure.
         builder_.build(bounds.data(), centers.data(), instances.size(),
-            NodeWriter(this, meshes, instances, layout),
+            NodeWriter(this, meshes, instances, layout, root_offset),
             LeafWriter(this, meshes, instances, layout), 1);
     }
 
@@ -239,10 +240,11 @@ private:
         const std::vector<Mesh>& meshes;
         const std::vector<Mesh::Instance>& instances;
         const std::vector<int>& layout;
+        const int root_offset;
 
         NodeWriter(CpuTopLevelAdapter* adapter, const std::vector<Mesh>& meshes,
-            const std::vector<Mesh::Instance>& instances, const std::vector<int>& layout)
-            : adapter(adapter), meshes(meshes), instances(instances), layout(layout)
+            const std::vector<Mesh::Instance>& instances, const std::vector<int>& layout, int root_offset)
+            : adapter(adapter), meshes(meshes), instances(instances), layout(layout), root_offset(root_offset)
         {}
 
         template <typename BBoxFn>
@@ -255,7 +257,7 @@ private:
 
             if (!stack.empty()) {
                 StackElem elem = stack.pop();
-                nodes[elem.parent].children[elem.child] = i;
+                nodes[elem.parent].children[elem.child] = i + root_offset;
             }
 
             assert(count >= 2 && count <= 4);

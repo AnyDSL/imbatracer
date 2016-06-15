@@ -18,3 +18,97 @@ rot 0 45 0
 instance 0
 pos 5 0 -8
 scale 20 10 20
+
+
+
+
+
+instance 2
+pos 2.5 0 -10
+scale 0.5 0.5 0.5
+rot 0 45 0
+
+instance 2
+pos 2.5 0 -8
+scale 0.5 0.5 0.5
+rot 0 45 0
+
+instance 2
+pos 2.5 0 -6
+scale 0.5 0.5 0.5
+rot 0 45 0
+
+instance 2
+pos 2.5 0 -4
+scale 0.5 0.5 0.5
+rot 0 45 0
+
+instance 2
+pos 2.5 0 -2
+scale 0.5 0.5 0.5
+rot 0 45 0
+
+instance 2
+pos 2.5 0 0
+scale 0.5 0.5 0.5
+rot 0 45 0
+
+instance 2
+pos 2.5 0 2
+scale 0.5 0.5 0.5
+rot 0 45 0
+
+instance 2
+pos 2.5 0 4
+scale 0.5 0.5 0.5
+rot 0 45 0
+
+instance 2
+pos 2.5 0 6
+scale 0.5 0.5 0.5
+rot 0 45 0
+
+instance 2
+pos 2.5 0 8
+scale 0.5 0.5 0.5
+rot 0 45 0
+
+instance 2
+pos 2.5 0 10
+scale 0.5 0.5 0.5
+rot 0 45 0
+
+instance 2
+pos 2.5 0 12
+scale 0.5 0.5 0.5
+rot 0 45 0
+
+instance 2
+pos 2.5 0 14
+scale 0.5 0.5 0.5
+rot 0 45 0
+
+instance 2
+pos 2.5 0 16
+scale 0.5 0.5 0.5
+rot 0 45 0
+
+instance 2
+pos 2.5 0 18
+scale 0.5 0.5 0.5
+rot 0 45 0
+
+instance 2
+pos 2.5 0 20
+scale 0.5 0.5 0.5
+rot 0 45 0
+
+instance 2
+pos 2.5 0 22
+scale 0.5 0.5 0.5
+rot 0 45 0
+
+instance 2
+pos 2.5 0 24
+scale 0.5 0.5 0.5
+rot 0 45 0

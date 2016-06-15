@@ -55,7 +55,7 @@ protected:
         const auto normals      = mesh.attribute<float3>(MeshAttributes::NORMALS);
         const auto geom_normals = mesh.attribute<float3>(MeshAttributes::GEOM_NORMALS);
 
-        const float2 uv_coords   = lerp(texcoords[i0], texcoords[i1], texcoords[i2], u, v);
+        const float2 uv_coords    = lerp(texcoords[i0], texcoords[i1], texcoords[i2], u, v);
         const float4 local_normal = float4(lerp(normals[i0], normals[i1], normals[i2], u, v), 0.0f);
         const float3 normal       = normalize(float3(local_normal * inst.inv_mat));
         const float3 geom_normal  = normalize(float3(float4(geom_normals[hits[i].tri_id], 0) * inst.inv_mat));;

@@ -44,7 +44,7 @@ void Scene::build_top_level_accel() {
     top_nodes_.clear();
 
     auto adapter = new_top_level_adapter(top_nodes_, instance_nodes_);
-    adapter->build_accel(meshes_, instances_, layout_);
+    adapter->build_accel(meshes_, instances_, layout_, nodes_.size());
 
     // Copy the root node to the beginning of the nodes array.
     nodes_[0] = top_nodes_[0];
