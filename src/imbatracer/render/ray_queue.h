@@ -7,6 +7,7 @@
 #include <cassert>
 #include <atomic>
 #include <mutex>
+#include <memory>
 
 #include <thorin_runtime.hpp>
 #include <traversal.h>
@@ -27,8 +28,8 @@ struct RayState {
 
 #define TRAVERSAL_DEVICE    thorin::Device(0)
 #define TRAVERSAL_PLATFORM  thorin::Platform::CUDA
-#define TRAVERSAL_INTERSECT intersect_gpu_masked
-#define TRAVERSAL_OCCLUDED  occluded_gpu_masked
+#define TRAVERSAL_INTERSECT intersect_gpu_instanced
+#define TRAVERSAL_OCCLUDED  occluded_gpu_instanced
 
 // Do not allow running multiple traversal instances at the same time on the GPU.
 static std::mutex traversal_mutex;
@@ -40,8 +41,8 @@ static constexpr int traversal_block_size() { return 8; }
 
 #define TRAVERSAL_DEVICE    thorin::Device(0)
 #define TRAVERSAL_PLATFORM  thorin::Platform::HOST
-#define TRAVERSAL_INTERSECT intersect_cpu_instanced//_masked
-#define TRAVERSAL_OCCLUDED  occluded_cpu_instanced//_masked
+#define TRAVERSAL_INTERSECT intersect_cpu_instanced
+#define TRAVERSAL_OCCLUDED  occluded_cpu_instanced
 
 #endif
 
@@ -165,13 +166,14 @@ public:
             thorin::copy(ray_buffer_, *device_ray_buffer.get(), size());
 
             TRAVERSAL_INTERSECT(data.nodes.data(),
+                                data.instances.data(),
                                 data.tris.data(),
                                 device_ray_buffer->data(),
                                 device_hit_buffer->data(),
-                                data.indices.data(),
-                                data.texcoords.data(),
-                                data.masks.data(),
-                                data.mask_buffer.data(),
+                                // data.indices.data(),
+                                // data.texcoords.data(),
+                                // data.masks.data(),
+                                // data.mask_buffer.data(),
                                 count);
 
             thorin::copy(*device_hit_buffer.get(), hit_buffer_, size());
@@ -182,7 +184,7 @@ public:
                             data.tris.data(),
                             ray_buffer_.data(),
                             hit_buffer_.data(),
-                            //data.indices.data(),
+                            // data.indices.data(),
                             // data.texcoords.data(),
                             // data.masks.data(),
                             // data.mask_buffer.data(),
@@ -203,13 +205,14 @@ public:
             thorin::copy(ray_buffer_, *device_ray_buffer.get(), size());
 
             TRAVERSAL_OCCLUDED(data.nodes.data(),
+                               data.instances.data(),
                                data.tris.data(),
                                device_ray_buffer->data(),
                                device_hit_buffer->data(),
-                               data.indices.data(),
-                               data.texcoords.data(),
-                               data.masks.data(),
-                               data.mask_buffer.data(),
+                               // data.indices.data(),
+                               // data.texcoords.data(),
+                               // data.masks.data(),
+                               // data.mask_buffer.data(),
                                count);
 
             thorin::copy(*device_hit_buffer.get(), hit_buffer_, size());
@@ -227,44 +230,6 @@ public:
                            count);
 #endif
     }
-
-    // Traverses all queues within a range of queue pointers at once.
-//     template<typename QIter>
-//     static void traverse_occluded_multi(QIter first, QIter last, const TraversalData& c_data) {
-//         // ASSUMES GPU TRAVERSAL + QUEUE SCHEDULER!
-// #ifdef GPU_TRAVERSAL
-//         // Copy all rays to the device.
-//         size_t offset = 0;
-//         for (QIter it = first; it != last; ++it) {
-//             thorin::copy((*it)->ray_buffer_, 0, *device_ray_buffer.get(), offset, (*it)->size());
-//             offset += (*it)->size();
-//         }
-
-//         if (offset == 0) // All queues were empty.
-//             return;
-
-//         TraversalData& data = const_cast<TraversalData&>(c_data);
-
-//         printf("traversing shadow rays: %d\n", offset);
-
-//         TRAVERSAL_OCCLUDED(data.nodes.data(),
-//                            data.tris.data(),
-//                            device_ray_buffer->data(),
-//                            device_hit_buffer->data(),
-//                            data.indices.data(),
-//                            data.texcoords.data(),
-//                            data.masks.data(),
-//                            data.mask_buffer.data(),
-//                            align(offset));
-
-//         // Copy the hits back into the individual queues.
-//         offset = 0;
-//         for (QIter it = first; it != last; ++it) {
-//             thorin::copy(*device_hit_buffer.get(), 0, (*it)->hit_buffer_, offset, (*it)->size());
-//             offset += (*it)->size();
-//         }
-// #endif
-//     }
 
 #ifdef GPU_TRAVERSAL
 private:

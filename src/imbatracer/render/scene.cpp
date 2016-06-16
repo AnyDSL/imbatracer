@@ -5,60 +5,6 @@
 
 namespace imba {
 
-// static void debug_nodes(const Node* nodes, const Node* top_nodes, const InstanceNode* inst_nodes, int knodes, int ktnodes, int kinst) {
-//     // DEBUG print the BVH (instances and meshes)
-// #ifndef NDEBUG
-//     std::cout << "BVH with " << knodes - 1 << " mesh and " << ktnodes << " top level nodes." << std::endl
-//               << "nodes: " << std::endl;
-//     int node_idx = 0;
-//     for (const Node* n = nodes; n < nodes + knodes; n++) {
-//         std::cout << "   [" << node_idx << "] = " << std::endl;
-//         for (int i = 0; i < 4; ++i) {
-//             // if (n.children[i] == 0)
-//             //     break;
-//             std::cout << "         min_x = " << n.min_x[i] << " max_x = " << n.max_x[i]
-//                       << " min_y = " << n.min_y[i] << " max_y = " << n.max_y[i] << " min_z = " << n.min_z[i] << " max_z = " << n.max_z[i] << std::endl;
-
-//             if (n.children[i] < 0)
-//                 std::cout << "         child (leaf) = " << ~n.children[i] << std::endl;
-//             else
-//                 std::cout << "         child (inner) = " << n.children[i] << std::endl;
-//         }
-//         node_idx++;
-//     }
-
-//     for (const Node* n = top_nodes; n < top_nodes + ktnodes; n++) {
-//         std::cout << "   [" << node_idx << "] = " << std::endl;
-//         for (int i = 0; i < 4; ++i) {
-//             //if (n.children[i] == 0)
-//               //  break;
-//             std::cout << "         min_x = " << n.min_x[i] << " max_x = " << n.max_x[i]
-//                       << " min_y = " << n.min_y[i] << " max_y = " << n.max_y[i] << " min_z = " << n.min_z[i] << " max_z = " << n.max_z[i] << std::endl;
-
-//             if (n.children[i] < 0)
-//                 std::cout << "         child (leaf) = " << ~n.children[i] << std::endl;
-//             else
-//                 std::cout << "         child (inner) = " << n.children[i] << std::endl;
-//         }
-//         node_idx++;
-//     }
-
-//     std::cout << "instance nodes: " << std::endl;
-
-//     node_idx = 0;
-//     for (const Node* n = inst_nodes; n < inst_nodes + kinst; n++) {
-//         std::cout << "   [" << node_idx << "] = " << std::endl;
-//         std::cout << "         id = " << n.id << std::endl
-//                   << "         next = " << n.next << std::endl
-//                   << "         pad[0] = " << n.pad[0] << std::endl
-//                   << "         mat = " << n.transf.c00 << " " << n.transf.c01 << " " << n.transf.c02 << " " << n.transf.c03 << " " << std::endl
-//                   << "               " << n.transf.c10 << " " << n.transf.c11 << " " << n.transf.c12 << " " << n.transf.c13 << " " << std::endl
-//                   << "               " << n.transf.c20 << " " << n.transf.c21 << " " << n.transf.c22 << " " << n.transf.c23 << " " << std::endl;
-//         node_idx++;
-//     }
-// #endif
-// }
-
 void Scene::setup_traversal_buffers() {
     // Make sure the buffers have the right size
     const int node_count = top_nodes_.size() + nodes_.size();
@@ -119,7 +65,7 @@ void Scene::upload_mask_buffer(const MaskBuffer& masks) {
 void Scene::upload_mesh_accels() {
     setup_traversal_buffers();
 
-    //debug_nodes(nodes_.data(), top_nodes_.data(), instance_nodes_.data(), nodes_.size(), top_nodes_.size(), instance_nodes_.size());
+    //debug_nodes_gpu(nodes_.data(), top_nodes_.data(), instance_nodes_.data(), nodes_.size(), top_nodes_.size(), instance_nodes_.size());
 
     thorin_copy(0, nodes_.data(), 0,
                 traversal_.nodes.device(), traversal_.nodes.data(), 0,
@@ -149,8 +95,6 @@ void Scene::upload_top_level_accel() {
     std::vector<Node>().swap(top_nodes_);
     std::vector<Node>().swap(nodes_);
     std::vector<Vec4>().swap(tris_);
-
-    //debug_nodes(traversal_.nodes.data(), traversal_.nodes.data() + node, instance_nodes_.data(), nodes_.size(), top_nodes_.size(), instance_nodes_.size());
 }
 
 void Scene::compute_bounding_sphere() {
