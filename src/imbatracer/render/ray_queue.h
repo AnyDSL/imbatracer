@@ -28,8 +28,8 @@ struct RayState {
 
 #define TRAVERSAL_DEVICE    thorin::Device(0)
 #define TRAVERSAL_PLATFORM  thorin::Platform::CUDA
-#define TRAVERSAL_INTERSECT intersect_gpu_instanced
-#define TRAVERSAL_OCCLUDED  occluded_gpu_instanced
+#define TRAVERSAL_INTERSECT intersect_gpu_masked_instanced
+#define TRAVERSAL_OCCLUDED  occluded_gpu_masked_instanced
 
 // Do not allow running multiple traversal instances at the same time on the GPU.
 static std::mutex traversal_mutex;
@@ -41,8 +41,8 @@ static constexpr int traversal_block_size() { return 8; }
 
 #define TRAVERSAL_DEVICE    thorin::Device(0)
 #define TRAVERSAL_PLATFORM  thorin::Platform::HOST
-#define TRAVERSAL_INTERSECT intersect_cpu_instanced
-#define TRAVERSAL_OCCLUDED  occluded_cpu_instanced
+#define TRAVERSAL_INTERSECT intersect_cpu_masked_instanced
+#define TRAVERSAL_OCCLUDED  occluded_cpu_masked_instanced
 
 #endif
 
@@ -170,10 +170,10 @@ public:
                                 data.tris.data(),
                                 device_ray_buffer->data(),
                                 device_hit_buffer->data(),
-                                // data.indices.data(),
-                                // data.texcoords.data(),
-                                // data.masks.data(),
-                                // data.mask_buffer.data(),
+                                data.indices.data(),
+                                data.texcoords.data(),
+                                data.masks.data(),
+                                data.mask_buffer.data(),
                                 count);
 
             thorin::copy(*device_hit_buffer.get(), hit_buffer_, size());
@@ -184,10 +184,10 @@ public:
                             data.tris.data(),
                             ray_buffer_.data(),
                             hit_buffer_.data(),
-                            // data.indices.data(),
-                            // data.texcoords.data(),
-                            // data.masks.data(),
-                            // data.mask_buffer.data(),
+                            data.indices.data(),
+                            data.texcoords.data(),
+                            data.masks.data(),
+                            data.mask_buffer.data(),
                             count);
 #endif
     }
@@ -209,10 +209,10 @@ public:
                                data.tris.data(),
                                device_ray_buffer->data(),
                                device_hit_buffer->data(),
-                               // data.indices.data(),
-                               // data.texcoords.data(),
-                               // data.masks.data(),
-                               // data.mask_buffer.data(),
+                               data.indices.data(),
+                               data.texcoords.data(),
+                               data.masks.data(),
+                               data.mask_buffer.data(),
                                count);
 
             thorin::copy(*device_hit_buffer.get(), hit_buffer_, size());
@@ -223,10 +223,10 @@ public:
                            data.tris.data(),
                            ray_buffer_.data(),
                            hit_buffer_.data(),
-                           // data.indices.data(),
-                           // data.texcoords.data(),
-                           // data.masks.data(),
-                           // data.mask_buffer.data(),
+                           data.indices.data(),
+                           data.texcoords.data(),
+                           data.masks.data(),
+                           data.mask_buffer.data(),
                            count);
 #endif
     }

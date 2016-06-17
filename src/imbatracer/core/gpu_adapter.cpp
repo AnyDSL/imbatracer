@@ -132,6 +132,8 @@ public:
     virtual void build_accel(const std::vector<Mesh>& meshes,
                              const std::vector<Mesh::Instance>& instances,
                              const std::vector<int>& layout,
+                             const std::vector<int>& tex_layout,
+                             const std::vector<int>& index_layout,
                              int root_offset) override {
         // Copy the bounding boxes and centers of all meshes into an array.
         std::vector<BBox> bounds(instances.size());
@@ -148,8 +150,8 @@ public:
 
         // Build the acceleration structure.
         builder_.build(bounds.data(), centers.data(), instances.size(),
-            NodeWriter(this, meshes, instances, layout, root_offset),
-            LeafWriter(this, meshes, instances, layout), 1);
+            NodeWriter(this, meshes, instances, root_offset),
+            LeafWriter(this, meshes, instances, layout, tex_layout, index_layout), 1);
     }
 
 private:
@@ -172,12 +174,11 @@ private:
         GpuTopLevelAdapter* adapter;
         const std::vector<Mesh>& meshes;
         const std::vector<Mesh::Instance>& instances;
-        const std::vector<int>& layout;
         const int root_offset;
 
         NodeWriter(GpuTopLevelAdapter* adapter, const std::vector<Mesh>& meshes,
-            const std::vector<Mesh::Instance>& instances, const std::vector<int>& layout, int root_offset)
-            : adapter(adapter), meshes(meshes), instances(instances), layout(layout), root_offset(root_offset)
+            const std::vector<Mesh::Instance>& instances, int root_offset)
+            : adapter(adapter), meshes(meshes), instances(instances), root_offset(root_offset)
         {}
 
         template <typename BBoxFn>
@@ -221,10 +222,13 @@ private:
         const std::vector<Mesh>& meshes;
         const std::vector<Mesh::Instance>& instances;
         const std::vector<int>& layout;
+        const std::vector<int>& tex_layout;
+        const std::vector<int>& index_layout;
 
         LeafWriter(GpuTopLevelAdapter* adapter, const std::vector<Mesh>& meshes,
-            const std::vector<Mesh::Instance>& instances, const std::vector<int>& layout)
-            : adapter(adapter), meshes(meshes), instances(instances), layout(layout)
+            const std::vector<Mesh::Instance>& instances, const std::vector<int>& layout,
+            const std::vector<int>& tex_layout, const std::vector<int>& index_layout)
+            : adapter(adapter), meshes(meshes), instances(instances), layout(layout), tex_layout(tex_layout), index_layout(index_layout)
         {}
 
         template <typename RefFn>
@@ -273,11 +277,13 @@ private:
                 memcpy(&inst_node.transf, &inst.inv_mat, sizeof(inst_node.transf));
                 inst_node.id = inst_idx; // id
                 inst_node.next = layout[inst.id]; // sub-bvh
-                inst_node.pad[0] = 0;
+                inst_node.index_offset = index_layout[inst.id];
+                inst_node.tex_offset = tex_layout[inst.id];
             }
 
             // Write sentinel value
-            instance_nodes.back().pad[0] = 0x00ABABAB;
+            instance_nodes.emplace_back();
+            instance_nodes.back().id = -1;
         }
     };
 

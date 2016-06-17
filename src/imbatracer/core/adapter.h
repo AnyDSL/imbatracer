@@ -44,6 +44,8 @@ public:
     virtual void build_accel(const std::vector<Mesh>& meshes,
                              const std::vector<Mesh::Instance>& instances,
                              const std::vector<int>& layout,
+                             const std::vector<int>& tex_layout,
+                             const std::vector<int>& index_layout,
                              int root_offset) = 0;
 
 #ifdef STATISTICS

@@ -83,7 +83,12 @@ private:
     std::vector<Node> nodes_;
     std::vector<Vec4> tris_;
     std::vector<int>  layout_;
+    std::vector<Vec2> texcoord_buf_;
+    std::vector<int>  index_buf_;
+    std::vector<int>  texcoord_layout_;
+    std::vector<int>  index_layout_;
     std::vector<InstanceNode> instance_nodes_;
+    int node_count_;
 
     BSphere sphere_;
 };

@@ -17,6 +17,12 @@ void Scene::setup_traversal_buffers() {
     if (traversal_.instances.size() < instance_nodes_.size()) {
         traversal_.instances = std::move(thorin::Array<InstanceNode>(TRAVERSAL_PLATFORM, TRAVERSAL_DEVICE, instance_nodes_.size()));
     }
+    if (traversal_.indices.size() < index_buf_.size()) {
+        traversal_.indices = thorin::Array<int>(TRAVERSAL_PLATFORM, TRAVERSAL_DEVICE, index_buf_.size());
+    }
+    if (traversal_.texcoords.size() < texcoord_buf_.size()) {
+        traversal_.texcoords = thorin::Array<Vec2>(TRAVERSAL_PLATFORM, TRAVERSAL_DEVICE, texcoord_buf_.size());
+    }
 }
 
 void Scene::build_mesh_accels() {
@@ -36,6 +42,26 @@ void Scene::build_mesh_accels() {
         adapter->print_stats();
 #endif
     }
+
+    // Copy all texture coordinates and indices into one huge array.
+    texcoord_layout_.clear();
+    index_layout_.clear();
+    for (auto& m : meshes_) {
+        auto texcoords = m.attribute<float2>(MeshAttributes::TEXCOORDS);
+        texcoord_layout_.push_back(texcoord_buf_.size());
+        texcoord_buf_.resize(texcoord_buf_.size() + m.vertex_count());
+        for (int i = 0; i < m.vertex_count(); ++i) {
+            texcoord_buf_[i].x = texcoords[i].x;
+            texcoord_buf_[i].y = texcoords[i].y;
+        }
+
+        auto indices = m.indices();
+        index_layout_.push_back(index_buf_.size());
+        index_buf_.resize(index_buf_.size() + m.index_count());
+        for (int i = 0; i < m.index_count(); ++i) {
+            index_buf_[i] = indices[i];
+        }
+    }
 }
 
 void Scene::build_top_level_accel() {
@@ -44,7 +70,7 @@ void Scene::build_top_level_accel() {
     top_nodes_.clear();
 
     auto adapter = new_top_level_adapter(top_nodes_, instance_nodes_);
-    adapter->build_accel(meshes_, instances_, layout_, nodes_.size());
+    adapter->build_accel(meshes_, instances_, layout_, texcoord_layout_, index_layout_, nodes_.size());
 
     // Copy the root node to the beginning of the nodes array.
     nodes_[0] = top_nodes_[0];
@@ -65,8 +91,6 @@ void Scene::upload_mask_buffer(const MaskBuffer& masks) {
 void Scene::upload_mesh_accels() {
     setup_traversal_buffers();
 
-    //debug_nodes_gpu(nodes_.data(), top_nodes_.data(), instance_nodes_.data(), nodes_.size(), top_nodes_.size(), instance_nodes_.size());
-
     thorin_copy(0, nodes_.data(), 0,
                 traversal_.nodes.device(), traversal_.nodes.data(), 0,
                 sizeof(Node) * nodes_.size());
@@ -74,8 +98,20 @@ void Scene::upload_mesh_accels() {
                 traversal_.tris.device(), traversal_.tris.data(), 0,
                 sizeof(Vec4) * tris_.size());
 
-    // Release the memory associated with the triangles and nodes
+    thorin_copy(0, index_buf_.data(), 0,
+                traversal_.indices.device(), traversal_.indices.data(), 0,
+                sizeof(int) * index_buf_.size());
 
+    thorin_copy(0, texcoord_buf_.data(), 0,
+                traversal_.texcoords.device(), traversal_.texcoords.data(), 0,
+                sizeof(Vec2) * texcoord_buf_.size());
+
+    // Release the memory associated with the triangles and nodes
+    node_count_ = nodes_.size();
+    std::vector<Node>().swap(nodes_);
+    std::vector<Vec4>().swap(tris_);
+    std::vector<Vec2>().swap(texcoord_buf_);
+    std::vector<int >().swap(index_buf_);
 }
 
 void Scene::upload_top_level_accel() {
@@ -85,7 +121,7 @@ void Scene::upload_top_level_accel() {
     //      has to be updated as well.
 
     thorin_copy(0, top_nodes_.data(), 0,
-                traversal_.nodes.device(), traversal_.nodes.data(), sizeof(Node) * nodes_.size(),
+                traversal_.nodes.device(), traversal_.nodes.data(), sizeof(Node) * node_count_,
                 sizeof(Node) * top_nodes_.size());
     thorin_copy(0, instance_nodes_.data(), 0,
                 traversal_.instances.device(), traversal_.instances.data(), 0,
@@ -93,8 +129,7 @@ void Scene::upload_top_level_accel() {
 
     // Release the memory associated with the top-level nodes
     std::vector<Node>().swap(top_nodes_);
-    std::vector<Node>().swap(nodes_);
-    std::vector<Vec4>().swap(tris_);
+    std::vector<InstanceNode>().swap(instance_nodes_);
 }
 
 void Scene::compute_bounding_sphere() {
