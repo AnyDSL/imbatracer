@@ -240,7 +240,7 @@ private:
                 int i = nodes.size();
                 nodes.emplace_back();
                 nodes[i].left  = ~instance_nodes.size();
-                nodes[i].right = ~instance_nodes.size();
+                nodes[i].right = 0x76543210;
 
                 nodes[i].left_bb.lo_x = leaf_bb.min.x;
                 nodes[i].left_bb.lo_y = leaf_bb.min.y;
@@ -249,12 +249,12 @@ private:
                 nodes[i].left_bb.hi_y = leaf_bb.max.y;
                 nodes[i].left_bb.hi_z = leaf_bb.max.z;
 
-                nodes[i].right_bb.lo_x = leaf_bb.min.x;
-                nodes[i].right_bb.lo_y = leaf_bb.min.y;
-                nodes[i].right_bb.lo_z = leaf_bb.min.z;
-                nodes[i].right_bb.hi_x = leaf_bb.max.x;
-                nodes[i].right_bb.hi_y = leaf_bb.max.y;
-                nodes[i].right_bb.hi_z = leaf_bb.max.z;
+                nodes[i].right_bb.lo_x = 1.0f;
+                nodes[i].right_bb.lo_y = 1.0f;
+                nodes[i].right_bb.lo_z = 1.0f;
+                nodes[i].right_bb.hi_x = -1.0f;
+                nodes[i].right_bb.hi_y = -1.0f;
+                nodes[i].right_bb.hi_z = -1.0f;
             } else {
                 // Link the node as the child node of the parent.
                 const StackElem& elem = stack.pop();

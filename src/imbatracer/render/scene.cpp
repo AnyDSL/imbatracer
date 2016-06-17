@@ -54,9 +54,6 @@ void Scene::build_mesh_accels() {
     nodes_.clear();
     tris_.clear();
 
-    // Add a dummy for the root node (will be added when building the top level acceleration structure)
-    nodes_.emplace_back();
-
     // Add the nodes for all meshes. Assumes that the adapter appends nodes to the array.
     auto adapter = new_mesh_adapter(nodes_, tris_);
     int mesh_id = 0;
@@ -77,9 +74,6 @@ void Scene::build_top_level_accel() {
 
     auto adapter = new_top_level_adapter(top_nodes_, instance_nodes_);
     adapter->build_accel(meshes_, instances_, layout_, nodes_.size());
-
-    // Copy the root node to the beginning of the nodes array.
-    nodes_[0] = top_nodes_[0];
 }
 
 void Scene::upload_mask_buffer(const MaskBuffer& masks) {
@@ -123,15 +117,14 @@ void Scene::upload_mesh_accels() {
 void Scene::upload_top_level_accel() {
     setup_traversal_buffers();
 
-    // TODO if dynamic changes are allowed, the first node (root node)
-    //      has to be updated as well.
-
     thorin_copy(0, top_nodes_.data(), 0,
                 traversal_.nodes.device(), traversal_.nodes.data(), sizeof(Node) * node_count_,
                 sizeof(Node) * top_nodes_.size());
     thorin_copy(0, instance_nodes_.data(), 0,
                 traversal_.instances.device(), traversal_.instances.data(), 0,
                 sizeof(InstanceNode) * instance_nodes_.size());
+
+    traversal_.root = node_count_;
 
     // Release the memory associated with the top-level nodes
     std::vector<Node>().swap(top_nodes_);

@@ -48,6 +48,7 @@ static constexpr int traversal_block_size() { return 8; }
 
 /// Structure that contains the traversal data, such as the BVH nodes or opacity masks.
 struct TraversalData {
+    int root;
     thorin::Array<::Node> nodes;
     thorin::Array<::InstanceNode> instances;
     thorin::Array<::Vec4> tris;
@@ -164,8 +165,8 @@ public:
             std::lock_guard<std::mutex> lock(traversal_mutex);
 
             thorin::copy(ray_buffer_, *device_ray_buffer.get(), size());
-
-            TRAVERSAL_INTERSECT(data.nodes.data(),
+#endif
+            TRAVERSAL_INTERSECT(data.root, data.nodes.data(),
                                 data.instances.data(),
                                 data.tris.data(),
                                 device_ray_buffer->data(),
@@ -175,20 +176,9 @@ public:
                                 data.masks.data(),
                                 data.mask_buffer.data(),
                                 count);
-
+#ifdef GPU_TRAVERSAL
             thorin::copy(*device_hit_buffer.get(), hit_buffer_, size());
         }
-#else
-        TRAVERSAL_INTERSECT(data.nodes.data(),
-                            data.instances.data(),
-                            data.tris.data(),
-                            ray_buffer_.data(),
-                            hit_buffer_.data(),
-                            data.indices.data(),
-                            data.texcoords.data(),
-                            data.masks.data(),
-                            data.mask_buffer.data(),
-                            count);
 #endif
     }
 
@@ -203,8 +193,8 @@ public:
             std::lock_guard<std::mutex> lock(traversal_mutex);
 
             thorin::copy(ray_buffer_, *device_ray_buffer.get(), size());
-
-            TRAVERSAL_OCCLUDED(data.nodes.data(),
+#endif
+            TRAVERSAL_OCCLUDED(data.root, data.nodes.data(),
                                data.instances.data(),
                                data.tris.data(),
                                device_ray_buffer->data(),
@@ -214,20 +204,9 @@ public:
                                data.masks.data(),
                                data.mask_buffer.data(),
                                count);
-
+#ifdef GPU_TRAVERSAL
             thorin::copy(*device_hit_buffer.get(), hit_buffer_, size());
         }
-#else
-        TRAVERSAL_OCCLUDED(data.nodes.data(),
-                           data.instances.data(),
-                           data.tris.data(),
-                           ray_buffer_.data(),
-                           hit_buffer_.data(),
-                           data.indices.data(),
-                           data.texcoords.data(),
-                           data.masks.data(),
-                           data.mask_buffer.data(),
-                           count);
 #endif
     }
 
