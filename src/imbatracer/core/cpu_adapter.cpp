@@ -15,9 +15,9 @@ public:
         : MeshAdapter(nodes, tris)
     {}
 
-    void build_accel(const Mesh& mesh) override {
+    void build_accel(const Mesh& mesh, int mesh_id, const std::vector<int>& tri_layout) override {
         mesh_ = &mesh;
-        builder_.build(mesh, NodeWriter(this), LeafWriter(this), 2, 1e-4f);
+        builder_.build(mesh, NodeWriter(this), LeafWriter(this, mesh_id, tri_layout), 2, 1e-4f);
     }
 
 #ifdef STATISTICS
@@ -87,9 +87,11 @@ private:
 
     struct LeafWriter {
         CpuMeshAdapter* adapter;
+        const std::vector<int>& tri_layout;
+        int mesh_id;
 
-        LeafWriter(CpuMeshAdapter* adapter)
-            : adapter(adapter)
+        LeafWriter(CpuMeshAdapter* adapter, int mesh_id, const std::vector<int>& tri_layout)
+            : adapter(adapter), tri_layout(tri_layout), mesh_id(mesh_id)
         {}
 
         template <typename RefFn>
@@ -138,7 +140,7 @@ private:
                     data.raw[j + 40] = n.y;
                     data.raw[j + 44] = n.z;
 
-                    data.raw[j + 48] = int_as_float(id);
+                    data.raw[j + 48] = int_as_float(id + tri_layout[mesh_id]);
                 }
 
                 for (int j = c; j < 4; j++) {
@@ -203,8 +205,6 @@ public:
     virtual void build_accel(const std::vector<Mesh>& meshes,
                              const std::vector<Mesh::Instance>& instances,
                              const std::vector<int>& layout,
-                             const std::vector<int>& tex_layout,
-                             const std::vector<int>& index_layout,
                              int root_offset) override {
         // Copy the bounding boxes and centers of all meshes into an array.
         std::vector<BBox> bounds(instances.size());
@@ -222,7 +222,7 @@ public:
         // Build the acceleration structure.
         builder_.build(bounds.data(), centers.data(), instances.size(),
             NodeWriter(this, meshes, instances, root_offset),
-            LeafWriter(this, meshes, instances, layout, tex_layout, index_layout), 1);
+            LeafWriter(this, meshes, instances, layout), 1);
     }
 
 private:
@@ -244,12 +244,11 @@ private:
     struct NodeWriter {
         CpuTopLevelAdapter* adapter;
         const std::vector<Mesh>& meshes;
-        const std::vector<Mesh::Instance>& instances;
         const int root_offset;
 
         NodeWriter(CpuTopLevelAdapter* adapter, const std::vector<Mesh>& meshes,
             const std::vector<Mesh::Instance>& instances, int root_offset)
-            : adapter(adapter), meshes(meshes), instances(instances), root_offset(root_offset)
+            : adapter(adapter), meshes(meshes), root_offset(root_offset)
         {}
 
         template <typename BBoxFn>
@@ -299,13 +298,10 @@ private:
         const std::vector<Mesh>& meshes;
         const std::vector<Mesh::Instance>& instances;
         const std::vector<int>& layout;
-        const std::vector<int>& tex_layout;
-        const std::vector<int>& index_layout;
 
         LeafWriter(CpuTopLevelAdapter* adapter, const std::vector<Mesh>& meshes,
-            const std::vector<Mesh::Instance>& instances, const std::vector<int>& layout,
-            const std::vector<int>& tex_layout, const std::vector<int>& index_layout)
-            : adapter(adapter), meshes(meshes), instances(instances), layout(layout), tex_layout(tex_layout), index_layout(index_layout)
+            const std::vector<Mesh::Instance>& instances, const std::vector<int>& layout)
+            : adapter(adapter), meshes(meshes), instances(instances), layout(layout)
         {}
 
         template <typename RefFn>
@@ -348,13 +344,13 @@ private:
                 memcpy(&inst_node.transf, &inst.inv_mat, sizeof(inst_node.transf));
                 inst_node.id = inst_idx; // id
                 inst_node.next = layout[inst.id]; // sub-bvh
-                inst_node.index_offset = index_layout[inst.id];
-                inst_node.tex_offset = tex_layout[inst.id];
+                inst_node.pad[0] = 0;
+                inst_node.pad[1] = 0;
             }
 
             // Write sentinel value
-            instance_nodes.emplace_back();
-            instance_nodes.back().id = -1;
+            instance_nodes.back().pad[0] = -1;
+            instance_nodes.back().pad[1] = -1;
         }
     };
 

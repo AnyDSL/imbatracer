@@ -20,7 +20,7 @@ public:
 
     /// Writes the acceleration structure for the given mesh
     /// sequentially in the array of nodes.
-    virtual void build_accel(const Mesh& mesh) = 0;
+    virtual void build_accel(const Mesh& mesh, int mesh_id, const std::vector<int>& tri_layout) = 0;
 
 #ifdef STATISTICS
     virtual void print_stats() const {};
@@ -44,8 +44,6 @@ public:
     virtual void build_accel(const std::vector<Mesh>& meshes,
                              const std::vector<Mesh::Instance>& instances,
                              const std::vector<int>& layout,
-                             const std::vector<int>& tex_layout,
-                             const std::vector<int>& index_layout,
                              int root_offset) = 0;
 
 #ifdef STATISTICS

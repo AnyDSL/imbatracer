@@ -68,6 +68,10 @@ public:
 
     const BSphere& bounding_sphere() const { return sphere_; }
 
+    int local_tri_id(int tri_id, int mesh_id) const {
+        return tri_id - tri_layout_[mesh_id];
+    }
+
 private:
     void setup_traversal_buffers();
 
@@ -85,8 +89,7 @@ private:
     std::vector<int>  layout_;
     std::vector<Vec2> texcoord_buf_;
     std::vector<int>  index_buf_;
-    std::vector<int>  texcoord_layout_;
-    std::vector<int>  index_layout_;
+    std::vector<int>  tri_layout_;
     std::vector<InstanceNode> instance_nodes_;
     int node_count_;
 

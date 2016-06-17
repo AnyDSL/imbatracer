@@ -26,6 +26,30 @@ void Scene::setup_traversal_buffers() {
 }
 
 void Scene::build_mesh_accels() {
+    // Copy all texture coordinates and indices into one huge array.
+    tri_layout_.clear();
+    int tri_offset = 0;
+    for (auto& mesh : meshes_) {
+        auto texcoords = mesh.attribute<float2>(MeshAttributes::TEXCOORDS);
+        const int offset = texcoord_buf_.size();
+
+        for (int i = 0; i < mesh.vertex_count(); ++i) {
+            const int k = texcoord_buf_.size();
+            texcoord_buf_.emplace_back();
+            texcoord_buf_[k].x = texcoords[i].x;
+            texcoord_buf_[k].y = texcoords[i].y;
+        }
+
+        for (int i = 0; i < mesh.index_count(); ++i) {
+            // Offset the indices for the texture coordinates, but not for the material id.
+            int tex_offset = i % 4 == 3 ? 0 : offset;
+            index_buf_.push_back(tex_offset + mesh.indices()[i]);
+        }
+
+        tri_layout_.push_back(tri_offset);
+        tri_offset += mesh.triangle_count();
+    }
+
     layout_.clear();
     nodes_.clear();
     tris_.clear();
@@ -35,32 +59,14 @@ void Scene::build_mesh_accels() {
 
     // Add the nodes for all meshes. Assumes that the adapter appends nodes to the array.
     auto adapter = new_mesh_adapter(nodes_, tris_);
+    int mesh_id = 0;
     for (auto& mesh : meshes_) {
         layout_.push_back(nodes_.size());
-        adapter->build_accel(mesh);
+        adapter->build_accel(mesh, mesh_id, tri_layout_);
 #ifdef STATISTICS
         adapter->print_stats();
 #endif
-    }
-
-    // Copy all texture coordinates and indices into one huge array.
-    texcoord_layout_.clear();
-    index_layout_.clear();
-    for (auto& m : meshes_) {
-        auto texcoords = m.attribute<float2>(MeshAttributes::TEXCOORDS);
-        texcoord_layout_.push_back(texcoord_buf_.size());
-        texcoord_buf_.resize(texcoord_buf_.size() + m.vertex_count());
-        for (int i = 0; i < m.vertex_count(); ++i) {
-            texcoord_buf_[i].x = texcoords[i].x;
-            texcoord_buf_[i].y = texcoords[i].y;
-        }
-
-        auto indices = m.indices();
-        index_layout_.push_back(index_buf_.size());
-        index_buf_.resize(index_buf_.size() + m.index_count());
-        for (int i = 0; i < m.index_count(); ++i) {
-            index_buf_[i] = indices[i];
-        }
+        mesh_id++;
     }
 }
 
@@ -70,7 +76,7 @@ void Scene::build_top_level_accel() {
     top_nodes_.clear();
 
     auto adapter = new_top_level_adapter(top_nodes_, instance_nodes_);
-    adapter->build_accel(meshes_, instances_, layout_, texcoord_layout_, index_layout_, nodes_.size());
+    adapter->build_accel(meshes_, instances_, layout_, nodes_.size());
 
     // Copy the root node to the beginning of the nodes array.
     nodes_[0] = top_nodes_[0];

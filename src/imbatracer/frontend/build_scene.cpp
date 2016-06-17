@@ -49,9 +49,7 @@ struct CompareIndex {
 
 using MtlLightBuffer = std::unordered_map<int, float4>;
 
-void convert_materials(const Path& path, const obj::File& obj_file, const obj::MaterialLib& mtl_lib, Scene& scene, MtlLightBuffer& mtl_to_light_intensity) {
-    MaskBuffer masks;
-
+void convert_materials(const Path& path, const obj::File& obj_file, const obj::MaterialLib& mtl_lib, Scene& scene, MtlLightBuffer& mtl_to_light_intensity, MaskBuffer& masks) {
     std::unordered_map<std::string, int> tex_map;
     auto load_texture = [&](const std::string& name) {
         auto tex = tex_map.find(name);
@@ -177,8 +175,6 @@ void convert_materials(const Path& path, const obj::File& obj_file, const obj::M
             masks.add_desc();
         }
     }
-
-    scene.upload_mask_buffer(masks);
 }
 
 void create_mesh(const obj::File& obj_file, Scene& scene, std::vector<TriangleLight>& tri_lights, MtlLightBuffer& mtl_to_light_intensity, int mtl_offset) {
@@ -307,9 +303,10 @@ bool parse_scene_file(const Path& path, Scene& scene, SceneInfo& info) {
     bool pos_given = false;
     bool dir_given = false;
     bool up_given = false;
+    bool skip = false;
 
-    while (stream >> cmd) {
-        UGLY_HACK:
+    while (skip || stream >> cmd) {
+        skip = false;
         if (cmd[0] == '#') {
             // Ignore comments
             stream.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
@@ -439,7 +436,7 @@ bool parse_scene_file(const Path& path, Scene& scene, SceneInfo& info) {
             float4x4 mat = float4x4::translation(pos) * float4x4::euler(euler) * float4x4::scaling(scale);
 
             scene.instances().emplace_back(idx, mat);
-            goto UGLY_HACK;
+            skip = true;
         }
     }
 
@@ -475,6 +472,7 @@ bool build_scene(const Path& path, Scene& scene, float3& cam_pos, float3& cam_di
 
     std::cout << "[2/5] Loading mesh files..." << std::endl;
     std::vector<std::vector<TriangleLight> > tri_lights;
+    MaskBuffer masks;
     for (int i = 0; i < scene_info.mesh_filenames.size(); ++i) {
         std::cout << " Mesh " << i + 1 << " of " << scene_info.mesh_filenames.size() << "..." << std::endl;
 
@@ -497,7 +495,7 @@ bool build_scene(const Path& path, Scene& scene, float3& cam_pos, float3& cam_di
 
         MtlLightBuffer mtl_to_light_intensity;
         int mtl_offset = scene.materials().size();
-        convert_materials(obj_path, obj_file, mtl_lib, scene, mtl_to_light_intensity);
+        convert_materials(obj_path, obj_file, mtl_lib, scene, mtl_to_light_intensity, masks);
 
         tri_lights.emplace_back();
         create_mesh(obj_file, scene, tri_lights.back(), mtl_to_light_intensity, mtl_offset);
@@ -558,6 +556,7 @@ bool build_scene(const Path& path, Scene& scene, float3& cam_pos, float3& cam_di
     std::cout << "[5/5] Moving the scene to the device..." << std::flush;
     scene.upload_mesh_accels();
     scene.upload_top_level_accel();
+    scene.upload_mask_buffer(masks);
 
     std::cout << std::endl;
 
