@@ -249,12 +249,12 @@ private:
                 nodes[i].left_bb.hi_y = leaf_bb.max.y;
                 nodes[i].left_bb.hi_z = leaf_bb.max.z;
 
-                nodes[i].right_bb.lo_x = 1.0f;
-                nodes[i].right_bb.lo_y = 1.0f;
-                nodes[i].right_bb.lo_z = 1.0f;
-                nodes[i].right_bb.hi_x = -1.0f;
-                nodes[i].right_bb.hi_y = -1.0f;
-                nodes[i].right_bb.hi_z = -1.0f;
+                nodes[i].right_bb.lo_x = 0.0f;
+                nodes[i].right_bb.lo_y = 0.0f;
+                nodes[i].right_bb.lo_z = 0.0f;
+                nodes[i].right_bb.hi_x = -0.0f;
+                nodes[i].right_bb.hi_y = -0.0f;
+                nodes[i].right_bb.hi_z = -0.0f;
             } else {
                 // Link the node as the child node of the parent.
                 const StackElem& elem = stack.pop();
