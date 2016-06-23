@@ -165,6 +165,9 @@ public:
             std::lock_guard<std::mutex> lock(traversal_mutex);
 
             thorin::copy(ray_buffer_, *device_ray_buffer.get(), size());
+#else
+            auto* device_ray_buffer = &ray_buffer_;
+            auto* device_hit_buffer = &hit_buffer_;
 #endif
             TRAVERSAL_INTERSECT(data.root, data.nodes.data(),
                                 data.instances.data(),
@@ -193,6 +196,9 @@ public:
             std::lock_guard<std::mutex> lock(traversal_mutex);
 
             thorin::copy(ray_buffer_, *device_ray_buffer.get(), size());
+#else
+            auto* device_ray_buffer = &ray_buffer_;
+            auto* device_hit_buffer = &hit_buffer_;
 #endif
             TRAVERSAL_OCCLUDED(data.root, data.nodes.data(),
                                data.instances.data(),
