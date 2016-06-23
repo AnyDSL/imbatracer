@@ -33,7 +33,7 @@ public:
     Scene() {}
 
     /// Builds an acceleration structure for every mesh in the scene.
-    void build_mesh_accels();
+    void build_mesh_accels(const std::vector<std::string>& accel_filenames);
     /// Builds a top-level acceleration structure.
     /// All the mesh acceleration structures must have been built before this call.
     void build_top_level_accel();

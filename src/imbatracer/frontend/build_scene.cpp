@@ -287,6 +287,7 @@ void create_mesh(const obj::File& obj_file, Scene& scene, std::vector<TriangleLi
 
 struct SceneInfo {
     std::vector<std::string> mesh_filenames;
+    std::vector<std::string> accel_filenames;
     float3 cam_pos;
     float3 cam_dir;
     float3 cam_up;
@@ -337,6 +338,7 @@ bool parse_scene_file(const Path& path, Scene& scene, SceneInfo& info) {
             up_given = true;
         } else if (cmd == "mesh") {
             info.mesh_filenames.emplace_back();
+            info.accel_filenames.emplace_back();
 
             // Mesh file is the entire remainder of this line (can include whitespace)
             if (!(stream >> info.mesh_filenames.back())) {
@@ -346,6 +348,19 @@ bool parse_scene_file(const Path& path, Scene& scene, SceneInfo& info) {
 
             // Mesh file paths are relative to the scene file.
             info.mesh_filenames.back() = path.base_name() + '/' + info.mesh_filenames.back();
+        } else if (cmd == "accel") {
+            if (info.accel_filenames.size() == 0) {
+                std::cout << " BVH files have to be specified after the mesh they belong to." << std::endl;
+                return false;
+            }
+
+            if (!(stream >> info.accel_filenames.back())) {
+                std::cout << " Error reading the obj filename." << std::endl;
+                return false;
+            }
+
+            // Mesh file paths are relative to the scene file.
+            info.accel_filenames.back() = path.base_name() + '/' + info.accel_filenames.back();
         } else if (cmd == "dir_light") {
             float3 dir;
             float3 intensity;
@@ -549,7 +564,7 @@ bool build_scene(const Path& path, Scene& scene, float3& cam_pos, float3& cam_di
         m.compute_bounding_box();
     }
 
-    scene.build_mesh_accels();
+    scene.build_mesh_accels(scene_info.accel_filenames);
     scene.build_top_level_accel();
     scene.compute_bounding_sphere();
 

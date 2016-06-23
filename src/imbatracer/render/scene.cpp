@@ -3,6 +3,8 @@
 #include "scene.h"
 #include "../core/adapter.h"
 
+#include "../loaders/loaders.h"
+
 namespace imba {
 
 void Scene::setup_traversal_buffers() {
@@ -25,7 +27,7 @@ void Scene::setup_traversal_buffers() {
     }
 }
 
-void Scene::build_mesh_accels() {
+void Scene::build_mesh_accels(const std::vector<std::string>& accel_filenames) {
     // Copy all texture coordinates and indices into one huge array.
     tri_layout_.clear();
     int tri_offset = 0;
@@ -59,10 +61,27 @@ void Scene::build_mesh_accels() {
     int mesh_id = 0;
     for (auto& mesh : meshes_) {
         layout_.push_back(nodes_.size());
-        adapter->build_accel(mesh, mesh_id, tri_layout_);
+
+        if (accel_filenames[mesh_id] != "") {
+            auto& filename = accel_filenames[mesh_id];
+            if (!load_accel(filename, nodes_, tris_)) {
+                std::cout << "Rebuilding the acceleration structure for mesh " << mesh_id << "." << std::endl;
+
+                adapter->build_accel(mesh, mesh_id, tri_layout_);
 #ifdef STATISTICS
-        adapter->print_stats();
+                adapter->print_stats();
 #endif
+
+                if (!store_accel(filename, nodes_, layout_.back(), tris_))
+                    std::cout << "The acceleration structure for mesh " << mesh_id << " could not be stored." << std::endl;
+            }
+        } else {
+            adapter->build_accel(mesh, mesh_id, tri_layout_);
+#ifdef STATISTICS
+            adapter->print_stats();
+#endif
+        }
+
         mesh_id++;
     }
 }
