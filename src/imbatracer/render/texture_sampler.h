@@ -15,7 +15,7 @@ public:
     TextureSampler(const TextureSampler&) = delete;
     TextureSampler& operator=(const TextureSampler&) = delete;
 
-    inline float4 sample(float2 uv) const {
+    inline rgb sample(float2 uv) const {
         float u = clamp(uv.x - (int)uv.x, -1.0f, 1.0f);
         float v = clamp(uv.y - (int)uv.y, -1.0f, 1.0f);
         u += u < 0.0f ? 1.0f : 0.0f;
@@ -36,10 +36,10 @@ public:
         const float hx = 1.0f - gx;
         const float hy = 1.0f - gy;
 
-        const float4 i00 = img_(x0, y0);
-        const float4 i10 = img_(x1, y0);
-        const float4 i01 = img_(x0, y1);
-        const float4 i11 = img_(x1, y1);
+        const rgb i00 = rgb(img_(x0, y0));
+        const rgb i10 = rgb(img_(x1, y0));
+        const rgb i01 = rgb(img_(x0, y1));
+        const rgb i11 = rgb(img_(x1, y1));
 
         return hy * (hx * i00 + gx * i10) +
                gy * (hx * i01 + gx * i11);

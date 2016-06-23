@@ -5,7 +5,7 @@
 #include <vector>
 
 #include "float4.h"
-#include "float4x4.h"
+#include "matrix.h"
 #include "tri.h"
 
 namespace imba {
@@ -145,7 +145,7 @@ private:
             , data(stride * count)
         {}
     };
-    
+
     std::vector<uint32_t> indices_;
     std::vector<float4> vertices_;
     std::vector<Attribute> attrs_;

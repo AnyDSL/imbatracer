@@ -1,32 +1,32 @@
 #ifndef IMBA_LIGHT_H
 #define IMBA_LIGHT_H
 
+#include "../core/vector.h"
+#include "random.h"
+#include "../core/bsphere.h"
+
 #include <cfloat>
 #include <memory>
-
-#include "../core/float3.h"
-#include "../core/bsphere.h"
-#include "random.h"
 
 namespace imba {
 
 /// Utility class to describe a surface that emits light.
 struct AreaEmitter {
     AreaEmitter() {}
-    AreaEmitter(const float4& i, float a)
+    AreaEmitter(const rgb& i, float a)
         : intensity(i)
         , area(a)
     {}
 
     /// Computes the amount of outgoing radiance from this emitter in a given direction
-    float4 radiance(const float3& out_dir, const float3& normal, float& pdf_direct_a, float& pdf_emit_w) const {
+    rgb radiance(const float3& out_dir, const float3& normal, float& pdf_direct_a, float& pdf_emit_w) const {
         const float cos_theta_o = dot(normal, out_dir);
 
         if (cos_theta_o <= 0.0f) {
             // set pdf to 1 to prevent NaNs
             pdf_direct_a = 1.0f;
             pdf_emit_w = 1.0f;
-            return float4(0.0f);
+            return rgb(0.0f);
         }
 
         pdf_direct_a = 1.0f / area;
@@ -42,7 +42,7 @@ struct AreaEmitter {
         return intensity;
     }
 
-    float4 intensity;
+    rgb intensity;
     float area;
 };
 
@@ -52,7 +52,7 @@ public:
         float3 dir;
         float distance;
 
-        float4 radiance;
+        rgb radiance;
 
         float cos_out;
 
@@ -66,7 +66,7 @@ public:
         float3 pos;
         float3 dir;
 
-        float4 radiance;
+        rgb radiance;
 
         float cos_out;
 
@@ -93,18 +93,52 @@ public:
 
 class TriangleLight : public Light {
 public:
-    TriangleLight(const float4& intensity,
+    TriangleLight(const rgb& intensity,
                   const float3& p0,
                   const float3& p1,
                   const float3& p2)
-        : verts_{p0, p1, p2} {
+        : verts_{p0, p1, p2}
+    {
         emit_.intensity = intensity;
-
-        normal_    = cross(p1 - p0, p2 - p0);
+        normal_ = cross(p1 - p0, p2 - p0);
         emit_.area = length(normal_) * 0.5f;
-        normal_    = normalize(normal_);
-
+        normal_ = normalize(normal_);
         local_coordinates(normal_, tangent_, binormal_);
+    }
+
+    virtual DirectIllumSample sample_direct(const float3& from, RNG& rng) override {
+        DirectIllumSample sample;
+
+        // sample a point on the light source
+        float u, v;
+        sample_uniform_triangle(rng.random_float(), rng.random_float(), u, v);
+        const float3 pos = u * p0_ + v * p1_ + (1.0f - u - v) * p2_;
+
+        // compute distance and shadow ray direction
+        sample.dir         = pos - from;
+        const float distsq = dot(sample.dir, sample.dir);
+        sample.distance    = sqrtf(distsq);
+        sample.dir         = sample.dir * (1.0f / sample.distance);
+
+        const float cos_out = dot(normal_, -1.0f * sample.dir);
+
+        // directions form the opposite side of the light have zero intensity
+        if (cos_out > 0.0f && cos_out < 1.0f) {
+            sample.radiance = emit_.intensity * cos_out * (emit_.area / distsq);
+
+            sample.cos_out      = cos_out;
+            sample.pdf_emit_w   = (cos_out * 1.0f / pi) / emit_.area;
+            sample.pdf_direct_w = 1.0f / emit_.area * distsq / cos_out;
+        } else {
+            sample.radiance = rgb(0.0f);
+
+            // Prevent NaNs in the integrator
+            sample.cos_out      = 1.0f;
+            sample.pdf_emit_w   = 1.0f;
+            sample.pdf_direct_w = 1.0f;
+        }
+
+        return sample;
     }
 
     virtual EmitSample sample_emit(RNG& rng) override {
@@ -127,7 +161,7 @@ public:
             // To prevent NaNs (cosine and pdf are divided by each other for the MIS weight), set values appropriately.
             // Numerical inaccuracies also cause this issue if the cosine is almost zero and the division by pi turns the pdf into zero
             sample.dir = world_dir;
-            sample.radiance = float4(0.0f);
+            sample.radiance = rgb(0.0f);
             sample.cos_out = 0.0f;
             sample.pdf_emit_w = 1.0f;
             sample.pdf_direct_a = 1.0f;
@@ -168,7 +202,7 @@ public:
             sample.pdf_emit_w   = (cos_out * 1.0f / pi) / emit_.area;
             sample.pdf_direct_w = 1.0f / emit_.area * distsq / cos_out;
         } else {
-            sample.radiance = float4(0.0f);
+            sample.radiance = rgb(0.0f);
 
             // Prevent NaNs in the integrator
             sample.cos_out      = 1.0f;
@@ -188,13 +222,14 @@ private:
     float3 normal_;
     float3 tangent_;
     float3 binormal_;
+
     AreaEmitter emit_;
 };
 
 class DirectionalLight : public Light {
 public:
     // Keeps a reference to the bounding sphere of the scene, because the scene might change after the light is created.
-    DirectionalLight(const float3& dir, const float4& intensity, const BSphere& bsphere)
+    DirectionalLight(const float3& dir, const rgb& intensity, const BSphere& bsphere)
         : dir_(dir), intensity_(intensity), bsphere_(bsphere)
     {
         local_coordinates(dir_, tangent_, binormal_);
@@ -234,7 +269,7 @@ public:
     virtual bool is_finite() const override { return false; }
 
 private:
-    float4 intensity_;
+    rgb intensity_;
     float3 dir_;
     float3 tangent_, binormal_;
     BSphere bsphere_;
@@ -242,7 +277,7 @@ private:
 
 class PointLight : public Light {
 public:
-    PointLight(const float3& pos, const float4& intensity)
+    PointLight(const float3& pos, const rgb& intensity)
         : pos_(pos), intensity_(intensity)
     {}
 
@@ -285,7 +320,7 @@ public:
     virtual bool is_delta() const override { return true; }
 
 private:
-    float4 intensity_;
+    rgb intensity_;
     float3 pos_;
 };
 

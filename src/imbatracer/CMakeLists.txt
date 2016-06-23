@@ -16,10 +16,10 @@ add_library(imba_core
             core/bbox.h
             core/bsphere.h
             core/common.h
-            core/float2.h
-            core/float3.h
-            core/float4.h
-            core/float4x4.h
+            core/expr.h
+            core/vector.h
+            core/rgb.h
+            core/matrix.h
             core/mask.h
             core/mem_pool.h
             core/mesh.h
@@ -47,6 +47,8 @@ add_library(imba_render
             render/integrators/pt.cpp
             render/integrators/vcm.h
             render/integrators/vcm.cpp
+            render/integrators/light_vertices.h
+            render/integrators/light_vertices.cpp
             render/ray_queue.h
             render/random.h
             render/intersection.h

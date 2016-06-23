@@ -1,5 +1,5 @@
 #include "vcm.h"
-#include "../../core/float4.h"
+#include "../../core/rgb.h"
 #include "../../core/common.h"
 #include "../random.h"
 
@@ -8,201 +8,44 @@
 #include <cmath>
 #include <chrono>
 
-// Enables debugging code for the vertex cache.
-//#define ENABLE_VERTEX_CACHE_DEBUG
-
-// Enables debugging code that checks for NaNs in all contributions.
-//#define ENABLE_NAN_TESTS
-
 namespace imba {
 
+// Offset to prevent self intersection.
 static const float offset = 0.0001f;
 
+// Thread-local storage for BSDF objects.
 using ThreadLocalMemArena = tbb::enumerable_thread_specific<MemoryArena, tbb::cache_aligned_allocator<MemoryArena>, tbb::ets_key_per_instance>;
 static ThreadLocalMemArena bsdf_memory_arenas;
 
+// Thread-local storage for the results of a photon query.
 using ThreadLocalPhotonContainer = tbb::enumerable_thread_specific<std::vector<PhotonIterator>, tbb::cache_aligned_allocator<std::vector<PhotonIterator>>, tbb::ets_key_per_instance>;
 static ThreadLocalPhotonContainer photon_containers;
-
-inline float mis_heuristic(float a) {
-    //return sqr(a);
-    return a;
-}
-
-/// Computes the cosine term for adjoint BSDFs that use shading normals.
-///
-/// This function has to be used for all BSDFs during particle tracing to prevent brighness discontinuities.
-/// See Veach's PhD thesis for more details.
-inline float shading_normal_adjoint(const float3& normal, const float3& geom_normal, const float3& out_dir, const float3& in_dir) {
-    //return dot(in_dir, normal);
-    return dot(out_dir, normal) * dot(in_dir, geom_normal) / dot(out_dir, geom_normal);
-}
 
 // Reduce ugliness from the template parameters.
 #define VCM_TEMPLATE template<VCMSubAlgorithm algo>
 #define VCM_INTEGRATOR VCMIntegrator<algo>
 
 VCM_TEMPLATE
-void VCM_INTEGRATOR::preprocess() {
-    if (algo == ALGO_LT || algo == ALGO_PT) // Vertex cache is only needed for bidirectional algorithms.
-        return;
-
-    // Trace a couple of light paths into the scene and calculate their average length.
-    // This information is than used to allocate the light vertex cache.
-
-    // Setup the queues. We need two: one for input and one for output during scattering.
-    // Make sure that the size of the queues follows the proper alignment constraints.
-    const int path_count = LIGHT_PATH_LEN_PROBES;
-
-    RayQueue<VCMState>* queues[2] = {
-        new RayQueue<VCMState>(path_count),
-        new RayQueue<VCMState>(path_count)
-    };
-
-    int in_q = 0;
-    int out_q = 1;
-
-    // Fill the queue with the initial light rays.
-    for (int i = 0; i < path_count; ++i) {
-        Ray ray_out;
-        VCMState state_out;
-        state_out.pixel_id = i;
-
-        static std::random_device rd;
-        state_out.rng = RNG(rd());
-
-        // randomly choose one light source to sample
-        auto& l = scene_.light(state_out.rng.random_int(0, scene_.light_count()));
-        float pdf_lightpick = 1.0f / scene_.light_count();
-
-        Light::EmitSample sample = l->sample_emit(state_out.rng);
-        ray_out.org.x = sample.pos.x;
-        ray_out.org.y = sample.pos.y;
-        ray_out.org.z = sample.pos.z;
-        ray_out.org.w = offset;
-
-        ray_out.dir.x = sample.dir.x;
-        ray_out.dir.y = sample.dir.y;
-        ray_out.dir.z = sample.dir.z;
-        ray_out.dir.w = FLT_MAX;
-
-        state_out.throughput = sample.radiance / pdf_lightpick;
-        state_out.path_length = 1;
-        state_out.continue_prob = 1.0f;
-
-        queues[in_q]->push(ray_out, state_out);
-    }
-
-    std::atomic<int> vertex_count(0);
-
-    // Trace the light paths until they are (almost) all terminated.
-    while (queues[in_q]->size() > 256) {
-        queues[in_q]->traverse(scene_.traversal_data());
-
-        // Process hitpoints and bounce or terminate paths.
-        const int ray_count = queues[in_q]->size();
-        VCMState* states    = queues[in_q]->states();
-        const Hit* hits     = queues[in_q]->hits();
-        const Ray* rays     = queues[in_q]->rays();
-        auto& rays_out      = *queues[out_q];
-        tbb::parallel_for(tbb::blocked_range<size_t>(0, ray_count),
-                          [this, states, hits, rays, &rays_out, &vertex_count] (const tbb::blocked_range<size_t>& range) {
-            auto& bsdf_mem_arena = bsdf_memory_arenas.local();
-
-            for (size_t i = range.begin(); i != range.end(); ++i) {
-                float rr_pdf;
-                RNG& rng = states[i].rng;
-                if (hits[i].tri_id < 0 || !russian_roulette(states[i].throughput, rng.random_float(), rr_pdf))
-                    continue;
-
-                bsdf_mem_arena.free_all();
-
-                Intersection isect = calculate_intersection(hits, rays, i);
-                auto bsdf = isect.mat->get_bsdf(isect, bsdf_mem_arena, true);
-
-                if (!isect.mat->is_specular())
-                    ++vertex_count; // we would store a vertex at this position
-
-                float pdf_dir_w;
-                float3 sample_dir;
-                BxDFFlags sampled_flags;
-                auto bsdf_value = bsdf->sample(isect.out_dir, sample_dir, rng, BSDF_ALL, sampled_flags, pdf_dir_w);
-
-                if (sampled_flags == 0 || pdf_dir_w == 0.0f || is_black(bsdf_value))
-                    continue;
-
-                const float cos_theta_i = fabsf(shading_normal_adjoint(isect.normal, isect.geom_normal, isect.out_dir, sample_dir));
-
-                VCMState s = states[i];
-                s.throughput *= bsdf_value * cos_theta_i / (rr_pdf * pdf_dir_w);
-                s.path_length++;
-                s.continue_prob = rr_pdf;
-
-                Ray ray {
-                    { isect.pos.x, isect.pos.y, isect.pos.z, offset },
-                    { sample_dir.x, sample_dir.y, sample_dir.z, FLT_MAX }
-                };
-
-                rays_out.push(ray, s);
-            }
-        });
-
-        queues[in_q]->clear();
-
-        std::swap(in_q, out_q);
-    }
-
-    // Release the queues.
-    delete queues[0];
-    delete queues[1];
-
-    const float avg_len = static_cast<float>(vertex_count) / static_cast<float>(path_count);
-    const int vc_size = 1.1f * std::ceil(avg_len) * width_ * height_;
-
-    for (auto& vc : vertex_caches_)
-        vc.resize(vc_size);
-}
-
-VCM_TEMPLATE
-void VCM_INTEGRATOR::add_vertex_to_cache(const LightPathVertex& v, int sample_id) {
-    int i = vertex_cache_last_[sample_id]++;
-    if (i > vertex_caches_[sample_id].size()) {
-#ifdef ENABLE_VERTEX_CACHE_DEBUG
-        printf("Attempted to store a vertex that does not fit into the cache.\n");
-#endif
-        return; // Discard vertices that do not fit. This is statistically very unlikely to happen.
-    }
-
-    vertex_caches_[sample_id][i] = v;
-}
-
-VCM_TEMPLATE
 void VCM_INTEGRATOR::render(AtomicImage& img) {
-    reset_buffers();
+    light_vertices_.clear();
 
+    // Shrink the photon mapping radius for the next iteration. Every frame is an iteration of Progressive Photon Mapping.
     cur_iteration_++;
-
     pm_radius_ = base_radius_ / powf(static_cast<float>(cur_iteration_), 0.5f * (1.0f - radius_alpha_));
     pm_radius_ = std::max(pm_radius_, 1e-7f); // ensure numerical stability
-
     vm_normalization_ = 1.0f / (sqr(pm_radius_) * pi * light_path_count_);
 
-    // Compute the MIS weights for vetex connection and vertex merging.
-    const float etaVCM = pi * sqr(pm_radius_) * light_path_count_;
-    mis_weight_vc_ = mis_heuristic(1.0f / etaVCM);
-    mis_weight_vm_ = algo == ALGO_BPT ? 0.0f : mis_heuristic(etaVCM);
+    // Compute the partial MIS weights for vetex connection and vertex merging.
+    // See technical report "Implementing Vertex Connection and Merging".
+    const float eta_vcm = pi * sqr(pm_radius_) * light_path_count_;
+    mis_eta_vc_ = mis_pow(1.0f / eta_vcm);
+    mis_eta_vm_ = algo == ALGO_BPT ? 0.0f : mis_pow(eta_vcm);
 
     if (algo != ALGO_PT)
         trace_light_paths(img);
 
     if (algo != ALGO_LT)
         trace_camera_paths(img);
-}
-
-VCM_TEMPLATE
-void VCM_INTEGRATOR::reset_buffers() {
-    for(auto& i : vertex_cache_last_)
-        i = 0;
 }
 
 VCM_TEMPLATE
@@ -233,37 +76,20 @@ void VCM_INTEGRATOR::trace_light_paths(AtomicImage& img) {
             state_out.path_length = 1;
             state_out.continue_prob = 1.0f;
 
-            state_out.dVCM = mis_heuristic(sample.pdf_direct_a / sample.pdf_emit_w); // pdf_lightpick cancels out
+            state_out.dVCM = mis_pow(sample.pdf_direct_a / sample.pdf_emit_w); // pdf_lightpick cancels out
 
             if (l->is_delta())
                 state_out.dVC = 0.0f;
             else
-                state_out.dVC = mis_heuristic(sample.cos_out / (sample.pdf_emit_w * pdf_lightpick));
+                state_out.dVC = mis_pow(sample.cos_out / (sample.pdf_emit_w * pdf_lightpick));
 
-            state_out.dVM = state_out.dVC * mis_weight_vc_;
+            state_out.dVM = state_out.dVC * mis_eta_vc_;
 
-            state_out.is_finite = l->is_finite();
-
-#ifdef ENABLE_NAN_TESTS
-            if (isnan(state_out.dVC) || isnan(state_out.dVCM) || isnan(state_out.dVM)) {
-                printf("NaN in light sampling:\n   pdf_dir_a=%f  pdf_emit_w=%f  cos=%f  pdf_lightpick=%f\n",
-                    sample.pdf_direct_a, sample.pdf_emit_w, sample.cos_out, pdf_lightpick);
-            }
-#endif
+            state_out.finite_light = l->is_finite();
         });
 
-    if (algo == ALGO_LT) // Only build the hash grid when it is used.
-        return;
-
-    tbb::parallel_for(tbb::blocked_range<size_t>(0, spp_), [this] (const tbb::blocked_range<size_t>& range) {
-        for (size_t i = range.begin(); i != range.end(); ++i) {
-            light_vertices_count_[i] = std::min(static_cast<int>(vertex_caches_[i].size()), static_cast<int>(vertex_cache_last_[i]));
-            if (algo != ALGO_BPT) {
-                photon_grid_[i].reserve(light_vertices_count_[i]);
-                photon_grid_[i].build(vertex_caches_[i].begin(), vertex_caches_[i].begin() + light_vertices_count_[i], pm_radius_);
-            }
-        }
-    });
+    if (algo != ALGO_LT) // Only build the hash grid when it is used.
+        light_vertices_.build(pm_radius_, algo != ALGO_BPT);
 }
 
 VCM_TEMPLATE
@@ -280,7 +106,7 @@ void VCM_INTEGRATOR::trace_camera_paths(AtomicImage& img) {
 
             ray_out = cam_.generate_ray(sample_x, sample_y);
 
-            state_out.throughput = float4(1.0f);
+            state_out.throughput = rgb(1.0f);
             state_out.path_length = 1;
             state_out.continue_prob = 1.0f;
 
@@ -293,7 +119,7 @@ void VCM_INTEGRATOR::trace_camera_paths(AtomicImage& img) {
 
             state_out.dVC = 0.0f;
             state_out.dVM = 0.0f;
-            state_out.dVCM = mis_heuristic(light_path_count_ / pdf_cam_w);
+            state_out.dVCM = mis_pow(light_path_count_ / pdf_cam_w);
         });
 }
 
@@ -329,16 +155,16 @@ void VCM_INTEGRATOR::bounce(VCMState& state, const Intersection& isect, BSDF* bs
     VCMState s = state;
     if (is_specular) {
         s.dVCM = 0.0f;
-        s.dVC *= mis_heuristic(cos_theta_i);
-        s.dVM *= mis_heuristic(cos_theta_i);
+        s.dVC *= mis_pow(cos_theta_i);
+        s.dVM *= mis_pow(cos_theta_i);
     } else {
-        s.dVC = mis_heuristic(cos_theta_i / (pdf_dir_w * rr_pdf)) *
-                (s.dVC * mis_heuristic(pdf_rev_w * rr_pdf) + s.dVCM + mis_weight_vm_);
+        s.dVC = mis_pow(cos_theta_i / (pdf_dir_w * rr_pdf)) *
+                (s.dVC * mis_pow(pdf_rev_w * rr_pdf) + s.dVCM + mis_eta_vm_);
 
-        s.dVM = mis_heuristic(cos_theta_i / (pdf_dir_w * rr_pdf)) *
-                (s.dVM * mis_heuristic(pdf_rev_w * rr_pdf) + s.dVCM * mis_weight_vc_ + 1.0f);
+        s.dVM = mis_pow(cos_theta_i / (pdf_dir_w * rr_pdf)) *
+                (s.dVM * mis_pow(pdf_rev_w * rr_pdf) + s.dVCM * mis_eta_vc_ + 1.0f);
 
-        s.dVCM = mis_heuristic(1.0f / (pdf_dir_w * rr_pdf));
+        s.dVCM = mis_pow(1.0f / (pdf_dir_w * rr_pdf));
     }
 
     s.throughput *= bsdf_value * cos_theta_i / (rr_pdf * pdf_dir_w);
@@ -351,17 +177,6 @@ void VCM_INTEGRATOR::bounce(VCMState& state, const Intersection& isect, BSDF* bs
     };
 
     rays_out.push(ray, s);
-
-#ifdef ENABLE_NAN_TESTS
-    if (isnan(s.throughput.x) || isnan(s.throughput.y) || isnan(s.throughput.z))
-        printf("NaN in bounce: adjoint=%d\n   bsdf=(%f,%f,%f)\n   cos=%f\n   pdf=%f*%f\n",
-            adjoint, bsdf_value.x, bsdf_value.y, bsdf_value.z, cos_theta_i, rr_pdf, pdf_dir_w);
-
-    if (isnan(s.dVC) || isnan(s.dVCM)) {
-        printf("NaN in bounce - partial weights:\n   cos=%f  pdf=%f  rr_pdf=%f  rev_pdf=%f  vm_weight=%f  vc_weight=%f\n",
-            cos_theta_i, pdf_dir_w, rr_pdf, pdf_rev_w, mis_weight_vm_, mis_weight_vc_);
-    }
-#endif
 }
 
 VCM_TEMPLATE
@@ -371,10 +186,10 @@ void VCM_INTEGRATOR::process_light_rays(RayQueue<VCMState>& rays_in, RayQueue<VC
     const Hit* hits = rays_in.hits();
     const Ray* rays = rays_in.rays();
 
-    tbb::parallel_for(tbb::blocked_range<size_t>(0, ray_count), [this, states, hits, rays, &rays_out, &ray_out_shadow] (const tbb::blocked_range<size_t>& range) {
+    tbb::parallel_for(tbb::blocked_range<int>(0, ray_count), [&] (const tbb::blocked_range<int>& range) {
         auto& bsdf_mem_arena = bsdf_memory_arenas.local();
 
-        for (size_t i = range.begin(); i != range.end(); ++i) {
+        for (auto i = range.begin(); i != range.end(); ++i) {
             if (hits[i].tri_id < 0)
                 continue;
 
@@ -384,31 +199,25 @@ void VCM_INTEGRATOR::process_light_rays(RayQueue<VCMState>& rays_in, RayQueue<VC
             bsdf_mem_arena.free_all();
 
             RNG& rng = states[i].rng;
-            Intersection isect = calculate_intersection(hits, rays, i);
-            float cos_theta_o = fabsf(dot(isect.out_dir, isect.normal));
+            const auto isect = calculate_intersection(scene_, hits[i], rays[i]);
+            const float cos_theta_o = fabsf(dot(isect.out_dir, isect.normal));
 
             if (cos_theta_o == 0.0f) // Prevent NaNs
                 continue;
 
             // Complete calculation of the partial weights.
-            if (states[i].path_length > 1 || states[i].is_finite)
-                states[i].dVCM *= mis_heuristic(sqr(isect.distance));
+            if (states[i].path_length > 1 || states[i].finite_light)
+                states[i].dVCM *= mis_pow(sqr(isect.distance));
 
-            states[i].dVCM *= 1.0f / mis_heuristic(cos_theta_o);
-            states[i].dVC  *= 1.0f / mis_heuristic(cos_theta_o);
-            states[i].dVM  *= 1.0f / mis_heuristic(cos_theta_o);
-
-#ifdef ENABLE_NAN_TESTS
-            if (isnan(states[i].dVCM) || isnan(states[i].dVC) || isnan(states[i].dVM))
-                printf("NaN in completed MIS weights (light):\n   weights: dVCM %f, dVC %f, dVM %f, cos: %f\n",
-                    states[i].dVCM, states[i].dVC, states[i].dVM, cos_theta_o);
-#endif
+            states[i].dVCM *= 1.0f / mis_pow(cos_theta_o);
+            states[i].dVC  *= 1.0f / mis_pow(cos_theta_o);
+            states[i].dVM  *= 1.0f / mis_pow(cos_theta_o);
 
             auto bsdf = isect.mat->get_bsdf(isect, bsdf_mem_arena, true);
 
             if (!isect.mat->is_specular()){ // Do not store vertices on materials described by a delta distribution.
                 if (algo != ALGO_LT) {
-                    add_vertex_to_cache(LightPathVertex(
+                    light_vertices_.add_vertex_to_cache(LightPathVertex(
                         isect,
                         states[i].throughput,
                         states[i].continue_prob,
@@ -448,9 +257,8 @@ void VCM_INTEGRATOR::connect_to_camera(const VCMState& light_state, const Inters
     float dist_to_cam = sqrt(dist_to_cam_sqr);
     dir_to_cam = dir_to_cam / dist_to_cam;
 
-    const float cos_theta_i = fabsf(dot(cam_.dir(), -dir_to_cam));
-    //float cos_theta_o = fabsf(dot(isect.normal, dir_to_cam));
-    const float cos_theta_o = fabsf(shading_normal_adjoint(isect.normal, isect.geom_normal, isect.out_dir, dir_to_cam));
+    const float cos_theta_cam = fabsf(dot(cam_.dir(), -dir_to_cam));
+    const float cos_theta_surf = fabsf(shading_normal_adjoint(isect.normal, isect.geom_normal, isect.out_dir, dir_to_cam));
 
     // Evaluate the material and compute the pdf values.
     auto bsdf_value = bsdf->eval(isect.out_dir, dir_to_cam, BSDF_ALL);
@@ -462,13 +270,13 @@ void VCM_INTEGRATOR::connect_to_camera(const VCMState& light_state, const Inters
         return;
 
     // Compute conversion factor from surface area to image plane and vice versa.
-    const float img_to_surf = (sqr(cam_.image_plane_dist()) * cos_theta_o) /
-                              (dist_to_cam_sqr * cos_theta_i * sqr(cos_theta_i));
+    const float img_to_surf = (sqr(cam_.image_plane_dist()) * cos_theta_surf) /
+                              (dist_to_cam_sqr * cos_theta_cam * sqr(cos_theta_cam));
     const float surf_to_img = 1.0f / img_to_surf;
 
     // Compute the MIS weight.
     const float pdf_cam = img_to_surf; // Pixel sampling pdf is one as pixel area is one by convention.
-    const float mis_weight_light = mis_heuristic(pdf_cam / light_path_count_) * (mis_weight_vm_ + light_state.dVCM + light_state.dVC * mis_heuristic(pdf_rev));
+    const float mis_weight_light = mis_pow(pdf_cam / light_path_count_) * (mis_eta_vm_ + light_state.dVCM + light_state.dVC * mis_pow(pdf_rev));
 
     const float mis_weight = algo == ALGO_LT ? 1.0f : (1.0f / (mis_weight_light + 1.0f));
 
@@ -482,15 +290,6 @@ void VCM_INTEGRATOR::connect_to_camera(const VCMState& light_state, const Inters
     };
 
     ray_out_shadow.push(ray, state);
-
-#ifdef ENABLE_NAN_TESTS
-    if (isnan(state.throughput.x) || isnan(state.throughput.y) || isnan(state.throughput.z)) {
-        printf("NaN in connect to camera:\n   mis=%f\n   bsdf=(%f,%f,%f)\n   weight=%f/%f\n",
-            mis_weight, bsdf_value.x, bsdf_value.y, bsdf_value.z, img_to_surf, light_path_count_);
-        printf("   mis_weight = %f * (%f + %f + %f * %f)\n", mis_heuristic(pdf_cam / light_path_count_), mis_weight_vm_, light_state.dVCM, light_state.dVC, mis_heuristic(pdf_rev));
-        printf("   bounces=%d\n", state.path_length);
-    }
-#endif
 }
 
 VCM_TEMPLATE
@@ -500,54 +299,49 @@ void VCM_INTEGRATOR::process_camera_rays(RayQueue<VCMState>& rays_in, RayQueue<V
     const Hit* hits = rays_in.hits();
     const Ray* rays = rays_in.rays();
 
-    tbb::parallel_for(tbb::blocked_range<size_t>(0, ray_count), [this, states, hits, rays, &rays_out, &ray_out_shadow, &img] (const tbb::blocked_range<size_t>& range) {
+    tbb::parallel_for(tbb::blocked_range<int>(0, ray_count), [&] (const tbb::blocked_range<int>& range) {
         auto& bsdf_mem_arena = bsdf_memory_arenas.local();
 
-        for (size_t i = range.begin(); i != range.end(); ++i) {
+        for (auto i = range.begin(); i != range.end(); ++i) {
             if (hits[i].tri_id < 0)
                 continue;
 
             bsdf_mem_arena.free_all();
 
             RNG& rng = states[i].rng;
-            Intersection isect = calculate_intersection(hits, rays, i);
-            float cos_theta_o = fabsf(dot(isect.out_dir, isect.normal));
+            const auto isect = calculate_intersection(scene_, hits[i], rays[i]);
+            const float cos_theta_o = fabsf(dot(isect.out_dir, isect.normal));
 
             auto bsdf = isect.mat->get_bsdf(isect, bsdf_mem_arena);
 
             // Complete computation of partial MIS weights.
-            states[i].dVCM *= mis_heuristic(sqr(isect.distance)) / mis_heuristic(cos_theta_o); // convert divided pdf from solid angle to area
-            states[i].dVC *= 1.0f / mis_heuristic(cos_theta_o);
-            states[i].dVM *= 1.0f / mis_heuristic(cos_theta_o);
+            states[i].dVCM *= mis_pow(sqr(isect.distance)) / mis_pow(cos_theta_o); // convert divided pdf from solid angle to area
+            states[i].dVC *= 1.0f / mis_pow(cos_theta_o);
+            states[i].dVM *= 1.0f / mis_pow(cos_theta_o);
 
             if (cos_theta_o == 0.0f) // Prevent NaNs
                 continue;
-
-#ifdef ENABLE_NAN_TESTS
-            if (isnan(states[i].dVCM) || isnan(states[i].dVC) || isnan(states[i].dVM))
-                printf("NaN in completed MIS weights (camera):\n   weights: dVCM %f, dVC %f, dVM %f, cos: %f\n",
-                    states[i].dVCM, states[i].dVC, states[i].dVM, cos_theta_o);
-#endif
 
             if (auto emit = isect.mat->emitter()) {
                 // A light source was hit directly. Add the weighted contribution.
                 float pdf_lightpick = 1.0f / scene_.light_count();
                 float pdf_direct_a, pdf_emit_w;
-                float4 radiance = emit->radiance(isect.out_dir, isect.geom_normal, pdf_direct_a, pdf_emit_w);
+
+                rgb radiance = emit->radiance(isect.out_dir, isect.geom_normal, pdf_direct_a, pdf_emit_w);
 
                 const float pdf_di = pdf_direct_a * pdf_lightpick;
                 const float pdf_e = pdf_emit_w * pdf_lightpick;
 
-                const float mis_weight_camera = mis_heuristic(pdf_di) * states[i].dVCM + mis_heuristic(pdf_e) * states[i].dVC;
+                const float mis_weight_camera = mis_pow(pdf_di) * states[i].dVCM + mis_pow(pdf_e) * states[i].dVC;
                 const float mis_weight = 1.0f / (mis_weight_camera + 1.0f);
 
                 if (states[i].path_length > 1) {
-                    float4 color = states[i].throughput * radiance * (algo == ALGO_PPM ? 1.0f : mis_weight);
+                    rgb color = states[i].throughput * radiance * (algo == ALGO_PPM ? 1.0f : mis_weight);
 
                     if (algo != ALGO_PT)
-                        img.pixels()[states[i].pixel_id] += color;
+                        add_contribution(img, states[i].pixel_id, color);
                 } else
-                    img.pixels()[states[i].pixel_id] += radiance; // Light directly visible, no weighting required.
+                    add_contribution(img, states[i].pixel_id, radiance); // Light directly visible, no weighting required.
             }
 
             // Compute direct illumination.
@@ -599,9 +393,9 @@ void VCM_INTEGRATOR::direct_illum(VCMState& cam_state, const Intersection& isect
     const float pdf_reverse = cam_state.continue_prob * pdf_rev_w;
 
     // Compute full MIS weights for camera and light.
-    const float mis_weight_light = mis_heuristic(pdf_forward * pdf_lightpick_inv / sample.pdf_direct_w);
-    const float mis_weight_camera = mis_heuristic(sample.pdf_emit_w * cos_theta_i / (sample.pdf_direct_w * cos_theta_o)) *
-                                    (mis_weight_vm_ + cam_state.dVCM + cam_state.dVC * mis_heuristic(pdf_reverse));
+    const float mis_weight_light = mis_pow(pdf_forward * pdf_lightpick_inv / sample.pdf_direct_w);
+    const float mis_weight_camera = mis_pow(sample.pdf_emit_w * cos_theta_i / (sample.pdf_direct_w * cos_theta_o)) *
+                                    (mis_eta_vm_ + cam_state.dVCM + cam_state.dVC * mis_pow(pdf_reverse));
 
     const float mis_weight = algo == ALGO_PT ? 1.0f : (1.0f / (mis_weight_camera + 1.0f + mis_weight_light));
 
@@ -609,24 +403,17 @@ void VCM_INTEGRATOR::direct_illum(VCMState& cam_state, const Intersection& isect
     s.throughput *= mis_weight * bsdf_value * cos_theta_i * sample.radiance * pdf_lightpick_inv;
 
     rays_out_shadow.push(ray, s);
-
-#ifdef ENABLE_NAN_TESTS
-    if (isnan(s.throughput.x) || isnan(s.throughput.y) || isnan(s.throughput.z))
-        printf("NaN in direct illumination:\n   mis=%f\n   bsdf=(%f,%f,%f)\n   cos=%f\n   pdf=%f\n   radiance=(%f,%f,%f)\n",
-            mis_weight, bsdf_value.x, bsdf_value.y, bsdf_value.z, cos_theta_i, pdf_lightpick_inv,
-            sample.radiance.x, sample.radiance.y, sample.radiance.z);
-#endif
 }
 
 VCM_TEMPLATE
 void VCM_INTEGRATOR::connect(VCMState& cam_state, const Intersection& isect, BSDF* bsdf_cam, MemoryArena& bsdf_arena, RayQueue<VCMState>& rays_out_shadow) {
     // PDF conversion factor from using the vertex cache.
     // Vertex Cache is equivalent to randomly sampling a path with pdf ~ path length and uniformly sampling a vertex on this path.
-    const float vc_weight = (light_vertices_count_[cam_state.sample_id] / light_path_count_) / num_connections_;
+    const float vc_weight = (light_vertices_.count(cam_state.sample_id) / light_path_count_) / num_connections_;
 
     // Connect to num_connections_ randomly chosen vertices from the cache.
     for (int i = 0; i < num_connections_; ++i) {
-        const auto& light_vertex = vertex_caches_[cam_state.sample_id][cam_state.rng.random_int(0, light_vertices_count_[cam_state.sample_id])];
+        const auto& light_vertex = light_vertices_.get_connect(cam_state.sample_id, cam_state.rng);
 
         // Ignore paths that are longer than the specified maximum length.
         if (light_vertex.path_length + cam_state.path_length > max_path_len_)
@@ -681,8 +468,8 @@ void VCM_INTEGRATOR::connect(VCMState& cam_state, const Intersection& isect, BSD
         const float pdf_light_a = pdf_light_f * cos_theta_cam / connect_dist_sq;
 
         // Compute the full MIS weight from the partial weights and pdfs.
-        const float mis_weight_light = mis_heuristic(pdf_cam_a) * (mis_weight_vm_ + light_vertex.dVCM + light_vertex.dVC * mis_heuristic(pdf_light_r));
-        const float mis_weight_camera = mis_heuristic(pdf_light_a) * (mis_weight_vm_ + cam_state.dVCM + cam_state.dVC * mis_heuristic(pdf_cam_r));
+        const float mis_weight_light = mis_pow(pdf_cam_a) * (mis_eta_vm_ + light_vertex.dVCM + light_vertex.dVC * mis_pow(pdf_light_r));
+        const float mis_weight_camera = mis_pow(pdf_light_a) * (mis_eta_vm_ + cam_state.dVCM + cam_state.dVC * mis_pow(pdf_cam_r));
 
         const float mis_weight = 1.0f / (mis_weight_camera + 1.0f + mis_weight_light);
 
@@ -695,14 +482,6 @@ void VCM_INTEGRATOR::connect(VCMState& cam_state, const Intersection& isect, BSD
         };
 
         rays_out_shadow.push(ray, s);
-
-#ifdef ENABLE_NAN_TESTS
-        if (isnan(s.throughput.x) || isnan(s.throughput.y) || isnan(s.throughput.z))
-            printf("NaN in vertex connection:\n   vc_weight=%f\n   mis=%f\n   geom_term=%f\n   bsdf_cam=(%f,%f,%f)\n   bsdf_light=(%f,%f,%f)\n   throughput=(%f,%f,%f)\n",
-                vc_weight, mis_weight, geom_term, bsdf_value_cam.x, bsdf_value_cam.y, bsdf_value_cam.z,
-                bsdf_value_light.x, bsdf_value_light.y, bsdf_value_light.z,
-                light_vertex.throughput.x, light_vertex.throughput.y, light_vertex.throughput.z);
-#endif
     }
 }
 
@@ -710,12 +489,12 @@ VCM_TEMPLATE
 void VCM_INTEGRATOR::vertex_merging(const VCMState& state, const Intersection& isect, const BSDF* bsdf, AtomicImage& img) {
     // Obtain the thread local photon buffer and reserve sufficient memory.
     auto& photons = photon_containers.local();
-    photons.reserve(width_ * height_);
+    photons.reserve(0.5f * light_path_count_);
     photons.clear();
 
-    photon_grid_[state.sample_id].process(photons, isect.pos);
+    light_vertices_.get_merge(state.sample_id, isect.pos, photons);
 
-    float4 contrib(0.0f);
+    rgb contrib(0.0f);
     const float radius_sqr = pm_radius_ * pm_radius_;
     for (PhotonIterator p : photons) {
         // Ignore the path if it would be too small. Don't count the merged vertices twice.
@@ -735,8 +514,8 @@ void VCM_INTEGRATOR::vertex_merging(const VCMState& state, const Intersection& i
         const float pdf_forward = pdf_dir_w * state.continue_prob;
         const float pdf_reverse = pdf_rev_w * state.continue_prob;
 
-        const float mis_weight_light = p->dVCM * mis_weight_vc_ + p->dVM * mis_heuristic(pdf_forward);
-        const float mis_weight_camera = state.dVCM * mis_weight_vc_ + state.dVM * mis_heuristic(pdf_reverse);
+        const float mis_weight_light = p->dVCM * mis_eta_vc_ + p->dVM * mis_pow(pdf_forward);
+        const float mis_weight_camera = state.dVCM * mis_eta_vc_ + state.dVM * mis_pow(pdf_reverse);
 
         const float mis_weight = algo == ALGO_PPM ? 1.0f : (1.0f / (mis_weight_light + 1.0f + mis_weight_camera));
 
@@ -746,7 +525,7 @@ void VCM_INTEGRATOR::vertex_merging(const VCMState& state, const Intersection& i
         contrib += mis_weight * bsdf_value * kernel * p->throughput;
     }
 
-    img.pixels()[state.pixel_id] += state.throughput * contrib * vm_normalization_ * 2.0f; // Factor 2.0f is part of the Epanechnikov filter
+    add_contribution(img, state.pixel_id, state.throughput * contrib * vm_normalization_ * 2.0f); // Factor 2.0f is part of the Epanechnikov filter
 }
 
 VCM_TEMPLATE
@@ -754,12 +533,12 @@ void VCM_INTEGRATOR::process_shadow_rays(RayQueue<VCMState>& rays_in, AtomicImag
     const VCMState* states = rays_in.states();
     const Hit* hits = rays_in.hits();
 
-    tbb::parallel_for(tbb::blocked_range<size_t>(0, rays_in.size()),
-        [states, hits, &img] (const tbb::blocked_range<size_t>& range)
+    tbb::parallel_for(tbb::blocked_range<int>(0, rays_in.size()),
+        [&] (const tbb::blocked_range<int>& range)
     {
-        for (size_t i = range.begin(); i != range.end(); ++i)
+        for (auto i = range.begin(); i != range.end(); ++i)
             if (hits[i].tri_id < 0) // Nothing was hit, the light is visible.
-                img.pixels()[states[i].pixel_id] += states[i].throughput;
+                add_contribution(img, states[i].pixel_id, states[i].throughput);
     });
 }
 

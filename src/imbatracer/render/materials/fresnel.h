@@ -76,5 +76,4 @@ private:
 
 } // namespace imba
 
-#endif // IMBA_FRESNEL_H
-
+#endif

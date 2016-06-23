@@ -1,5 +1,5 @@
 #include "pt.h"
-#include "../../core/float4.h"
+#include "../../core/rgb.h"
 #include "../../core/common.h"
 #include "../random.h"
 
@@ -72,18 +72,18 @@ void PathTracer::process_primary_rays(RayQueue<PTState>& ray_in, RayQueue<PTStat
     Hit* hits = ray_in.hits();
     Ray* rays = ray_in.rays();
 
-    tbb::parallel_for(tbb::blocked_range<size_t>(0, ray_in.size()),
-        [this, states, hits, rays, &ray_out, &ray_out_shadow, &out] (const tbb::blocked_range<size_t>& range)
+    tbb::parallel_for(tbb::blocked_range<int>(0, ray_in.size()),
+        [&] (const tbb::blocked_range<int>& range)
     {
         auto& bsdf_mem_arena = bsdf_memory_arenas.local();
 
-        for (size_t i = range.begin(); i != range.end(); ++i) {
+        for (auto i = range.begin(); i != range.end(); ++i) {
             if (hits[i].tri_id < 0)
                 continue;
 
             bsdf_mem_arena.free_all();
 
-            const auto isect = calculate_intersection(hits, rays, i);
+            const auto isect = calculate_intersection(scene_, hits[i], rays[i]);
 
             if (auto emit = isect.mat->emitter()) {
                 // If a light source is hit after a specular bounce or as the first intersection along the path, add its contribution.
@@ -92,7 +92,7 @@ void PathTracer::process_primary_rays(RayQueue<PTState>& ray_in, RayQueue<PTStat
                     float pdf_direct_a, pdf_emit_w;
                     const auto li = emit->radiance(isect.out_dir, isect.geom_normal, pdf_direct_a, pdf_emit_w);
 
-                    out.pixels()[states[i].pixel_id] += states[i].throughput * li;
+                    add_contribution(out, states[i].pixel_id, states[i].throughput * li);
                 }
             }
 
@@ -107,13 +107,13 @@ void PathTracer::process_shadow_rays(RayQueue<PTState>& ray_in, AtomicImage& out
     PTState* states = ray_in.states();
     Hit* hits = ray_in.hits();
 
-    tbb::parallel_for(tbb::blocked_range<size_t>(0, ray_in.size()),
-        [states, hits, &out] (const tbb::blocked_range<size_t>& range)
+    tbb::parallel_for(tbb::blocked_range<int>(0, ray_in.size()),
+        [&] (const tbb::blocked_range<int>& range)
     {
-        for (size_t i = range.begin(); i != range.end(); ++i) {
+        for (auto i = range.begin(); i != range.end(); ++i) {
             if (hits[i].tri_id < 0) {
                 // Nothing was hit, the light source is visible.
-                out.pixels()[states[i].pixel_id] += states[i].throughput;
+                add_contribution(out, states[i].pixel_id, states[i].throughput);
             }
         }
     });
@@ -131,7 +131,7 @@ void PathTracer::render(AtomicImage& out) {
 
             ray_out = cam_.generate_ray(sample_x, sample_y);
 
-            state_out.throughput = float4(1.0f);
+            state_out.throughput = rgb(1.0f);
             state_out.bounces = 0;
             state_out.last_specular = false;
         });

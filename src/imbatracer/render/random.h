@@ -1,11 +1,10 @@
 #ifndef IMBA_RANDOM_H
 #define IMBA_RANDOM_H
 
-#include <random>
-
+#include "../core/vector.h"
 #include "../core/common.h"
-#include "../core/float3.h"
-#include "../core/float4.h"
+
+#include <random>
 
 namespace imba {
 
@@ -164,8 +163,8 @@ inline float concentric_disc_pdf() {
     return 1.0f / pi;
 }
 
-inline bool russian_roulette(const float4& throughput, float rnd_num, float& pdf) {
-    const float4 srgb(0.2126f, 0.7152f, 0.0722f, 0.0f);
+inline bool russian_roulette(const rgb& throughput, float rnd_num, float& pdf) {
+    const rgb srgb(0.2126f, 0.7152f, 0.0722f);
     const float kill_prob = dot(throughput, srgb) * 2.0f;
     pdf = std::min(1.0f, kill_prob);
 
