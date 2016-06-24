@@ -11,7 +11,7 @@ struct Matrix {
 
     Matrix() {}
     template <typename... Args>
-    Matrix(const Args&... args) : rows{args...} {}    
+    Matrix(const Args&... args) : rows{args...} {}
 
     Vector<T, M> operator [] (int i) const { return rows[i]; }
     Vector<T, M>& operator [] (int i) { return rows[i]; }
@@ -45,7 +45,7 @@ struct Matrix {
 };
 
 template <typename T>
-Matrix<T, 4, 4> scale(T x, T y, T z, T w) {
+Matrix<T, 4, 4> scale(T x, T y, T z, T w = 1) {
     return Matrix<T, 4, 4>(Vector<T, 4>(x, 0, 0, 0),
                            Vector<T, 4>(0, y, 0, 0),
                            Vector<T, 4>(0, 0, z, 0),
@@ -74,6 +74,30 @@ Matrix<T, 4, 4> perspective(T fov, T aspect, T near, T far) {
                            Vector<T, 4>(0,   -f_v,  0,  0),
                            Vector<T, 4>(0,      0, p1, p2),
                            Vector<T, 4>(0,      0, -1,  0));
+}
+
+template <typename T>
+Matrix<T, 4, 4> rotate_x(T angle) {
+    return Matrix<T, 4, 4>(float4(1,            0,           0, 0),
+                           float4(0,  cosf(angle), sinf(angle), 0),
+                           float4(0, -sinf(angle), cosf(angle), 0),
+                           float4(0,            0,           0, 1));
+}
+
+template <typename T>
+Matrix<T, 4, 4> rotate_y(T angle) {
+    return Matrix<T, 4, 4>(float4(cosf(angle), 0, -sinf(angle), 0),
+                           float4(          0, 1,            0, 0),
+                           float4(sinf(angle), 0,  cosf(angle), 0),
+                           float4(          0, 0,            0, 1));
+}
+
+template <typename T>
+Matrix<T, 4, 4> rotate_z(T angle) {
+    return Matrix<T, 4, 4>(float4( cosf(angle), sinf(angle), 0, 0),
+                           float4(-sinf(angle), cosf(angle), 0, 0),
+                           float4(           0,           0, 1, 0),
+                           float4(           0,           0, 0, 1));
 }
 
 template <typename T>
@@ -189,6 +213,19 @@ template <typename T, typename E>
 Vector<T, 3> project(const Matrix<T, 4, 4>& a, const Expr<T, 3, E>& b) {
     const auto t = a * Vector<T, 4>(b, 1);
     return Vector<T, 3>(t.x, t.y, t.z) / t.w;
+}
+
+template <typename T, int N, int M>
+Matrix<T, N, M> abs(const Matrix<T, N, M>& a) {
+    Matrix<T, N, M> res;
+    #pragma unroll
+    for (int i = 0; i < N; i++) res[i] = abs(a[i]);
+    return res;
+}
+
+template <typename T>
+Matrix<T, 4, 4> euler(T x, T y, T z) {
+    return rotate_x(x) * rotate_y(y) * rotate_z(z);
 }
 
 typedef Matrix<float, 3, 3> float3x3;

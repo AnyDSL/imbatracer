@@ -2,6 +2,7 @@
 #define IMBA_RANDOM_H
 
 #include "../core/vector.h"
+#include "../core/rgb.h"
 #include "../core/common.h"
 
 #include <random>

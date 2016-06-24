@@ -448,7 +448,7 @@ bool parse_scene_file(const Path& path, Scene& scene, SceneInfo& info) {
                     break;
             }
 
-            float4x4 mat = float4x4::translation(pos) * float4x4::euler(euler) * float4x4::scaling(scale);
+            float4x4 mat = translate(pos.x, pos.y, pos.z) * ::imba::euler(euler.x, euler.y, euler.z) * ::imba::scale(scale.x, scale.y, scale.z);
 
             scene.instances().emplace_back(idx, mat);
             skip = true;

@@ -106,41 +106,6 @@ public:
         local_coordinates(normal_, tangent_, binormal_);
     }
 
-    virtual DirectIllumSample sample_direct(const float3& from, RNG& rng) override {
-        DirectIllumSample sample;
-
-        // sample a point on the light source
-        float u, v;
-        sample_uniform_triangle(rng.random_float(), rng.random_float(), u, v);
-        const float3 pos = u * p0_ + v * p1_ + (1.0f - u - v) * p2_;
-
-        // compute distance and shadow ray direction
-        sample.dir         = pos - from;
-        const float distsq = dot(sample.dir, sample.dir);
-        sample.distance    = sqrtf(distsq);
-        sample.dir         = sample.dir * (1.0f / sample.distance);
-
-        const float cos_out = dot(normal_, -1.0f * sample.dir);
-
-        // directions form the opposite side of the light have zero intensity
-        if (cos_out > 0.0f && cos_out < 1.0f) {
-            sample.radiance = emit_.intensity * cos_out * (emit_.area / distsq);
-
-            sample.cos_out      = cos_out;
-            sample.pdf_emit_w   = (cos_out * 1.0f / pi) / emit_.area;
-            sample.pdf_direct_w = 1.0f / emit_.area * distsq / cos_out;
-        } else {
-            sample.radiance = rgb(0.0f);
-
-            // Prevent NaNs in the integrator
-            sample.cos_out      = 1.0f;
-            sample.pdf_emit_w   = 1.0f;
-            sample.pdf_direct_w = 1.0f;
-        }
-
-        return sample;
-    }
-
     virtual EmitSample sample_emit(RNG& rng) override {
         EmitSample sample;
 

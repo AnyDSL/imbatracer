@@ -1,5 +1,5 @@
 mesh sponza_scaled.obj
-accel sponza.bvh
+#accel sponza.bvh
 #mesh sponza_area.obj
 
 pos  -4.42058  1.32792  -4.98352
