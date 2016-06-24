@@ -73,8 +73,8 @@ inline Intersection calculate_intersection(const Scene& scene, const Hit& hit, c
 
     const float2 uv_coords    = lerp(texcoords[i0], texcoords[i1], texcoords[i2], u, v);
     const float4 local_normal = float4(lerp(normals[i0], normals[i1], normals[i2], u, v), 0.0f);
-    const float3 normal       = normalize(float3(transpose(inst.inv_mat) * local_normal));
-    const float3 geom_normal  = normalize(float3(transpose(inst.inv_mat) * float4(geom_normals[local_tri_id], 0)));
+    const float3 normal       = normalize(float3(local_normal * inst.inv_mat));
+    const float3 geom_normal  = normalize(float3(float4(geom_normals[local_tri_id], 0) * inst.inv_mat));
 
     const float3 w_out = -normalize(out_dir);
 

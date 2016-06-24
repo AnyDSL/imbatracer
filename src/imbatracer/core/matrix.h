@@ -13,7 +13,7 @@ struct Matrix {
     template <typename... Args>
     Matrix(const Args&... args) : rows{args...} {}
 
-    Vector<T, M> operator [] (int i) const { return rows[i]; }
+    auto operator [] (int i) const -> decltype(rows[0]) { return rows[i]; }
     Vector<T, M>& operator [] (int i) { return rows[i]; }
 
     static Matrix<T, N, M> constant(T t) {
@@ -201,13 +201,27 @@ Matrix<T, N, M> operator * (T a, const Matrix<T, N, M>& b) {
     return b * a;
 }
 
-template <typename T, int N, int M, typename E>
-Vector<T, N> operator * (const Matrix<T, M, N>& a, const Expr<T, N, E>& b) {
-    Vector<T, N> v;
+template <typename T, int N, int M>
+Vector<T, M> operator * (const Matrix<T, M, N>& a, const Vector<T, N>& b) {
+    Vector<T, M> v;
     #pragma unroll
-    for (int i = 0; i < N; i++) v[i] = dot(a[i], b);
+    for (int i = 0; i < M; i++) v[i] = dot(a[i], b);
     return v;
 }
+
+template <typename T, int N, int M>
+Vector<T, N> operator * (const Vector<T, M>& a, const Matrix<T, M, N>& b) {
+    Vector<T, N> v;
+    #pragma unroll
+    for (int i = 0; i < N; i++) {
+        v[i] = 0;
+        #pragma unroll
+        for (int j = 0; j < M; j++)
+            v[i] += b[j][i] * a[j];
+    }
+    return v;
+}
+
 
 template <typename T, typename E>
 Vector<T, 3> project(const Matrix<T, 4, 4>& a, const Expr<T, 3, E>& b) {
