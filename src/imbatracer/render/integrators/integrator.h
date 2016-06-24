@@ -57,26 +57,26 @@ inline Intersection calculate_intersection(const Scene& scene, const Hit& hit, c
 
     const float3     org(ray.org.x, ray.org.y, ray.org.z);
     const float3 out_dir(ray.dir.x, ray.dir.y, ray.dir.z);
-    const float3       pos(org + (hit.tmax) * out_dir);
-    const float3 local_pos(inst.inv_mat * float4(pos, 1));
+    const auto       pos = org + hit.tmax * out_dir;
+    const auto local_pos = inst.inv_mat * float4(pos, 1);
 
     // Recompute v based on u and local_pos
     const float u = hit.u;
-    const float3 v0 = float3(mesh.vertices()[i0]);
-    const float3 e1 = float3(mesh.vertices()[i1]) - v0;
-    const float3 e2 = float3(mesh.vertices()[i2]) - v0;
-    const float v = dot(local_pos - v0 - u * e1, e2) / dot(e2, e2);
+    const auto v0 = float3(mesh.vertices()[i0]);
+    const auto e1 = float3(mesh.vertices()[i1]) - v0;
+    const auto e2 = float3(mesh.vertices()[i2]) - v0;
+    const float v = dot(float3(local_pos) - v0 - u * e1, e2) / dot(e2, e2);
 
     const auto texcoords    = mesh.attribute<float2>(MeshAttributes::TEXCOORDS);
     const auto normals      = mesh.attribute<float3>(MeshAttributes::NORMALS);
     const auto geom_normals = mesh.attribute<float3>(MeshAttributes::GEOM_NORMALS);
 
-    const float2 uv_coords    = lerp(texcoords[i0], texcoords[i1], texcoords[i2], u, v);
-    const float4 local_normal = float4(lerp(normals[i0], normals[i1], normals[i2], u, v), 0.0f);
-    const float3 normal       = normalize(float3(local_normal * inst.inv_mat));
-    const float3 geom_normal  = normalize(float3(float4(geom_normals[local_tri_id], 0) * inst.inv_mat));
+    const auto uv_coords    = lerp(texcoords[i0], texcoords[i1], texcoords[i2], u, v);
+    const auto local_normal = float4(lerp(normals[i0], normals[i1], normals[i2], u, v), 0.0f);
+    const auto normal       = normalize(float3(local_normal * inst.inv_mat));
+    const auto geom_normal  = normalize(float3(float4(geom_normals[local_tri_id], 0) * inst.inv_mat));
 
-    const float3 w_out = -normalize(out_dir);
+    const auto w_out = -normalize(out_dir);
 
     float3 u_tangent;
     float3 v_tangent;
