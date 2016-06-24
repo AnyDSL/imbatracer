@@ -2,12 +2,15 @@ pos  -0.978734  1.48462  4.11978
 dir  0.451216  -0.145707  -0.880439
 up   0.0831501  0.989154  -0.121085
 
+
 mesh CornellBox-Original.obj
-accel CornellBox-Original.obj
+accel CornellBox-Original.bvh
+
 mesh CornellBox-Specular.obj
-accel CornellBox-Specular.obj
+accel CornellBox-Specular.bvh
+
 mesh CornellBox-Water.obj
-accel CornellBox-Water.obj
+accel CornellBox-Water.bvh
 
 instance 1
 pos 0 0 0

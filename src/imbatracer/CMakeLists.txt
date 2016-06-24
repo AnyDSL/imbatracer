@@ -2,11 +2,9 @@
 if(BACKEND STREQUAL "cpu" OR BACKEND STREQUAL "avx")
   add_definitions(-DCPU_TRAVERSAL)
   list(APPEND CORE_SRCS core/cpu_adapter.cpp)
-  list(APPEND LOADER_SRCS loaders/load_mbvh.cpp)
 elseif(BACKEND STREQUAL "nvvm" OR BACKEND STREQUAL "cuda" OR BACKEND STREQUAL "gpu")
   add_definitions(-DGPU_TRAVERSAL)
   list(APPEND CORE_SRCS core/gpu_adapter.cpp)
-  list(APPEND LOADER_SRCS loaders/load_bvh.cpp)
 else()
   message(FATAL_ERROR "Backend not supported")
 endif()
@@ -23,7 +21,6 @@ add_library(imba_core
             core/mem_pool.h
             core/mesh.h
             core/mesh.cpp
-            core/bvh_helper.h
             core/sbvh_builder.h
             core/fast_bvh_builder.h
             core/tri.h
@@ -36,8 +33,7 @@ add_library(imba_loaders
             loaders/load_obj.h
             loaders/load_obj.cpp
             loaders/path.h
-            loaders/bvh_format.h
-            ${LOADER_SRCS})
+            loaders/load_bvh.cpp)
 
 add_library(imba_render
             render/camera.h

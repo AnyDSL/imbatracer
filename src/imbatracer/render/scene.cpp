@@ -61,10 +61,11 @@ void Scene::build_mesh_accels(const std::vector<std::string>& accel_filenames) {
     int mesh_id = 0;
     for (auto& mesh : meshes_) {
         layout_.push_back(nodes_.size());
+        const int tris_offset = tris_.size();
 
         if (accel_filenames[mesh_id] != "") {
             auto& filename = accel_filenames[mesh_id];
-            if (!load_accel(filename, nodes_, tris_)) {
+            if (!load_accel(filename, nodes_, tris_, tri_layout_[mesh_id])) {
                 std::cout << "Rebuilding the acceleration structure for mesh " << mesh_id << "." << std::endl;
 
                 adapter->build_accel(mesh, mesh_id, tri_layout_);
@@ -72,7 +73,7 @@ void Scene::build_mesh_accels(const std::vector<std::string>& accel_filenames) {
                 adapter->print_stats();
 #endif
 
-                if (!store_accel(filename, nodes_, layout_.back(), tris_))
+                if (!store_accel(filename, nodes_, layout_.back(), tris_, tris_offset, tri_layout_[mesh_id]))
                     std::cout << "The acceleration structure for mesh " << mesh_id << " could not be stored." << std::endl;
             }
         } else {
