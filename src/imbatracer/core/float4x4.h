@@ -20,21 +20,14 @@ struct float4x4 {
                         float4(0.0f, 0.0f, 1.0f, 0.0f),
                         float4(0.0f, 0.0f, 0.0f, 1.0f));
     }
+
+    static inline float4x4 zero() {
+        return float4x4(float4(0.0f, 0.0f, 0.0f, 0.0f),
+                        float4(0.0f, 0.0f, 0.0f, 0.0f),
+                        float4(0.0f, 0.0f, 0.0f, 0.0f),
+                        float4(0.0f, 0.0f, 0.0f, 0.0f));
+    }
 };
-
-inline float4x4 identity_matrix() {
-    return float4x4(float4(1.0f, 0.0f, 0.0f, 0.0f),
-                    float4(0.0f, 1.0f, 0.0f, 0.0f),
-                    float4(0.0f, 0.0f, 1.0f, 0.0f),
-                    float4(0.0f, 0.0f, 0.0f, 1.0f));
-}
-
-inline float4x4 zero_matrix() {
-    return float4x4(float4(0.0f, 0.0f, 0.0f, 0.0f),
-                    float4(0.0f, 0.0f, 0.0f, 0.0f),
-                    float4(0.0f, 0.0f, 0.0f, 0.0f),
-                    float4(0.0f, 0.0f, 0.0f, 0.0f));
-}
 
 inline float4x4 perspective(float fov, float aspect, float near, float far) {
     // Camera points towards -z.  0 < near < far.
@@ -153,7 +146,7 @@ inline float4x4 invert(const float4x4& a) {
     float det = a[0][0] * result[0][0] + a[0][1] * result[1][0] + a[0][2] * result[2][0] + a[0][3] * result[3][0];
 
     if (det == 0)
-        return zero_matrix();
+        return float4x4::zero();
 
     result[0][1] = -a[0][1] * a[2][2] * a[3][3] + a[0][1] * a[2][3] * a[3][2] + a[2][1] * a[0][2] * a[3][3] -
                    a[2][1] * a[0][3] * a[3][2] - a[3][1] * a[0][2] * a[2][3] + a[3][1] * a[0][3] * a[2][2];

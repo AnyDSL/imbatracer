@@ -5,7 +5,8 @@
 #include <vector>
 
 #include "float4.h"
-#include "matrix.h"
+#include "float4x4.h"
+#include "float3x4.h"
 #include "tri.h"
 
 namespace imba {
@@ -17,8 +18,8 @@ public:
     /// A mesh instance that refers to a particular mesh within an array of meshes.
     struct Instance {
         int      id;
-        float4x4 mat;
-        float4x4 inv_mat;
+        float3x4 mat;
+        float3x4 inv_mat;
 
         Instance() {}
         Instance(int i, const float4x4& m) : id(i), mat(m), inv_mat(invert(m)) {}

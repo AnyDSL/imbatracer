@@ -5,7 +5,7 @@
 #include "ray_queue.h"
 #include "random.h"
 
-#include "../core/matrix.h"
+#include "../core/float4x4.h"
 
 namespace imba {
 
