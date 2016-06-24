@@ -58,7 +58,7 @@ inline Intersection calculate_intersection(const Scene& scene, const Hit& hit, c
     const float3     org(ray.org.x, ray.org.y, ray.org.z);
     const float3 out_dir(ray.dir.x, ray.dir.y, ray.dir.z);
     const auto       pos = org + hit.tmax * out_dir;
-    const auto local_pos = inst.inv_mat * float4(pos, 1);
+    const auto local_pos = transform_point(inst.inv_mat, pos);
 
     // Recompute v based on u and local_pos
     const float u = hit.u;

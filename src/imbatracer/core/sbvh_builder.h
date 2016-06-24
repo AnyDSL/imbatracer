@@ -10,7 +10,7 @@
 #include "common.h"
 #include "mem_pool.h"
 #include "bvh_helper.h"
-#include "vector.h"
+#include "float4.h"
 #include "stack.h"
 #include "mesh.h"
 #include "bbox.h"

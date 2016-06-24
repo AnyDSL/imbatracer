@@ -546,9 +546,9 @@ bool build_scene(const Path& path, Scene& scene, float3& cam_pos, float3& cam_di
     for (auto& inst : scene.instances()) {
         // Copy the triangle lights if there are any.
         for (auto& light : tri_lights[inst.id]) {
-            auto p0 = float3(inst.mat * float4(light.vertex(0), 1));
-            auto p1 = float3(inst.mat * float4(light.vertex(1), 1));
-            auto p2 = float3(inst.mat * float4(light.vertex(2), 1));
+            auto p0 = transform_point(inst.mat, light.vertex(0));
+            auto p1 = transform_point(inst.mat, light.vertex(1));
+            auto p2 = transform_point(inst.mat, light.vertex(2));
             scene.lights().emplace_back(new TriangleLight(light.emitter()->intensity, p0, p1, p2));
         }
     }

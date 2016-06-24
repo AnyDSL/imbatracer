@@ -3,7 +3,7 @@
 
 #include <cfloat>
 #include <algorithm>
-#include "vector.h"
+#include "float4.h"
 
 namespace imba {
 

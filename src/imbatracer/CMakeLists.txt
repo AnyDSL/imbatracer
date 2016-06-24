@@ -16,8 +16,6 @@ add_library(imba_core
             core/bbox.h
             core/bsphere.h
             core/common.h
-            core/expr.h
-            core/vector.h
             core/rgb.h
             core/matrix.h
             core/mask.h

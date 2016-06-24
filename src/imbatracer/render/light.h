@@ -1,7 +1,6 @@
 #ifndef IMBA_LIGHT_H
 #define IMBA_LIGHT_H
 
-#include "../core/vector.h"
 #include "random.h"
 #include "../core/bsphere.h"
 

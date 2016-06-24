@@ -1,7 +1,7 @@
 #ifndef IMBA_RANDOM_H
 #define IMBA_RANDOM_H
 
-#include "../core/vector.h"
+#include "../core/float4.h"
 #include "../core/rgb.h"
 #include "../core/common.h"
 

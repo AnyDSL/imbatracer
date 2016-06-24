@@ -5,7 +5,7 @@
 #include <string>
 #include <unordered_map>
 
-#include "../core/vector.h"
+#include "../core/float4.h"
 #include "path.h"
 
 namespace imba {
