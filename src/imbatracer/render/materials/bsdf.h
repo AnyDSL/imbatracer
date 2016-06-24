@@ -128,9 +128,8 @@ inline float sin_phi(const float3& dir) {
 class BSDF {
 public:
     /// Initializes the BSDF for the given surface point.
-    BSDF(const Intersection& isect, BxDF* brdf, BxDF* btdf) : isect_(isect), brdf_(brdf), btdf_(btdf) {
-        // Compute base vectors of the shading space.
-        local_coordinates(isect.normal, tangent_, binormal_);
+    BSDF(const Intersection& isect, BxDF* brdf, BxDF* btdf)
+        : isect_(isect), brdf_(brdf), btdf_(btdf), tangent_(isect.u_tangent), binormal_(isect.v_tangent) {
     }
 
     rgb eval(const float3& out_dir, const float3& in_dir, BxDFFlags flags = BSDF_ALL) const {
@@ -250,6 +249,6 @@ private:
     BxDF* btdf_;
 };
 
-}
+} // namespace imba
 
 #endif

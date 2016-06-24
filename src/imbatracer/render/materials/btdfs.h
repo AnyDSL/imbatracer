@@ -64,6 +64,6 @@ private:
     float eta_outside_, eta_inside_;
 };
 
-}
+} // namespace imba
 
-#endif
+#endif // IMBA_BTDFS_H

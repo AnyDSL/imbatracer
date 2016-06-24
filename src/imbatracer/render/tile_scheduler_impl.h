@@ -116,7 +116,7 @@ private:
     std::atomic<int64_t> shadow_traversal_calls;
 #endif
 
-    inline bool acquire_tile(int tile_id, TiledRayGen<StateType>& out) {
+    bool acquire_tile(int tile_id, TiledRayGen<StateType>& out) {
         // Get the next tile and compute its extents
         int tile_pos_x  = (tile_id % tiles_per_row_) * tile_size_;
         int tile_pos_y  = (tile_id / tiles_per_row_) * tile_size_;
@@ -185,12 +185,12 @@ private:
                 while (prim_q_in->size() < old_val && !primary_ray_min.compare_exchange_weak(old_val, prim_q_in->size()))
                     ;
 #endif
-                prim_q_in->traverse(scene_);
+                prim_q_in->traverse(scene_.traversal_data());
 
                 process_primary_rays(*prim_q_in, *prim_q_out, *shadow_q, image);
 
                 if (shadow_q->size() > MIN_QUEUE_SIZE) {
-                    shadow_q->traverse_occluded(scene_);
+                    shadow_q->traverse_occluded(scene_.traversal_data());
 
 #ifdef ENABLE_QUEUE_STATS
                     shadow_ray_total += shadow_q->size();

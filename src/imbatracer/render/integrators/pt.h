@@ -54,5 +54,4 @@ private:
 
 } // namespace imba
 
-#endif
-
+#endif // IMBA_PT_H

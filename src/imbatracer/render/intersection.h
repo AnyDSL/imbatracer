@@ -20,6 +20,6 @@ struct Intersection {
     Material* mat;
 };
 
-}
+} // namespace imba
 
 #endif

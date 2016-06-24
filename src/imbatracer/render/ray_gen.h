@@ -117,4 +117,4 @@ private:
 
 } // namespace imba
 
-#endif
+#endif // IMBA_RAY_GEN_H

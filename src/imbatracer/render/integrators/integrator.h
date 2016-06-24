@@ -18,7 +18,7 @@ namespace imba {
 /// Base class for all integrators.
 class Integrator {
 public:
-    Integrator(Scene& scene, PerspectiveCamera& cam)
+    Integrator(const Scene& scene, const PerspectiveCamera& cam)
         : scene_(scene), cam_(cam)
     {}
 
@@ -34,8 +34,8 @@ public:
     virtual void preprocess() {}
 
 protected:
-    Scene& scene_;
-    PerspectiveCamera& cam_;
+    const Scene& scene_;
+    const PerspectiveCamera& cam_;
 
     inline static void add_contribution(AtomicImage& out, int pixel_id, const rgb& contrib) {
         out.pixels()[pixel_id].apply<std::plus<float> >(contrib);
@@ -43,29 +43,40 @@ protected:
 };
 
 inline Intersection calculate_intersection(const Scene& scene, const Hit& hit, const Ray& ray) {
-    const int i0 = scene.mesh.indices()[hit.tri_id * 4 + 0];
-    const int i1 = scene.mesh.indices()[hit.tri_id * 4 + 1];
-    const int i2 = scene.mesh.indices()[hit.tri_id * 4 + 2];
-    const int  m = scene.mesh.indices()[hit.tri_id * 4 + 3];
+    const Mesh::Instance& inst = scene.instance(hit.inst_id);
+    const Mesh& mesh = scene.mesh(inst.id);
 
-    const auto& mat = scene.materials[m];
+    const int local_tri_id = scene.local_tri_id(hit.tri_id, inst.id);
+
+    const int i0 = mesh.indices()[local_tri_id * 4 + 0];
+    const int i1 = mesh.indices()[local_tri_id * 4 + 1];
+    const int i2 = mesh.indices()[local_tri_id * 4 + 2];
+    const int  m = mesh.indices()[local_tri_id * 4 + 3];
+
+    const auto& mat = scene.material(m);
 
     const float3     org(ray.org.x, ray.org.y, ray.org.z);
     const float3 out_dir(ray.dir.x, ray.dir.y, ray.dir.z);
-    const float3 pos = org + (hit.tmax) * out_dir;
+    const auto       pos = org + hit.tmax * out_dir;
+    const auto local_pos = transform_point(inst.inv_mat, pos);
 
+    // Recompute v based on u and local_pos
     const float u = hit.u;
-    const float v = hit.v;
+    const auto v0 = float3(mesh.vertices()[i0]);
+    const auto e1 = float3(mesh.vertices()[i1]) - v0;
+    const auto e2 = float3(mesh.vertices()[i2]) - v0;
+    const float v = dot(float3(local_pos) - v0 - u * e1, e2) / dot(e2, e2);
 
-    const auto texcoords    = scene.mesh.attribute<float2>(MeshAttributes::TEXCOORDS);
-    const auto normals      = scene.mesh.attribute<float3>(MeshAttributes::NORMALS);
-    const auto geom_normals = scene.mesh.attribute<float3>(MeshAttributes::GEOM_NORMALS);
+    const auto texcoords    = mesh.attribute<float2>(MeshAttributes::TEXCOORDS);
+    const auto normals      = mesh.attribute<float3>(MeshAttributes::NORMALS);
+    const auto geom_normals = mesh.attribute<float3>(MeshAttributes::GEOM_NORMALS);
 
-    const float2 uv_coords   = lerp(texcoords[i0], texcoords[i1], texcoords[i2], u, v);
-    const float3 normal      = normalize(lerp(normals[i0], normals[i1], normals[i2], u, v));
-    const float3 geom_normal = geom_normals[hit.tri_id];
+    const auto uv_coords    = lerp(texcoords[i0], texcoords[i1], texcoords[i2], u, v);
+    const auto local_normal = lerp(normals[i0], normals[i1], normals[i2], u, v);
+    const auto normal       = normalize(float3(local_normal * inst.inv_mat));
+    const auto geom_normal  = normalize(float3(geom_normals[local_tri_id] * inst.inv_mat));
 
-    const float3 w_out = -normalize(out_dir);
+    const auto w_out = -normalize(out_dir);
 
     float3 u_tangent;
     float3 v_tangent;
@@ -85,6 +96,7 @@ inline Intersection calculate_intersection(const Scene& scene, const Hit& hit, c
     return res;
 }
 
-}
 
-#endif
+} // namespace imba
+
+#endif // IMBA_INTEGRATOR_H

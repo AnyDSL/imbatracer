@@ -1,13 +1,13 @@
 #ifndef IMBA_ATOMIC_VECTOR_H
 #define IMBA_ATOMIC_VECTOR_H
 
-#include "expr.h"
+#include "float4.h"
 #include <atomic>
 
 namespace imba {
 
 template<typename T, int N, typename V>
-struct AtomicVector : public Expr<T, N, AtomicVector<T, N, V> > {
+struct AtomicVector {
     std::atomic<T> values[N];
 
     template <typename... Args>
@@ -15,13 +15,11 @@ struct AtomicVector : public Expr<T, N, AtomicVector<T, N, V> > {
         set(args...);
     }
 
-    template <typename E>
-    AtomicVector(const Expr<T, N, E>& e) {
+    AtomicVector(const V& e) {
         store(e);
     }
 
-    template <typename E>
-    AtomicVector& operator = (const Expr<T, N, E>& e) {
+    AtomicVector& operator = (const V& e) {
         store(e);
         return *this;
     }
@@ -37,13 +35,12 @@ struct AtomicVector : public Expr<T, N, AtomicVector<T, N, V> > {
         set_<0>(args...);
     }
 
-    template <typename Op, typename E>
-    void apply(const Expr<T, N, E>& e) {
+    template <typename Op>
+    void apply(const V& e) {
         for (int i = 0; i < N; i++) atomic_apply<Op>(values[i], e[i]);
     }
 
-    template <typename E>
-    void store(const Expr<T, N, E>& e) {
+    void store(const V& e) {
         for (int i = 0; i < N; i++) values[i].store(e[i]);
     }
 
@@ -51,8 +48,8 @@ struct AtomicVector : public Expr<T, N, AtomicVector<T, N, V> > {
         return values[i].load();
     }
 
-    static ConstantExpr<T, N> zero() { return ConstantExpr<T, N>(T(0)); }
-    static ConstantExpr<T, N> one() { return ConstantExpr<T, N>(T(1)); }
+    static V zero() { return V(T(0)); }
+    static V one()  { return V(T(1)); }
 
 private:
     template <typename Op>

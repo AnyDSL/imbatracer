@@ -3,10 +3,11 @@
 
 #include <cfloat>
 #include <algorithm>
-#include "vector.h"
+#include "float4.h"
 
 namespace imba {
 
+// Bounding box utility class.
 struct BBox {
     float3 min, max;
     BBox() {}

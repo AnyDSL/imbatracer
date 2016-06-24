@@ -225,6 +225,6 @@ private:
     }
 };
 
-}
+} // namespace imba
 
 #endif

@@ -17,8 +17,8 @@ static ThreadLocalMemArena bsdf_memory_arenas;
 
 void PathTracer::compute_direct_illum(const Intersection& isect, PTState& state, RayQueue<PTState>& ray_out_shadow, BSDF* bsdf) {
     // Generate the shadow ray (sample one point on one lightsource)
-    const auto ls = scene_.lights[state.rng.random_int(0, scene_.lights.size())].get();
-    const float pdf_lightpick_inv = scene_.lights.size();
+    const auto& ls = scene_.light(state.rng.random_int(0, scene_.light_count()));
+    const float pdf_lightpick_inv = scene_.light_count();
     const auto sample = ls->sample_direct(isect.pos, state.rng);
 
     const auto bsdf_value = bsdf->eval(isect.out_dir, sample.dir, BSDF_ALL);
@@ -85,13 +85,12 @@ void PathTracer::process_primary_rays(RayQueue<PTState>& ray_in, RayQueue<PTStat
 
             const auto isect = calculate_intersection(scene_, hits[i], rays[i]);
 
-            if (isect.mat->light()) {
+            if (auto emit = isect.mat->emitter()) {
                 // If a light source is hit after a specular bounce or as the first intersection along the path, add its contribution.
                 // otherwise the light has to be ignored because it was already sampled as direct illumination.
                 if (states[i].bounces == 0 || states[i].last_specular) {
-                    const auto light_source = isect.mat->light();
                     float pdf_direct_a, pdf_emit_w;
-                    const auto li = light_source->radiance(isect.out_dir, pdf_direct_a, pdf_emit_w);
+                    const auto li = emit->radiance(isect.out_dir, isect.geom_normal, pdf_direct_a, pdf_emit_w);
 
                     add_contribution(out, states[i].pixel_id, states[i].throughput * li);
                 }
@@ -139,4 +138,3 @@ void PathTracer::render(AtomicImage& out) {
 }
 
 } // namespace imba
-

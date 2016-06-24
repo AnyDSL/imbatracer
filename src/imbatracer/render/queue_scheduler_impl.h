@@ -1,6 +1,7 @@
 #include <condition_variable>
 
 namespace imba {
+
 template<typename StateType>
 class RayQueuePool;
 
@@ -118,7 +119,7 @@ protected:
     using BaseType::ray_gen_;
     using BaseType::scene_;
 
-    inline int primary_queue_count(RayGen<StateType>& ray_gen, int queue_size) {
+    static int primary_queue_count(RayGen<StateType>& ray_gen, int queue_size) {
         double size = ray_gen.width() * ray_gen.height() * ray_gen.num_samples() / static_cast<double>(queue_size);
         return std::ceil(size);
     }
@@ -223,31 +224,6 @@ private:
             shadow_queue_pool_.return_queue(q_out_shadow, QUEUE_EMPTY);
         }
         return;
-
-        // static std::vector<QueueReference<StateType> > used_refs;
-        // used_refs.reserve(shadow_queue_pool_.size());
-        // used_refs.clear();
-
-        // int total = 0;
-        // while (q_out_shadow) {
-        //     if (total + q_out_shadow->size() <= shadow_buffer_size_) {
-        //         total += q_out_shadow->size();
-        //         used_refs.push_back(q_out_shadow);
-        //     } else {
-        //         // We have enough rays in the buffer to utilize the GPU.
-        //         shadow_queue_pool_.return_queue(q_out_shadow, QUEUE_READY_FOR_SHADOW_TRAVERSAL);
-        //         break;
-        //     }
-
-        //     q_out_shadow = shadow_queue_pool_.claim_queue_with_tag(QUEUE_READY_FOR_SHADOW_TRAVERSAL);
-        // }
-
-        // RayQueue<StateType>::traverse_occluded_multi(used_refs.begin(), used_refs.end(), scene_);
-
-        // for (auto& q_ref: used_refs) {
-        //     process_shadow_rays(*q_ref, out);
-        //     shadow_queue_pool_.return_queue(q_ref, QUEUE_EMPTY);
-        // }
     }
 };
 

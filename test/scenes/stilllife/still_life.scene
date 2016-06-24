@@ -1,5 +1,5 @@
 mesh still_life.obj
-accel still_life.bvh
+#accel still_life.bvh
 
 #mesh still_life_simple.obj
 

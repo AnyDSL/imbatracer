@@ -1,24 +1,13 @@
 #ifndef IMBA_RGB_H
 #define IMBA_RGB_H
 
-#include "vector.h"
+#include "float4.h"
 #include "atomic_vector.h"
 
 namespace imba {
 
-template <typename T, int N>
-struct Color : Vector<T, N> {
-    Color() {}
-    template <typename E>
-    Color(const Expr<T, N, E>& e) : Vector<T, N>(e) {}
-    template <typename... Args>
-    explicit Color(Args... args) : Vector<T, N>(args...) {}
-    explicit Color(T t) : Vector<T, N>(ConstantExpr<T, N>(t)) {}
-};
-
-/// Stores RGB color data
-typedef Color<float, 3> rgb;
-typedef Color<float, 4> rgba;
+using rgb  = float3;
+using rgba = float4;
 
 inline bool is_black(const rgb& a) {
     return a.x <= 0.0f && a.y <= 0.0f && a.z <= 0.0f;

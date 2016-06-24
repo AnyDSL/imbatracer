@@ -63,7 +63,7 @@ public:
 
     virtual void render(AtomicImage& out) override;
     virtual void reset() override {
-        pm_radius_ = base_radius_ * scene_.sphere.radius;
+        pm_radius_ = base_radius_ * scene_.bounding_sphere().radius;
         cur_iteration_ = 0;
     }
 
@@ -141,5 +141,4 @@ using VCM_PT = VCMIntegrator<ALGO_PT >;
 
 } // namespace imba
 
-#endif
-
+#endif // IMBA_VCM_H

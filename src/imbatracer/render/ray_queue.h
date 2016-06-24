@@ -1,16 +1,18 @@
 #ifndef IMBA_RAY_QUEUE_H
 #define IMBA_RAY_QUEUE_H
 
-#include "traversal.h"
-#include "thorin_mem.h"
-#include "scene.h"
-
 #include <vector>
 #include <algorithm>
 #include <cstring>
 #include <cassert>
 #include <atomic>
 #include <mutex>
+#include <memory>
+
+#include <thorin_runtime.hpp>
+#include <traversal.h>
+
+#include "random.h"
 
 namespace imba {
 
@@ -22,22 +24,45 @@ struct RayState {
     RNG rng;
 };
 
-// Allow running multiple traversal instances at the same time, if traversal is running on the CPU.
 #ifdef GPU_TRAVERSAL
 
+#define TRAVERSAL_DEVICE    thorin::Device(0)
+#define TRAVERSAL_PLATFORM  thorin::Platform::CUDA
+#define TRAVERSAL_INTERSECT intersect_gpu_masked_instanced
+#define TRAVERSAL_OCCLUDED  occluded_gpu_masked_instanced
+
+// Do not allow running multiple traversal instances at the same time on the GPU.
 static std::mutex traversal_mutex;
-static const int TRAVERSAL_BLOCK_SIZE = 64;
+static constexpr int traversal_block_size() { return 64; }
 
 #else
 
-static const int TRAVERSAL_BLOCK_SIZE = 8;
+static constexpr int traversal_block_size() { return 8; }
+
+#define TRAVERSAL_DEVICE    thorin::Device(0)
+#define TRAVERSAL_PLATFORM  thorin::Platform::HOST
+#define TRAVERSAL_INTERSECT intersect_cpu_masked_instanced
+#define TRAVERSAL_OCCLUDED  occluded_cpu_masked_instanced
 
 #endif
+
+/// Structure that contains the traversal data, such as the BVH nodes or opacity masks.
+struct TraversalData {
+    int root;
+    thorin::Array<::Node> nodes;
+    thorin::Array<::InstanceNode> instances;
+    thorin::Array<::Vec4> tris;
+    thorin::Array<::Vec2> texcoords;
+    thorin::Array<int> indices;
+    thorin::Array<::TransparencyMask> masks;
+    thorin::Array<char> mask_buffer;
+};
 
 /// Stores a set of rays for traversal along with their state.
 template <typename StateType>
 class RayQueue {
-    static inline int align(int v) { return v % TRAVERSAL_BLOCK_SIZE == 0 ? v : v + TRAVERSAL_BLOCK_SIZE - v % TRAVERSAL_BLOCK_SIZE; }
+    static int align(int v) { return v % traversal_block_size() == 0 ? v : v + traversal_block_size() - v % traversal_block_size(); }
+
 public:
     RayQueue() { }
 
@@ -129,110 +154,64 @@ public:
     }
 
     /// Traverses the acceleration structure with the rays currently inside the queue.
-    void traverse(Scene& scene) {
+    void traverse(const TraversalData& c_data) {
         assert(size() != 0);
 
         int count = align(size());
+        TraversalData& data = const_cast<TraversalData&>(c_data);
 
 #ifdef GPU_TRAVERSAL
         {
             std::lock_guard<std::mutex> lock(traversal_mutex);
 
             thorin::copy(ray_buffer_, *device_ray_buffer.get(), size());
-
-            TRAVERSAL_INTERSECT(scene.nodes.device_data(),
-                                scene.tris.device_data(),
+#else
+            auto* device_ray_buffer = &ray_buffer_;
+            auto* device_hit_buffer = &hit_buffer_;
+#endif
+            TRAVERSAL_INTERSECT(data.root, data.nodes.data(),
+                                data.instances.data(),
+                                data.tris.data(),
                                 device_ray_buffer->data(),
                                 device_hit_buffer->data(),
-                                scene.indices.device_data(),
-                                scene.texcoords.device_data(),
-                                scene.masks.device_data(),
-                                scene.mask_buffer.device_data(),
+                                data.indices.data(),
+                                data.texcoords.data(),
+                                data.masks.data(),
+                                data.mask_buffer.data(),
                                 count);
-
+#ifdef GPU_TRAVERSAL
             thorin::copy(*device_hit_buffer.get(), hit_buffer_, size());
         }
-#else
-        TRAVERSAL_INTERSECT(scene.nodes.device_data(),
-                            scene.tris.device_data(),
-                            ray_buffer_.data(),
-                            hit_buffer_.data(),
-                            scene.indices.device_data(),
-                            scene.texcoords.device_data(),
-                            scene.masks.device_data(),
-                            scene.mask_buffer.device_data(),
-                            count);
 #endif
     }
 
-    void traverse_occluded(Scene& scene) {
+    void traverse_occluded(const TraversalData& c_data) {
         assert(size() != 0);
 
         int count = align(size());
+        TraversalData& data = const_cast<TraversalData&>(c_data);
 
 #ifdef GPU_TRAVERSAL
         {
             std::lock_guard<std::mutex> lock(traversal_mutex);
 
             thorin::copy(ray_buffer_, *device_ray_buffer.get(), size());
-
-            TRAVERSAL_OCCLUDED(scene.nodes.device_data(),
-                               scene.tris.device_data(),
+#else
+            auto* device_ray_buffer = &ray_buffer_;
+            auto* device_hit_buffer = &hit_buffer_;
+#endif
+            TRAVERSAL_OCCLUDED(data.root, data.nodes.data(),
+                               data.instances.data(),
+                               data.tris.data(),
                                device_ray_buffer->data(),
                                device_hit_buffer->data(),
-                               scene.indices.device_data(),
-                               scene.texcoords.device_data(),
-                               scene.masks.device_data(),
-                               scene.mask_buffer.device_data(),
+                               data.indices.data(),
+                               data.texcoords.data(),
+                               data.masks.data(),
+                               data.mask_buffer.data(),
                                count);
-
-            thorin::copy(*device_hit_buffer.get(), hit_buffer_, size());
-        }
-#else
-        TRAVERSAL_OCCLUDED(scene.nodes.device_data(),
-                           scene.tris.device_data(),
-                           ray_buffer_.data(),
-                           hit_buffer_.data(),
-                           scene.indices.device_data(),
-                           scene.texcoords.device_data(),
-                           scene.masks.device_data(),
-                           scene.mask_buffer.device_data(),
-                           count);
-#endif
-    }
-
-    // Traverses all queues within a range of queue pointers at once.
-    template<typename QIter>
-    static void traverse_occluded_multi(QIter first, QIter last, Scene& scene) {
-        // ASSUMES GPU TRAVERSAL + QUEUE SCHEDULER!
 #ifdef GPU_TRAVERSAL
-        // Copy all rays to the device.
-        size_t offset = 0;
-        for (QIter it = first; it != last; ++it) {
-            thorin::copy((*it)->ray_buffer_, 0, *device_ray_buffer.get(), offset, (*it)->size());
-            offset += (*it)->size();
-        }
-
-        if (offset == 0) // All queues were empty.
-            return;
-
-        printf("traversing shadow rays: %d\n", offset);
-
-        TRAVERSAL_OCCLUDED(scene.nodes.device_data(),
-                           scene.tris.device_data(),
-                           device_ray_buffer->data(),
-                           device_hit_buffer->data(),
-                           scene.indices.device_data(),
-                           scene.texcoords.device_data(),
-                           scene.masks.device_data(),
-                           scene.mask_buffer.device_data(),
-                           align(offset));
-
-        // Copy the hits back into the individual queues.
-        offset = 0;
-        for (QIter it = first; it != last; ++it) {
-            thorin::copy(*device_hit_buffer.get(), 0, (*it)->hit_buffer_, offset, (*it)->size());
-            offset += (*it)->size();
+            thorin::copy(*device_hit_buffer.get(), hit_buffer_, size());
         }
 #endif
     }
@@ -244,21 +223,21 @@ private:
     static std::unique_ptr<thorin::Array<Hit> > device_hit_buffer;
     static size_t device_buffer_size;
 public:
-    static inline void setup_device_buffer(size_t max_count) {
-        device_ray_buffer.reset(new thorin::Array<Ray>(thorin::Platform::TRAVERSAL_PLATFORM, thorin::Device(TRAVERSAL_DEVICE), align(max_count)));
-        device_hit_buffer.reset(new thorin::Array<Hit>(thorin::Platform::TRAVERSAL_PLATFORM, thorin::Device(TRAVERSAL_DEVICE), align(max_count)));
+    static void setup_device_buffer(size_t max_count) {
+        device_ray_buffer.reset(new thorin::Array<Ray>(TRAVERSAL_PLATFORM, TRAVERSAL_DEVICE, align(max_count)));
+        device_hit_buffer.reset(new thorin::Array<Hit>(TRAVERSAL_PLATFORM, TRAVERSAL_DEVICE, align(max_count)));
         device_buffer_size = max_count;
     }
 
-    static inline void release_device_buffer() {
+    static void release_device_buffer() {
         device_hit_buffer.reset(nullptr);
         device_ray_buffer.reset(nullptr);
     }
 
 #else
 public:
-    static inline void setup_device_buffer(size_t max_count) {}
-    static inline void release_device_buffer() {}
+    static void setup_device_buffer(size_t max_count) {}
+    static void release_device_buffer() {}
 #endif
 
 private:
@@ -281,6 +260,6 @@ size_t RayQueue<StateType>::device_buffer_size;
 
 #endif
 
-}
+} // namespace imba
 
-#endif
+#endif // IMBA_RAY_QUEUE

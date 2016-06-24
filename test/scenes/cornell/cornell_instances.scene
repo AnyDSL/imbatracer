@@ -1,0 +1,120 @@
+pos  -0.978734  1.48462  4.11978
+dir  0.451216  -0.145707  -0.880439
+up   0.0831501  0.989154  -0.121085
+
+
+mesh CornellBox-Original.obj
+accel CornellBox-Original.bvh
+
+mesh CornellBox-Specular.obj
+accel CornellBox-Specular.bvh
+
+mesh CornellBox-Water.obj
+accel CornellBox-Water.bvh
+
+instance 1
+pos 0 0 0
+scale 1 1 1
+
+instance 2
+pos 2.5 0 1
+scale 0.5 0.5 0.5
+rot 0 45 0
+
+instance 0
+pos 5 0 -8
+scale 20 10 20
+
+
+
+
+
+instance 2
+pos 2.5 0 -10
+scale 0.5 0.5 0.5
+rot 0 45 0
+
+instance 2
+pos 2.5 0 -8
+scale 0.5 0.5 0.5
+rot 0 45 0
+
+instance 2
+pos 2.5 0 -6
+scale 0.5 0.5 0.5
+rot 0 45 0
+
+instance 2
+pos 2.5 0 -4
+scale 0.5 0.5 0.5
+rot 0 45 0
+
+instance 2
+pos 2.5 0 -2
+scale 0.5 0.5 0.5
+rot 0 45 0
+
+instance 2
+pos 2.5 0 0
+scale 0.5 0.5 0.5
+rot 0 45 0
+
+instance 2
+pos 2.5 0 2
+scale 0.5 0.5 0.5
+rot 0 45 0
+
+instance 2
+pos 2.5 0 4
+scale 0.5 0.5 0.5
+rot 0 45 0
+
+instance 2
+pos 2.5 0 6
+scale 0.5 0.5 0.5
+rot 0 45 0
+
+instance 2
+pos 2.5 0 8
+scale 0.5 0.5 0.5
+rot 0 45 0
+
+instance 2
+pos 2.5 0 10
+scale 0.5 0.5 0.5
+rot 0 45 0
+
+instance 2
+pos 2.5 0 12
+scale 0.5 0.5 0.5
+rot 0 45 0
+
+instance 2
+pos 2.5 0 14
+scale 0.5 0.5 0.5
+rot 0 45 0
+
+instance 2
+pos 2.5 0 16
+scale 0.5 0.5 0.5
+rot 0 45 0
+
+instance 2
+pos 2.5 0 18
+scale 0.5 0.5 0.5
+rot 0 45 0
+
+instance 2
+pos 2.5 0 20
+scale 0.5 0.5 0.5
+rot 0 45 0
+
+instance 2
+pos 2.5 0 22
+scale 0.5 0.5 0.5
+rot 0 45 0
+
+instance 2
+pos 2.5 0 24
+scale 0.5 0.5 0.5
+rot 0 45 0

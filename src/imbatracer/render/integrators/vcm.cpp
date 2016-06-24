@@ -57,9 +57,9 @@ void VCM_INTEGRATOR::trace_light_paths(AtomicImage& img) {
         },
         [this] (int x, int y, ::Ray& ray_out, VCMState& state_out) {
             // randomly choose one light source to sample
-            int i = state_out.rng.random_int(0, scene_.lights.size());
-            auto& l = scene_.lights[i];
-            float pdf_lightpick = 1.0f / scene_.lights.size();
+            int i = state_out.rng.random_int(0, scene_.light_count());
+            auto& l = scene_.light(i);
+            float pdf_lightpick = 1.0f / scene_.light_count();
 
             Light::EmitSample sample = l->sample_emit(state_out.rng);
             ray_out.org.x = sample.pos.x;
@@ -322,13 +322,12 @@ void VCM_INTEGRATOR::process_camera_rays(RayQueue<VCMState>& rays_in, RayQueue<V
             if (cos_theta_o == 0.0f) // Prevent NaNs
                 continue;
 
-            if (isect.mat->light()) {
-                auto light_source = isect.mat->light();
-
+            if (auto emit = isect.mat->emitter()) {
                 // A light source was hit directly. Add the weighted contribution.
-                float pdf_lightpick = 1.0f / scene_.lights.size();
+                float pdf_lightpick = 1.0f / scene_.light_count();
                 float pdf_direct_a, pdf_emit_w;
-                rgb radiance = light_source->radiance(isect.out_dir, pdf_direct_a, pdf_emit_w);
+
+                rgb radiance = emit->radiance(isect.out_dir, isect.geom_normal, pdf_direct_a, pdf_emit_w);
 
                 const float pdf_di = pdf_direct_a * pdf_lightpick;
                 const float pdf_e = pdf_emit_w * pdf_lightpick;
@@ -370,8 +369,8 @@ void VCM_INTEGRATOR::process_camera_rays(RayQueue<VCMState>& rays_in, RayQueue<V
 VCM_TEMPLATE
 void VCM_INTEGRATOR::direct_illum(VCMState& cam_state, const Intersection& isect, BSDF* bsdf, RayQueue<VCMState>& rays_out_shadow) {
     // Generate the shadow ray (sample one point on one lightsource)
-    const auto ls = scene_.lights[cam_state.rng.random_int(0, scene_.lights.size())].get();
-    const float pdf_lightpick_inv = scene_.lights.size();
+    const auto& ls = scene_.light(cam_state.rng.random_int(0, scene_.light_count()));
+    const float pdf_lightpick_inv = scene_.light_count();
     const auto sample = ls->sample_direct(isect.pos, cam_state.rng);
     const float cos_theta_o = sample.cos_out;
     assert_normalized(sample.dir);
@@ -543,6 +542,7 @@ void VCM_INTEGRATOR::process_shadow_rays(RayQueue<VCMState>& rays_in, AtomicImag
     });
 }
 
+// Explicit instantiations
 template class VCMIntegrator<ALGO_PPM>;
 template class VCMIntegrator<ALGO_PT >;
 template class VCMIntegrator<ALGO_LT >;
@@ -550,4 +550,3 @@ template class VCMIntegrator<ALGO_BPT>;
 template class VCMIntegrator<ALGO_VCM>;
 
 } // namespace imba
-

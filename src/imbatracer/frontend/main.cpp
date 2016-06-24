@@ -78,6 +78,27 @@ private:
     PerspectiveCamera& cam_;
 };
 
+
+extern "C"
+{
+    void debug_abort(const char* str) {
+        printf(str);
+        fflush(stdout);
+    }
+
+    void print(const char* str) {
+        printf(str);
+        fflush(stdout);
+    }
+
+    void print_iiff(const char* str, int i1, int i2, float f1, float f2) {
+        printf("%s %d %d %f %f\n", str, i1, i2, f1, f2);
+        fflush(stdout);
+    }
+}
+
+
+
 int main(int argc, char* argv[]) {
     std::cout << "Imbatracer - An interactive raytracer" << std::endl;
 
@@ -92,10 +113,10 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
-    if (settings.accel_output != "") {
+    /*if (settings.accel_output != "") {
         if (!store_accel(settings.accel_output, scene.nodes, scene.tris))
             std::cerr << "ERROR: Could not write acceleration structure data." << std::endl;
-    }
+    }*/
 
     std::cout << "The scene has been loaded successfully." << std::endl;
 

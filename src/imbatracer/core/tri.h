@@ -1,7 +1,7 @@
 #ifndef IMBA_TRI_H
 #define IMBA_TRI_H
 
-#include "vector.h"
+#include "float4.h"
 #include "bbox.h"
 
 namespace imba {

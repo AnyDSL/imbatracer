@@ -5,7 +5,7 @@
 #include "ray_queue.h"
 #include "random.h"
 
-#include "../core/matrix.h"
+#include "../core/float4x4.h"
 
 namespace imba {
 
@@ -67,12 +67,12 @@ public:
     }
 
     float2 world_to_raster(const float3& world_pos) const {
-        const auto t = project(world_to_raster_, world_pos);
+        const auto t = transform_point(world_to_raster_, world_pos);
         return float2(t.y, t.x);
     }
 
     float3 raster_to_world(const float2& raster_pos) const {
-        return project(raster_to_world_, float3(raster_pos.y, raster_pos.x, 0));
+        return transform_point(raster_to_world_, float3(raster_pos.y, raster_pos.x, 0.0f));
     }
 
     int raster_to_id(const float2& pos) const {
@@ -107,6 +107,6 @@ private:
     float4x4 raster_to_world_;
 };
 
-}
+} // namespace imba
 
-#endif
+#endif // IMBA_CAMERA_H
