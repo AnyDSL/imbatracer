@@ -33,10 +33,8 @@ bool load_png(const Path& path, Image& image) {
         return false;
     }
 
-    png_bytep* row_ptrs = nullptr;
     if (setjmp(png_jmpbuf(png_ptr))) {
         png_destroy_read_struct(&png_ptr, &info_ptr, nullptr);
-        delete[] row_ptrs;
         return false;
     }
 
