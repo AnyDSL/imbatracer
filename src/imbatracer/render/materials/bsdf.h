@@ -77,22 +77,12 @@ public:
     CombineBxDF(BxDF* a, BxDF* b) : BxDF(BxDFFlags(a->flags | b->flags)), a_(a), b_(b) {}
 
     virtual rgb eval(const float3& out_dir, const float3& in_dir) const override {
-        return a_->eval(out_dir, in_dir) + b_->eval(out_dir, in_dir);
+        return 0.5f * (a_->eval(out_dir, in_dir) + b_->eval(out_dir, in_dir));
     }
 
     /// Default implementation cosine-samples the hemisphere.
     virtual rgb sample(const float3& out_dir, float3& in_dir, RNG& rng, float& pdf) const override {
-        BxDF* chosen_bxdf;
-
-        const float tr = rng.random_float();
-        if (tr < 0.5f)
-            chosen_bxdf = a_;
-        else
-            chosen_bxdf = b_;
-
-        auto val = chosen_bxdf->sample(out_dir, in_dir, rng, pdf);
-        pdf *= 0.5f;
-        return val;
+        return (rng.random_float() < 0.5f ? a_ : b_)->sample(out_dir, in_dir, rng, pdf);
     }
 
     virtual float pdf(const float3& out_dir, const float3& in_dir) const override {
