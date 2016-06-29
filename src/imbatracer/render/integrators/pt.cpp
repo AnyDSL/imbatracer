@@ -94,6 +94,8 @@ void PathTracer::process_primary_rays(RayQueue<PTState>& ray_in, RayQueue<PTStat
 
                     add_contribution(out, states[i].pixel_id, states[i].throughput * li);
                 }
+
+                continue;
             }
 
             const auto bsdf = isect.mat->get_bsdf(isect, bsdf_mem_arena);

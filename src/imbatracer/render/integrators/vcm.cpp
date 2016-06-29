@@ -18,7 +18,7 @@ using ThreadLocalMemArena = tbb::enumerable_thread_specific<MemoryArena, tbb::ca
 static ThreadLocalMemArena bsdf_memory_arenas;
 
 // Thread-local storage for the results of a photon query.
-using ThreadLocalPhotonContainer = tbb::enumerable_thread_specific<std::vector<PhotonIterator>, tbb::cache_aligned_allocator<std::vector<PhotonIterator>>, tbb::ets_key_per_instance>;
+using ThreadLocalPhotonContainer = tbb::enumerable_thread_specific<std::vector<const VCMPhoton*>, tbb::cache_aligned_allocator<std::vector<const VCMPhoton*>>, tbb::ets_key_per_instance>;
 static ThreadLocalPhotonContainer photon_containers;
 
 // Reduce ugliness from the template parameters.
@@ -342,6 +342,8 @@ void VCM_INTEGRATOR::process_camera_rays(RayQueue<VCMState>& rays_in, RayQueue<V
                         add_contribution(img, states[i].pixel_id, color);
                 } else
                     add_contribution(img, states[i].pixel_id, radiance); // Light directly visible, no weighting required.
+
+                continue;
             }
 
             // Compute direct illumination.
@@ -496,12 +498,8 @@ void VCM_INTEGRATOR::vertex_merging(const VCMState& state, const Intersection& i
 
     rgb contrib(0.0f);
     const float radius_sqr = pm_radius_ * pm_radius_;
-    for (PhotonIterator p : photons) {
-        // Ignore the path if it would be too small. Don't count the merged vertices twice.
-        if (state.path_length + p->path_length - 1 > max_path_len_)
-            continue;
-
-        const auto photon_in_dir = p->isect.out_dir;
+    for (const auto& p : photons) {
+        const auto photon_in_dir = p->out_dir;
 
         const auto bsdf_value = bsdf->eval(isect.out_dir, photon_in_dir);
         const float pdf_dir_w = bsdf->pdf(isect.out_dir, photon_in_dir);
@@ -520,7 +518,7 @@ void VCM_INTEGRATOR::vertex_merging(const VCMState& state, const Intersection& i
         const float mis_weight = algo == ALGO_PPM ? 1.0f : (1.0f / (mis_weight_light + 1.0f + mis_weight_camera));
 
         // Epanechnikov filter
-        const float kernel = 1.0f - dot(isect.pos - p->isect.pos, isect.pos - p->isect.pos) / radius_sqr;
+        const float kernel = 1.0f - dot(isect.pos - p->position, isect.pos - p->position) / radius_sqr;
 
         contrib += mis_weight * bsdf_value * kernel * p->throughput;
     }

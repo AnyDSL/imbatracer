@@ -38,6 +38,23 @@ struct LightPathVertex {
 
 using PhotonIterator = std::vector<LightPathVertex>::iterator;
 
+struct VCMPhoton {
+    float3 position;
+    float3 out_dir;
+    float dVCM;
+    float dVM;
+    rgb throughput;
+
+    VCMPhoton() {}
+    VCMPhoton(const LightPathVertex& r) {
+        position   = r.isect.pos;
+        out_dir    = r.isect.out_dir;
+        dVCM       = r.dVCM;
+        dVM        = r.dVM;
+        throughput = r.throughput;
+    }
+};
+
 /// Stores the vertices of the light paths and implements selecting vertices for connecting and merging.
 class LightVertices {
     // Number of light paths to be traced when computing the average length and thus vertex cache size.
@@ -97,7 +114,7 @@ private:
     std::vector<std::vector<LightPathVertex> > vertex_caches_;
     std::vector<std::atomic<int> > vertex_cache_last_;
     std::vector<int> light_vertices_count_;
-    std::vector<HashGrid<PhotonIterator> > photon_grid_;
+    std::vector<HashGrid<PhotonIterator, VCMPhoton> > photon_grid_;
 
     int path_count_;
     int spp_;

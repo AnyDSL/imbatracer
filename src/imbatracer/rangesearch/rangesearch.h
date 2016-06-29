@@ -18,7 +18,7 @@ struct CellIdx {
 
 /// Prelim. photon range search accelerator, taken from SmallVCM
 /// Will be replaced later on by a high performance parallel version.
-template<typename Iter>
+template<typename Iter, typename Photon>
 class HashGrid {
 public:
     HashGrid() : cell_ends_(1000000) {}
@@ -43,7 +43,7 @@ public:
         // Distribute the photons to the HashGrid cells using Counting Sort.
 
         int photon_count = photons_end - photons_begin;
-        indices_.resize(photon_count);
+        photons_.resize(photon_count);
         memset(&cell_ends_[0], 0, cell_ends_.size() * sizeof(int));
 
         // Count the number of photons in each cell.
@@ -69,13 +69,12 @@ public:
             for (Iter it = range.begin(); it != range.end(); ++it) {
                 const float3 &pos = it->position();
                 const int target_idx = cell_ends_[cell_index(pos)]++;
-                indices_[target_idx] = it;
+                photons_[target_idx] = *it;
             }
         });
     }
 
-    template<typename Container>
-    void process(Container& output, const float3& query_pos) {
+    void process(std::vector<const Photon*>& output, const float3& query_pos) {
         const float3 dist_min = query_pos - bbox_min_;
         const float3 dist_max = bbox_max_ - query_pos;
 
@@ -109,11 +108,11 @@ public:
 
             for(; active_range.x < active_range.y; active_range.x++)
             {
-                const Iter particle_idx = indices_[active_range.x];
-                const float distSqr = lensqr(query_pos - particle_idx->position());
+                const auto& photon = photons_[active_range.x];
+                const float distSqr = lensqr(query_pos - photon.position);
 
                 if(distSqr <= radius_sqr_)
-                    output.push_back(particle_idx);
+                    output.push_back(&photon);
             }
         }
     }
@@ -142,7 +141,7 @@ private:
 
     float3 bbox_min_;
     float3 bbox_max_;
-    std::vector<Iter> indices_;
+    std::vector<Photon> photons_;
     std::vector<std::atomic<int> > cell_ends_;
 
     float radius_;
