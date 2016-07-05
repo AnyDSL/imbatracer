@@ -82,12 +82,12 @@ private:
 extern "C"
 {
     void debug_abort(const char* str) {
-        printf(str);
+        printf("%s\n", str);
         fflush(stdout);
     }
 
     void print(const char* str) {
-        printf(str);
+        printf("%s\n", str);
         fflush(stdout);
     }
 
