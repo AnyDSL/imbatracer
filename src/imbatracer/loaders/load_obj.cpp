@@ -11,10 +11,8 @@ inline void error() {
 
 template <typename T, typename... Args>
 inline void error(T t, Args... args) {
-#ifndef NDEBUG
     std::cerr << t;
     error(args...);
-#endif
 }
 
 namespace imba {
@@ -340,7 +338,7 @@ static bool parse_mtl(std::istream& stream, obj::MaterialLib& mtl_lib) {
             auto& mat = current_material();
             mat.map_d = std::string(strip_spaces(ptr + 6));
         } else {
-            error("unknown command", ptr);
+            error("unknown command ", ptr);
             err_count++;
         }
     }

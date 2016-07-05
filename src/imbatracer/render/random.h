@@ -62,9 +62,12 @@ inline void local_coordinates(const float3& normal, float3& tangent_out, float3&
 
     tangent_out[id0] = normal.z * sig * inv_len;
     tangent_out[id1] = 0.f;
-    tangent_out.z   = normal[id0] * -1.f * sig * inv_len;
+    tangent_out.z    = normal[id0] * -1.f * sig * inv_len;
 
     binormal_out = cross(normal, tangent_out);
+
+    tangent_out = normalize(tangent_out);
+    binormal_out = normalize(binormal_out);
 }
 
 inline float3 spherical_dir(float sintheta, float costheta, float phi) {

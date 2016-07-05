@@ -46,9 +46,9 @@ public:
         auto u = isect.u_tangent + diff_u * n;
         auto v = isect.v_tangent + diff_v * n;
 
-        isect.normal = normalize(cross(u, v));
-        isect.u_tangent = u;
-        isect.v_tangent = v;
+        isect.u_tangent = normalize(u);
+        isect.v_tangent = normalize(v);
+        isect.normal = cross(isect.u_tangent, isect.v_tangent);
     }
 
 private:

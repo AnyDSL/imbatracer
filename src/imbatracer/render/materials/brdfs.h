@@ -55,6 +55,7 @@ public:
     virtual rgb eval(const float3& out_dir, const float3& in_dir) const override {
         auto reflected_in = float3(-in_dir.x, -in_dir.y, in_dir.z);
         float cos_r_o = std::max(0.0f, dot(reflected_in, out_dir));
+        cos_r_o = std::min(cos_r_o, 1.0f);
 
         return same_hemisphere(out_dir, in_dir)
                 ? (exponent_ + 2.0f) / (2.0f * pi) * coefficient_ * powf(cos_r_o, exponent_)
