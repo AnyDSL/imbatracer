@@ -18,7 +18,6 @@ struct LightPathVertex {
     Intersection isect;
     rgb throughput;
 
-    float continue_prob;
     int path_length;
 
     // partial weights for MIS, see VCM technical report
@@ -26,8 +25,8 @@ struct LightPathVertex {
     float dVCM;
     float dVM;
 
-    LightPathVertex(Intersection isect, rgb tp, float continue_prob, float dVC, float dVCM, float dVM, int path_length)
-        : isect(isect), throughput(tp), continue_prob(continue_prob), dVC(dVC), dVCM(dVCM), dVM(dVM), path_length(path_length)
+    LightPathVertex(Intersection isect, rgb tp, float dVC, float dVCM, float dVM, int path_length)
+        : isect(isect), throughput(tp), dVC(dVC), dVCM(dVCM), dVM(dVM), path_length(path_length)
     {}
 
     LightPathVertex() {}

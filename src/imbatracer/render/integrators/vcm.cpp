@@ -74,7 +74,6 @@ void VCM_INTEGRATOR::trace_light_paths(AtomicImage& img) {
 
             state_out.throughput = sample.radiance / pdf_lightpick;
             state_out.path_length = 1;
-            state_out.continue_prob = 1.0f;
 
             state_out.dVCM = mis_pow(sample.pdf_direct_a / sample.pdf_emit_w); // pdf_lightpick cancels out
 
@@ -108,7 +107,6 @@ void VCM_INTEGRATOR::trace_camera_paths(AtomicImage& img) {
 
             state_out.throughput = rgb(1.0f);
             state_out.path_length = 1;
-            state_out.continue_prob = 1.0f;
 
             const float3 dir(ray_out.dir.x, ray_out.dir.y, ray_out.dir.z);
 
@@ -169,7 +167,6 @@ void VCM_INTEGRATOR::bounce(VCMState& state, const Intersection& isect, BSDF* bs
 
     s.throughput *= bsdf_value * cos_theta_i / (rr_pdf * pdf_dir_w);
     s.path_length++;
-    s.continue_prob = rr_pdf;
 
     Ray ray {
         { isect.pos.x, isect.pos.y, isect.pos.z, offset },
@@ -220,7 +217,6 @@ void VCM_INTEGRATOR::process_light_rays(RayQueue<VCMState>& rays_in, RayQueue<VC
                     light_vertices_.add_vertex_to_cache(LightPathVertex(
                         isect,
                         states[i].throughput,
-                        states[i].continue_prob,
                         states[i].dVC,
                         states[i].dVCM,
                         states[i].dVM,
@@ -264,9 +260,7 @@ void VCM_INTEGRATOR::connect_to_camera(const VCMState& light_state, const Inters
     auto bsdf_value = bsdf->eval(isect.out_dir, dir_to_cam, BSDF_ALL);
     float pdf_rev_w = bsdf->pdf(dir_to_cam, isect.out_dir);
 
-    const float pdf_rev = pdf_rev_w * light_state.continue_prob;
-
-    if (pdf_rev == 0.0f)
+    if (pdf_rev_w == 0.0f)
         return;
 
     // Compute conversion factor from surface area to image plane and vice versa.
@@ -276,7 +270,7 @@ void VCM_INTEGRATOR::connect_to_camera(const VCMState& light_state, const Inters
 
     // Compute the MIS weight.
     const float pdf_cam = img_to_surf; // Pixel sampling pdf is one as pixel area is one by convention.
-    const float mis_weight_light = mis_pow(pdf_cam / light_path_count_) * (mis_eta_vm_ + light_state.dVCM + light_state.dVC * mis_pow(pdf_rev));
+    const float mis_weight_light = mis_pow(pdf_cam / light_path_count_) * (mis_eta_vm_ + light_state.dVCM + light_state.dVC * mis_pow(pdf_rev_w));
 
     const float mis_weight = algo == ALGO_LT ? 1.0f : (1.0f / (mis_weight_light + 1.0f));
 
@@ -391,13 +385,12 @@ void VCM_INTEGRATOR::direct_illum(VCMState& cam_state, const Intersection& isect
     if (pdf_dir_w == 0.0f || pdf_rev_w == 0.0f)
         return;
 
-    const float pdf_forward = ls->is_delta() ? 0.0f : cam_state.continue_prob * pdf_dir_w;
-    const float pdf_reverse = cam_state.continue_prob * pdf_rev_w;
+    const float pdf_forward = ls->is_delta() ? 0.0f : pdf_dir_w;
 
     // Compute full MIS weights for camera and light.
     const float mis_weight_light = mis_pow(pdf_forward * pdf_lightpick_inv / sample.pdf_direct_w);
     const float mis_weight_camera = mis_pow(sample.pdf_emit_w * cos_theta_i / (sample.pdf_direct_w * cos_theta_o)) *
-                                    (mis_eta_vm_ + cam_state.dVCM + cam_state.dVC * mis_pow(pdf_reverse));
+                                    (mis_eta_vm_ + cam_state.dVCM + cam_state.dVC * mis_pow(pdf_rev_w));
 
     const float mis_weight = algo == ALGO_PT ? 1.0f : (1.0f / (mis_weight_camera + 1.0f + mis_weight_light));
 
@@ -460,18 +453,12 @@ void VCM_INTEGRATOR::connect(VCMState& cam_state, const Intersection& isect, BSD
             continue;
 
         // Compute and convert the pdfs
-        const float pdf_cam_f = pdf_dir_cam_w * cam_state.continue_prob;
-        const float pdf_cam_r = pdf_rev_cam_w * cam_state.continue_prob;
-
-        const float pdf_light_f = pdf_dir_light_w * light_vertex.continue_prob;
-        const float pdf_light_r = pdf_rev_light_w * light_vertex.continue_prob;
-
-        const float pdf_cam_a = pdf_cam_f * cos_theta_light / connect_dist_sq;
-        const float pdf_light_a = pdf_light_f * cos_theta_cam / connect_dist_sq;
+        const float pdf_cam_a = pdf_dir_cam_w * cos_theta_light / connect_dist_sq;
+        const float pdf_light_a = pdf_dir_light_w * cos_theta_cam / connect_dist_sq;
 
         // Compute the full MIS weight from the partial weights and pdfs.
-        const float mis_weight_light = mis_pow(pdf_cam_a) * (mis_eta_vm_ + light_vertex.dVCM + light_vertex.dVC * mis_pow(pdf_light_r));
-        const float mis_weight_camera = mis_pow(pdf_light_a) * (mis_eta_vm_ + cam_state.dVCM + cam_state.dVC * mis_pow(pdf_cam_r));
+        const float mis_weight_light = mis_pow(pdf_cam_a) * (mis_eta_vm_ + light_vertex.dVCM + light_vertex.dVC * mis_pow(pdf_rev_light_w));
+        const float mis_weight_camera = mis_pow(pdf_light_a) * (mis_eta_vm_ + cam_state.dVCM + cam_state.dVC * mis_pow(pdf_rev_cam_w));
 
         const float mis_weight = 1.0f / (mis_weight_camera + 1.0f + mis_weight_light);
 
@@ -509,11 +496,8 @@ void VCM_INTEGRATOR::vertex_merging(const VCMState& state, const Intersection& i
             continue;
 
         // Compute MIS weight.
-        const float pdf_forward = pdf_dir_w * state.continue_prob;
-        const float pdf_reverse = pdf_rev_w * state.continue_prob;
-
-        const float mis_weight_light = p->dVCM * mis_eta_vc_ + p->dVM * mis_pow(pdf_forward);
-        const float mis_weight_camera = state.dVCM * mis_eta_vc_ + state.dVM * mis_pow(pdf_reverse);
+        const float mis_weight_light = p->dVCM * mis_eta_vc_ + p->dVM * mis_pow(pdf_dir_w);
+        const float mis_weight_camera = state.dVCM * mis_eta_vc_ + state.dVM * mis_pow(pdf_rev_w);
 
         const float mis_weight = algo == ALGO_PPM ? 1.0f : (1.0f / (mis_weight_light + 1.0f + mis_weight_camera));
 
