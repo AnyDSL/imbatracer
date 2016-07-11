@@ -120,8 +120,8 @@ void convert_materials(const Path& path, const obj::File& obj_file, const obj::M
 
             if (mat.illum == 5)
                 scene.materials().emplace_back(new MirrorMaterial(1.0f, mat.ns, mat.ks, bump_sampler));
-            else if (mat.illum == 7) ///* HACK !!! */ || mat.ni != 0)
-                scene.materials().emplace_back(new GlassMaterial(mat.ni, /* HACK !!! mat.kd*/ mat.tf, mat.ks, bump_sampler));
+            else if (mat.illum == 7)
+                scene.materials().emplace_back(new GlassMaterial(mat.ni, mat.tf, mat.ks, bump_sampler));
             else if (is_phong){
                 Material* mtl;
                 if (!mat.map_kd.empty()) {
