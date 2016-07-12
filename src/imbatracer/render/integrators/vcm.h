@@ -18,9 +18,6 @@ struct VCMState : RayState {
     int path_length : 31;
     bool finite_light : 1;
 
-    // Russian roulette probability for continuing this path.
-    float continue_prob;
-
     // partial weights for MIS, see VCM technical report
     float dVC;
     float dVCM;

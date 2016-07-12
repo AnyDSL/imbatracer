@@ -20,7 +20,6 @@ class PathTracer : public Integrator {
 public:
     PathTracer(Scene& scene, PerspectiveCamera& cam, RayGen<PTState>& ray_gen, int max_path_len, int thread_count, int tile_size)
         : Integrator(scene, cam)
-        , ray_gen_(ray_gen)
 #ifdef QUEUE_SCHEDULING
         , scheduler_(ray_gen, scene)
 #else
@@ -37,8 +36,6 @@ private:
 #else
     TileScheduler<PTState, 1> scheduler_;
 #endif
-
-    RayGen<PTState>& ray_gen_;
 
     const int max_path_len_;
 
