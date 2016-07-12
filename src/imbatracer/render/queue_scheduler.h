@@ -181,8 +181,10 @@ public:
                        SamplePixelFn sample_fn) override final {
         ray_gen_.start_frame();
 
-        done_shading_ = 0;
-        while (!ray_gen_.is_empty() || primary_queue_pool_.nonempty_count()) {
+        done_processing_ = 0;
+        while (!ray_gen_.is_empty() ||
+               primary_queue_pool_.nonempty_count() ||
+               shadow_queue_pool_.nonempty_count()) {
             bool idle = true;
 
             // Traverse a shadow queue and process it in parallel
@@ -193,6 +195,13 @@ public:
                 shading_tasks_.run([this, process_shadow_rays, q_shadow, &out] {
                     process_shadow_rays(*q_shadow, out);
                     shadow_queue_pool_.return_queue(q_shadow, QUEUE_EMPTY);
+
+                    // Notify the scheduler that one shadow queue has been processed
+                    {
+                        std::lock_guard<std::mutex> lock(mutex_);
+                        done_processing_++;
+                    }
+                    cv_.notify_all();
                 });
             }
 
@@ -218,10 +227,10 @@ public:
 
                     shadow_queue_pool_.return_queue(q_shadow_out, QUEUE_READY_FOR_TRAVERSAL);
 
-                    // Notify the scheduler that one shading process is done
+                    // Notify the scheduler that one primary queue has been processed
                     {
                         std::lock_guard<std::mutex> lock(mutex_);
-                        done_shading_++;
+                        done_processing_++;
                     }
                     cv_.notify_all();
                 });
@@ -256,8 +265,8 @@ public:
             // If nothing happened this iteration, wait for the next shading task
             if (idle) {
                 std::unique_lock<std::mutex> lock(mutex_);
-                while (done_shading_ <= 0) cv_.wait(lock);
-                done_shading_--;
+                while (done_processing_ <= 0) cv_.wait(lock);
+                done_processing_--;
             }
         }
 
@@ -271,7 +280,7 @@ private:
 
     std::condition_variable cv_;
     std::mutex mutex_;
-    int done_shading_;
+    int done_processing_;
 
     float regen_threshold_;
 };

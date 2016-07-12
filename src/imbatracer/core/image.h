@@ -36,7 +36,7 @@ public:
     }
 
     void clear() {
-        for(auto& p : pixels_) p = T::zero();
+        for (auto& p : pixels_) p = T::zero();
     }
 
     int size() { return width_ * height_; }
