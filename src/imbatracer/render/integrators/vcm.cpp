@@ -444,9 +444,9 @@ void VCM_INTEGRATOR::connect(VCMState& cam_state, const Intersection& isect, BSD
             continue;  // A pdf value of zero means that there has to be zero contribution from this pair of directions as well.
 
         // Compute the cosine terms. We need to use the adjoint for the light vertex BSDF.
-        const float cos_theta_cam = dot(isect.normal, connect_dir);
-        const float cos_theta_light = shading_normal_adjoint(light_vertex.isect.normal, light_vertex.isect.geom_normal,
-                                                             light_vertex.isect.out_dir, -connect_dir);
+        const float cos_theta_cam   = fabsf(dot(isect.normal, connect_dir));
+        const float cos_theta_light = fabsf(shading_normal_adjoint(light_vertex.isect.normal, light_vertex.isect.geom_normal,
+                                                                   light_vertex.isect.out_dir, -connect_dir));
 
         const float geom_term = cos_theta_cam * cos_theta_light / connect_dist_sq;
         if (geom_term <= 0.0f)
