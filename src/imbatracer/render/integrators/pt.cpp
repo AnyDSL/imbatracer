@@ -4,6 +4,7 @@
 #include "../random.h"
 
 #include <tbb/enumerable_thread_specific.h>
+#include <tbb/parallel_for.h>
 
 #include <cfloat>
 #include <cassert>
@@ -69,8 +70,8 @@ void PathTracer::bounce(const Intersection& isect, PTState& state, RayQueue<PTSt
 
 void PathTracer::process_primary_rays(RayQueue<PTState>& ray_in, RayQueue<PTState>& ray_out, RayQueue<PTState>& ray_out_shadow, AtomicImage& out) {
     PTState* states = ray_in.states();
-    Hit* hits = ray_in.hits();
-    Ray* rays = ray_in.rays();
+    const Hit* hits = ray_in.hits();
+    const Ray* rays = ray_in.rays();
 
     tbb::parallel_for(tbb::blocked_range<int>(0, ray_in.size()),
         [&] (const tbb::blocked_range<int>& range)

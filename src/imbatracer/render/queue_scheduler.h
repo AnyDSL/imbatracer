@@ -1,12 +1,20 @@
+#ifndef IMBA_QUEUE_SCHEDULER_H
+#define IMBA_QUEUE_SCHEDULER_H
+
+#include "ray_scheduler.h"
+
+#include <tbb/tbb.h>
+#include <tbb/task_group.h>
+
 #include <condition_variable>
 #include <mutex>
 
 namespace imba {
 
-template<typename StateType>
+template <typename StateType>
 class RayQueuePool;
 
-template<typename StateType>
+template <typename StateType>
 class QueueReference {
 public:
     QueueReference() : q_(nullptr) {}
@@ -46,7 +54,7 @@ enum QueueTag : int {
     QUEUE_READY_FOR_TRAVERSAL
 };
 
-template<typename StateType>
+template <typename StateType>
 class RayQueuePool {
 public:
     RayQueuePool(size_t queue_size, size_t count)
@@ -134,10 +142,13 @@ private:
 /// Uses a fixed number of queues, and multiple shading threads.
 /// Traversal runs in the main thread and some other optimizations have been made for the GPU traversal.
 /// Thus, the QueueScheduler should never be used with the CPU traversal.
-template<typename StateType, int max_shadow_rays_per_hit>
-class QueueScheduler : public RaySchedulerBase<QueueScheduler<StateType, max_shadow_rays_per_hit>, StateType> {
-    using BaseType = RaySchedulerBase<QueueScheduler<StateType, max_shadow_rays_per_hit>, StateType>;
-    using SamplePixelFn = typename RayGen<StateType>::SamplePixelFn;
+template <typename StateType>
+class QueueScheduler : public RayScheduler<StateType> {
+    using BaseType = RayScheduler<StateType>;
+    using SamplePixelFn = typename RayScheduler<StateType>::SamplePixelFn;
+    using ProcessPrimaryFn = typename RayScheduler<StateType>::ProcessPrimaryFn;
+    using ProcessShadowFn = typename RayScheduler<StateType>::ProcessShadowFn;
+
     static constexpr int DEFAULT_QUEUE_SIZE = 1 << 16;
     static constexpr int DEFAULT_QUEUE_COUNT = 12;
 
@@ -148,11 +159,14 @@ protected:
 public:
     QueueScheduler(RayGen<StateType>& ray_gen,
                    Scene& scene,
+                   int max_shadow_rays_per_hit,
+                   float regen_threshold = 0.75f,
                    int queue_size = DEFAULT_QUEUE_SIZE,
                    int queue_count = DEFAULT_QUEUE_COUNT)
         : BaseType(ray_gen, scene)
         , primary_queue_pool_(queue_size, queue_count)
         , shadow_queue_pool_(queue_size * max_shadow_rays_per_hit, 2 * queue_count / 3 + 1)
+        , regen_threshold_(regen_threshold)
     {
         // Initialize the GPU buffer
         RayQueue<StateType>::setup_device_buffer(queue_size * max_shadow_rays_per_hit);
@@ -162,10 +176,9 @@ public:
         RayQueue<StateType>::release_device_buffer();
     }
 
-    template<typename ShFunc, typename PrimFunc>
-    void derived_run_iteration(AtomicImage& out,
-                               ShFunc process_shadow_rays, PrimFunc process_primary_rays,
-                               SamplePixelFn sample_fn) {
+    void run_iteration(AtomicImage& out,
+                       ProcessShadowFn process_shadow_rays, ProcessPrimaryFn process_primary_rays,
+                       SamplePixelFn sample_fn) override final {
         ray_gen_.start_frame();
 
         done_shading_ = 0;
@@ -231,9 +244,9 @@ public:
                 n++;
             }
 
-            // Fill queues which are not completely filled with new rays (threshold is 75%)
+            // Fill queues which are not completely filled with new rays
             while (!ray_gen_.is_empty()) {
-                auto q_regen = primary_queue_pool_.claim_queue_for_regen(QUEUE_READY_FOR_TRAVERSAL, 0.75f);
+                auto q_regen = primary_queue_pool_.claim_queue_for_regen(QUEUE_READY_FOR_TRAVERSAL, regen_threshold_);
                 if (!q_regen) break;
                 idle = false;
                 ray_gen_.fill_queue(*q_regen, sample_fn);
@@ -259,6 +272,10 @@ private:
     std::condition_variable cv_;
     std::mutex mutex_;
     int done_shading_;
+
+    float regen_threshold_;
 };
 
 } // namespace imba
+
+#endif // IMBA_QUEUE_SCHEDULER_H

@@ -6,9 +6,13 @@
 
 #include "../render/scene.h"
 #include "../render/ray_gen.h"
+#include "../render/tile_scheduler.h"
+#include "../render/queue_scheduler.h"
 
 #include "../render/integrators/pt.h"
 #include "../render/integrators/vcm.h"
+
+#define QUEUE_SCHEDULER
 
 using namespace imba;
 
@@ -99,7 +103,12 @@ int main(int argc, char* argv[]) {
 
     if (settings.algorithm == UserSettings::PT) {
         PixelRayGen<PTState> ray_gen(settings.width, settings.height, settings.concurrent_spp);
-        PathTracer integrator(scene, cam, ray_gen, settings.max_path_len, settings.thread_count, settings.tile_size);
+#ifdef QUEUE_SCHEDULER
+        QueueScheduler<PTState> scheduler(ray_gen, scene, 1);
+#else
+        TileScheduler<PTState> scheduler(ray_gen, scene, 1, settings.thread_count, settings.tile_size);
+#endif
+        PathTracer integrator(scene, cam, scheduler, settings.max_path_len);
 
         RenderWindow wnd(settings, integrator, ctrl, settings.concurrent_spp);
         wnd.render_loop();
@@ -108,32 +117,34 @@ int main(int argc, char* argv[]) {
     }
 
     PixelRayGen<VCMState> ray_gen(settings.width, settings.height, settings.concurrent_spp);
+
+#ifdef QUEUE_SCHEDULER
+    QueueScheduler<VCMState> scheduler(ray_gen, scene, settings.num_connections + 1);
+#else
+    TileScheduler<VCMState> scheduler(ray_gen, scene, settings.num_connections + 1, settings.thread_count, settings.tile_size);
+#endif
+
     Integrator* integrator;
 
     switch (settings.algorithm) {
     case UserSettings::BPT:
-        integrator = new BPT(scene, cam, ray_gen, settings.max_path_len, settings.thread_count, settings.tile_size,
-            settings.concurrent_spp, settings.num_connections);
+        integrator = new BPT(scene, cam, scheduler, settings.max_path_len, settings.concurrent_spp, settings.num_connections);
         break;
 
     case UserSettings::PPM:
-        integrator = new PPM(scene, cam, ray_gen, settings.max_path_len, settings.thread_count, settings.tile_size,
-            settings.concurrent_spp, settings.num_connections, settings.base_radius);
+        integrator = new PPM(scene, cam, scheduler, settings.max_path_len, settings.concurrent_spp, settings.num_connections, settings.base_radius);
         break;
 
     case UserSettings::LT:
-        integrator = new LT(scene, cam, ray_gen, settings.max_path_len, settings.thread_count, settings.tile_size,
-            settings.concurrent_spp, settings.num_connections);
+        integrator = new LT(scene, cam, scheduler, settings.max_path_len, settings.concurrent_spp, settings.num_connections);
         break;
 
     case UserSettings::VCM_PT:
-        integrator = new VCM_PT(scene, cam, ray_gen, settings.max_path_len, settings.thread_count, settings.tile_size,
-            settings.concurrent_spp, settings.num_connections);
+        integrator = new VCM_PT(scene, cam, scheduler, settings.max_path_len, settings.concurrent_spp, settings.num_connections);
         break;
 
     default:
-        integrator = new VCM(scene, cam, ray_gen, settings.max_path_len, settings.thread_count, settings.tile_size,
-            settings.concurrent_spp, settings.num_connections, settings.base_radius);
+        integrator = new VCM(scene, cam, scheduler, settings.max_path_len, settings.concurrent_spp, settings.num_connections, settings.base_radius);
         break;
     }
 

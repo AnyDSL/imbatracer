@@ -1,10 +1,7 @@
-#ifndef IMBA_RAY_SCHEDULER
-#define IMBA_RAY_SCHEDULER
+#ifndef IMBA_RAY_SCHEDULER_H
+#define IMBA_RAY_SCHEDULER_H
 
 #include "ray_gen.h"
-
-#include <tbb/tbb.h>
-#include <tbb/task_group.h>
 
 #include <array>
 #include <atomic>
@@ -14,23 +11,24 @@
 namespace imba {
 
 /// Base class for all types of schedulers.
-template<typename Derived, typename StateType>
-class RaySchedulerBase {
+template <typename StateType>
+class RayScheduler {
+protected:
     using SamplePixelFn = typename RayGen<StateType>::SamplePixelFn;
+    typedef std::function<void (RayQueue<StateType>&, RayQueue<StateType>&, RayQueue<StateType>&, AtomicImage&)> ProcessPrimaryFn;
+    typedef std::function<void (RayQueue<StateType>&, AtomicImage&)> ProcessShadowFn;
+
 public:
-    RaySchedulerBase(RayGen<StateType>& ray_gen, Scene& scene)
+    RayScheduler(RayGen<StateType>& ray_gen, Scene& scene)
         : ray_gen_(ray_gen)
         , scene_(scene)
     {}
 
-    virtual ~RaySchedulerBase() {}
+    virtual ~RayScheduler() {}
 
-    template<typename ShFunc, typename PrimFunc>
-    void run_iteration(AtomicImage& out,
-                       ShFunc process_shadow_rays, PrimFunc process_primary_rays,
-                       SamplePixelFn sample_fn) {
-        static_cast<Derived*>(this)->derived_run_iteration(out, process_shadow_rays, process_primary_rays, sample_fn);
-    }
+    virtual void run_iteration(AtomicImage& out,
+                       ProcessShadowFn process_shadow_rays, ProcessPrimaryFn process_primary_rays,
+                       SamplePixelFn sample_fn) = 0;
 
 protected:
     RayGen<StateType>& ray_gen_;
@@ -39,7 +37,5 @@ protected:
 
 } // namespace imba
 
-#include "queue_scheduler_impl.h"
-#include "tile_scheduler_impl.h"
+#endif // IMBA_RAY_SCHEDULER_H
 
-#endif // IMBA_RAY_SCHEDULER

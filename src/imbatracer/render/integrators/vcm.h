@@ -34,10 +34,9 @@ enum VCMSubAlgorithm {
 
 template<VCMSubAlgorithm algo>
 class VCMIntegrator : public Integrator {
-    static const int MAX_NUM_CONNECTIONS = 8;
 public:
-    VCMIntegrator(Scene& scene, PerspectiveCamera& cam, RayGen<VCMState>& ray_gen,
-        int max_path_len, int thread_count, int tile_size, int spp, int num_connections, float base_radius=0.03f, float radius_alpha=0.75f)
+    VCMIntegrator(Scene& scene, PerspectiveCamera& cam, RayScheduler<VCMState>& scheduler,
+        int max_path_len, int spp, int num_connections, float base_radius=0.03f, float radius_alpha=0.75f)
         : Integrator(scene, cam)
         , width_(cam.width())
         , height_(cam.height())
@@ -46,11 +45,7 @@ public:
         , base_radius_(base_radius)
         , radius_alpha_(radius_alpha)
         , cur_iteration_(0)
-#ifdef QUEUE_SCHEDULING
-        , scheduler_(ray_gen, scene)
-#else
-        , scheduler_(ray_gen, scene, thread_count, tile_size)
-#endif
+        , scheduler_(scheduler)
         , max_path_len_(max_path_len)
         , spp_(spp)
         , num_connections_(num_connections)
@@ -89,11 +84,7 @@ private:
     float mis_eta_vc_;
     float mis_eta_vm_;
 
-#ifdef QUEUE_SCHEDULING
-    QueueScheduler<VCMState, MAX_NUM_CONNECTIONS + 1> scheduler_;
-#else
-    TileScheduler<VCMState, MAX_NUM_CONNECTIONS + 1> scheduler_;
-#endif
+    RayScheduler<VCMState>& scheduler_;
 
     LightVertices light_vertices_;
 
@@ -125,9 +116,6 @@ private:
     void vertex_merging(const VCMState& state, const Intersection& isect, const BSDF* bsdf, AtomicImage& img);
 
     void bounce(VCMState& state, const Intersection& isect, BSDF* bsdf, RayQueue<VCMState>& rays_out, bool adjoint);
-
-    template<typename StateType, int queue_count, int shadow_queue_count, int max_shadow_rays_per_hit>
-    friend class RayScheduler;
 };
 
 using VCM    = VCMIntegrator<ALGO_VCM>;

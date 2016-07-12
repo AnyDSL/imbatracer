@@ -99,17 +99,9 @@ public:
     int size() const { return last_ + 1; }
     int capacity() const { return state_buffer_.size(); }
 
-    ::Ray* rays() {
-        return ray_buffer_.data();
-    }
-
-    StateType* states() {
-        return state_buffer_.data();
-    }
-
-    ::Hit* hits() {
-        return hit_buffer_.data();
-    }
+    ::Ray* rays() { return ray_buffer_.data(); }
+    StateType* states() { return state_buffer_.data(); }
+    ::Hit* hits() { return hit_buffer_.data(); }
 
     void clear() {
         last_ = -1;

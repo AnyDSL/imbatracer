@@ -1,3 +1,8 @@
+#ifndef IMBA_TILE_SCHEDULER_H
+#define IMBA_TILE_SCHEDULER_H
+
+#include "ray_scheduler.h"
+
 #include <thread>
 #include <atomic>
 
@@ -8,10 +13,12 @@ namespace imba {
 
 /// Launches multiple threads, each running an entire traversal-shading pipeline.
 /// Thus, there can be multiple calls to traversal at the same time.
-template<typename StateType, int max_shadow_rays_per_hit>
-class TileScheduler : public RaySchedulerBase<TileScheduler<StateType, max_shadow_rays_per_hit>, StateType> {
-    using BaseType = RaySchedulerBase<TileScheduler<StateType, max_shadow_rays_per_hit>, StateType>;
-    using SamplePixelFn = typename RayGen<StateType>::SamplePixelFn;
+template <typename StateType>
+class TileScheduler : public RayScheduler<StateType> {
+    using BaseType = RayScheduler<StateType>;
+    using SamplePixelFn = typename RayScheduler<StateType>::SamplePixelFn;
+    using ProcessPrimaryFn = typename RayScheduler<StateType>::ProcessPrimaryFn;
+    using ProcessShadowFn = typename RayScheduler<StateType>::ProcessShadowFn;
 
     static const int MIN_QUEUE_SIZE = 0;
 
@@ -20,7 +27,10 @@ protected:
     using BaseType::scene_;
 
 public:
-    TileScheduler(RayGen<StateType>& ray_gen, Scene& scene, int num_threads, int tile_size)
+    TileScheduler(RayGen<StateType>& ray_gen,
+                  Scene& scene,
+                  int max_shadow_rays_per_hit,
+                  int num_threads, int tile_size)
         : BaseType(ray_gen, scene)
         , num_threads_(num_threads), tile_size_(tile_size)
         , thread_local_prim_queues_(num_threads * 2)
@@ -73,11 +83,10 @@ public:
             delete q;
     }
 
-    template<typename ShFunc, typename PrimFunc>
-    void derived_run_iteration(AtomicImage& image,
-                               ShFunc process_shadow_rays,
-                               PrimFunc process_primary_rays,
-                               SamplePixelFn sample_fn) {
+    void run_iteration(AtomicImage& image,
+                       ProcessShadowFn process_shadow_rays,
+                       ProcessPrimaryFn process_primary_rays,
+                       SamplePixelFn sample_fn) override final {
         next_tile_ = 0;
 
         std::vector<std::thread> threads;
@@ -144,10 +153,9 @@ private:
         return true;
     }
 
-    template<typename ShFunc, typename PrimFunc>
     void render_thread(int thread_idx, AtomicImage& image,
-                       ShFunc process_shadow_rays,
-                       PrimFunc process_primary_rays,
+                       ProcessShadowFn process_shadow_rays,
+                       ProcessPrimaryFn process_primary_rays,
                        SamplePixelFn sample_fn) {
         auto cur_tile = next_tile_++;
         while (cur_tile < tile_count_) {
@@ -217,3 +225,5 @@ private:
 };
 
 } // namespace imba
+
+#endif // IMBA_TILE_SCHEDULER_H

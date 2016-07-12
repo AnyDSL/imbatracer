@@ -52,6 +52,8 @@ add_library(imba_render
             render/scene.cpp
             render/texture_sampler.h
             render/ray_scheduler.h
+            render/tile_scheduler.h
+            render/ray_scheduler.h
             rangesearch/rangesearch.h)
 
 add_executable(imbatracer

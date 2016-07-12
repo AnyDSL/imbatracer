@@ -234,7 +234,7 @@ void VCM_INTEGRATOR::process_light_rays(RayQueue<VCMState>& rays_in, RayQueue<VC
 
 VCM_TEMPLATE
 void VCM_INTEGRATOR::connect_to_camera(const VCMState& light_state, const Intersection& isect,
-                                      const BSDF* bsdf, RayQueue<VCMState>& ray_out_shadow) {
+                                       const BSDF* bsdf, RayQueue<VCMState>& ray_out_shadow) {
     float3 dir_to_cam = cam_.pos() - isect.pos;
 
     if (dot(-dir_to_cam, cam_.dir()) < 0.0f)
