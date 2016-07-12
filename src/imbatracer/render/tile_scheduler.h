@@ -20,7 +20,7 @@ class TileScheduler : public RayScheduler<StateType> {
     using ProcessPrimaryFn = typename RayScheduler<StateType>::ProcessPrimaryFn;
     using ProcessShadowFn = typename RayScheduler<StateType>::ProcessShadowFn;
 
-    static const int MIN_QUEUE_SIZE = 0;
+    static constexpr int MIN_QUEUE_SIZE = 0;
 
 protected:
     using BaseType::ray_gen_;

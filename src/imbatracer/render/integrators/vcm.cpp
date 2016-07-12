@@ -22,7 +22,7 @@ using ThreadLocalPhotonContainer = tbb::enumerable_thread_specific<std::vector<c
 static ThreadLocalPhotonContainer photon_containers;
 
 // Reduce ugliness from the template parameters.
-#define VCM_TEMPLATE template<VCMSubAlgorithm algo>
+#define VCM_TEMPLATE template <VCMSubAlgorithm algo>
 #define VCM_INTEGRATOR VCMIntegrator<algo>
 
 VCM_TEMPLATE

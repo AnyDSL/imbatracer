@@ -8,8 +8,6 @@
 #include "../../rangesearch/rangesearch.h"
 #include "light_vertices.h"
 
-#define QUEUE_SCHEDULING
-
 namespace imba {
 
 /// Stores the current state of a ray during VCM or any sub-algorithm of VCM.
@@ -32,7 +30,7 @@ enum VCMSubAlgorithm {
     ALGO_PT
 };
 
-template<VCMSubAlgorithm algo>
+template <VCMSubAlgorithm algo>
 class VCMIntegrator : public Integrator {
 public:
     VCMIntegrator(Scene& scene, PerspectiveCamera& cam, RayScheduler<VCMState>& scheduler,
