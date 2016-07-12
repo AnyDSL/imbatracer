@@ -5,7 +5,7 @@
 
 namespace imba {
 
-template <typename T, int N = 64>
+template <typename T, int N = 128>
 struct Stack {
     static constexpr int capacity() { return N; }
 

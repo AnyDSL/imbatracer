@@ -32,7 +32,7 @@ public:
     void resize(int width, int height) {
         width_ = width;
         height_ = height;
-        pixels_.resize(width_ * height_);
+        std::vector<T>(width_ * height_).swap(pixels_);
     }
 
     void clear() {

@@ -8,7 +8,7 @@
 #include "../../rangesearch/rangesearch.h"
 #include "light_vertices.h"
 
-//#define QUEUE_SCHEDULING
+#define QUEUE_SCHEDULING
 
 namespace imba {
 
@@ -93,7 +93,7 @@ private:
     float mis_eta_vm_;
 
 #ifdef QUEUE_SCHEDULING
-    QueueScheduler<VCMState, 8, MAX_NUM_CONNECTIONS + 1> scheduler_;
+    QueueScheduler<VCMState, MAX_NUM_CONNECTIONS + 1> scheduler_;
 #else
     TileScheduler<VCMState, MAX_NUM_CONNECTIONS + 1> scheduler_;
 #endif

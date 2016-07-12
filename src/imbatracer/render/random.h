@@ -26,7 +26,7 @@ public:
 
     // Random number from min (inclusive) to max (exclusive)
     int random_int(int min, int max) {
-        return MWC64X() % (max - min) + min;
+        return max == min ? min : MWC64X() % (max - min) + min;
     }
 
     void discard(int n) {

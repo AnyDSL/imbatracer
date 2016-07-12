@@ -5,7 +5,7 @@
 #include "../ray_scheduler.h"
 #include "../ray_gen.h"
 
-//#define QUEUE_SCHEDULING
+#define QUEUE_SCHEDULING
 
 namespace imba {
 
@@ -33,7 +33,7 @@ public:
 
 private:
 #ifdef QUEUE_SCHEDULING
-    QueueScheduler<PTState, 8, 1> scheduler_;
+    QueueScheduler<PTState, 1> scheduler_;
 #else
     TileScheduler<PTState, 1> scheduler_;
 #endif

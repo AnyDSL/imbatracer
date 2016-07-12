@@ -14,6 +14,8 @@ class PerspectiveCamera {
     static constexpr float far_plane = 10000.0f;
 
 public:
+    PerspectiveCamera() {}
+
     PerspectiveCamera(int w, int h, float fov)
         : width_(w), height_(h), fov_(fov)
     {

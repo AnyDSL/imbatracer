@@ -23,6 +23,8 @@ public:
         , scene_(scene)
     {}
 
+    virtual ~RaySchedulerBase() {}
+
     template<typename ShFunc, typename PrimFunc>
     void run_iteration(AtomicImage& out,
                        ShFunc process_shadow_rays, PrimFunc process_primary_rays,
