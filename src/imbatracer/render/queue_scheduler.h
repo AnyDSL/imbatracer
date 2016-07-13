@@ -163,6 +163,7 @@ public:
                    int queue_size = DEFAULT_QUEUE_SIZE,
                    int queue_count = DEFAULT_QUEUE_COUNT)
         : BaseType(scene)
+        , ray_gen_(ray_gen)
         , primary_queue_pool_(queue_size, queue_count)
         , shadow_queue_pool_(queue_size * max_shadow_rays_per_hit, 2 * queue_count / 3 + 1)
         , regen_threshold_(regen_threshold)
