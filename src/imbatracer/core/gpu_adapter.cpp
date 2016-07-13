@@ -9,6 +9,25 @@
 
 namespace imba {
 
+static void fill_dummy_parent(Node& node, const BBox& leaf_bb, int index) {
+    node.left  = index;
+    node.right = 0x76543210;
+
+    node.left_bb.lo_x = leaf_bb.min.x;
+    node.left_bb.lo_y = leaf_bb.min.y;
+    node.left_bb.lo_z = leaf_bb.min.z;
+    node.left_bb.hi_x = leaf_bb.max.x;
+    node.left_bb.hi_y = leaf_bb.max.y;
+    node.left_bb.hi_z = leaf_bb.max.z;
+
+    node.right_bb.lo_x = 0.0f;
+    node.right_bb.lo_y = 0.0f;
+    node.right_bb.lo_z = 0.0f;
+    node.right_bb.hi_x = -0.0f;
+    node.right_bb.hi_y = -0.0f;
+    node.right_bb.hi_z = -0.0f;
+}
+
 class GpuMeshAdapter : public MeshAdapter {
 public:
     GpuMeshAdapter(std::vector<Node>& nodes, std::vector<Vec4>& tris)
@@ -95,8 +114,13 @@ private:
             auto& tris = adapter->tris_;
             auto  mesh = adapter->mesh_;
 
-            const StackElem& elem = stack.pop();
-            *(&nodes[elem.parent].left + elem.child) = ~tris.size();
+            if (stack.empty()) {
+                nodes.emplace_back();
+                fill_dummy_parent(nodes.back(), leaf_bb, ~tris.size());
+            } else {
+                const StackElem& elem = stack.pop();
+                *(&nodes[elem.parent].left + elem.child) = ~tris.size();
+            }
 
             for (int i = 0; i < ref_count; i++) {
                 const int ref = refs(i);
@@ -235,26 +259,8 @@ private:
             auto& stack = adapter->stack_;
 
             if (stack.empty()) {
-                // No parent node was created, because there were too few primitives and no split was performed.
-                // Create and link a parent node.
-                int i = nodes.size();
                 nodes.emplace_back();
-                nodes[i].left  = ~instance_nodes.size();
-                nodes[i].right = 0x76543210;
-
-                nodes[i].left_bb.lo_x = leaf_bb.min.x;
-                nodes[i].left_bb.lo_y = leaf_bb.min.y;
-                nodes[i].left_bb.lo_z = leaf_bb.min.z;
-                nodes[i].left_bb.hi_x = leaf_bb.max.x;
-                nodes[i].left_bb.hi_y = leaf_bb.max.y;
-                nodes[i].left_bb.hi_z = leaf_bb.max.z;
-
-                nodes[i].right_bb.lo_x = 0.0f;
-                nodes[i].right_bb.lo_y = 0.0f;
-                nodes[i].right_bb.lo_z = 0.0f;
-                nodes[i].right_bb.hi_x = -0.0f;
-                nodes[i].right_bb.hi_y = -0.0f;
-                nodes[i].right_bb.hi_z = -0.0f;
+                fill_dummy_parent(nodes.back(), leaf_bb, ~instance_nodes.size());
             } else {
                 // Link the node as the child node of the parent.
                 const StackElem& elem = stack.pop();
