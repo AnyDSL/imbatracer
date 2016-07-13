@@ -203,10 +203,7 @@ inline float4x4 invert(const float4x4& a) {
 }
 
 inline float4x4 abs(const float4x4& a) {
-    float4x4 res;
-    for (int i = 0; i < 4; ++i)
-        res[i] = abs(a[i]);
-    return res;
+    return float4x4(abs(a[0]), abs(a[1]), abs(a[2]), abs(a[3]));
 }
 
 inline float4x4 euler(float x, float y, float z) {

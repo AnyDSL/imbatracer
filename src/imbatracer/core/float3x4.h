@@ -46,10 +46,7 @@ inline float4 operator * (const float3& a, const float3x4& b) {
 }
 
 inline float3x4 abs(const float3x4& a) {
-    float3x4 res;
-    for (int i = 0; i < 3; ++i)
-        res[i] = abs(a[i]);
-    return res;
+    return float3x4(abs(a[0]), abs(a[1]), abs(a[2]));
 }
 
 inline BBox transform(const float3x4& m, const BBox& bb) {
