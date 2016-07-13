@@ -153,7 +153,6 @@ class QueueScheduler : public RayScheduler<StateType> {
     static constexpr int DEFAULT_QUEUE_COUNT = 12;
 
 protected:
-    using BaseType::ray_gen_;
     using BaseType::scene_;
 
 public:
@@ -163,7 +162,7 @@ public:
                    float regen_threshold = 0.75f,
                    int queue_size = DEFAULT_QUEUE_SIZE,
                    int queue_count = DEFAULT_QUEUE_COUNT)
-        : BaseType(ray_gen, scene)
+        : BaseType(scene)
         , primary_queue_pool_(queue_size, queue_count)
         , shadow_queue_pool_(queue_size * max_shadow_rays_per_hit, 2 * queue_count / 3 + 1)
         , regen_threshold_(regen_threshold)
@@ -274,6 +273,8 @@ public:
     }
 
 private:
+    RayGen<StateType>& ray_gen_;
+
     RayQueuePool<StateType> primary_queue_pool_;
     RayQueuePool<StateType> shadow_queue_pool_;
     tbb::task_group shading_tasks_;
