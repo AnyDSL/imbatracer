@@ -58,8 +58,9 @@ void Scene::build_mesh_accels(const std::vector<std::string>& accel_filenames) {
 
     // Add the nodes for all meshes. Assumes that the adapter appends nodes to the array.
     auto adapter = new_mesh_adapter(nodes_, tris_);
-    int mesh_id = 0;
-    for (auto& mesh : meshes_) {
+    for (int mesh_id = 0; mesh_id < meshes_.size(); mesh_id++) {
+        auto& mesh = meshes_[mesh_id];
+
         layout_.push_back(nodes_.size());
         const int tris_offset = tris_.size();
         auto& filename = accel_filenames[mesh_id];
@@ -77,8 +78,6 @@ void Scene::build_mesh_accels(const std::vector<std::string>& accel_filenames) {
 
         if (filename != "" && !store_accel(filename, nodes_, layout_.back(), tris_, tris_offset, tri_layout_[mesh_id]))
             std::cout << "The acceleration structure for mesh " << mesh_id << " could not be stored." << std::endl;
-
-        mesh_id++;
     }
 }
 
@@ -149,7 +148,7 @@ void Scene::upload_top_level_accel() {
 void Scene::compute_bounding_sphere() {
     // We use a box as an approximation
     BBox scene_bb = BBox::empty();
-    for (size_t i = 0; i < meshes_.size(); i++) {
+    for (size_t i = 0; i < instances_.size(); i++) {
         scene_bb.extend(meshes_[i].bounding_box());
     }
     const float radius = length(scene_bb.max - scene_bb.min) * 0.5f;
