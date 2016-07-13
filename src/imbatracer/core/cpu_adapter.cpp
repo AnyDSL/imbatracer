@@ -9,6 +9,19 @@
 
 namespace imba {
 
+static void fill_dummy_parent(Node& node, const BBox& leaf_bb, int index) {
+    node.children[0] = index;
+    node.children[1] = 0;
+
+    node.min_x[0] = leaf_bb.min.x;
+    node.min_y[0] = leaf_bb.min.y;
+    node.min_z[0] = leaf_bb.min.z;
+
+    node.max_x[0] = leaf_bb.max.x;
+    node.max_y[0] = leaf_bb.max.y;
+    node.max_z[0] = leaf_bb.max.z;
+}
+
 class CpuMeshAdapter : public MeshAdapter {
 public:
     CpuMeshAdapter(std::vector<Node>& nodes, std::vector<Vec4>& tris)
@@ -101,8 +114,13 @@ private:
             auto& tris = adapter->tris_;
             auto  mesh = adapter->mesh_;
 
-            const StackElem& elem = stack.pop();
-            nodes[elem.parent].children[elem.child] = ~tris.size();
+            if (stack.empty()) {
+                nodes.emplace_back();
+                fill_dummy_parent(nodes.back(), leaf_bb, ~tris.size());
+            } else {
+                const StackElem& elem = stack.pop();
+                nodes[elem.parent].children[elem.child] = ~tris.size();
+            }
 
             // Group triangles by packets of 4
             for (int i = 0; i < ref_count; i += 4) {
@@ -311,20 +329,8 @@ private:
             auto& stack = adapter->stack_;
 
             if (stack.empty()) {
-                // No parent node was created, because there were too few primitives and no split was performed.
-                // Create and link a parent node.
-                int i = nodes.size();
                 nodes.emplace_back();
-                nodes[i].children[0] = ~instance_nodes.size();
-                nodes[i].children[1] = 0;
-
-                nodes[i].min_x[0] = leaf_bb.min.x;
-                nodes[i].min_y[0] = leaf_bb.min.y;
-                nodes[i].min_z[0] = leaf_bb.min.z;
-
-                nodes[i].max_x[0] = leaf_bb.max.x;
-                nodes[i].max_y[0] = leaf_bb.max.y;
-                nodes[i].max_z[0] = leaf_bb.max.z;
+                fill_dummy_parent(nodes.back(), leaf_bb, ~instance_nodes.size());
             } else {
                 // Link the node as the child node of the parent.
                 const StackElem& elem = stack.pop();
