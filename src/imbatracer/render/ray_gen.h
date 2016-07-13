@@ -12,14 +12,22 @@ namespace imba {
 template <typename StateType>
 class RayGen {
 public:
+    virtual ~RayGen() {}
+
     typedef std::function<void (int, int, ::Ray&, StateType&)> SamplePixelFn;
     virtual void fill_queue(RayQueue<StateType>&, SamplePixelFn) = 0;
     virtual void start_frame() = 0;
     virtual bool is_empty() const = 0;
+};
 
-    virtual int width() const = 0;
-    virtual int height() const = 0;
-    virtual int num_samples() const = 0;
+/// Interface for tile generators, i.e. classes that generate RayGen objects for subsets of an image.
+template<typename StateType>
+class TileGen {
+public:
+    /// Obtains a tile and creates a RayGen object for it.
+    virtual std::unique_ptr<RayGen<StateType> > next_tile() = 0;
+
+    virtual void start_frame() = 0;
 };
 
 /// Generates n primary rays per pixel in range [0,0] to [w,h]
@@ -30,25 +38,23 @@ public:
         : width_(w), height_(h), n_samples_(spp), next_pixel_(0)
     {}
 
-    int width() const override { return width_; }
-    int height() const override { return height_; }
-    int num_samples() const override { return n_samples_; }
+    int max_rays() const { return width_ * height_ * n_samples_; }
 
     virtual void start_frame() override { next_pixel_ = 0; }
 
-    virtual bool is_empty() const override { return next_pixel_ >= (n_samples_ * width_ * height_); }
+    virtual bool is_empty() const override { return next_pixel_ >= max_rays(); }
 
     virtual void fill_queue(RayQueue<StateType>& out, typename RayGen<StateType>::SamplePixelFn sample_pixel) override {
         // only generate at most n samples per pixel
-        if (next_pixel_ >= n_samples_ * width_ * height_) return;
+        if (next_pixel_ >= max_rays()) return;
 
         // calculate how many rays are needed to fill the queue
         int count = out.capacity() - out.size();
         if (count <= 0) return;
 
         // make sure that no pixel is sampled more than n_samples_ times
-        if (next_pixel_ + count > n_samples_ * width_ * height_) {
-            count = n_samples_ * width_ * height_ - next_pixel_;
+        if (next_pixel_ + count > max_rays()) {
+            count = max_rays() - next_pixel_;
         }
 
         static std::random_device rd;
@@ -86,16 +92,15 @@ public:
 
 protected:
     int next_pixel_;
-    int width_;
-    int height_;
-    int n_samples_;
+    const int width_;
+    const int height_;
+    const int n_samples_;
 };
 
 /// Generates primary rays for the pixels within a tile. Simply adds an offset to the pixel coordinates from the
 /// PixelRayGen, according to the position of the tile.
 template<typename StateType>
-class TiledRayGen : public PixelRayGen<StateType>
-{
+class TiledRayGen : public PixelRayGen<StateType> {
 public:
     TiledRayGen(int left, int top, int w, int h, int spp, int full_width, int full_height)
         : PixelRayGen<StateType>(w, h, spp), top_(top), left_(left)
@@ -113,6 +118,63 @@ public:
 private:
     int top_, left_;
     int full_width_, full_height_;
+};
+
+/// Generates quadratic tiles of a fixed size.
+template<typename StateType>
+class DefaultTileGen : public TileGen<StateType> {
+public:
+    DefaultTileGen(int w, int h, int spp, int tilesize)
+    : tile_size_(tilesize), spp_(spp), width_(w), height_(h)
+    {
+        // Compute the number of tiles required to cover the entire image.
+        tiles_per_row_ = width_ / tile_size_ + (width_ % tile_size_ == 0 ? 0 : 1);
+        tiles_per_col_ = height_ / tile_size_ + (height_ % tile_size_ == 0 ? 0 : 1);
+        tile_count_ = tiles_per_row_ * tiles_per_col_;
+    }
+
+    std::unique_ptr<RayGen<StateType> > next_tile() override final {
+        int tile_id;
+        while ((tile_id = cur_tile_++) < tile_count_) {
+            // Get the next tile and compute its extents
+            int tile_pos_x  = (tile_id % tiles_per_row_) * tile_size_;
+            int tile_pos_y  = (tile_id / tiles_per_row_) * tile_size_;
+            int tile_width  = std::min(width_ - tile_pos_x, tile_size_);
+            int tile_height = std::min(height_ - tile_pos_y, tile_size_);
+
+            // If the next tile is smaller than half the size, acquire it as well.
+            // If this tile is smaller than half the size, skip it (was acquired by one of its neighbours)
+            if (tile_width < tile_size_ / 2 ||
+                tile_height < tile_size_ / 2)
+                continue;
+
+            if (width_ - (tile_pos_x + tile_width) < tile_size_ / 2)
+                tile_width += width_ - (tile_pos_x + tile_width);
+
+            if (height_ - (tile_pos_y + tile_height) < tile_size_ / 2)
+                tile_height += height_ - (tile_pos_y + tile_height);
+
+            return std::unique_ptr<RayGen<StateType> >(new TiledRayGen<StateType>(tile_pos_x, tile_pos_y, tile_width, tile_height,
+                                                                                  spp_, width_, height_));
+        }
+
+        // No tiles left.
+        return nullptr;
+    }
+
+    void start_frame() override final {
+        cur_tile_ = 0;
+    }
+
+private:
+    int tile_size_;
+    int spp_, width_, height_;
+
+    int tiles_per_row_;
+    int tiles_per_col_;
+    int tile_count_;
+
+    std::atomic<int> cur_tile_;
 };
 
 } // namespace imba

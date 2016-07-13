@@ -19,9 +19,8 @@ protected:
     typedef std::function<void (RayQueue<StateType>&, AtomicImage&)> ProcessShadowFn;
 
 public:
-    RayScheduler(RayGen<StateType>& ray_gen, Scene& scene)
-        : ray_gen_(ray_gen)
-        , scene_(scene)
+    RayScheduler(Scene& scene)
+        : scene_(scene)
     {}
 
     virtual ~RayScheduler() {}
@@ -31,7 +30,6 @@ public:
                        SamplePixelFn sample_fn) = 0;
 
 protected:
-    RayGen<StateType>& ray_gen_;
     Scene& scene_;
 };
 
