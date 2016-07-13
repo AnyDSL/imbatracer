@@ -69,12 +69,13 @@ public:
     }
 
     float2 world_to_raster(const float3& world_pos) const {
-        const auto t = transform_point(world_to_raster_, world_pos);
-        return float2(t.y, t.x);
+        const auto t = world_to_raster_ * float4(world_pos, 1.0f);
+        return float2(t.y, t.x) / t.w;
     }
 
     float3 raster_to_world(const float2& raster_pos) const {
-        return transform_point(raster_to_world_, float3(raster_pos.y, raster_pos.x, 0.0f));
+        const auto t = raster_to_world_ * float4(raster_pos.y, raster_pos.x, 0.0f, 1.0f);
+        return float3(t) / t.w;
     }
 
     int raster_to_id(const float2& pos) const {

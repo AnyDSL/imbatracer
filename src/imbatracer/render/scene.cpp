@@ -148,8 +148,9 @@ void Scene::upload_top_level_accel() {
 void Scene::compute_bounding_sphere() {
     // We use a box as an approximation
     BBox scene_bb = BBox::empty();
-    for (size_t i = 0; i < instances_.size(); i++) {
-        scene_bb.extend(meshes_[i].bounding_box());
+    for (auto& inst : instances()) {
+        auto bb = transform(inst.mat, mesh(inst.id).bounding_box());
+        scene_bb.extend(bb);
     }
     const float radius = length(scene_bb.max - scene_bb.min) * 0.5f;
     sphere_.inv_radius_sqr = 1.0f / sqr(radius);

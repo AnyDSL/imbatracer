@@ -58,14 +58,14 @@ inline Intersection calculate_intersection(const Scene& scene, const Hit& hit, c
     const float3     org(ray.org.x, ray.org.y, ray.org.z);
     const float3 out_dir(ray.dir.x, ray.dir.y, ray.dir.z);
     const auto       pos = org + hit.tmax * out_dir;
-    const auto local_pos = transform_point(inst.inv_mat, pos);
+    const auto local_pos = inst.inv_mat * float4(pos, 1.0f);
 
     // Recompute v based on u and local_pos
     const float u = hit.u;
     const auto v0 = float3(mesh.vertices()[i0]);
     const auto e1 = float3(mesh.vertices()[i1]) - v0;
     const auto e2 = float3(mesh.vertices()[i2]) - v0;
-    const float v = dot(float3(local_pos) - v0 - u * e1, e2) / dot(e2, e2);
+    const float v = dot(local_pos - v0 - u * e1, e2) / dot(e2, e2);
 
     const auto texcoords    = mesh.attribute<float2>(MeshAttributes::TEXCOORDS);
     const auto normals      = mesh.attribute<float3>(MeshAttributes::NORMALS);

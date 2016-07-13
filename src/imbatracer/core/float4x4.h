@@ -1,5 +1,5 @@
-#ifndef IMBA_FLOAT4X4
-#define IMBA_FLOAT4X4
+#ifndef IMBA_FLOAT4X4_H
+#define IMBA_FLOAT4X4_H
 
 #include "float4.h"
 
@@ -127,6 +127,20 @@ inline float4x4 operator * (float a, const float4x4& b) {
     return b * a;
 }
 
+inline float4 operator * (const float4x4& a, const float4& b) {
+    return float4(dot(a[0], b),
+                  dot(a[1], b),
+                  dot(a[2], b),
+                  dot(a[3], b));
+}
+
+inline float4 operator * (const float4& a, const float4x4& b) {
+    return float4(b[0][0] * a[0] + b[1][0] * a[1] + b[2][0] * a[2] + b[3][0] * a[3],
+                  b[0][1] * a[0] + b[1][1] * a[1] + b[2][1] * a[2] + b[3][1] * a[3],
+                  b[0][2] * a[0] + b[1][2] * a[1] + b[2][2] * a[2] + b[3][2] * a[3],
+                  b[0][3] * a[0] + b[1][3] * a[1] + b[2][3] * a[2] + b[3][3] * a[3]);
+}
+
 inline float4x4 invert(const float4x4& a) {
     float4x4 result;
 
@@ -188,34 +202,6 @@ inline float4x4 invert(const float4x4& a) {
     return result;
 }
 
-inline float4 transform(const float4x4& a, const float4& b) {
-    return float4(dot(a.rows[0], b),
-                  dot(a.rows[1], b),
-                  dot(a.rows[2], b),
-                  dot(a.rows[3], b));
-}
-
-inline float3 transform_point(const float4x4& a, const float3& b) {
-    float4 t = transform(a, float4(b, 1.0f));
-    t *= 1.0f / t.w;
-    return float3(t.x, t.y, t.z);
-}
-
-inline float3 transform_vector(const float4x4& a, const float3& b) {
-    float4 t = transform(a, float4(b, 0.0f));
-    return float3(t.x, t.y, t.z);
-}
-
-inline float4 operator* (const float4& a, const float4x4& b) {
-    float4 res (0.0f);
-    for (int i = 0; i < 4; ++i){
-        for (int j = 0; j < 4; ++j) {
-            res[i] += a[j] * b[j][i];
-        }
-    }
-    return res;
-}
-
 inline float4x4 abs(const float4x4& a) {
     float4x4 res;
     for (int i = 0; i < 4; ++i)
@@ -227,6 +213,6 @@ inline float4x4 euler(float x, float y, float z) {
     return rotate_x(x) * rotate_y(y) * rotate_z(z);
 }
 
-}
+} // namespace imba
 
-#endif
+#endif // IMBA_FLOAT4X4_H

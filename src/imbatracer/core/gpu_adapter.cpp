@@ -165,8 +165,8 @@ public:
         for (int i = 0; i < instances.size(); ++i) {
             auto bb = meshes[instances[i].id].bounding_box();
 
-            centers[i] = transform_point(instances[i].mat, (bb.max + bb.min) * 0.5f);
-            float3 abs_ext = transform_vector(abs(instances[i].mat), (bb.max - bb.min) * 0.5f);
+            centers[i] = instances[i].mat * float4((bb.max + bb.min) * 0.5f, 1.0f);
+            float3 abs_ext = abs(instances[i].mat) * float4((bb.max - bb.min) * 0.5f, 0.0f);
 
             bounds[i].min = centers[i] - abs_ext;
             bounds[i].max = centers[i] + abs_ext;
