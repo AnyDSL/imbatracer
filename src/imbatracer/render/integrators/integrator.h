@@ -96,7 +96,6 @@ inline Intersection calculate_intersection(const Scene& scene, const Hit& hit, c
     return res;
 }
 
-
 } // namespace imba
 
 #endif // IMBA_INTEGRATOR_H

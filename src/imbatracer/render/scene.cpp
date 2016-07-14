@@ -9,9 +9,9 @@ namespace imba {
 
 void Scene::setup_traversal_buffers() {
     // Make sure the buffers have the right size
-    const int node_count = top_nodes_.size() + nodes_.size();
-    if (traversal_.nodes.size() < node_count) {
-        traversal_.nodes = std::move(thorin::Array<Node>(TRAVERSAL_PLATFORM, TRAVERSAL_DEVICE, node_count));
+    const int total_nodes = (2 * instances_.size() - 1) + node_count_;
+    if (traversal_.nodes.size() < total_nodes) {
+        traversal_.nodes = std::move(thorin::Array<Node>(TRAVERSAL_PLATFORM, TRAVERSAL_DEVICE, total_nodes));
     }
     if (traversal_.tris.size() < tris_.size()) {
         traversal_.tris = std::move(thorin::Array<Vec4>(TRAVERSAL_PLATFORM, TRAVERSAL_DEVICE, tris_.size()));
@@ -79,15 +79,18 @@ void Scene::build_mesh_accels(const std::vector<std::string>& accel_filenames) {
         if (filename != "" && !store_accel(filename, nodes_, layout_.back(), tris_, tris_offset, tri_layout_[mesh_id]))
             std::cout << "The acceleration structure for mesh " << mesh_id << " could not be stored." << std::endl;
     }
+
+    node_count_ = nodes_.size();
 }
 
 void Scene::build_top_level_accel() {
     assert(!layout_.empty() && instances_.size() > 0);
 
     top_nodes_.clear();
+    instance_nodes_.clear();
 
     auto adapter = new_top_level_adapter(top_nodes_, instance_nodes_);
-    adapter->build_accel(meshes_, instances_, layout_, nodes_.size());
+    adapter->build_accel(meshes_, instances_, layout_, node_count_);
 }
 
 void Scene::upload_mask_buffer(const MaskBuffer& masks) {
@@ -115,13 +118,11 @@ void Scene::upload_mesh_accels() {
     thorin_copy(0, index_buf_.data(), 0,
                 traversal_.indices.device(), traversal_.indices.data(), 0,
                 sizeof(int) * index_buf_.size());
-
     thorin_copy(0, texcoord_buf_.data(), 0,
                 traversal_.texcoords.device(), traversal_.texcoords.data(), 0,
                 sizeof(Vec2) * texcoord_buf_.size());
 
     // Release the memory associated with the triangles and nodes
-    node_count_ = nodes_.size();
     std::vector<Node>().swap(nodes_);
     std::vector<Vec4>().swap(tris_);
     std::vector<Vec2>().swap(texcoord_buf_);
