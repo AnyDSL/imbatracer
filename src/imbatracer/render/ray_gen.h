@@ -23,10 +23,21 @@ public:
 /// Interface for tile generators, i.e. classes that generate RayGen objects for subsets of an image.
 template<typename StateType>
 class TileGen {
-public:
-    /// Obtains a tile and creates a RayGen object for it.
-    virtual std::unique_ptr<RayGen<StateType> > next_tile() = 0;
+protected:
+    struct RayGenDeleter {
+        void operator () (RayGen<StateType>* ptr) const {
+            ptr->~RayGen<StateType>();
+        }
+    };
 
+public:
+    typedef std::unique_ptr<RayGen<StateType>, RayGenDeleter> TilePtr;
+
+    /// Obtains a tile and creates a RayGen object for it. Uses the given pointer instead of allocating memory.
+    virtual TilePtr next_tile(uint8_t*) = 0;
+    /// Returns the size of the storage required to store a RayGen object.
+    virtual size_t sizeof_ray_gen() const = 0;
+    /// Restarts the frame.
     virtual void start_frame() = 0;
 };
 
@@ -40,11 +51,11 @@ public:
 
     int max_rays() const { return width_ * height_ * n_samples_; }
 
-    virtual void start_frame() override { next_pixel_ = 0; }
+    void start_frame() override { next_pixel_ = 0; }
 
-    virtual bool is_empty() const override { return next_pixel_ >= max_rays(); }
+    bool is_empty() const override { return next_pixel_ >= max_rays(); }
 
-    virtual void fill_queue(RayQueue<StateType>& out, typename RayGen<StateType>::SamplePixelFn sample_pixel) override {
+    void fill_queue(RayQueue<StateType>& out, typename RayGen<StateType>::SamplePixelFn sample_pixel) override {
         // only generate at most n samples per pixel
         if (next_pixel_ >= max_rays()) return;
 
@@ -107,7 +118,7 @@ public:
         , full_height_(full_height), full_width_(full_width)
     {}
 
-    virtual void fill_queue(RayQueue<StateType>& out, typename RayGen<StateType>::SamplePixelFn sample_pixel) override {
+    void fill_queue(RayQueue<StateType>& out, typename RayGen<StateType>::SamplePixelFn sample_pixel) override {
         PixelRayGen<StateType>::fill_queue(out,
             [sample_pixel, this](int x, int y, ::Ray& r, StateType& s) {
                 s.pixel_id = (y + top_) * full_width_ + (x + left_);
@@ -123,9 +134,12 @@ private:
 /// Generates quadratic tiles of a fixed size.
 template<typename StateType>
 class DefaultTileGen : public TileGen<StateType> {
+    using typename TileGen<StateType>::TilePtr;
+    using typename TileGen<StateType>::RayGenDeleter;
+
 public:
     DefaultTileGen(int w, int h, int spp, int tilesize)
-    : tile_size_(tilesize), spp_(spp), width_(w), height_(h)
+        : tile_size_(tilesize), spp_(spp), width_(w), height_(h)
     {
         // Compute the number of tiles required to cover the entire image.
         tiles_per_row_ = width_ / tile_size_ + (width_ % tile_size_ == 0 ? 0 : 1);
@@ -133,8 +147,9 @@ public:
         tile_count_ = tiles_per_row_ * tiles_per_col_;
     }
 
-    std::unique_ptr<RayGen<StateType> > next_tile() override final {
+    TilePtr next_tile(uint8_t* mem) override final {
         int tile_id;
+
         while ((tile_id = cur_tile_++) < tile_count_) {
             // Get the next tile and compute its extents
             int tile_pos_x  = (tile_id % tiles_per_row_) * tile_size_;
@@ -154,12 +169,15 @@ public:
             if (height_ - (tile_pos_y + tile_height) < tile_size_ / 2)
                 tile_height += height_ - (tile_pos_y + tile_height);
 
-            return std::unique_ptr<RayGen<StateType> >(new TiledRayGen<StateType>(tile_pos_x, tile_pos_y, tile_width, tile_height,
-                                                                                  spp_, width_, height_));
+            auto ptr = new (mem) TiledRayGen<StateType>(tile_pos_x, tile_pos_y, tile_width, tile_height, spp_, width_, height_);
+            return TilePtr(ptr, RayGenDeleter());
         }
 
-        // No tiles left.
         return nullptr;
+    }
+
+    size_t sizeof_ray_gen() const override final {
+        return sizeof(TiledRayGen<StateType>);
     }
 
     void start_frame() override final {

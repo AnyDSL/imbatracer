@@ -37,7 +37,7 @@ class FresnelConductor : public Fresnel {
 public:
     FresnelConductor(float eta, float kappa) : eta_(eta), kappa_(kappa) {}
 
-    virtual float eval(float cosi) const override {
+    float eval(float cosi) const override final {
         return fresnel_conductor(cosi, eta_, kappa_);
     }
 
@@ -51,7 +51,7 @@ public:
     FresnelDielectric(float eta_outside, float eta_inside)
         : eta_outside_(eta_outside), eta_inside_(eta_inside) {}
 
-    virtual float eval(float cosi) const override {
+    float eval(float cosi) const override final {
         // Compute indices of refraction according to whether the ray is coming from inside or outside.
         float eta_in = eta_outside_;
         float eta_trans = eta_inside_;

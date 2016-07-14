@@ -105,7 +105,7 @@ public:
         local_coordinates(normal_, tangent_, binormal_);
     }
 
-    virtual EmitSample sample_emit(RNG& rng) override {
+    EmitSample sample_emit(RNG& rng) override {
         EmitSample sample;
 
         // Sample a point on the light source
@@ -142,7 +142,7 @@ public:
         return sample;
     }
 
-    virtual DirectIllumSample sample_direct(const float3& from, RNG& rng) override {
+    DirectIllumSample sample_direct(const float3& from, RNG& rng) override {
         DirectIllumSample sample;
 
         // sample a point on the light source
@@ -177,7 +177,7 @@ public:
         return sample;
     }
 
-    virtual const AreaEmitter* emitter() const override { return &emit_; }
+    const AreaEmitter* emitter() const override { return &emit_; }
 
     const float3& vertex(int i) { return verts_[i]; }
 
@@ -199,7 +199,7 @@ public:
         local_coordinates(dir_, tangent_, binormal_);
     }
 
-    virtual EmitSample sample_emit(RNG& rng) override {
+    EmitSample sample_emit(RNG& rng) override {
         float2 disc_pos = sample_concentric_disc(rng.random_float(), rng.random_float());
 
         EmitSample sample;
@@ -215,7 +215,7 @@ public:
         return sample;
     }
 
-    virtual DirectIllumSample sample_direct(const float3& from, RNG& rng) override {
+    DirectIllumSample sample_direct(const float3& from, RNG& rng) override {
         DirectIllumSample sample;
 
         sample.dir      = -dir_;
@@ -229,8 +229,8 @@ public:
         return sample;
     }
 
-    virtual bool is_delta() const override { return true; }
-    virtual bool is_finite() const override { return false; }
+    bool is_delta() const override { return true; }
+    bool is_finite() const override { return false; }
 
 private:
     rgb intensity_;
@@ -245,7 +245,7 @@ public:
         : pos_(pos), intensity_(intensity)
     {}
 
-    virtual EmitSample sample_emit(RNG& rng) override {
+    EmitSample sample_emit(RNG& rng) override {
         EmitSample sample;
 
         sample.pos      = pos_;
@@ -262,7 +262,7 @@ public:
         return sample;
     }
 
-    virtual DirectIllumSample sample_direct(const float3& from, RNG& rng) override {
+    DirectIllumSample sample_direct(const float3& from, RNG& rng) override {
         float3 dir = pos_ - from;
         const float sqdist = dot(dir, dir);
         const float dist   = sqrtf(sqdist);
@@ -281,7 +281,7 @@ public:
         return sample;
     }
 
-    virtual bool is_delta() const override { return true; }
+    bool is_delta() const override { return true; }
 
 private:
     rgb intensity_;

@@ -11,7 +11,7 @@ public:
         : BxDF(BxDFFlags(BSDF_DIFFUSE | BSDF_REFLECTION)), color_(color)
     {}
 
-    virtual rgb eval(const float3& out_dir, const float3& in_dir) const override {
+    rgb eval(const float3& out_dir, const float3& in_dir) const override {
         return same_hemisphere(out_dir, in_dir) ? color_ * (1.0f / pi) : rgb(0.0f);
     }
 
@@ -25,18 +25,18 @@ public:
         : BxDF(BxDFFlags(BSDF_SPECULAR | BSDF_REFLECTION)), scale_(scale), fresnel_(fresnel)
     {}
 
-    virtual rgb eval(const float3& out_dir, const float3& in_dir) const override {
+    rgb eval(const float3& out_dir, const float3& in_dir) const override {
         return rgb(0.0f);
     }
 
-    virtual rgb sample(const float3& out_dir, float3& in_dir, RNG& rng, float& pdf) const override {
+    rgb sample(const float3& out_dir, float3& in_dir, RNG& rng, float& pdf) const override {
         in_dir = float3(-out_dir.x, -out_dir.y, out_dir.z); // Reflected direction in shading space (normal == z.)
         pdf = 1.0f;
 
         return fresnel_.eval(cos_theta(out_dir)) * scale_ / fabsf(cos_theta(in_dir));
     }
 
-    virtual float pdf(const float3& out_dir, const float3& in_dir) const override {
+    float pdf(const float3& out_dir, const float3& in_dir) const override {
         return 0.0f; // Probability between any two randomly choosen directions is zero due to delta distribution.
     }
 
@@ -52,7 +52,7 @@ public:
           coefficient_(coefficient), exponent_(exponent)
     {}
 
-    virtual rgb eval(const float3& out_dir, const float3& in_dir) const override {
+    rgb eval(const float3& out_dir, const float3& in_dir) const override {
         auto reflected_in = float3(-in_dir.x, -in_dir.y, in_dir.z);
         float cos_r_o = std::max(0.0f, dot(reflected_in, out_dir));
         cos_r_o = std::min(cos_r_o, 1.0f);
@@ -62,7 +62,7 @@ public:
                 : rgb(0.0f);
     }
 
-    virtual rgb sample(const float3& out_dir, float3& in_dir, RNG& rng, float& pdf) const override {
+    rgb sample(const float3& out_dir, float3& in_dir, RNG& rng, float& pdf) const override {
         // Sample a power weighted direction relative to the reflected direction
         auto dir_sample = sample_power_cos_hemisphere(exponent_, rng.random_float(), rng.random_float());
 
@@ -81,7 +81,7 @@ public:
         return same_hemisphere(out_dir, in_dir) ? eval(out_dir, in_dir) : rgb(0.0f);
     }
 
-    virtual float pdf(const float3& out_dir, const float3& in_dir) const override {
+    float pdf(const float3& out_dir, const float3& in_dir) const override {
         return power_cos_hemisphere_pdf(exponent_, in_dir);
     }
 
@@ -103,7 +103,7 @@ public:
         param_b_ = 0.45 * param_sigma_sqr_ / (param_sigma_sqr_ + 0.09f);
     }
 
-    virtual rgb eval(const float3& out_dir, const float3& in_dir) const override {
+    rgb eval(const float3& out_dir, const float3& in_dir) const override {
         float sin_theta_in = sin_theta(in_dir);
         float sin_theta_out = sin_theta(out_dir);
 
@@ -153,7 +153,7 @@ public:
           exponent_(exponent)
     {}
 
-    virtual rgb eval(const float3& out_dir, const float3& in_dir) const override {
+    rgb eval(const float3& out_dir, const float3& in_dir) const override {
         if (abs_cos_theta(out_dir) == 0.0f || abs_cos_theta(in_dir) == 0.0f)
             return rgb(0.0f);
 
@@ -170,12 +170,12 @@ public:
                (4.0f * abs_cos_theta(in_dir) * abs_cos_theta(out_dir));
     }
 
-    virtual rgb sample(const float3& out_dir, float3& in_dir, RNG& rng, float& pdf) const override {
+    rgb sample(const float3& out_dir, float3& in_dir, RNG& rng, float& pdf) const override {
         sample_blinn_distribution(out_dir, in_dir, rng.random_float(), rng.random_float(), pdf);
         return same_hemisphere(out_dir, in_dir) ? eval(out_dir, in_dir) : rgb(0.0f);
     }
 
-    virtual float pdf(const float3& out_dir, const float3& in_dir) const override {
+    float pdf(const float3& out_dir, const float3& in_dir) const override {
         return same_hemisphere(out_dir, in_dir) ? blinn_distribution_pdf(out_dir, in_dir) : 0.0f;
     }
 

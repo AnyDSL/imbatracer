@@ -76,16 +76,16 @@ class CombineBxDF : public BxDF {
 public:
     CombineBxDF(BxDF* a, BxDF* b) : BxDF(BxDFFlags(a->flags | b->flags)), a_(a), b_(b) {}
 
-    virtual rgb eval(const float3& out_dir, const float3& in_dir) const override {
+    rgb eval(const float3& out_dir, const float3& in_dir) const override {
         return 0.5f * (a_->eval(out_dir, in_dir) + b_->eval(out_dir, in_dir));
     }
 
     /// Default implementation cosine-samples the hemisphere.
-    virtual rgb sample(const float3& out_dir, float3& in_dir, RNG& rng, float& pdf) const override {
+    rgb sample(const float3& out_dir, float3& in_dir, RNG& rng, float& pdf) const override {
         return (rng.random_float() < 0.5f ? a_ : b_)->sample(out_dir, in_dir, rng, pdf);
     }
 
-    virtual float pdf(const float3& out_dir, const float3& in_dir) const override {
+    float pdf(const float3& out_dir, const float3& in_dir) const override {
         // Probability to sample in_dir = probability for a to sample in_dir * probability to choose a for sampling
         //                              + probability for b to sample in_dir * probability to choose b for sampling
         return (a_->pdf(out_dir, in_dir) + b_->pdf(out_dir, in_dir)) * 0.5f;

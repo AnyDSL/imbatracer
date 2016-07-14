@@ -64,7 +64,7 @@ private:
             int i = nodes.size();
             nodes.emplace_back();
 
-            if (!stack.empty()) {
+            if (!stack.is_empty()) {
                 StackElem elem = stack.pop();
                 nodes[elem.parent].children[elem.child] = i;
             }
@@ -114,7 +114,7 @@ private:
             auto& tris = adapter->tris_;
             auto  mesh = adapter->mesh_;
 
-            if (stack.empty()) {
+            if (stack.is_empty()) {
                 nodes.emplace_back();
                 fill_dummy_parent(nodes.back(), leaf_bb, ~tris.size());
             } else {
@@ -220,10 +220,10 @@ public:
         : TopLevelAdapter(nodes, instance_nodes)
     {}
 
-    virtual void build_accel(const std::vector<Mesh>& meshes,
-                             const std::vector<Mesh::Instance>& instances,
-                             const std::vector<int>& layout,
-                             int root_offset) override {
+    void build_accel(const std::vector<Mesh>& meshes,
+                     const std::vector<Mesh::Instance>& instances,
+                     const std::vector<int>& layout,
+                     int root_offset) override {
         // Copy the bounding boxes and centers of all meshes into an array.
         std::vector<BBox> bounds(instances.size());
         std::vector<float3> centers(instances.size());
@@ -277,7 +277,7 @@ private:
             int i = nodes.size();
             nodes.emplace_back();
 
-            if (!stack.empty()) {
+            if (!stack.is_empty()) {
                 StackElem elem = stack.pop();
                 nodes[elem.parent].children[elem.child] = i + root_offset;
             }
@@ -328,7 +328,7 @@ private:
             auto& nodes = adapter->nodes_;
             auto& stack = adapter->stack_;
 
-            if (stack.empty()) {
+            if (stack.is_empty()) {
                 nodes.emplace_back();
                 fill_dummy_parent(nodes.back(), leaf_bb, ~instance_nodes.size());
             } else {

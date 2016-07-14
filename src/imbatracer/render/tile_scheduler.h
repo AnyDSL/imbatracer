@@ -32,12 +32,16 @@ public:
         , num_threads_(num_threads), q_size_(q_size)
         , thread_local_prim_queues_(num_threads * 2)
         , thread_local_shadow_queues_(num_threads)
+        , thread_local_ray_gen_(num_threads)
     {
         for (auto& q : thread_local_prim_queues_)
             q = new RayQueue<StateType>(q_size);
 
         for (auto& q : thread_local_shadow_queues_)
             q = new RayQueue<StateType>(q_size * max_shadow_rays_per_hit);
+
+        for (auto& ptr : thread_local_ray_gen_)
+            ptr = new uint8_t[tile_gen_.sizeof_ray_gen()];
 
         // Initialize the GPU buffer
         RayQueue<StateType>::setup_device_buffer(q_size * max_shadow_rays_per_hit);
@@ -46,11 +50,10 @@ public:
     ~TileScheduler() {
         RayQueue<StateType>::release_device_buffer();
 
-        for (auto& q : thread_local_prim_queues_)
-            delete q;
+        for (auto q : thread_local_prim_queues_) delete q;
+        for (auto q : thread_local_shadow_queues_) delete q;
 
-        for (auto& q : thread_local_shadow_queues_)
-            delete q;
+        for (auto ptr : thread_local_ray_gen_) delete [] ptr;
     }
 
     void run_iteration(AtomicImage& image,
@@ -83,12 +86,16 @@ private:
     // Every thread has one shadow queue.
     std::vector<RayQueue<StateType>*> thread_local_shadow_queues_;
 
+    // Every thread has a ray generator.
+    // To prevent reallocation every time a new tile is needed, we use a memory pool.
+    std::vector<uint8_t*> thread_local_ray_gen_;
+
     void render_thread(int thread_idx, AtomicImage& image,
                        ProcessShadowFn process_shadow_rays,
                        ProcessPrimaryFn process_primary_rays,
                        SamplePixelFn sample_fn) {
-        std::unique_ptr<RayGen<StateType> > cur_tile;
-        while ((cur_tile = tile_gen_.next_tile()) != nullptr ) {
+        typename TileGen<StateType>::TilePtr cur_tile;
+        while ((cur_tile = tile_gen_.next_tile(thread_local_ray_gen_[thread_idx])) != nullptr) {
             // Get the ray queues for this thread.
             int in_q = 0;
             int out_q = 1;

@@ -14,11 +14,11 @@ public:
           eta_inside_(eta_inside)
     {}
 
-    virtual rgb eval(const float3& out_dir, const float3& in_dir) const override {
+    rgb eval(const float3& out_dir, const float3& in_dir) const override {
         return rgb(0.0f);
     }
 
-    virtual rgb sample(const float3& out_dir, float3& in_dir, RNG& rng, float& pdf) const override {
+    rgb sample(const float3& out_dir, float3& in_dir, RNG& rng, float& pdf) const override {
         pdf = 1.0f;
 
         // Compute optical densities depending on whether the ray is coming from the outside or the inside.
@@ -49,12 +49,12 @@ public:
         return factor * (1.0f - fr) * scale_ / fabsf(cos_theta(in_dir));
     }
 
-    virtual float importance(const float3& out_dir) const override {
+    float importance(const float3& out_dir) const override {
         float fr = fresnel_.eval(cos_theta(out_dir));
         return 1.0f - fr;
     }
 
-    virtual float pdf(const float3& out_dir, const float3& in_dir) const override {
+    float pdf(const float3& out_dir, const float3& in_dir) const override {
         return 0.0f; // Probability between any two randomly choosen directions is zero due to the delta distribution.
     }
 

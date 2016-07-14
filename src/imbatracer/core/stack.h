@@ -25,7 +25,7 @@ struct Stack {
         return elems[top--];
     }
 
-    bool empty() const { return top < 0; }
+    bool is_empty() const { return top < 0; }
     bool full() const { return top >= N - 1; }
     int size() const { return top + 1; }
 };

@@ -63,7 +63,7 @@ public:
     DiffuseMaterial(const rgb& color, const TextureSampler* bump = nullptr) : Material(bump), color_(color), sampler_(nullptr) {}
     DiffuseMaterial(TextureSampler* sampler, const TextureSampler* bump = nullptr) : Material(bump), sampler_(sampler) {}
 
-    virtual BSDF* get_bsdf(const Intersection& isect, MemoryArena& mem_arena, bool adjoint) const override {
+    BSDF* get_bsdf(const Intersection& isect, MemoryArena& mem_arena, bool adjoint) const override {
         rgb color = color_;
         if (sampler_)
             color = sampler_->sample(isect.uv);
@@ -83,12 +83,12 @@ public:
     MirrorMaterial(float eta, float kappa, const rgb& scale, TextureSampler* bump = nullptr)
         : Material(bump), fresnel_(eta, kappa), scale_(scale) {}
 
-    virtual BSDF* get_bsdf(const Intersection& isect, MemoryArena& mem_arena, bool adjoint) const override {
+    BSDF* get_bsdf(const Intersection& isect, MemoryArena& mem_arena, bool adjoint) const override {
         auto brdf = mem_arena.alloc<SpecularReflection>(scale_, fresnel_);
         return mem_arena.alloc<BSDF>(isect, brdf, nullptr);
     }
 
-    virtual bool is_specular() override { return true; }
+    bool is_specular() override { return true; }
 
 private:
     FresnelConductor fresnel_;
@@ -101,7 +101,7 @@ public:
     GlassMaterial(float eta, const rgb& transmittance, const rgb& reflectance, TextureSampler* bump = nullptr)
         : Material(bump), eta_(eta), transmittance_(transmittance), reflectance_(reflectance), fresnel_(1.0f, eta) {}
 
-    virtual BSDF* get_bsdf(const Intersection& isect, MemoryArena& mem_arena, bool adjoint) const override {
+    BSDF* get_bsdf(const Intersection& isect, MemoryArena& mem_arena, bool adjoint) const override {
         auto brdf = mem_arena.alloc<SpecularReflection>(reflectance_, fresnel_);
 
         BxDF* btdf;
@@ -113,7 +113,7 @@ public:
         return mem_arena.alloc<BSDF>(isect, brdf, btdf);
     }
 
-    virtual bool is_specular() override { return true; }
+    bool is_specular() override { return true; }
 
 private:
     float eta_;
@@ -132,7 +132,7 @@ public:
         : Material(bump), exponent_(exponent), specular_color_(specular_color), diffuse_color_(0.0f), diff_sampler_(diff_sampler)
     {}
 
-    virtual BSDF* get_bsdf(const Intersection& isect, MemoryArena& mem_arena, bool adjoint) const override {
+    BSDF* get_bsdf(const Intersection& isect, MemoryArena& mem_arena, bool adjoint) const override {
         rgb diff_color = diffuse_color_;
         if (diff_sampler_)
             diff_color = diff_sampler_->sample(isect.uv);

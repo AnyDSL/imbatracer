@@ -55,7 +55,7 @@ public:
         Stack<Node> stack;
         stack.push(0, obj_count, global_bb);
 
-        while (!stack.empty()) {
+        while (!stack.is_empty()) {
             MultiNode<Node, N> multi_node(stack.pop());
 
             // Iterate over the available split candidates in the multi-node
