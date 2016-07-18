@@ -5,6 +5,9 @@
 #include <memory>
 #include <fstream>
 
+// For isnan
+#include <math.h>
+
 #include "build_scene.h"
 #include "../loaders/loaders.h"
 #include "../core/adapter.h"
