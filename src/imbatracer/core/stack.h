@@ -21,7 +21,7 @@ struct Stack {
     }
 
     T pop() {
-        assert(!empty());
+        assert(!is_empty());
         return elems[top--];
     }
 
