@@ -26,7 +26,7 @@ class TileGen {
 protected:
     struct RayGenDeleter {
         void operator () (RayGen<StateType>* ptr) const {
-            ptr->~RayGen<StateType>();
+            if (ptr) ptr->~RayGen<StateType>();
         }
     };
 
@@ -127,15 +127,14 @@ public:
     }
 
 private:
-    int top_, left_;
-    int full_width_, full_height_;
+    const int top_, left_;
+    const int full_width_, full_height_;
 };
 
 /// Generates quadratic tiles of a fixed size.
 template<typename StateType>
 class DefaultTileGen : public TileGen<StateType> {
     using typename TileGen<StateType>::TilePtr;
-    using typename TileGen<StateType>::RayGenDeleter;
 
 public:
     DefaultTileGen(int w, int h, int spp, int tilesize)
@@ -169,8 +168,7 @@ public:
             if (height_ - (tile_pos_y + tile_height) < tile_size_ / 2)
                 tile_height += height_ - (tile_pos_y + tile_height);
 
-            auto ptr = new (mem) TiledRayGen<StateType>(tile_pos_x, tile_pos_y, tile_width, tile_height, spp_, width_, height_);
-            return TilePtr(ptr, RayGenDeleter());
+            return TilePtr(new (mem) TiledRayGen<StateType>(tile_pos_x, tile_pos_y, tile_width, tile_height, spp_, width_, height_));
         }
 
         return nullptr;
