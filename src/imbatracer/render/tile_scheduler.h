@@ -94,8 +94,8 @@ private:
                        ProcessShadowFn process_shadow_rays,
                        ProcessPrimaryFn process_primary_rays,
                        SamplePixelFn sample_fn) {
-        typename TileGen<StateType>::TilePtr cur_tile;
-        while ((cur_tile = tile_gen_.next_tile(thread_local_ray_gen_[thread_idx])) != nullptr) {
+        auto cur_tile = tile_gen_.next_tile(thread_local_ray_gen_[thread_idx]);
+        while (cur_tile != nullptr) {
             // Get the ray queues for this thread.
             int in_q = 0;
             int out_q = 1;
@@ -111,12 +111,10 @@ private:
                 // TODO Add regeneration again (minor performance increase)
 
                 prim_q_in->traverse(scene_.traversal_data());
-
                 process_primary_rays(*prim_q_in, *prim_q_out, *shadow_q, image);
 
                 if (shadow_q->size() > MIN_QUEUE_SIZE) {
                     shadow_q->traverse_occluded(scene_.traversal_data());
-
                     process_shadow_rays(*shadow_q, image);
                 }
 
@@ -127,6 +125,10 @@ private:
                 prim_q_in  = thread_local_prim_queues_[thread_idx * 2 + in_q];
                 prim_q_out = thread_local_prim_queues_[thread_idx * 2 + out_q];
             }
+            // We are using the same memory for the new ray generation, so we
+            // have to delete the old one first!
+            cur_tile.reset(nullptr);
+            cur_tile = tile_gen_.next_tile(thread_local_ray_gen_[thread_idx]);
         }
     }
 };
