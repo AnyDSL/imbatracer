@@ -1,0 +1,137 @@
+// HashGrid partial implementation in impala
+// Try different array operations in impala 
+
+extern "C" {
+    fn abort() -> ();
+}
+
+
+fn compute_bbox(photons: &[f32], size: i32, body: fn(Float3, Float3)->()) -> () {
+    let mut bbox_min = Float3 { x : 1e36f,  y : 1e36f,  z : 1e36f };
+    let mut bbox_max = Float3 { x : -1e36f, y : -1e36f, z : -1e36f };
+    for i in range(0, size) {
+        let x = photons(3 * i);
+        let y = photons(3 * i + 1);
+        let z = photons(3 * i + 2);
+        bbox_max.x = max(bbox_max.x, x);
+        bbox_max.y = max(bbox_max.y, y);
+        bbox_max.z = max(bbox_max.z, z);
+        bbox_min.x = min(bbox_min.x, x);
+        bbox_min.y = min(bbox_min.y, y);
+        bbox_min.z = min(bbox_min.z, z);
+    }
+
+    body(bbox_min, bbox_max)
+}
+
+// Interfaces
+extern fn build_hashgrid(info: &RawDataInfo, photon_cnt: i32, cell_size: i32, rad: f32) -> &PhotonHashGrid {
+    let indices_buf   = alloc_cpu(photon_cnt * sizeof[i32]());
+    let cell_ends_buf = alloc_cpu(cell_size * sizeof[i32]());
+    let photons_buf   = alloc_cpu(photon_cnt * 3 * sizeof[f32]());
+
+    let mut ptr_photons = bitcast[&[f32]](photons_buf.data);
+    for i in range (0, photon_cnt) {
+        for j in @unroll(0, 3) {
+            ptr_photons(3 * i + j) = (*info).begin(i * (*info).stride + j); 
+        }
+    }
+
+    let hg = ~PhotonHashGrid {
+        radius         : rad,
+        radius_sqr     : rad * rad,
+        cell_size      : rad * 2.f,
+        inv_cell_size  : 1.f / (rad * 2.f),
+        photons_size   : photon_cnt,
+        indices_size   : photon_cnt,
+        cell_ends_size : cell_size,
+        bbox_min       : Float3 { x:1e36f,  y:1e36f,  z:1e36f },
+        bbox_max       : Float3 { x:-1e36f, y:-1e36f, z:-1e36f },
+        
+        indices        : bitcast[&[i32]](indices_buf.data),
+        cell_ends      : bitcast[&[i32]](cell_ends_buf.data),
+        photons        : bitcast[&[f32]](photons_buf.data),     
+
+        photons_buf    : photons_buf,
+        indices_buf    : indices_buf,
+        cell_ends_buf  : cell_ends_buf,
+        result_buf     : alloc_cpu(photon_cnt * sizeof[i32]()),
+    };
+    
+    build(hg);
+
+    hg
+}
+
+//extern fn query_hashgrid(mut hg: &PhotonHashGrid, x: f32, y: f32, z: f32) -> &QueryResult {
+//    let size = (*hg).photons_size;
+//    
+//    let query_pos = Float3 {
+//        x : x,
+//        y : y,
+//        z : z
+//    };
+//   
+//    let mut arr = ~QueryResult {
+//                      size   : 0,
+//                      data   : bitcast[&[i32]]((*hg).host_result_buf.data)
+//                  };
+//
+//    let dist_min = sub(query_pos, (*hg).bbox_min);
+//    let dist_max = sub((*hg).bbox_max, query_pos);
+//
+//    if (has_negative(dist_min) || has_negative(dist_max)) { 
+//        return (arr)
+//    }
+//    
+//    let cell = scalar((*hg).inv_cell_size, dist_min);
+//
+//    let coord = Float3 {
+//        x : floorf32(cell.x),
+//        y : floorf32(cell.y),
+//        z : floorf32(cell.z)
+//    };
+//
+//    let px = coord.x as i32;
+//    let py = coord.y as i32;
+//    let pz = coord.z as i32;
+//
+//    let frac_coord = sub(cell, coord);
+//
+//    let dx = if (frac_coord.x < 0.5f) { -1 } else { 1 };
+//    let dy = if (frac_coord.y < 0.5f) { -1 } else { 1 };
+//    let dz = if (frac_coord.z < 0.5f) { -1 } else { 1 };
+//
+//    let pxo = px + dx;
+//    let pyo = py + dy;
+//    let pzo = pz + dz;
+//
+//    for i in @unroll(0, 8) {
+//        let z = if ((i & 1) != 0) { pzo } else { pz };
+//        let y = if ((i & 2) != 0) { pyo } else { py };
+//        let x = if ((i & 4) != 0) { pxo } else { px };
+//
+//        let interval = cell_range(hash_func(x as u32, y as u32, z as u32, (*hg).cell_ends_size as u32), (*hg).cell_ends);  
+//        let start = arr.size;
+//        let mut curCnt = 0;
+//
+//        for j in $range(interval.x, interval.y) {
+//            let idx = (*hg).indices(j);
+//            let pos = toFloat3(hg, idx);
+//            let distSqr = sqr(sub(query_pos, pos));
+//            if (distSqr <= (*hg).radius_sqr) {
+//                arr.data(start + curCnt) = idx;
+//                curCnt++;
+//            }
+//        }
+//
+//        arr.size += curCnt;
+//    }
+//
+//    arr
+//}
+
+extern fn batch_query_hashgrid(hg: &PhotonHashGrid, query_poses: &[f32], size: i32) -> &BatchQueryResult {
+    batch_query(hg, query_poses, size) 
+}
+

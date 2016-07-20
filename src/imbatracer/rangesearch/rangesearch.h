@@ -31,7 +31,6 @@ public:
     ~HashGrid() {
         if (hg) {
             destroy_hashgrid(hg);
-            if (hg->neighbor) delete [] hg->neighbor;
             delete hg;
             hg = nullptr;
         }
@@ -47,7 +46,6 @@ public:
 ///*
         if (hg) {
             destroy_hashgrid(hg);
-            if (hg->neighbor) delete [] hg->neighbor;
             delete hg;
             hg = nullptr;
         }
@@ -119,7 +117,7 @@ public:
 
     template<typename Container>
     void process(Container& output, const float3& query_pos) {
-///*
+/*
         std::lock_guard<std::mutex> lock(traversal_mutex); // TODO test purpose only, have to switch the tbb parallel framwork into impala on gpu to get rid of this
 
         if (!hg) return;
@@ -137,7 +135,7 @@ public:
             result = nullptr;
         }
 
-//*/
+*/
 
 /*
         const float3 dist_min = query_pos - bbox_min_;

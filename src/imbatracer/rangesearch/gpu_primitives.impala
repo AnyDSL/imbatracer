@@ -1,0 +1,221 @@
+// TODO cannot handle if grid.x / block.x > 65535, this is the limit for cc2.x 
+fn iterate_acc(thread_per_block: i32, size: i32, body: fn(i32) -> ()) -> () {
+    let block = (thread_per_block, 1, 1);
+    let grid  = (ceilf32((size as f32) / (thread_per_block as f32)) as i32 * thread_per_block, 1, 1);
+    
+    with acc(acc_dev(), grid, block) {
+        let i = acc_tidx() + acc_bidx() * acc_bdimx();
+        if (i < size) {
+            body(i);
+        }
+    }
+}
+
+// gpu generic reduction(f32 version)
+// run user defined reduction on multiple "arrays"(e.g. float3) under user defined binary operation
+// out_of_bound_value is used for the data whose index is out-of-bound(elements in the last block) based on the bin-op respectively (e.g. for + the value is 0)
+// #input  = size * simd_stride
+// #output = simd_stride
+// TODO try use real SIMD functionality in impala
+fn gpu_reduction(output_buf: Buffer, input: &[f32], size: i32, simd_stride: i32, out_bound_val: f32, bin_op: fn(f32, f32) -> f32) -> () {
+    fn get_value_with_bound_check(array: &[f32], data_index: i32, array_length: i32) -> f32 {
+        if (data_index < array_length) {
+            return(array(data_index))
+        } 
+        out_bound_val
+    }
+    fn run_single_iteration(tid: i32, chunk_offset: i32, simd_stride: i32, mut sh_data: &[3][f32]) -> () {
+        for cur_simd_idx in range(0, simd_stride) {
+            let first_idx  = cur_simd_idx + simd_stride * tid;
+            let second_idx = first_idx + simd_stride * chunk_offset;
+            sh_data(first_idx) = bin_op(sh_data(first_idx) as f32, sh_data(second_idx) as f32);
+        }
+    }
+  
+    let threads_per_block  = 256;
+    let elements_per_block = threads_per_block * 2;
+   
+    let mut cur_size           = size;
+    let mut cur_input_length   = cur_size * simd_stride;
+    let mut num_blocks         = ceilf32 ((cur_size as f32) / (elements_per_block as f32)) as i32;
+    let partial_size           = num_blocks * simd_stride * sizeof[f32]();
+    let partial_output_buf     = acc_alloc(acc_dev(), partial_size);
+    let partial_input_buf      = acc_alloc(acc_dev(), partial_size);
+    let mut ptr_partial_output = bitcast[&[f32]](partial_output_buf.data);
+    let mut ptr_partial_input  = input;
+
+    while (true) {
+        let block = (threads_per_block, 1, 1);
+        let grid  = (threads_per_block * num_blocks, 1, 1);
+        with acc(acc_dev(), grid, block) {
+            let bid = acc_bidx();
+            let tid = acc_tidx();
+            // multiplied by threads_per_block rather than elements_per_block due to the first reduction iteration will be done directly whild loading
+            // i.e each thread load two elements perform operations and write the results to shared memory
+            // 01.07.2016 seems the size of shared memory can only be constant at compile time, this make this function not robust and general
+            let mut sh_data = reserve_shared[f32](threads_per_block * 3);
+           
+            // sequential addressing with stride offsets
+            let first_start_idx  = ( tid + bid * elements_per_block ) * simd_stride;
+            let second_start_idx = first_start_idx + threads_per_block * simd_stride;
+            
+            // load two chunks and store the results of the binary operations into shared memory
+            for cur_simd_idx in range(0, simd_stride) {
+                let first  = get_value_with_bound_check(ptr_partial_input, first_start_idx + cur_simd_idx, cur_input_length);
+                let second = get_value_with_bound_check(ptr_partial_input, second_start_idx + cur_simd_idx, cur_input_length);
+                sh_data(cur_simd_idx + simd_stride * tid) = bin_op(first, second);
+            }
+
+            acc_barrier();
+
+            // run reduction iterations
+            for i in for_loop(threads_per_block >> 1,
+                              |a: i32| -> i32 { a >> 1 },
+                              |a: i32| -> bool { a > 0 })
+            {
+                if (tid < i) { run_single_iteration(tid, i, simd_stride, sh_data); }
+                acc_barrier();
+            }
+
+            // write partial reduction chunk into partial_output
+            if (tid == 0) {
+                for cur_simd_idx in range(0, simd_stride) {
+                    ptr_partial_output(cur_simd_idx + simd_stride * bid) = sh_data(cur_simd_idx);
+                }
+            }
+        }
+        
+        if (num_blocks > 1) {
+            cur_size           = num_blocks;
+            cur_input_length   = cur_size * simd_stride;
+            num_blocks         = ceilf32 ((cur_size as f32) / (elements_per_block as f32)) as i32;
+            copy(partial_output_buf, partial_input_buf, cur_size * simd_stride * sizeof[f32]());
+            ptr_partial_input = bitcast[&[f32]](partial_input_buf.data);
+        }
+        else {
+            copy(partial_output_buf, output_buf, simd_stride * sizeof[f32]());
+            release(partial_output_buf);
+            release(partial_input_buf);
+            return ()
+        }
+    }
+}
+
+// gpu scan (exclusive prefix-sum i32 version)
+// based on report from Mark Harris: Parallel Prefix Sum (Scan) with CUDA
+fn gpu_prefix_sum(input: &[i32], mut output: &[i32], size: i32) -> () {
+    let log_num_banks = 5; // 32 banks
+    fn conflict_free_offset(a: i32) -> i32 {
+        a >> log_num_banks
+    }
+    fn get_value_with_bound_check(array: &[i32], i: i32, size: i32) -> i32 {
+        if (i < size) { return (array(i)) }
+        0
+    }
+    fn set_value_with_bound_check(mut array: &[i32], i: i32, size: i32, val: i32) -> () {
+        if (i < size) { array(i) = val; }
+    }
+
+    let threads_per_block  = 256;
+    let elements_per_block = threads_per_block * 2;
+    let num_blocks         = ceilf32 ((size as f32) / (elements_per_block as f32)) as i32;
+    let num_blocks_floor   = floorf32((size as f32) / (elements_per_block as f32)) as i32;
+    let block = (threads_per_block, 1, 1);
+    let grid  = (threads_per_block * num_blocks, 1, 1);
+
+    let auxi_buf     = acc_alloc(acc_dev(), num_blocks * sizeof[i32]());
+    let auxi_pfs_buf = acc_alloc(acc_dev(), num_blocks * sizeof[i32]());
+    let mut ptr_auxi = bitcast[&[i32]](auxi_buf.data);
+    let ptr_auxi_pfs = bitcast[&[i32]](auxi_pfs_buf.data);
+    
+    with acc(acc_dev(), grid, block) {
+        let bid = acc_bidx();
+        let tid = acc_tidx();
+        let mut sh_pfs = reserve_shared[i32](elements_per_block * 2); // because of padding, simply reserve twice of the original size
+        
+        // for all blocks except the last one
+        // run work-efficient scan introduced by harris
+        if (bid < num_blocks) {
+            let mut offset = 1;
+            let ai = tid;
+            let bi = tid + (elements_per_block >> 1);
+            sh_pfs(ai + conflict_free_offset(ai)) = get_value_with_bound_check(input, ai + bid * elements_per_block, size);
+            sh_pfs(bi + conflict_free_offset(bi)) = get_value_with_bound_check(input, bi + bid * elements_per_block, size);
+            
+            // up-sweep
+            for i in for_loop(elements_per_block >> 1, 
+                              |a: i32| -> i32  { a >> 1 },
+                              |a: i32| -> bool { a > 0 }) 
+            {
+                acc_barrier();
+                if (tid < i) {
+                    let mut ai2  = offset * ( 2 * tid + 1) - 1;
+                    let mut bi2  = offset * ( 2 * tid + 2) - 1;
+                    ai2 += conflict_free_offset(ai2);
+                    bi2 += conflict_free_offset(bi2);
+                    sh_pfs(bi2) += sh_pfs(ai2);
+                }
+                offset *= 2;
+            }   
+            
+            //
+            if (tid == 0) {
+                let tmp = elements_per_block - 1;
+                let mut ptr_last_element = &(sh_pfs(tmp + conflict_free_offset(tmp)));
+
+                // before zeroing the last element of each block, initialize auxi array first
+                ptr_auxi(bid) = *ptr_last_element;
+                
+                // zero last element of each block to get a exclusive prefix-sum eventually
+                *ptr_last_element = 0;
+            }
+
+            // down-sweep
+            for i in for_loop(1,
+                              |a: i32| -> i32  { a * 2 },
+                              |a: i32| -> bool { a < elements_per_block })
+            {
+                offset >>= 1;
+                acc_barrier();
+                if (tid < i) {
+                    let mut ai2  = offset * ( 2 * tid + 1) - 1;
+                    let mut bi2  = offset * ( 2 * tid + 2) - 1;
+                    ai2 += conflict_free_offset(ai2);
+                    bi2 += conflict_free_offset(bi2);
+                    let t        = sh_pfs(ai2);
+                    sh_pfs(ai2)  = sh_pfs(bi2);
+                    sh_pfs(bi2) += t;
+                }
+            }
+            acc_barrier();
+            set_value_with_bound_check(output, ai + bid * elements_per_block, size, sh_pfs(ai + conflict_free_offset(ai)));
+            set_value_with_bound_check(output, bi + bid * elements_per_block, size, sh_pfs(bi + conflict_free_offset(bi)));
+        }
+    }
+
+    if (num_blocks > 1) {
+        // pre-scan auxi array
+        gpu_prefix_sum(ptr_auxi, ptr_auxi_pfs, num_blocks); 
+
+        // uniform add the auxi array for the respective block elements in output array
+        for i in iterate_acc(elements_per_block, size) {
+            let bid = acc_bidx();
+            output(i) += ptr_auxi_pfs(bid);
+        }
+    }
+
+    //
+    release(auxi_buf);
+    release(auxi_pfs_buf);
+}
+
+// gpu stream compaction
+fn gpu_stream_compaction(sum: &[i32], mask: &[i32], input: &[i32], mut output: &[i32], threads_per_block: i32, size: i32) -> () {
+    for i in iterate_acc(threads_per_block, size) {
+        if (mask(i) == 1) {
+            output(sum(i)) = input(i);
+        }
+    } 
+} 
+
+

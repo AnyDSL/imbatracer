@@ -1,0 +1,79 @@
+struct Vector {
+    capacity : i32,
+    size     : i32,
+    buffer   : Buffer
+}
+
+fn alloc_vector(default_cap: i32, buf_allocator: fn(i32) -> Buffer) -> &Vector {
+    ~Vector {
+        capacity : default_cap,
+        size     : 0,
+        buffer   : buf_allocator(default_cap * sizeof[i32]())
+    }
+}
+
+fn vector_push_back(mut vec: &Vector, val: i32) -> () {
+    if (vec.size >= vec.capacity) {
+        let new_buffer = alloc(vec.buffer.device, vec.capacity * 2 * sizeof[i32]());
+        copy(vec.buffer, new_buffer, vec.capacity * sizeof[i32]());
+        release(vec.buffer);
+        vec.buffer = new_buffer;
+        vec.capacity *= 2;
+    }
+    let mut data = bitcast[&[i32]](vec.buffer.data);
+    data(vec.size++) = val;
+}
+
+fn vector_at(vec: &Vector, i: i32) -> i32 {
+    bitcast[&[i32]](vec.buffer.data)(i)
+}
+
+fn release_vector(vec: &Vector) -> () {
+    release(vec.buffer);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////
+
+struct VectorI32 {
+    capacity : fn() -> i32,
+    size     : fn() -> i32,
+    buffer   : fn() -> Buffer,
+    push_back: fn(i32) -> (),
+    at       : fn(i32) -> i32
+}
+
+fn alloc_vector_i32(default_cap: i32, buf_allocator: fn(i32) -> Buffer) -> VectorI32 {
+    let mut buffer = buf_allocator(default_cap * sizeof[i32]());
+    let mut cap = default_cap;
+    let mut size = 0;
+    VectorI32 {
+        capacity : | | -> i32    { cap },
+        size     : | | -> i32    { size },
+        buffer   : | | -> Buffer { buffer },
+        
+        push_back: |i| -> () {
+            if (size < cap) {
+                let mut data = bitcast[&[i32]](buffer.data);
+                data(size++) = i;
+            }
+            else {
+                let new_buffer = buf_allocator(cap * 2 * sizeof[i32]());
+                copy(buffer, new_buffer, cap * sizeof[i32]());
+                release(buffer);
+                buffer = new_buffer;
+                let mut data = bitcast[&[i32]](buffer.data);
+                cap *= 2;
+                data(size++) = i;    
+            }
+        },
+        
+        at: |i| -> i32 {
+            let data = bitcast[&[i32]](buffer.data);
+            data(i)
+        }  
+    }
+}
+
+fn release_vector_i32(vec: VectorI32) -> () {
+    release(vec.buffer());
+}

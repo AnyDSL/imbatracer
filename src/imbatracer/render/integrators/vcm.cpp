@@ -800,7 +800,7 @@ void VCM_INTEGRATOR::batch_vertex_merging(VCMState* states, Intersection* inters
     }
     if (query_count == 0) return;
     // 
-    uintptr_t ptr_begin_iter;
+    uintptr_t ptr_begin_iter; // TODO better create a saperate function to get the begin_iter
     BatchQueryResult* result = photon_grid_[0].batch_process(ptr_begin_iter, isect_poses.data(), query_count);
     int output_size = result->size;
     int* indices = result->indices;

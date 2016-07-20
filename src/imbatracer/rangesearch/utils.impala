@@ -1,0 +1,56 @@
+fn for_loop(i: i32, step_stmt: fn(i32) -> i32, condi_stmt: fn(i32) -> bool, body: fn(i32) -> ()) -> () {
+    if (condi_stmt(i)) {
+        body(i);
+        for_loop(step_stmt(i), step_stmt, condi_stmt, body, return)
+    }
+}
+
+fn sub(a: Float3, b: Float3) -> Float3 {
+    Float3 {
+        x : a.x - b.x,
+        y : a.y - b.y,
+        z : a.z - b.z
+    }
+}
+
+fn scalar(s: f32, v: Float3) -> Float3 {
+    Float3 {
+        x : s * v.x,
+        y : s * v.y,
+        z : s * v.z
+    }
+}
+
+fn dot(a: Float3, b: Float3) -> f32 {
+    a.x * b.x +
+    a.y * b.y +
+    a.z * b.z
+}
+
+fn sqr(v: Float3) -> f32 {
+    dot(v, v)
+}
+
+fn floorf32(f : f32) -> f32 {
+    f - (f % 1f32)
+}
+
+fn ceilf32(f : f32) -> f32 {
+    let tmp = floorf32(f);
+    if (tmp == f) {
+        return (tmp)
+    }
+    tmp + 1f32
+}
+
+fn min(a: f32, b : f32) -> f32 {
+    if (a > b) { return(b) }
+    a
+}
+
+fn max(a: f32, b : f32) -> f32 {
+    if (a < b) { return(b) }
+    a
+}
+
+

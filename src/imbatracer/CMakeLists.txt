@@ -3,17 +3,26 @@ if(BACKEND STREQUAL "cpu" OR BACKEND STREQUAL "avx")
   add_definitions(-DCPU_TRAVERSAL)
   set(CORE_SRCS core/cpu_adapter.cpp)
   set(LOADER_SRCS loaders/load_mbvh.cpp)
+  set(MAPPING_SRCS 
+      rangesearch/mapping_cpu.impala
+      rangesearch/general_mapping_cpu.impala)             
 elseif(BACKEND STREQUAL "nvvm" OR BACKEND STREQUAL "cuda" OR BACKEND STREQUAL "gpu")
   add_definitions(-DGPU_TRAVERSAL)
   set(CORE_SRCS core/gpu_adapter.cpp)
   set(LOADER_SRCS loaders/load_bvh.cpp)
+  set(MAPPING_SRCS 
+      rangesearch/mapping_gpu.impala
+      rangesearch/general_mapping_gpu.impala             
+      rangesearch/gpu_primitives.impala)
 else()
   message(FATAL_ERROR "Backend not supported")
 endif()
 
 set(IMPALA_SRCS
+    ${MAPPING_SRCS}
     ~/Documents/AnyDSL/traversal/src/common/range.impala
-    rangesearch/mapping_gpu.impala
+    rangesearch/utils.impala
+    rangesearch/container.impala
     rangesearch/rangesearch.impala)
 set(IMPALA_INTERFACE_NAME rangesearch_impala_interface)
 
