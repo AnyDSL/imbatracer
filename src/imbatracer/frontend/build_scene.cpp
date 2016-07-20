@@ -402,6 +402,39 @@ bool parse_scene_file(const Path& path, Scene& scene, SceneInfo& info) {
             }
 
             scene.lights().emplace_back(new PointLight(pos, intensity));
+        } else if (cmd == "spot_light") {
+            float3 pos;
+            float3 dir;
+            float3 intensity;
+            float angle;
+
+            if (!(stream >> pos.x) ||
+                !(stream >> pos.y) ||
+                !(stream >> pos.z)) {
+                std::cout << " Unexpected EOF in spot light position." << std::endl;
+                return false;
+            }
+
+            if (!(stream >> dir.x) ||
+                !(stream >> dir.y) ||
+                !(stream >> dir.z)) {
+                std::cout << " Unexpected EOF in spot light direction." << std::endl;
+                return false;
+            }
+
+            if (!(stream >> angle)) {
+                std::cout << " Unexpected EOF in spot light angle." << std::endl;
+                return false;
+            }
+
+            if (!(stream >> intensity.x) ||
+                !(stream >> intensity.y) ||
+                !(stream >> intensity.z)) {
+                std::cout << " Unexpected EOF in spot light intensity." << std::endl;
+                return false;
+            }
+
+            scene.lights().emplace_back(new SpotLight(pos, normalize(dir), radians(angle), intensity));
         } else if (cmd == "instance") {
             // Read the mesh index.
             int idx;

@@ -288,6 +288,67 @@ private:
     float3 pos_;
 };
 
+class SpotLight : public Light {
+public:
+    SpotLight(const float3& pos, const float3& dir, float angle, const rgb& intensity)
+        : pos_(pos)
+        , normal_(dir)
+        , angle_(angle)
+        , cos_angle_(cosf(angle))
+        , intensity_(intensity)
+    {
+        local_coordinates(normal_, tangent_, binormal_);
+    }
+
+    EmitSample sample_emit(RNG& rng) override {
+        EmitSample sample;
+
+        sample.pos      = pos_;
+
+        auto dir_sample = sample_uniform_cone(angle_, cos_angle_, rng.random_float(), rng.random_float());
+        sample.dir = dir_sample.dir.z * normal_ + dir_sample.dir.x * tangent_ + dir_sample.dir.y * binormal_;
+
+        sample.radiance = intensity_;
+
+        sample.pdf_direct_a = 1.0f;
+        sample.pdf_emit_w   = dir_sample.pdf;
+
+        sample.cos_out = dir_sample.dir.z;
+
+        return sample;
+    }
+
+    DirectIllumSample sample_direct(const float3& from, RNG& rng) override {
+        float3 dir = pos_ - from;
+        const float sqdist = dot(dir, dir);
+        const float dist   = sqrtf(sqdist);
+        dir *= 1.0f / dist;
+
+        DirectIllumSample sample;
+        sample.dir       = dir;
+        sample.distance  = dist;
+        sample.pdf_direct_w = sqdist;
+
+        const float cos_o = -dot(dir, normal_);
+        sample.radiance   = cos_o < cos_angle_ ? rgb(0.0f) : intensity_ / (4.0f * pi * sqdist);
+        sample.pdf_emit_w = uniform_cone_pdf(angle_, cos_angle_, cos_o);
+        sample.cos_out = cos_o;
+
+        return sample;
+    }
+
+    bool is_delta() const override { return true; }
+
+private:
+    rgb intensity_;
+    float3 pos_;
+    float3 normal_;
+    float3 binormal_;
+    float3 tangent_;
+    float angle_;
+    float cos_angle_;
+};
+
 } // namespace imba
 
 #endif // IMBA_LIGHT_H

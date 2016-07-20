@@ -19,14 +19,18 @@ static ThreadLocalMemArena bsdf_memory_arenas;
 void PathTracer::compute_direct_illum(const Intersection& isect, PTState& state, RayQueue<PTState>& ray_out_shadow, BSDF* bsdf) {
     // Generate the shadow ray (sample one point on one lightsource)
     const auto& ls = scene_.light(state.rng.random_int(0, scene_.light_count()));
-    const float pdf_lightpick_inv = scene_.light_count();
+    const float pdf_lightpick = 1.0f / scene_.light_count();
     const auto sample = ls->sample_direct(isect.pos, state.rng);
 
     const auto bsdf_value = bsdf->eval(isect.out_dir, sample.dir, BSDF_ALL);
 
+    const float pdf_hit = bsdf->pdf(isect.out_dir, sample.dir);
+    const float pdf_di  = pdf_lightpick * sample.pdf_direct_w / (sample.distance * sample.distance) * sample.cos_out;
+    const float mis_weight = ls->is_delta() ? 1.0f : pdf_di / (pdf_di + pdf_hit);
+
     // The contribution is stored in the state of the shadow ray and added, if the shadow ray does not intersect anything.
     PTState s = state;
-    s.throughput *= bsdf_value * fabsf(dot(isect.normal, sample.dir)) * sample.radiance * pdf_lightpick_inv;
+    s.throughput *= bsdf_value * fabsf(dot(isect.normal, sample.dir)) * sample.radiance * mis_weight / pdf_lightpick;
 
     Ray ray {
         { isect.pos.x, isect.pos.y, isect.pos.z, offset },
@@ -59,6 +63,7 @@ void PathTracer::bounce(const Intersection& isect, PTState& state, RayQueue<PTSt
     s.throughput *= bsdf_value * cos_term / (pdf * rr_pdf);
     s.bounces++;
     s.last_specular = sampled_flags & BSDF_SPECULAR;
+    s.last_pdf = pdf;
 
     Ray ray {
         { isect.pos.x, isect.pos.y, isect.pos.z, offset },
@@ -87,14 +92,14 @@ void PathTracer::process_primary_rays(RayQueue<PTState>& ray_in, RayQueue<PTStat
             const auto isect = calculate_intersection(scene_, hits[i], rays[i]);
 
             if (auto emit = isect.mat->emitter()) {
-                // If a light source is hit after a specular bounce or as the first intersection along the path, add its contribution.
-                // otherwise the light has to be ignored because it was already sampled as direct illumination.
-                if (states[i].bounces == 0 || states[i].last_specular) {
-                    float pdf_direct_a, pdf_emit_w;
-                    const auto li = emit->radiance(isect.out_dir, isect.geom_normal, pdf_direct_a, pdf_emit_w);
+                float pdf_direct_a, pdf_emit_w;
+                const auto li = emit->radiance(isect.out_dir, isect.geom_normal, pdf_direct_a, pdf_emit_w);
 
-                    add_contribution(out, states[i].pixel_id, states[i].throughput * li);
-                }
+                const float pdf_di = pdf_direct_a / scene_.light_count();
+                const float mis_weight = (states[i].bounces == 0 || states[i].last_specular) ? 1.0f
+                                         : states[i].last_pdf / (states[i].last_pdf + pdf_di);
+
+                add_contribution(out, states[i].pixel_id, states[i].throughput * li * mis_weight);
 
                 continue;
             }

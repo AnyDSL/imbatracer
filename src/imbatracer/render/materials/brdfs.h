@@ -82,7 +82,7 @@ public:
     }
 
     float pdf(const float3& out_dir, const float3& in_dir) const override {
-        return power_cos_hemisphere_pdf(exponent_, in_dir);
+        return power_cos_hemisphere_pdf(exponent_, in_dir.z);
     }
 
 private:
