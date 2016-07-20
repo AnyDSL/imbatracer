@@ -32,25 +32,18 @@ struct PhotonHashGrid {
     int cell_ends_size;
     struct Float3 bbox_min;
     struct Float3 bbox_max;
-    struct RawDataInfo raw_data_info;
     int* indices;
     int* cell_ends;
     float* photons;
-    int* neighbor;
-    struct Buffer host_photons_buf;
-    struct Buffer host_indices_buf;
-    struct Buffer host_cell_ends_buf;
-    struct Buffer dev_photons_buf;
-    struct Buffer dev_indices_buf;
-    struct Buffer dev_cell_ends_buf;
-    struct Buffer dev_mask_buf;
-    struct Buffer dev_pfs_buf;
+    struct Buffer photons_buf;
+    struct Buffer indices_buf;
+    struct Buffer cell_ends_buf;
+    struct Buffer result_buf;
 };
 
 struct QueryResult {
     int size;
     int* data;
-    struct Buffer buffer;
 };
 
 struct BatchQueryResult {
@@ -62,7 +55,6 @@ struct BatchQueryResult {
 };
 
 struct PhotonHashGrid* build_hashgrid(struct RawDataInfo* info, int photon_cnt, int cell_size, float rad);
-struct QueryResult* query_hashgrid(struct PhotonHashGrid* hg, float x, float y, float z);
 struct BatchQueryResult* batch_query_hashgrid(struct PhotonHashGrid* hg, float* query_poses, int size);
 void destroy_hashgrid(struct PhotonHashGrid* hg);
 void release_query(struct QueryResult* arr);
