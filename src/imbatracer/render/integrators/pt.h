@@ -11,6 +11,7 @@ struct PTState : RayState {
     rgb throughput;
     int bounces : 31;
     bool last_specular : 1;
+    float last_pdf;
 };
 
 /// Renders a scene using path tracing starting at the camera.
