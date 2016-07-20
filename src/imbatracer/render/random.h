@@ -95,8 +95,8 @@ inline DirectionSample sample_power_cos_hemisphere(float power, float u1, float 
     return DirectionSample(local_dir, (power + 1.0f) * powf(cos_t, power) * 1.0f / (2.0f * pi));
 }
 
-inline float power_cos_hemisphere_pdf(float power, const float3& dir) {
-    return dir.z > 0.0f ? ((power + 1.0f) * powf(dir.z, power) * 1.0f / (2.0f * pi)) : 0.0f;
+inline float power_cos_hemisphere_pdf(float power, float cos) {
+    return cos > 0.0f ? ((power + 1.0f) * powf(cos, power) * 1.0f / (2.0f * pi)) : 0.0f;
 }
 
 inline DirectionSample sample_uniform_hemisphere(float u1, float u2) {
@@ -107,7 +107,7 @@ inline DirectionSample sample_uniform_hemisphere(float u1, float u2) {
     return DirectionSample(local_dir, 1.0f / (2.0f * pi));
 }
 
-inline float uniform_hemisphere_pdf(const float3& dir) {
+inline float uniform_hemisphere_pdf() {
     return 1.0f / (2.0f * pi);
 }
 
@@ -165,6 +165,18 @@ inline float2 sample_concentric_disc(float u1, float u2) {
 
 inline float concentric_disc_pdf() {
     return 1.0f / pi;
+}
+
+inline DirectionSample sample_uniform_cone(float angle, float cos_angle, float u1, float u2) {
+    const float phi = 2.0f * pi * u1;
+    const float cos_t = 1.0f - u2 * (1.0f - cos_angle);
+    const float sin_t = sqrtf(1.0f - cos_t * cos_t);
+    const float3 local_dir = spherical_dir(sin_t, cos_t, phi);
+    return DirectionSample(local_dir, 1.0f / (4.0f * pi * sqr(sinf(0.5f * angle))));
+}
+
+inline float uniform_cone_pdf(float angle, float cos_angle, float cos) {
+    return cos < cos_angle ? 0.0f : 1.0f / (4.0f * pi * sqr(sinf(0.5f * angle)));
 }
 
 inline bool russian_roulette(const rgb& throughput, float rnd_num, float& pdf) {
