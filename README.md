@@ -10,7 +10,7 @@ On the scene side, the following features are supported :
 
 * Triangle meshes (Wavefront OBJ files)
 * Textures (TGA and PNG formats)
-* Lights (point lights, directional lights, and triangular area lights)
+* Lights (point lights, directional lights, spot lights, and triangular area lights)
 * Flexible material system. Currently implemented materials are: Lambertian, Phong, Cook-Torrance, glass, and perfect mirror.
 * Instancing with rigid body transformations
 
