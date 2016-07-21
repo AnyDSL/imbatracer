@@ -26,4 +26,11 @@ void Mesh::compute_normals(int normal_attr) {
     }
 }
 
+void Mesh::compute_bounding_box() {
+    bbox_ = BBox::empty();
+    for (int i = 0; i < vertex_count(); ++i) {
+        bbox_.extend(float3(vertices_[i]));
+    }
+}
+
 } // namespace imba

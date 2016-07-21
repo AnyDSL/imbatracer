@@ -4,7 +4,6 @@
 namespace imba {
 
 namespace {
-
     inline float fresnel_conductor(float cosi, float eta, float kappa)
     {
         const float ekc = (eta*eta + kappa*kappa) * cosi*cosi;
@@ -27,7 +26,6 @@ namespace {
 
         return (par * par + perp * perp) / 2.f;
     }
-
 }
 
 class Fresnel {
@@ -39,7 +37,7 @@ class FresnelConductor : public Fresnel {
 public:
     FresnelConductor(float eta, float kappa) : eta_(eta), kappa_(kappa) {}
 
-    virtual float eval(float cosi) const override {
+    float eval(float cosi) const override final {
         return fresnel_conductor(cosi, eta_, kappa_);
     }
 
@@ -53,7 +51,7 @@ public:
     FresnelDielectric(float eta_outside, float eta_inside)
         : eta_outside_(eta_outside), eta_inside_(eta_inside) {}
 
-    virtual float eval(float cosi) const override {
+    float eval(float cosi) const override final {
         // Compute indices of refraction according to whether the ray is coming from inside or outside.
         float eta_in = eta_outside_;
         float eta_trans = eta_inside_;
@@ -76,6 +74,6 @@ private:
     float eta_inside_;
 };
 
-}
+} // namespace imba
 
 #endif

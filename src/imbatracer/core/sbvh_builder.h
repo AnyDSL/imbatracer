@@ -10,7 +10,7 @@
 #include "common.h"
 #include "mem_pool.h"
 #include "bvh_helper.h"
-#include "float3.h"
+#include "float4.h"
 #include "stack.h"
 #include "mesh.h"
 #include "bbox.h"
@@ -51,7 +51,7 @@ public:
         Stack<Node> stack;
         stack.push(initial_refs, tri_count, mesh_bb);
 
-        while (!stack.empty()) {
+        while (!stack.is_empty()) {
             MultiNode<Node, N> multi_node(stack.pop());
 
             // Iterate over the available split candidates in the multi-node
@@ -129,6 +129,8 @@ public:
             }
 
             assert(multi_node.count > 0);
+            // Process the smallest nodes first
+            multi_node.sort_nodes();
 
             // The multi-node is ready to be stored
             if (multi_node.is_leaf()) {
@@ -221,6 +223,8 @@ private:
             , cost(CostFn::leaf_cost(ref_count, bbox.half_area()))
             , tested(false)
         {}
+
+        int size() const { return ref_count; }
     };
 
     template <typename NodeWriter>

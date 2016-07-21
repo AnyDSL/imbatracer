@@ -8,4 +8,5 @@ up   0.214325  0.970455  -0.110823
 
 
 mesh CornellBox-Specular.obj
+accel CornellBox-Specular.bvh
 

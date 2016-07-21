@@ -1,9 +1,10 @@
 #include "pt.h"
-#include "../../core/float4.h"
+#include "../../core/rgb.h"
 #include "../../core/common.h"
 #include "../random.h"
 
 #include <tbb/enumerable_thread_specific.h>
+#include <tbb/parallel_for.h>
 
 #include <cfloat>
 #include <cassert>
@@ -17,15 +18,19 @@ static ThreadLocalMemArena bsdf_memory_arenas;
 
 void PathTracer::compute_direct_illum(const Intersection& isect, PTState& state, RayQueue<PTState>& ray_out_shadow, BSDF* bsdf) {
     // Generate the shadow ray (sample one point on one lightsource)
-    const auto ls = scene_.lights[state.rng.random_int(0, scene_.lights.size())].get();
-    const float pdf_lightpick_inv = scene_.lights.size();
+    const auto& ls = scene_.light(state.rng.random_int(0, scene_.light_count()));
+    const float pdf_lightpick = 1.0f / scene_.light_count();
     const auto sample = ls->sample_direct(isect.pos, state.rng);
 
     const auto bsdf_value = bsdf->eval(isect.out_dir, sample.dir, BSDF_ALL);
 
+    const float pdf_hit = bsdf->pdf(isect.out_dir, sample.dir);
+    const float pdf_di  = pdf_lightpick * sample.pdf_direct_w / (sample.distance * sample.distance) * sample.cos_out;
+    const float mis_weight = ls->is_delta() ? 1.0f : pdf_di / (pdf_di + pdf_hit);
+
     // The contribution is stored in the state of the shadow ray and added, if the shadow ray does not intersect anything.
     PTState s = state;
-    s.throughput *= bsdf_value * fabsf(dot(isect.normal, sample.dir)) * sample.radiance * pdf_lightpick_inv;
+    s.throughput *= bsdf_value * fabsf(dot(isect.normal, sample.dir)) * sample.radiance * mis_weight / pdf_lightpick;
 
     Ray ray {
         { isect.pos.x, isect.pos.y, isect.pos.z, offset },
@@ -58,6 +63,7 @@ void PathTracer::bounce(const Intersection& isect, PTState& state, RayQueue<PTSt
     s.throughput *= bsdf_value * cos_term / (pdf * rr_pdf);
     s.bounces++;
     s.last_specular = sampled_flags & BSDF_SPECULAR;
+    s.last_pdf = pdf;
 
     Ray ray {
         { isect.pos.x, isect.pos.y, isect.pos.z, offset },
@@ -69,32 +75,33 @@ void PathTracer::bounce(const Intersection& isect, PTState& state, RayQueue<PTSt
 
 void PathTracer::process_primary_rays(RayQueue<PTState>& ray_in, RayQueue<PTState>& ray_out, RayQueue<PTState>& ray_out_shadow, AtomicImage& out) {
     PTState* states = ray_in.states();
-    Hit* hits = ray_in.hits();
-    Ray* rays = ray_in.rays();
+    const Hit* hits = ray_in.hits();
+    const Ray* rays = ray_in.rays();
 
-    tbb::parallel_for(tbb::blocked_range<size_t>(0, ray_in.size()),
-        [this, states, hits, rays, &ray_out, &ray_out_shadow, &out] (const tbb::blocked_range<size_t>& range)
+    tbb::parallel_for(tbb::blocked_range<int>(0, ray_in.size()),
+        [&] (const tbb::blocked_range<int>& range)
     {
         auto& bsdf_mem_arena = bsdf_memory_arenas.local();
 
-        for (size_t i = range.begin(); i != range.end(); ++i) {
+        for (auto i = range.begin(); i != range.end(); ++i) {
             if (hits[i].tri_id < 0)
                 continue;
 
             bsdf_mem_arena.free_all();
 
-            const auto isect = calculate_intersection(hits, rays, i);
+            const auto isect = calculate_intersection(scene_, hits[i], rays[i]);
 
-            if (isect.mat->light()) {
-                // If a light source is hit after a specular bounce or as the first intersection along the path, add its contribution.
-                // otherwise the light has to be ignored because it was already sampled as direct illumination.
-                if (states[i].bounces == 0 || states[i].last_specular) {
-                    const auto light_source = isect.mat->light();
-                    float pdf_direct_a, pdf_emit_w;
-                    const auto li = light_source->radiance(isect.out_dir, pdf_direct_a, pdf_emit_w);
+            if (auto emit = isect.mat->emitter()) {
+                float pdf_direct_a, pdf_emit_w;
+                const auto li = emit->radiance(isect.out_dir, isect.geom_normal, pdf_direct_a, pdf_emit_w);
 
-                    out.pixels()[states[i].pixel_id] += states[i].throughput * li;
-                }
+                const float pdf_di = pdf_direct_a / scene_.light_count();
+                const float mis_weight = (states[i].bounces == 0 || states[i].last_specular) ? 1.0f
+                                         : states[i].last_pdf / (states[i].last_pdf + pdf_di);
+
+                add_contribution(out, states[i].pixel_id, states[i].throughput * li * mis_weight);
+
+                continue;
             }
 
             const auto bsdf = isect.mat->get_bsdf(isect, bsdf_mem_arena);
@@ -108,13 +115,13 @@ void PathTracer::process_shadow_rays(RayQueue<PTState>& ray_in, AtomicImage& out
     PTState* states = ray_in.states();
     Hit* hits = ray_in.hits();
 
-    tbb::parallel_for(tbb::blocked_range<size_t>(0, ray_in.size()),
-        [states, hits, &out] (const tbb::blocked_range<size_t>& range)
+    tbb::parallel_for(tbb::blocked_range<int>(0, ray_in.size()),
+        [&] (const tbb::blocked_range<int>& range)
     {
-        for (size_t i = range.begin(); i != range.end(); ++i) {
+        for (auto i = range.begin(); i != range.end(); ++i) {
             if (hits[i].tri_id < 0) {
                 // Nothing was hit, the light source is visible.
-                out.pixels()[states[i].pixel_id] += states[i].throughput;
+                add_contribution(out, states[i].pixel_id, states[i].throughput);
             }
         }
     });
@@ -132,11 +139,10 @@ void PathTracer::render(AtomicImage& out) {
 
             ray_out = cam_.generate_ray(sample_x, sample_y);
 
-            state_out.throughput = float4(1.0f);
+            state_out.throughput = rgb(1.0f);
             state_out.bounces = 0;
             state_out.last_specular = false;
         });
 }
 
 } // namespace imba
-

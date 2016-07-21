@@ -11,58 +11,60 @@ namespace imba {
 
 class Material {
 public:
-    Material(TextureSampler* bump) : light_(nullptr), bump_(bump) {}
+    Material(const TextureSampler* bump = nullptr,
+             const AreaEmitter* emit = nullptr)
+        : bump_(bump)
+        , emit_(emit)
+    {}
 
-    virtual BSDF* get_bsdf(const Intersection& isect, MemoryArena& mem_arena, bool adjoint=false) const = 0;
+    virtual BSDF* get_bsdf(const Intersection& isect, MemoryArena& mem_arena, bool adjoint = false) const = 0;
 
     /// Associates the material with a light source.
-    inline void set_light(Light* l) { light_ = l; }
+    void set_emitter(const AreaEmitter* e) { emit_.reset(e); }
 
     /// If the material is attached to a light source, this returns the lightsource, otherwise nullptr.
-    inline Light* light() { return light_; }
+    const AreaEmitter* emitter() { return emit_.get(); }
 
     virtual bool is_specular() { return false; }
 
     /// Updates the shading normal of the given intersection using bump mapping.
-    inline void bump(Intersection& isect) {
+    void bump(Intersection& isect) {
         if (!bump_)
             return;
 
         float du = 0.001f;
         float dv = 0.001f;
         float vscale = 0.02f;
-        auto u_displace = vscale * bump_->sample(float2(isect.uv.x + du, isect.uv.y));
-        auto v_displace = vscale * bump_->sample(float2(isect.uv.x, isect.uv.y + dv));
-        auto displace   = vscale * bump_->sample(isect.uv);
+        auto u_displace = bump_->sample(float2(isect.uv.x + du, isect.uv.y));
+        auto v_displace = bump_->sample(float2(isect.uv.x, isect.uv.y + dv));
+        auto displace   = bump_->sample(isect.uv);
 
-        auto diff_u = (u_displace - displace).x / du;
-        auto diff_v = (v_displace - displace).x / dv;
+        auto diff_u = vscale * (u_displace - displace)[0] / du;
+        auto diff_v = vscale * (v_displace - displace)[0] / dv;
 
         auto n = cross(isect.v_tangent, isect.u_tangent);
         auto u = isect.u_tangent + diff_u * n;
         auto v = isect.v_tangent + diff_v * n;
 
-        isect.normal = normalize(cross(u, v));
-        isect.u_tangent = u;
-        isect.v_tangent = v;
+        isect.u_tangent = normalize(u);
+        isect.v_tangent = normalize(v);
+        isect.normal = cross(isect.u_tangent, isect.v_tangent);
     }
 
 private:
-    Light* light_;
-    TextureSampler* bump_;
+    const TextureSampler* bump_;
+    std::unique_ptr<const AreaEmitter> emit_;
 };
-
-using MaterialContainer = std::vector<std::unique_ptr<Material>>;
 
 /// Very simple material with a lambertian BRDF.
 class DiffuseMaterial : public Material {
 public:
     DiffuseMaterial(TextureSampler* bump = nullptr) : Material(bump), color_(1.0f), sampler_(nullptr) {}
-    DiffuseMaterial(const float4& color, TextureSampler* bump = nullptr) : Material(bump), color_(color), sampler_(nullptr) {}
-    DiffuseMaterial(TextureSampler* sampler, TextureSampler* bump = nullptr) : Material(bump), sampler_(sampler) {}
+    DiffuseMaterial(const rgb& color, const TextureSampler* bump = nullptr) : Material(bump), color_(color), sampler_(nullptr) {}
+    DiffuseMaterial(TextureSampler* sampler, const TextureSampler* bump = nullptr) : Material(bump), sampler_(sampler) {}
 
-    virtual BSDF* get_bsdf(const Intersection& isect, MemoryArena& mem_arena, bool adjoint) const override {
-        float4 color = color_;
+    BSDF* get_bsdf(const Intersection& isect, MemoryArena& mem_arena, bool adjoint) const override {
+        rgb color = color_;
         if (sampler_)
             color = sampler_->sample(isect.uv);
 
@@ -71,35 +73,35 @@ public:
     }
 
 private:
-    float4 color_;
-    TextureSampler* sampler_;
+    rgb color_;
+    const TextureSampler* sampler_;
 };
 
 /// Simple mirror with perfect specular reflection.
 class MirrorMaterial : public Material {
 public:
-    MirrorMaterial(float eta, float kappa, const float4& scale, TextureSampler* bump = nullptr)
+    MirrorMaterial(float eta, float kappa, const rgb& scale, TextureSampler* bump = nullptr)
         : Material(bump), fresnel_(eta, kappa), scale_(scale) {}
 
-    virtual BSDF* get_bsdf(const Intersection& isect, MemoryArena& mem_arena, bool adjoint) const override {
+    BSDF* get_bsdf(const Intersection& isect, MemoryArena& mem_arena, bool adjoint) const override {
         auto brdf = mem_arena.alloc<SpecularReflection>(scale_, fresnel_);
         return mem_arena.alloc<BSDF>(isect, brdf, nullptr);
     }
 
-    virtual bool is_specular() override { return true; }
+    bool is_specular() override { return true; }
 
 private:
     FresnelConductor fresnel_;
-    float4 scale_;
+    rgb scale_;
 };
 
 /// Simple glass material
 class GlassMaterial : public Material {
 public:
-    GlassMaterial(float eta, const float4& transmittance, const float4& reflectance, TextureSampler* bump = nullptr)
+    GlassMaterial(float eta, const rgb& transmittance, const rgb& reflectance, TextureSampler* bump = nullptr)
         : Material(bump), eta_(eta), transmittance_(transmittance), reflectance_(reflectance), fresnel_(1.0f, eta) {}
 
-    virtual BSDF* get_bsdf(const Intersection& isect, MemoryArena& mem_arena, bool adjoint) const override {
+    BSDF* get_bsdf(const Intersection& isect, MemoryArena& mem_arena, bool adjoint) const override {
         auto brdf = mem_arena.alloc<SpecularReflection>(reflectance_, fresnel_);
 
         BxDF* btdf;
@@ -111,27 +113,27 @@ public:
         return mem_arena.alloc<BSDF>(isect, brdf, btdf);
     }
 
-    virtual bool is_specular() override { return true; }
+    bool is_specular() override { return true; }
 
 private:
     float eta_;
-    float4 transmittance_;
-    float4 reflectance_;
+    rgb transmittance_;
+    rgb reflectance_;
     FresnelDielectric fresnel_;
 };
 
 class GlossyMaterial : public Material {
 public:
-    GlossyMaterial(float exponent, const float4& specular_color, const float4& diffuse_color, TextureSampler* bump = nullptr)
+    GlossyMaterial(float exponent, const rgb& specular_color, const rgb& diffuse_color, const TextureSampler* bump = nullptr)
         : Material(bump), exponent_(exponent), specular_color_(specular_color), diffuse_color_(diffuse_color), diff_sampler_(nullptr)
     {}
 
-    GlossyMaterial(float exponent, const float4& specular_color, TextureSampler* diff_sampler, TextureSampler* bump = nullptr)
+    GlossyMaterial(float exponent, const rgb& specular_color, const TextureSampler* diff_sampler, const TextureSampler* bump = nullptr)
         : Material(bump), exponent_(exponent), specular_color_(specular_color), diffuse_color_(0.0f), diff_sampler_(diff_sampler)
     {}
 
-    virtual BSDF* get_bsdf(const Intersection& isect, MemoryArena& mem_arena, bool adjoint) const override {
-        float4 diff_color = diffuse_color_;
+    BSDF* get_bsdf(const Intersection& isect, MemoryArena& mem_arena, bool adjoint) const override {
+        rgb diff_color = diffuse_color_;
         if (diff_sampler_)
             diff_color = diff_sampler_->sample(isect.uv);
 
@@ -146,11 +148,11 @@ public:
 
 private:
     float exponent_;
-    float4 specular_color_;
-    float4 diffuse_color_;
-    TextureSampler* diff_sampler_;
+    rgb specular_color_;
+    rgb diffuse_color_;
+    const TextureSampler* diff_sampler_;
 };
 
-}
+} // namespace imba
 
 #endif

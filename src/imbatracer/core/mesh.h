@@ -5,6 +5,8 @@
 #include <vector>
 
 #include "float4.h"
+#include "float4x4.h"
+#include "float3x4.h"
 #include "tri.h"
 
 namespace imba {
@@ -13,6 +15,16 @@ namespace imba {
 /// and a collection of attributes.
 class Mesh {
 public:
+    /// A mesh instance that refers to a particular mesh within an array of meshes.
+    struct Instance {
+        int      id;
+        float3x4 mat;
+        float3x4 inv_mat;
+
+        Instance() {}
+        Instance(int i, const float4x4& m) : id(i), mat(m), inv_mat(invert(m)) {}
+    };
+
     enum class AttributeType {
         FLOAT,
         FLOAT2,
@@ -102,6 +114,9 @@ public:
     }
 
     void compute_normals(int normal_attr);
+    void compute_bounding_box();
+
+    BBox bounding_box() const { return bbox_; }
 
 private:
     static int stride_bytes(AttributeType type) {
@@ -131,10 +146,11 @@ private:
             , data(stride * count)
         {}
     };
-    
+
     std::vector<uint32_t> indices_;
     std::vector<float4> vertices_;
     std::vector<Attribute> attrs_;
+    BBox bbox_;
 };
 
 } // namespace imba

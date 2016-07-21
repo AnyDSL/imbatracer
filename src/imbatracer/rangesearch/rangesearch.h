@@ -8,6 +8,7 @@
 
 #include <vector>
 #include <iterator>
+#include <tbb/tbb.h>
 
 namespace imba {
 
@@ -25,7 +26,7 @@ extern "C" { float floorf32(float); }
 
 /// Prelim. photon range search accelerator, taken from SmallVCM
 /// Will be replaced later on by a high performance parallel version.
-template<typename Iter>
+template<typename Iter, typename Photon>
 class HashGrid {
 public:
     ~HashGrid() {
@@ -37,10 +38,6 @@ public:
     }
 
     HashGrid() : cell_ends_(1000000) {}
-
-    void reserve(int num_cells) {
-        //cell_ends_.resize(num_cells);
-    }
 
     void build(const Iter& photons_begin, const Iter& photons_end, float radius) {
 ///*
@@ -81,7 +78,7 @@ public:
         // Distribute the photons to the HashGrid cells using Counting Sort.
 
         int photon_count = photons_end - photons_begin;
-        indices_.resize(photon_count);
+        photons_.resize(photon_count);
         memset(&cell_ends_[0], 0, cell_ends_.size() * sizeof(int));
 
         // run exclusive prefix sum to really get the cell starts
@@ -109,7 +106,7 @@ public:
             for (Iter it = range.begin(); it != range.end(); ++it) {
                 const float3 &pos = it->position();
                 const int target_idx = cell_ends_[cell_index(pos)]++;
-                indices_[target_idx] = it;
+                photons_[target_idx] = *it;
             }
         });
 */    
@@ -171,11 +168,11 @@ public:
 
             for(; active_range.x < active_range.y; active_range.x++) // TODO How to parallelize?
             {
-                const Iter particle_idx = indices_[active_range.x];
-                const float distSqr = lensqr(query_pos - particle_idx->position());
+                const auto& photon = photons_[active_range.x];
+                const float distSqr = lensqr(query_pos - photon.position);
 
                 if(distSqr <= radius_sqr_)
-                    output.push_back(particle_idx);
+                    output.push_back(&photon);
             }
         }
 */
@@ -212,7 +209,7 @@ private:
 
     float3 bbox_min_;
     float3 bbox_max_;
-    std::vector<Iter> indices_;
+    std::vector<Photon> photons_;
     std::vector<std::atomic<int> > cell_ends_;
 
     float radius_;

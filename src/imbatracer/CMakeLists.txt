@@ -1,15 +1,13 @@
 # Configure traversal platform
 if(BACKEND STREQUAL "cpu" OR BACKEND STREQUAL "avx")
   add_definitions(-DCPU_TRAVERSAL)
-  set(CORE_SRCS core/cpu_adapter.cpp)
-  set(LOADER_SRCS loaders/load_mbvh.cpp)
+  list(APPEND CORE_SRCS core/cpu_adapter.cpp)
   set(MAPPING_SRCS 
       rangesearch/mapping_cpu.impala
       rangesearch/general_mapping_cpu.impala)             
 elseif(BACKEND STREQUAL "nvvm" OR BACKEND STREQUAL "cuda" OR BACKEND STREQUAL "gpu")
   add_definitions(-DGPU_TRAVERSAL)
-  set(CORE_SRCS core/gpu_adapter.cpp)
-  set(LOADER_SRCS loaders/load_bvh.cpp)
+  list(APPEND CORE_SRCS core/gpu_adapter.cpp)
   set(MAPPING_SRCS 
       rangesearch/mapping_gpu.impala
       rangesearch/general_mapping_gpu.impala             
@@ -24,6 +22,7 @@ set(IMPALA_SRCS
     rangesearch/utils.impala
     rangesearch/container.impala
     rangesearch/rangesearch.impala)
+
 set(IMPALA_INTERFACE_NAME rangesearch_impala_interface)
 
 add_custom_command(OUTPUT ${CMAKE_CURRENT_SOURCE_DIR}/rangesearch/${IMPALA_INTERFACE_NAME}.h
@@ -48,16 +47,15 @@ set(IMPALA_INTERFACES # Have to use it somewhere so the interface head files wil
 add_library(imba_core
             core/adapter.h
             core/bbox.h
+            core/bsphere.h
             core/common.h
-            core/float2.h
-            core/float3.h
-            core/float4.h
+            core/rgb.h
             core/float4x4.h
+            core/float3x4.h
             core/mask.h
             core/mem_pool.h
             core/mesh.h
             core/mesh.cpp
-            core/bvh_helper.h
             core/sbvh_builder.h
             core/fast_bvh_builder.h
             core/tri.h
@@ -70,8 +68,7 @@ add_library(imba_loaders
             loaders/load_obj.h
             loaders/load_obj.cpp
             loaders/path.h
-            loaders/bvh_format.h
-            ${LOADER_SRCS})
+            loaders/load_bvh.cpp)
 
 add_library(imba_render
             render/traversal_mutex.cpp
@@ -81,13 +78,17 @@ add_library(imba_render
             render/integrators/pt.cpp
             render/integrators/vcm.h
             render/integrators/vcm.cpp
+            render/integrators/light_vertices.h
+            render/integrators/light_vertices.cpp
             render/ray_queue.h
             render/random.h
             render/intersection.h
             render/mem_arena.h
             render/scene.h
-            render/thorin_mem.h
+            render/scene.cpp
             render/texture_sampler.h
+            render/ray_scheduler.h
+            render/tile_scheduler.h
             render/ray_scheduler.h
             rangesearch/rangesearch.h
             ${IMPALA_INTERFACES})

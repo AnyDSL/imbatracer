@@ -1,8 +1,10 @@
 #ifndef IMBA_RANDOM_H
 #define IMBA_RANDOM_H
 
-#include "../core/float3.h"
+#include "../core/float4.h"
+#include "../core/rgb.h"
 #include "../core/common.h"
+
 #include <random>
 
 namespace imba {
@@ -24,7 +26,7 @@ public:
 
     // Random number from min (inclusive) to max (exclusive)
     int random_int(int min, int max) {
-        return MWC64X() % (max - min) + min;
+        return max == min ? min : MWC64X() % (max - min) + min;
     }
 
     void discard(int n) {
@@ -60,9 +62,12 @@ inline void local_coordinates(const float3& normal, float3& tangent_out, float3&
 
     tangent_out[id0] = normal.z * sig * inv_len;
     tangent_out[id1] = 0.f;
-    tangent_out.z   = normal[id0] * -1.f * sig * inv_len;
+    tangent_out.z    = normal[id0] * -1.f * sig * inv_len;
 
     binormal_out = cross(normal, tangent_out);
+
+    tangent_out = normalize(tangent_out);
+    binormal_out = normalize(binormal_out);
 }
 
 inline float3 spherical_dir(float sintheta, float costheta, float phi) {
@@ -162,14 +167,14 @@ inline float concentric_disc_pdf() {
     return 1.0f / pi;
 }
 
-inline bool russian_roulette(const float4& throughput, float rnd_num, float& pdf) {
-    const float4 srgb(0.2126f, 0.7152f, 0.0722f, 0.0f);
+inline bool russian_roulette(const rgb& throughput, float rnd_num, float& pdf) {
+    const rgb srgb(0.2126f, 0.7152f, 0.0722f);
     const float kill_prob = dot(throughput, srgb) * 2.0f;
     pdf = std::min(1.0f, kill_prob);
 
     return rnd_num < pdf;
 }
 
-}
+} // namespace imba
 
-#endif
+#endif // IMBA_RANDOM_H

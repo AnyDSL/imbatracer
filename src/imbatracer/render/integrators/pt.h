@@ -5,40 +5,28 @@
 #include "../ray_scheduler.h"
 #include "../ray_gen.h"
 
-//#define QUEUE_SCHEDULING
-
 namespace imba {
 
 struct PTState : RayState {
-    float4 throughput;
-    int bounces;
-    bool last_specular;
+    rgb throughput;
+    int bounces : 31;
+    bool last_specular : 1;
+    float last_pdf;
 };
 
 /// Renders a scene using path tracing starting at the camera.
 class PathTracer : public Integrator {
 public:
-    PathTracer(Scene& scene, PerspectiveCamera& cam, RayGen<PTState>& ray_gen, int max_path_len, int thread_count, int tile_size)
+    PathTracer(Scene& scene, PerspectiveCamera& cam, RayScheduler<PTState>& scheduler, int max_path_len)
         : Integrator(scene, cam)
-        , ray_gen_(ray_gen)
-#ifdef QUEUE_SCHEDULING
-        , scheduler_(ray_gen, scene)
-#else
-        , scheduler_(ray_gen, scene, thread_count, tile_size)
-#endif
+        , scheduler_(scheduler)
         , max_path_len_(max_path_len)
     {}
 
     virtual void render(AtomicImage& out) override;
 
 private:
-#ifdef QUEUE_SCHEDULING
-    QueueScheduler<PTState, 8, 1> scheduler_;
-#else
-    TileScheduler<PTState, 1> scheduler_;
-#endif
-
-    RayGen<PTState>& ray_gen_;
+    RayScheduler<PTState>& scheduler_;
 
     const int max_path_len_;
 
@@ -47,12 +35,8 @@ private:
 
     void compute_direct_illum(const Intersection& isect, PTState& state, RayQueue<PTState>& ray_out_shadow, BSDF* bsdf);
     void bounce(const Intersection& isect, PTState& state, RayQueue<PTState>& ray_out, BSDF* bsdf);
-
-    template<typename StateType, int queue_count, int shadow_queue_count, int max_shadow_rays_per_hit>
-    friend class RayScheduler;
 };
 
 } // namespace imba
 
-#endif
-
+#endif // IMBA_PT_H

@@ -6,7 +6,7 @@ namespace imba {
 template<bool adjoint>
 class SpecularTransmission : public BxDF {
 public:
-    SpecularTransmission(float eta_inside, float eta_outside, const float4& scale)
+    SpecularTransmission(float eta_inside, float eta_outside, const rgb& scale)
         : BxDF(BxDFFlags(BSDF_TRANSMISSION | BSDF_SPECULAR)),
           fresnel_(eta_outside, eta_inside),
           scale_(scale),
@@ -14,11 +14,11 @@ public:
           eta_inside_(eta_inside)
     {}
 
-    virtual float4 eval(const float3& out_dir, const float3& in_dir) const override {
-        return float4(0.0f);
+    rgb eval(const float3& out_dir, const float3& in_dir) const override {
+        return rgb(0.0f);
     }
 
-    virtual float4 sample(const float3& out_dir, float3& in_dir, RNG& rng, float& pdf) const override {
+    rgb sample(const float3& out_dir, float3& in_dir, RNG& rng, float& pdf) const override {
         pdf = 1.0f;
 
         // Compute optical densities depending on whether the ray is coming from the outside or the inside.
@@ -35,7 +35,7 @@ public:
 
         if (sin_trans_sqr >= 1.0f) {
             in_dir = float3(-out_dir.x, -out_dir.y, out_dir.z);
-            return float4(0.0f); // Total internal reflection.
+            return rgb(0.0f); // Total internal reflection.
         }
 
         float cos_trans = sqrtf(std::max(0.0f, 1.0f - sin_trans_sqr));
@@ -49,21 +49,21 @@ public:
         return factor * (1.0f - fr) * scale_ / fabsf(cos_theta(in_dir));
     }
 
-    virtual float importance(const float3& out_dir) const override {
+    float importance(const float3& out_dir) const override {
         float fr = fresnel_.eval(cos_theta(out_dir));
         return 1.0f - fr;
     }
 
-    virtual float pdf(const float3& out_dir, const float3& in_dir) const override {
+    float pdf(const float3& out_dir, const float3& in_dir) const override {
         return 0.0f; // Probability between any two randomly choosen directions is zero due to the delta distribution.
     }
 
 private:
     FresnelDielectric fresnel_;
-    float4 scale_;
+    rgb scale_;
     float eta_outside_, eta_inside_;
 };
 
-}
+} // namespace imba
 
-#endif
+#endif // IMBA_BTDFS_H
