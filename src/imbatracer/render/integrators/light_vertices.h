@@ -4,6 +4,7 @@
 #include "integrator.h"
 
 #include "../../rangesearch/rangesearch.h"
+#include "../../rangesearch/rangesearch_impala_interface.h"
 #include "../../core/float4.h"
 #include "../../core/common.h"
 
@@ -97,10 +98,13 @@ public:
         return vertex_caches_[sample_id][rng.random_int(0, light_vertices_count_[sample_id])];
     }
 
-    /// Fills the given container with all photons within the radius around the given point.
-    template<typename Container>
-    inline void get_merge(int sample_id, const float3& pos, Container& out) {
-        photon_grid_[sample_id].process(out, pos);
+    /// Calls Impala API to get batch query result returned as a struct 
+    inline BatchQueryResult* get_merge(int sample_id, float3* poses, int size) {
+        return photon_grid_[sample_id].process(poses, size);
+    }
+
+    inline PhotonIterator begin(int sample_id) {
+        return vertex_caches_[sample_id].begin();
     }
 
     void clear() {

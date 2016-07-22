@@ -300,7 +300,7 @@ void VCM_INTEGRATOR::process_camera_rays(RayQueue<VCMState>& rays_in, RayQueue<V
     tbb::parallel_for(tbb::blocked_range<size_t>(0, ray_count), [this, states, hits, rays, &intersections, &mask, &rays_out, &ray_out_shadow, &img] (const tbb::blocked_range<size_t>& range) {
         auto& bsdf_mem_arena = bsdf_memory_arenas.local();
 
-        for (size_t i = range.begin(); i != range.end(); ++i) {
+        for (auto i = range.begin(); i != range.end(); ++i) {
             mask[i] = true;            
             if (hits[i].tri_id < 0) {
                 mask[i] = false;                
@@ -311,8 +311,7 @@ void VCM_INTEGRATOR::process_camera_rays(RayQueue<VCMState>& rays_in, RayQueue<V
 
             RNG& rng = states[i].rng;
 
-            //Intersection isect = calculate_intersection(hits, rays, i);
-            intersections[i] = calculate_intersection(hits, rays, i);
+            intersections[i] = calculate_intersection(scene_, hits[i], rays[i]);
             Intersection &isect = intersections[i];
             const float cos_theta_o = fabsf(dot(isect.out_dir, isect.normal));
 
@@ -370,14 +369,14 @@ void VCM_INTEGRATOR::process_camera_rays(RayQueue<VCMState>& rays_in, RayQueue<V
     // batch vertex merging so as to run all photon queries by launching GPU kernels in a single pass
     // TODO not work if compile in CPU version, need some more abstraction
     if (algo != ALGO_BPT) {
+        // specular test moved into vertex_merging function
         //if (!isect.mat->is_specular()) 
-            //vertex_merging(states[i], isect, bsdf, img);
-            batch_vertex_merging(states, intersections, mask, ray_count, img); 
+        vertex_merging(states, intersections, mask, ray_count, img); 
     }
 
     tbb::parallel_for(tbb::blocked_range<size_t>(0, ray_count), [this, states, hits, rays, &intersections, &mask, &rays_out, &ray_out_shadow, &img] (const tbb::blocked_range<size_t>& range) {  
         auto& bsdf_mem_arena = bsdf_memory_arenas.local();
-        for (size_t i = range.begin(); i != range.end(); ++i) {
+        for (auto i = range.begin(); i != range.end(); ++i) {
             if (mask[i]) {
                 bsdf_mem_arena.free_all();
                 Intersection& isect = intersections[i];
@@ -502,45 +501,9 @@ void VCM_INTEGRATOR::connect(VCMState& cam_state, const Intersection& isect, BSD
     }
 }
 
-VCM_TEMPLATE
-void VCM_INTEGRATOR::vertex_merging(const VCMState& state, const Intersection& isect, const BSDF* bsdf, AtomicImage& img) {
-    // Obtain the thread local photon buffer and reserve sufficient memory.
-    auto& photons = photon_containers.local();
-    photons.reserve(0.5f * light_path_count_);
-    photons.clear();
-
-    light_vertices_.get_merge(state.sample_id, isect.pos, photons);
-
-    rgb contrib(0.0f);
-    const float radius_sqr = pm_radius_ * pm_radius_;
-    for (const auto& p : photons) {
-        const auto photon_in_dir = p->out_dir;
-
-        const auto bsdf_value = bsdf->eval(isect.out_dir, photon_in_dir);
-        const float pdf_dir_w = bsdf->pdf(isect.out_dir, photon_in_dir);
-        const float pdf_rev_w = bsdf->pdf(photon_in_dir, isect.out_dir);
-
-        if (pdf_dir_w == 0.0f || pdf_rev_w == 0.0f || is_black(bsdf_value))
-            continue;
-
-        // Compute MIS weight.
-        const float mis_weight_light = p->dVCM * mis_eta_vc_ + p->dVM * mis_pow(pdf_dir_w);
-        const float mis_weight_camera = state.dVCM * mis_eta_vc_ + state.dVM * mis_pow(pdf_rev_w);
-
-        const float mis_weight = algo == ALGO_PPM ? 1.0f : (1.0f / (mis_weight_light + 1.0f + mis_weight_camera));
-
-        // Epanechnikov filter
-        const float kernel = 1.0f - dot(isect.pos - p->position, isect.pos - p->position) / radius_sqr;
-
-        contrib += mis_weight * bsdf_value * kernel * p->throughput;
-    }
-
-    add_contribution(img, state.pixel_id, state.throughput * contrib * vm_normalization_ * 2.0f); // Factor 2.0f is part of the Epanechnikov filter
-}
-
 // TODO only work for 1 concurrent spp atm
 VCM_TEMPLATE
-void VCM_INTEGRATOR::batch_vertex_merging(VCMState* states, Intersection* intersections, bool* mask, const int size, AtomicImage& img) {
+void VCM_INTEGRATOR::vertex_merging(VCMState* states, Intersection* intersections, bool* mask, int size, AtomicImage& img) {
     int query_count = 0;
     std::vector<const VCMState*> new_states;
     std::vector<const Intersection*> new_intersections;
@@ -557,23 +520,26 @@ void VCM_INTEGRATOR::batch_vertex_merging(VCMState* states, Intersection* inters
         }
     }
     if (query_count == 0) return;
-    // 
-    uintptr_t ptr_begin_iter; // TODO better create a saperate function to get the begin_iter
-    BatchQueryResult* result = photon_grid_[0].batch_process(ptr_begin_iter, isect_poses.data(), query_count);
+    // TODO only work for 1 concurrent spp atm
+    const int sample_id = states[0].sample_id;
+    BatchQueryResult* result = light_vertices_.get_merge(sample_id, isect_poses.data(), query_count);
     int output_size = result->size;
     int* indices = result->indices;
     int* offsets = result->offsets;
 
     //
     const float radius_sqr = pm_radius_ * pm_radius_;
-    tbb::parallel_for(tbb::blocked_range<size_t>(0, query_count), [this, radius_sqr, output_size, query_count, ptr_begin_iter, indices, offsets, new_states, new_intersections, &img] (const tbb::blocked_range<size_t>& range) {  
+    tbb::parallel_for(tbb::blocked_range<size_t>(0, query_count), [this, radius_sqr, output_size, query_count, sample_id, indices, offsets, new_states, new_intersections, &img] (const tbb::blocked_range<size_t>& range) {  
         auto& bsdf_mem_arena = bsdf_memory_arenas.local();
         for (size_t i = range.begin(); i != range.end(); ++i) {
             bsdf_mem_arena.free_all();
             const Intersection* isect = new_intersections[i];
             const VCMState* state = new_states[i];
             auto bsdf = isect->mat->get_bsdf(*isect, bsdf_mem_arena);      
-       
+            
+            // TODO only work for 1 consurrect spp atm
+            assert(state->sample_id == sample_id);
+
             int start = offsets[i];
             int end;
             if (i < query_count - 1) {
@@ -582,15 +548,13 @@ void VCM_INTEGRATOR::batch_vertex_merging(VCMState* states, Intersection* inters
             else
                 end = output_size;
                 
-            float4 contrib(0.0f);
+            rgb contrib(0.0f);
             for (int i = start; i < end; ++i) {
-                PhotonIterator p = std::next(*(reinterpret_cast<PhotonIterator*>(ptr_begin_iter)), indices[i]);
-                
-                // Ignore the path if it would be too small. Don't count the merged vertices twice.
-                if (state->path_length + p->path_length - 1 > max_path_len_)
-                    continue;
+                PhotonIterator pi = std::next(light_vertices_.begin(sample_id), indices[i]);
+                VCMPhoton p2 = VCMPhoton(*pi);
+                VCMPhoton* p = &p2;
 
-                const auto photon_in_dir = p->isect.out_dir;
+                const auto photon_in_dir = p->out_dir;
 
                 const auto bsdf_value = bsdf->eval(isect->out_dir, photon_in_dir);
                 const float pdf_dir_w = bsdf->pdf(isect->out_dir, photon_in_dir);
@@ -600,20 +564,17 @@ void VCM_INTEGRATOR::batch_vertex_merging(VCMState* states, Intersection* inters
                     continue;
 
                 // Compute MIS weight.
-                const float pdf_forward = pdf_dir_w * state->continue_prob;
-                const float pdf_reverse = pdf_rev_w * state->continue_prob;
-
-                const float mis_weight_light = p->dVCM * mis_weight_vc_ + p->dVM * mis_heuristic(pdf_forward);
-                const float mis_weight_camera = state->dVCM * mis_weight_vc_ + state->dVM * mis_heuristic(pdf_reverse);
+                const float mis_weight_light = p->dVCM * mis_eta_vc_ + p->dVM * mis_pow(pdf_dir_w);
+                const float mis_weight_camera = state->dVCM * mis_eta_vc_ + state->dVM * mis_pow(pdf_rev_w);
 
                 const float mis_weight = algo == ALGO_PPM ? 1.0f : (1.0f / (mis_weight_light + 1.0f + mis_weight_camera));
 
                 // Epanechnikov filter
-                const float kernel = 1.0f - dot(isect->pos - p->isect.pos, isect->pos - p->isect.pos) / radius_sqr;
+                const float kernel = 1.0f - dot(isect->pos - p->position, isect->pos - p->position) / radius_sqr;
 
                 contrib += mis_weight * bsdf_value * kernel * p->throughput;
             }
-            img.pixels()[state->pixel_id] += state->throughput * contrib * vm_normalization_ * 2.0f; // Factor 2.0f is part of the Epanechnikov filter
+            add_contribution(img, state->pixel_id, state->throughput * contrib * vm_normalization_ * 2.0f); // Factor 2.0f is part of the Epanechnikov filter
         }
     });
 

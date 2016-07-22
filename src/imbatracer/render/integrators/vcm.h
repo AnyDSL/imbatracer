@@ -111,8 +111,7 @@ private:
 
     void direct_illum(VCMState& cam_state, const Intersection& isect, BSDF* bsdf, RayQueue<VCMState>& rays_out_shadow);
     void connect(VCMState& cam_state, const Intersection& isect, BSDF* bsdf, MemoryArena& bsdf_arena, RayQueue<VCMState>& rays_out_shadow);
-    void vertex_merging(const VCMState& state, const Intersection& isect, const BSDF* bsdf, AtomicImage& img);
-    void batch_vertex_merging(VCMState* states, Intersection* intersections, bool* mask, const int size, AtomicImage& img);
+    void  vertex_merging(VCMState* states, Intersection* intersections, bool* mask, int size, AtomicImage& img);
 
     void bounce(VCMState& state, const Intersection& isect, BSDF* bsdf, RayQueue<VCMState>& rays_out, bool adjoint);
 };
