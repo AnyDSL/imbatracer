@@ -16,7 +16,7 @@ class PerspectiveCamera {
 public:
     PerspectiveCamera() {}
 
-    PerspectiveCamera(int w, int h, float fov)
+    PerspectiveCamera(float w, float h, float fov)
         : width_(w), height_(h), fov_(fov)
     {
         move(float3(0.0, 0.0f, -1.0f),
@@ -38,17 +38,17 @@ public:
                                     float4(-right, -local_p.y),
                                     float4(  -dir, -local_p.z),
                                     float4(0, 0, 0, 1));
-        const auto& persp = perspective(fov_, width_ / height_, near_plane, far_plane);
+        const auto& persp = perspective(fov_, height_ / width_, near_plane, far_plane);
         const auto& world_to_screen = persp * world_to_cam;
         const auto& screen_to_world = invert(world_to_screen);
 
-        world_to_raster_ = scale(width_ * 0.5f, height_ * 0.5f, 0.0f, 1.0f) *
+        world_to_raster_ = scale(height_ * 0.5f, width_ * 0.5f, 0.0f, 1.0f) *
                            translate(1.0f, 1.0f, 0.0f) *
                            world_to_screen;
 
         raster_to_world_ = screen_to_world *
                            translate(-1.0f, -1.0f, 0.0f) *
-                           scale(2.0f / width_, 2.0f / height_, 0.0f, 1.0f);
+                           scale(2.0f / height_, 2.0f / width_, 0.0f, 1.0f);
 
         const float tan_half = std::tan(fov_ * pi / 360.0f);
         img_plane_dist_ = width_ / (2.0f * tan_half);
