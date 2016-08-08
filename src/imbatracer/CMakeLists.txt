@@ -1,20 +1,25 @@
 # Configure traversal platform
 if(BACKEND STREQUAL "cpu" OR BACKEND STREQUAL "avx")
   add_definitions(-DCPU_TRAVERSAL)
-  list(APPEND CORE_SRCS core/cpu_adapter.cpp)
-  set(MAPPING_SRCS 
-      rangesearch/mapping_cpu.impala
-      rangesearch/general_mapping_cpu.impala)             
+  list(APPEND CORE_SRCS core/cpu_adapter.cpp)           
 elseif(BACKEND STREQUAL "nvvm" OR BACKEND STREQUAL "cuda" OR BACKEND STREQUAL "gpu")
   add_definitions(-DGPU_TRAVERSAL)
   list(APPEND CORE_SRCS core/gpu_adapter.cpp)
-  set(MAPPING_SRCS 
-      rangesearch/mapping_gpu.impala
-      rangesearch/general_mapping_gpu.impala             
-      rangesearch/gpu_primitives.impala)
+  
 else()
   message(FATAL_ERROR "Backend not supported")
 endif()
+
+# HASHGRID PM CPU
+#set(MAPPING_SRCS 
+#    rangesearch/mapping_cpu.impala
+#    rangesearch/general_mapping_cpu.impala)  
+
+# HASHGRID PM GPU
+set(MAPPING_SRCS 
+    rangesearch/mapping_gpu.impala
+    rangesearch/general_mapping_gpu.impala             
+    rangesearch/gpu_primitives.impala)
 
 set(IMPALA_SRCS
     ${MAPPING_SRCS}
