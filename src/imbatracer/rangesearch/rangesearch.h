@@ -31,7 +31,7 @@ public:
     HashGrid() : hg(nullptr) {}
 
     void build(const Iter& photons_begin, const Iter& photons_end, float radius) {
-        //std::lock_guard<std::mutex> lock(traversal_mutex);
+        std::lock_guard<std::mutex> lock(traversal_mutex);
         if (hg) {
             destroy_hashgrid(hg);
             delete hg;

@@ -29,9 +29,6 @@ fn compute_bbox(photons: &[f32], size: i32, body: fn(Float3, Float3)->()) -> () 
 
 // Interfaces
 extern fn build_hashgrid(info: &RawDataInfo, photon_cnt: i32, cell_size: i32, rad: f32) -> &PhotonHashGrid {
-    print_string("build -> size = ");
-    print_int(photon_cnt);
-    print_string("\n");
     let indices_buf   = acc_alloc(acc_dev(), photon_cnt * sizeof[i32]());
     let cell_ends_buf = acc_alloc(acc_dev(), cell_size * sizeof[i32]());
     let photons_buf   = alloc_cpu(photon_cnt * 3 * sizeof[f32]());
@@ -233,10 +230,7 @@ extern fn build_hashgrid(info: &RawDataInfo, photon_cnt: i32, cell_size: i32, ra
 //    }
 //}
 
-extern fn batch_query_hashgrid(hg: &PhotonHashGrid, query_poses: &[f32], size: i32) -> &BatchQueryResult {
-    print_string("query -> size = ");
-    print_int(size);
-    print_string("\n");
+extern fn batch_query_hashgrid2(hg: &PhotonHashGrid, query_poses: &[f32], size: i32) -> &BatchQueryResult {
     let host_query_poses_buf = alloc_cpu(size * 3 * sizeof[f32]());
     let dev_query_poses_buf  = acc_alloc(acc_dev(), size * 3 * sizeof[f32]());
     let mut host_query_poses = bitcast[&[f32]](host_query_poses_buf.data);
@@ -252,11 +246,11 @@ extern fn batch_query_hashgrid(hg: &PhotonHashGrid, query_poses: &[f32], size: i
 
     release(host_query_poses_buf);
     release(dev_query_poses_buf);
-   
+    
     retval
 }
 
-extern fn batch_query_hashgrid2(hg: &PhotonHashGrid, query_poses: &[f32], size: i32) -> &BatchQueryResult {
+extern fn batch_query_hashgrid(hg: &PhotonHashGrid, query_poses: &[f32], size: i32) -> &BatchQueryResult {
     let THREADS_PER_BLOCK = 1024;
     //
     let radius_sqr     = (*hg).radius_sqr;

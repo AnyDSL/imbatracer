@@ -229,9 +229,9 @@ fn batch_query(hg: &PhotonHashGrid, query_poses: &[f32], size: i32) -> &BatchQue
 
     let offsets_buf = alloc_buf(size * sizeof[i32]());
     let offsets     = bitcast[&[i32]](offsets_buf.data);
-print_string("before_scan\n");
+//print_string("before_scan\n");
     exclusive_prefix_sum(sizes, offsets, size);
-print_string("after_scan\n");
+//print_string("after_scan\n");
 
     let mut retval : &BatchQueryResult;
 

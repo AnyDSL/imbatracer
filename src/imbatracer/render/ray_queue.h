@@ -32,7 +32,7 @@ struct RayState {
 #define TRAVERSAL_OCCLUDED  occluded_gpu_masked_instanced
 
 // Do not allow running multiple traversal instances at the same time on the GPU.
-static std::mutex traversal_mutex;
+extern std::mutex traversal_mutex;
 static constexpr int traversal_block_size() { return 64; }
 
 #else

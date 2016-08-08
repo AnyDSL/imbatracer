@@ -127,7 +127,6 @@ fn gpu_prefix_sum(input: &[i32], mut output: &[i32], size: i32) -> () {
     let auxi_pfs_buf = acc_alloc(acc_dev(), num_blocks * sizeof[i32]());
     let mut ptr_auxi = bitcast[&[i32]](auxi_buf.data);
     let ptr_auxi_pfs = bitcast[&[i32]](auxi_pfs_buf.data);
-    
     with acc(acc_dev(), grid, block) {
         let bid = acc_bidx();
         let tid = acc_tidx();
