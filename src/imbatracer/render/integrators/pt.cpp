@@ -40,43 +40,48 @@ void PathTracer::compute_direct_illum(const Intersection& isect, PTState& state,
     ray_out_shadow.push(ray, s);
 }
 
-void PathTracer::bounce(const Intersection& isect, PTState& state, RayQueue<PTState>& ray_out, BSDF* bsdf) {
+void PathTracer::bounce(const Intersection& isect, PTState& state_out, Ray& ray_out, BSDF* bsdf) {
     // Terminate the path if it is too long or with russian roulette.
-    if (state.bounces + 1 >= max_path_len_) // Path length includes the vertices on the camera and the light.
+    if (state_out.bounces + 1 >= max_path_len_) {// Path length includes the vertices on the camera and the light.
+        terminate_path(state_out);
         return;
+    }
 
     float rr_pdf;
-    if (!russian_roulette(state.throughput, state.rng.random_float(), rr_pdf))
+    if (!russian_roulette(state_out.throughput, state_out.rng.random_float(), rr_pdf)) {
+        terminate_path(state_out);
         return;
+    }
 
     float pdf;
     float3 sample_dir;
     BxDFFlags sampled_flags;
-    const auto bsdf_value = bsdf->sample(isect.out_dir, sample_dir, state.rng, BSDF_ALL, sampled_flags, pdf);
+    const auto bsdf_value = bsdf->sample(isect.out_dir, sample_dir, state_out.rng, BSDF_ALL, sampled_flags, pdf);
 
-    if (pdf == 0.0f || sampled_flags == BSDF_NONE || is_black(bsdf_value))
+    if (pdf == 0.0f || sampled_flags == BSDF_NONE || is_black(bsdf_value)) {
+        terminate_path(state_out);
         return;
+    }
 
     const float cos_term = fabsf(dot(isect.normal, sample_dir));
 
-    PTState s = state;
-    s.throughput *= bsdf_value * cos_term / (pdf * rr_pdf);
-    s.bounces++;
-    s.last_specular = sampled_flags & BSDF_SPECULAR;
-    s.last_pdf = pdf;
+    state_out.throughput *= bsdf_value * cos_term / (pdf * rr_pdf);
+    state_out.bounces++;
+    state_out.last_specular = sampled_flags & BSDF_SPECULAR;
+    state_out.last_pdf = pdf;
 
-    Ray ray {
+    ray_out = Ray {
         { isect.pos.x, isect.pos.y, isect.pos.z, offset },
         { sample_dir.x, sample_dir.y, sample_dir.z, FLT_MAX }
     };
-
-    ray_out.push(ray, s);
 }
 
-void PathTracer::process_primary_rays(RayQueue<PTState>& ray_in, RayQueue<PTState>& ray_out, RayQueue<PTState>& ray_out_shadow, AtomicImage& out) {
+void PathTracer::process_primary_rays(RayQueue<PTState>& ray_in, RayQueue<PTState>& ray_out_shadow, AtomicImage& out) {
     PTState* states = ray_in.states();
     const Hit* hits = ray_in.hits();
-    const Ray* rays = ray_in.rays();
+    Ray* rays = ray_in.rays();
+
+    compact_hits(scene_, ray_in);
 
     tbb::parallel_for(tbb::blocked_range<int>(0, ray_in.size()),
         [&] (const tbb::blocked_range<int>& range)
@@ -84,9 +89,6 @@ void PathTracer::process_primary_rays(RayQueue<PTState>& ray_in, RayQueue<PTStat
         auto& bsdf_mem_arena = bsdf_memory_arenas.local();
 
         for (auto i = range.begin(); i != range.end(); ++i) {
-            if (hits[i].tri_id < 0)
-                continue;
-
             bsdf_mem_arena.free_all();
 
             const auto isect = calculate_intersection(scene_, hits[i], rays[i]);
@@ -101,14 +103,17 @@ void PathTracer::process_primary_rays(RayQueue<PTState>& ray_in, RayQueue<PTStat
 
                 add_contribution(out, states[i].pixel_id, states[i].throughput * li * mis_weight);
 
+                terminate_path(states[i]);
                 continue;
             }
 
             const auto bsdf = isect.mat->get_bsdf(isect, bsdf_mem_arena);
             compute_direct_illum(isect, states[i], ray_out_shadow, bsdf);
-            bounce(isect, states[i], ray_out, bsdf);
+            bounce(isect, states[i], rays[i], bsdf);
         }
     });
+
+    compact_rays(scene_, ray_in);
 }
 
 void PathTracer::process_shadow_rays(RayQueue<PTState>& ray_in, AtomicImage& out) {
@@ -130,8 +135,8 @@ void PathTracer::process_shadow_rays(RayQueue<PTState>& ray_in, AtomicImage& out
 void PathTracer::render(AtomicImage& out) {
     scheduler_.run_iteration(out,
         [this] (RayQueue<PTState>& ray_in, AtomicImage& out) { process_shadow_rays(ray_in, out); },
-        [this] (RayQueue<PTState>& ray_in, RayQueue<PTState>& ray_out, RayQueue<PTState>& ray_out_shadow, AtomicImage& out) {
-            process_primary_rays(ray_in, ray_out, ray_out_shadow, out);
+        [this] (RayQueue<PTState>& ray_in, RayQueue<PTState>& ray_out_shadow, AtomicImage& out) {
+            process_primary_rays(ray_in, ray_out_shadow, out);
         },
         [this] (int x, int y, ::Ray& ray_out, PTState& state_out) {
             const float sample_x = static_cast<float>(x) + state_out.rng.random_float();

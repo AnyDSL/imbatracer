@@ -94,8 +94,8 @@ for t in thread_counts:
                     'samples_per_frame': s
                     })
 
-times_in_seconds = [300]
-algorithms = ['bpt', 'vcm', 'ppm']
+times_in_seconds = [60]
+algorithms = ['pt', 'vcm']
 convergence = True
 convergence_step_sec = 5
 
@@ -148,8 +148,9 @@ def run_benchmark(app, setting, path, time_sec):
             output, err = p.communicate()
 
             output_lines = output.splitlines()
-            perf_result = output_lines[len(output_lines) - 2]
-            ray_count = output_lines[len(output_lines) - 1]
+            # perf_result = output_lines[len(output_lines) - 2]
+            # ray_count = output_lines[len(output_lines) - 1]
+            perf_result = output_lines[len(output_lines) - 1]
 
             print '   > ' + perf_result
 
@@ -166,7 +167,7 @@ def run_benchmark(app, setting, path, time_sec):
             ms_per_frame = m.group(4)
 
             rmse = compute_rmse(out_filename, setting['reference'])
-            rays_per_sec = str(float(ray_count) / float(time));
+            rays_per_sec = '0' #str(float(ray_count) / float(time));
 
             print '   > RMSE: ' + rmse
             print '   > Rays per second: ' + rays_per_sec

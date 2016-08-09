@@ -30,7 +30,7 @@ public:
         : BaseType(scene)
         , tile_gen_(tile_gen)
         , num_threads_(num_threads), q_size_(q_size)
-        , thread_local_prim_queues_(num_threads * 2)
+        , thread_local_prim_queues_(num_threads)
         , thread_local_shadow_queues_(num_threads)
         , thread_local_ray_gen_(num_threads)
     {
@@ -97,21 +97,18 @@ private:
         auto cur_tile = tile_gen_.next_tile(thread_local_ray_gen_[thread_idx]);
         while (cur_tile != nullptr) {
             // Get the ray queues for this thread.
-            int in_q = 0;
-            int out_q = 1;
-            auto prim_q_in  = thread_local_prim_queues_[thread_idx * 2 + in_q];
-            auto prim_q_out = thread_local_prim_queues_[thread_idx * 2 + out_q];
-            auto shadow_q   = thread_local_shadow_queues_[thread_idx];
+            auto prim_q   = thread_local_prim_queues_  [thread_idx];
+            auto shadow_q = thread_local_shadow_queues_[thread_idx];
 
             // Traverse and shade until there are no more rays left.
             cur_tile->start_frame();
-            while(!cur_tile->is_empty() || prim_q_in->size() > MIN_QUEUE_SIZE) {
-                cur_tile->fill_queue(*prim_q_in, sample_fn);
+            while(!cur_tile->is_empty() || prim_q->size() > MIN_QUEUE_SIZE) {
+                cur_tile->fill_queue(*prim_q, sample_fn);
 
                 // TODO Add regeneration again (minor performance increase)
 
-                prim_q_in->traverse(scene_.traversal_data());
-                process_primary_rays(*prim_q_in, *prim_q_out, *shadow_q, image);
+                prim_q->traverse(scene_.traversal_data());
+                process_primary_rays(*prim_q, *shadow_q, image);
 
                 if (shadow_q->size() > MIN_QUEUE_SIZE) {
                     shadow_q->traverse_occluded(scene_.traversal_data());
@@ -119,12 +116,8 @@ private:
                 }
 
                 shadow_q->clear();
-                prim_q_in->clear();
-
-                std::swap(in_q, out_q);
-                prim_q_in  = thread_local_prim_queues_[thread_idx * 2 + in_q];
-                prim_q_out = thread_local_prim_queues_[thread_idx * 2 + out_q];
             }
+
             // We are using the same memory for the new ray generation, so we
             // have to delete the old one first!
             cur_tile.reset(nullptr);

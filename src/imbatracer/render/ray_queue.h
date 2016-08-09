@@ -68,7 +68,7 @@ public:
 
     RayQueue(int capacity)
         : ray_buffer_(align(capacity))
-        , hit_buffer_(align(capacity))
+        , hit_buffer_(align(capacity))\
         , state_buffer_(align(capacity))
         , last_(-1)
     {
@@ -98,6 +98,9 @@ public:
 
     int size() const { return last_ + 1; }
     int capacity() const { return state_buffer_.size(); }
+
+    // Shrinks the queue to the given size.
+    void shrink(int size) { last_ = size - 1; }
 
     ::Ray* rays() { return ray_buffer_.data(); }
     StateType* states() { return state_buffer_.data(); }

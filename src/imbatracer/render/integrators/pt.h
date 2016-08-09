@@ -31,10 +31,10 @@ private:
     const int max_path_len_;
 
     void process_shadow_rays(RayQueue<PTState>& ray_in, AtomicImage& out);
-    void process_primary_rays(RayQueue<PTState>& ray_in, RayQueue<PTState>& ray_out, RayQueue<PTState>& ray_out_shadow, AtomicImage& out);
+    void process_primary_rays(RayQueue<PTState>& ray_in, RayQueue<PTState>& ray_out_shadow, AtomicImage& out);
 
     void compute_direct_illum(const Intersection& isect, PTState& state, RayQueue<PTState>& ray_out_shadow, BSDF* bsdf);
-    void bounce(const Intersection& isect, PTState& state, RayQueue<PTState>& ray_out, BSDF* bsdf);
+    void bounce(const Intersection& isect, PTState& state_out, Ray& ray_out, BSDF* bsdf);
 };
 
 } // namespace imba

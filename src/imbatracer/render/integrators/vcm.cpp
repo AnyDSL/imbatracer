@@ -52,8 +52,8 @@ VCM_TEMPLATE
 void VCM_INTEGRATOR::trace_light_paths(AtomicImage& img) {
     scheduler_.run_iteration(img,
         [this] (RayQueue<VCMState>& ray_in, AtomicImage& out) { process_shadow_rays(ray_in, out); },
-        [this] (RayQueue<VCMState>& ray_in, RayQueue<VCMState>& ray_out, RayQueue<VCMState>& ray_out_shadow, AtomicImage& out) {
-            process_light_rays(ray_in, ray_out, ray_out_shadow, out);
+        [this] (RayQueue<VCMState>& ray_in, RayQueue<VCMState>& ray_out_shadow, AtomicImage& out) {
+            process_light_rays(ray_in, ray_out_shadow, out);
         },
         [this] (int x, int y, ::Ray& ray_out, VCMState& state_out) {
             // randomly choose one light source to sample
@@ -95,8 +95,8 @@ VCM_TEMPLATE
 void VCM_INTEGRATOR::trace_camera_paths(AtomicImage& img) {
     scheduler_.run_iteration(img,
         [this] (RayQueue<VCMState>& ray_in, AtomicImage& out) { process_shadow_rays(ray_in, out); },
-        [this] (RayQueue<VCMState>& ray_in, RayQueue<VCMState>& ray_out, RayQueue<VCMState>& ray_out_shadow, AtomicImage& out) {
-            process_camera_rays(ray_in, ray_out, ray_out_shadow, out);
+        [this] (RayQueue<VCMState>& ray_in, RayQueue<VCMState>& ray_out_shadow, AtomicImage& out) {
+            process_camera_rays(ray_in, ray_out_shadow, out);
         },
         [this] (int x, int y, ::Ray& ray_out, VCMState& state_out) {
             // Sample a ray from the camera.
@@ -122,12 +122,14 @@ void VCM_INTEGRATOR::trace_camera_paths(AtomicImage& img) {
 }
 
 VCM_TEMPLATE
-void VCM_INTEGRATOR::bounce(VCMState& state, const Intersection& isect, BSDF* bsdf, RayQueue<VCMState>& rays_out, bool adjoint) {
-    RNG& rng = state.rng;
+void VCM_INTEGRATOR::bounce(VCMState& state_out, const Intersection& isect, BSDF* bsdf, Ray& ray_out, bool adjoint) {
+    RNG& rng = state_out.rng;
 
     float rr_pdf;
-    if (!russian_roulette(state.throughput, rng.random_float(), rr_pdf))
+    if (!russian_roulette(state_out.throughput, rng.random_float(), rr_pdf)) {
+        terminate_path(state_out);
         return;
+    }
 
     BxDFFlags flags = BSDF_ALL;
     if (algo == ALGO_PPM && !adjoint) // For PPM: only sample specular scattering on the camera path.
@@ -140,8 +142,10 @@ void VCM_INTEGRATOR::bounce(VCMState& state, const Intersection& isect, BSDF* bs
 
     bool is_specular = sampled_flags & BSDF_SPECULAR;
 
-    if (sampled_flags == 0 || pdf_dir_w == 0.0f || is_black(bsdf_value))
+    if (sampled_flags == 0 || pdf_dir_w == 0.0f || is_black(bsdf_value)) {
+        terminate_path(state_out);
         return;
+    }
 
     float pdf_rev_w = pdf_dir_w;
     if (!is_specular) // cannot evaluate reverse pdf of specular surfaces (but is the same as forward due to symmetry)
@@ -150,57 +154,51 @@ void VCM_INTEGRATOR::bounce(VCMState& state, const Intersection& isect, BSDF* bs
     const float cos_theta_i = adjoint ? fabsf(shading_normal_adjoint(isect.normal, isect.geom_normal, isect.out_dir, sample_dir))
                                       : fabsf(dot(sample_dir, isect.normal));
 
-    VCMState s = state;
     if (is_specular) {
-        s.dVCM = 0.0f;
-        s.dVC *= mis_pow(cos_theta_i);
-        s.dVM *= mis_pow(cos_theta_i);
+        state_out.dVCM = 0.0f;
+        state_out.dVC *= mis_pow(cos_theta_i);
+        state_out.dVM *= mis_pow(cos_theta_i);
     } else {
-        s.dVC = mis_pow(cos_theta_i / (pdf_dir_w * rr_pdf)) *
-                (s.dVC * mis_pow(pdf_rev_w * rr_pdf) + s.dVCM + mis_eta_vm_);
+        state_out.dVC = mis_pow(cos_theta_i / pdf_dir_w) *
+                (state_out.dVC * mis_pow(pdf_rev_w) + state_out.dVCM + mis_eta_vm_);
 
-        s.dVM = mis_pow(cos_theta_i / (pdf_dir_w * rr_pdf)) *
-                (s.dVM * mis_pow(pdf_rev_w * rr_pdf) + s.dVCM * mis_eta_vc_ + 1.0f);
+        state_out.dVM = mis_pow(cos_theta_i / pdf_dir_w) *
+                (state_out.dVM * mis_pow(pdf_rev_w) + state_out.dVCM * mis_eta_vc_ + 1.0f);
 
-        s.dVCM = mis_pow(1.0f / (pdf_dir_w * rr_pdf));
+        state_out.dVCM = mis_pow(1.0f / pdf_dir_w);
     }
 
-    s.throughput *= bsdf_value * cos_theta_i / (rr_pdf * pdf_dir_w);
-    s.path_length++;
+    state_out.throughput *= bsdf_value * cos_theta_i / (rr_pdf * pdf_dir_w);
+    state_out.path_length++;
 
-    Ray ray {
+    ray_out = Ray {
         { isect.pos.x, isect.pos.y, isect.pos.z, offset },
         { sample_dir.x, sample_dir.y, sample_dir.z, FLT_MAX }
     };
-
-    rays_out.push(ray, s);
 }
 
 VCM_TEMPLATE
-void VCM_INTEGRATOR::process_light_rays(RayQueue<VCMState>& rays_in, RayQueue<VCMState>& rays_out, RayQueue<VCMState>& ray_out_shadow, AtomicImage& img) {
-    int ray_count = rays_in.size();
+void VCM_INTEGRATOR::process_light_rays(RayQueue<VCMState>& rays_in, RayQueue<VCMState>& ray_out_shadow, AtomicImage& img) {
     VCMState* states = rays_in.states();
     const Hit* hits = rays_in.hits();
-    const Ray* rays = rays_in.rays();
+    Ray* rays = rays_in.rays();
 
-    tbb::parallel_for(tbb::blocked_range<int>(0, ray_count), [&] (const tbb::blocked_range<int>& range) {
+    compact_hits(scene_, rays_in);
+
+    tbb::parallel_for(tbb::blocked_range<int>(0, rays_in.size()), [&] (const tbb::blocked_range<int>& range) {
         auto& bsdf_mem_arena = bsdf_memory_arenas.local();
 
         for (auto i = range.begin(); i != range.end(); ++i) {
-            if (hits[i].tri_id < 0)
-                continue;
-
-            if (states[i].path_length >= max_path_len_)
-                continue; // Path is too long already. Do not bounce, do not store the vertex.
-
             bsdf_mem_arena.free_all();
 
             RNG& rng = states[i].rng;
             const auto isect = calculate_intersection(scene_, hits[i], rays[i]);
             const float cos_theta_o = fabsf(dot(isect.out_dir, isect.normal));
 
-            if (cos_theta_o == 0.0f) // Prevent NaNs
+            if (cos_theta_o == 0.0f) { // Prevent NaNs
+                terminate_path(states[i]);
                 continue;
+            }
 
             // Complete calculation of the partial weights.
             if (states[i].path_length > 1 || states[i].finite_light)
@@ -227,9 +225,11 @@ void VCM_INTEGRATOR::process_light_rays(RayQueue<VCMState>& rays_in, RayQueue<VC
                     connect_to_camera(states[i], isect, bsdf, ray_out_shadow);
             }
 
-            bounce(states[i], isect, bsdf, rays_out, true);
+            bounce(states[i], isect, bsdf, rays[i], true);
         }
     });
+
+    compact_rays(scene_, rays_in);
 }
 
 VCM_TEMPLATE
@@ -287,19 +287,17 @@ void VCM_INTEGRATOR::connect_to_camera(const VCMState& light_state, const Inters
 }
 
 VCM_TEMPLATE
-void VCM_INTEGRATOR::process_camera_rays(RayQueue<VCMState>& rays_in, RayQueue<VCMState>& rays_out, RayQueue<VCMState>& ray_out_shadow, AtomicImage& img) {
-    int ray_count = rays_in.size();
+void VCM_INTEGRATOR::process_camera_rays(RayQueue<VCMState>& rays_in, RayQueue<VCMState>& ray_out_shadow, AtomicImage& img) {
     VCMState* states = rays_in.states();
     const Hit* hits = rays_in.hits();
-    const Ray* rays = rays_in.rays();
+    Ray* rays = rays_in.rays();
 
-    tbb::parallel_for(tbb::blocked_range<int>(0, ray_count), [&] (const tbb::blocked_range<int>& range) {
+    compact_hits(scene_, rays_in);
+
+    tbb::parallel_for(tbb::blocked_range<int>(0, rays_in.size()), [&] (const tbb::blocked_range<int>& range) {
         auto& bsdf_mem_arena = bsdf_memory_arenas.local();
 
         for (auto i = range.begin(); i != range.end(); ++i) {
-            if (hits[i].tri_id < 0)
-                continue;
-
             bsdf_mem_arena.free_all();
 
             RNG& rng = states[i].rng;
@@ -313,8 +311,10 @@ void VCM_INTEGRATOR::process_camera_rays(RayQueue<VCMState>& rays_in, RayQueue<V
             states[i].dVC *= 1.0f / mis_pow(cos_theta_o);
             states[i].dVM *= 1.0f / mis_pow(cos_theta_o);
 
-            if (cos_theta_o == 0.0f) // Prevent NaNs
+            if (cos_theta_o == 0.0f) { // Prevent NaNs
+                terminate_path(states[i]);
                 continue;
+            }
 
             if (auto emit = isect.mat->emitter()) {
                 // A light source was hit directly. Add the weighted contribution.
@@ -337,6 +337,7 @@ void VCM_INTEGRATOR::process_camera_rays(RayQueue<VCMState>& rays_in, RayQueue<V
                 } else
                     add_contribution(img, states[i].pixel_id, radiance); // Light directly visible, no weighting required.
 
+                terminate_path(states[i]);
                 continue;
             }
 
@@ -344,8 +345,10 @@ void VCM_INTEGRATOR::process_camera_rays(RayQueue<VCMState>& rays_in, RayQueue<V
             if (states[i].path_length < max_path_len_) {
                 if (algo != ALGO_PPM)
                     direct_illum(states[i], isect, bsdf, ray_out_shadow);
-            } else
+            } else {
+                terminate_path(states[i]);
                 continue; // No point in continuing this path. It is too long already
+            }
 
             // Connect to light path vertices.
             if (algo != ALGO_PT && algo != ALGO_PPM && !isect.mat->is_specular())
@@ -357,9 +360,11 @@ void VCM_INTEGRATOR::process_camera_rays(RayQueue<VCMState>& rays_in, RayQueue<V
             }
 
             // Continue the path using russian roulette.
-            bounce(states[i], isect, bsdf, rays_out, false);
+            bounce(states[i], isect, bsdf, rays[i], false);
         }
     });
+
+    compact_rays(scene_, rays_in);
 }
 
 VCM_TEMPLATE

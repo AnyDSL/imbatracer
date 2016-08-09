@@ -22,4 +22,4 @@ struct Intersection {
 
 } // namespace imba
 
-#endif
+#endif // IMBA_INTERSECTION_H
