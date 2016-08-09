@@ -216,15 +216,12 @@ public:
 
             // Try to shade a queue of rays
             auto q_shadow_out = shadow_queue_pool_.claim_queue_with_tag(QUEUE_EMPTY);
-            auto q_out = primary_queue_pool_.claim_queue_with_tag(QUEUE_EMPTY);
-            if (q_primary && q_shadow_out && q_out) {
+            if (q_primary && q_shadow_out) {
                 idle = false;
-                shading_tasks_.run([this, process_primary_rays, &out, q_primary, q_out, q_shadow_out] () {
-                    process_primary_rays(*q_primary, *q_out, *q_shadow_out, out);
+                shading_tasks_.run([this, process_primary_rays, &out, q_primary, q_shadow_out] () {
+                    process_primary_rays(*q_primary, *q_shadow_out, out);
 
-                    primary_queue_pool_.return_queue(q_primary, QUEUE_EMPTY);
-                    primary_queue_pool_.return_queue(q_out, QUEUE_READY_FOR_TRAVERSAL);
-
+                    primary_queue_pool_.return_queue(q_primary, QUEUE_READY_FOR_TRAVERSAL);
                     shadow_queue_pool_.return_queue(q_shadow_out, QUEUE_READY_FOR_TRAVERSAL);
 
                     // Notify the scheduler that one primary queue has been processed
@@ -237,8 +234,6 @@ public:
             } else {
                 // We cannot shade the rays in the queue, so we postpone them for the next iteration
                 if (q_primary)    primary_queue_pool_.return_queue(q_primary, QUEUE_READY_FOR_SHADING);
-                if (q_out)        primary_queue_pool_.return_queue(q_out, QUEUE_EMPTY);
-
                 if (q_shadow_out) shadow_queue_pool_.return_queue(q_shadow_out, QUEUE_EMPTY);
             }
 
