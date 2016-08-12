@@ -38,17 +38,19 @@ public:
             q = new RayQueue<StateType>(q_size);
 
         for (auto& q : thread_local_shadow_queues_)
-            q = new RayQueue<StateType>(q_size * max_shadow_rays_per_hit);
+            q = new RayQueue<ShadowState>(q_size * max_shadow_rays_per_hit);
 
         for (auto& ptr : thread_local_ray_gen_)
             ptr = new uint8_t[tile_gen_.sizeof_ray_gen()];
 
         // Initialize the GPU buffer
-        RayQueue<StateType>::setup_device_buffer(q_size * max_shadow_rays_per_hit);
+        RayQueue<StateType>::setup_device_buffer(q_size);
+        RayQueue<ShadowState>::setup_device_buffer(q_size * max_shadow_rays_per_hit);
     }
 
     ~TileScheduler() {
         RayQueue<StateType>::release_device_buffer();
+        RayQueue<ShadowState>::release_device_buffer();
 
         for (auto q : thread_local_prim_queues_) delete q;
         for (auto q : thread_local_shadow_queues_) delete q;
@@ -84,7 +86,7 @@ private:
     std::vector<RayQueue<StateType>*> thread_local_prim_queues_;
 
     // Every thread has one shadow queue.
-    std::vector<RayQueue<StateType>*> thread_local_shadow_queues_;
+    std::vector<RayQueue<ShadowState>*> thread_local_shadow_queues_;
 
     // Every thread has a ray generator.
     // To prevent reallocation every time a new tile is needed, we use a memory pool.

@@ -16,7 +16,7 @@ constexpr float offset = 0.0001f;
 using ThreadLocalMemArena = tbb::enumerable_thread_specific<MemoryArena, tbb::cache_aligned_allocator<MemoryArena>, tbb::ets_key_per_instance>;
 static ThreadLocalMemArena bsdf_memory_arenas;
 
-void PathTracer::compute_direct_illum(const Intersection& isect, PTState& state, RayQueue<PTState>& ray_out_shadow, BSDF* bsdf) {
+void PathTracer::compute_direct_illum(const Intersection& isect, PTState& state, RayQueue<ShadowState>& ray_out_shadow, BSDF* bsdf) {
     // Generate the shadow ray (sample one point on one lightsource)
     const auto& ls = scene_.light(state.rng.random_int(0, scene_.light_count()));
     const float pdf_lightpick = 1.0f / scene_.light_count();
@@ -29,8 +29,9 @@ void PathTracer::compute_direct_illum(const Intersection& isect, PTState& state,
     const float mis_weight = ls->is_delta() ? 1.0f : pdf_di / (pdf_di + pdf_hit);
 
     // The contribution is stored in the state of the shadow ray and added, if the shadow ray does not intersect anything.
-    PTState s = state;
-    s.throughput *= bsdf_value * fabsf(dot(isect.normal, sample.dir)) * sample.radiance * mis_weight / pdf_lightpick;
+    ShadowState s;
+    s.throughput = state.throughput * bsdf_value * fabsf(dot(isect.normal, sample.dir)) * sample.radiance * mis_weight / pdf_lightpick;
+    s.pixel_id   = state.pixel_id;
 
     Ray ray {
         { isect.pos.x, isect.pos.y, isect.pos.z, offset },
@@ -76,7 +77,7 @@ void PathTracer::bounce(const Intersection& isect, PTState& state_out, Ray& ray_
     };
 }
 
-void PathTracer::process_primary_rays(RayQueue<PTState>& ray_in, RayQueue<PTState>& ray_out_shadow, AtomicImage& out) {
+void PathTracer::process_primary_rays(RayQueue<PTState>& ray_in, RayQueue<ShadowState>& ray_out_shadow, AtomicImage& out) {
     PTState* states = ray_in.states();
     const Hit* hits = ray_in.hits();
     Ray* rays = ray_in.rays();
@@ -116,8 +117,8 @@ void PathTracer::process_primary_rays(RayQueue<PTState>& ray_in, RayQueue<PTStat
     compact_rays(scene_, ray_in);
 }
 
-void PathTracer::process_shadow_rays(RayQueue<PTState>& ray_in, AtomicImage& out) {
-    PTState* states = ray_in.states();
+void PathTracer::process_shadow_rays(RayQueue<ShadowState>& ray_in, AtomicImage& out) {
+    ShadowState* states = ray_in.states();
     Hit* hits = ray_in.hits();
 
     tbb::parallel_for(tbb::blocked_range<int>(0, ray_in.size()),
@@ -134,8 +135,8 @@ void PathTracer::process_shadow_rays(RayQueue<PTState>& ray_in, AtomicImage& out
 
 void PathTracer::render(AtomicImage& out) {
     scheduler_.run_iteration(out,
-        [this] (RayQueue<PTState>& ray_in, AtomicImage& out) { process_shadow_rays(ray_in, out); },
-        [this] (RayQueue<PTState>& ray_in, RayQueue<PTState>& ray_out_shadow, AtomicImage& out) {
+        [this] (RayQueue<ShadowState>& ray_in, AtomicImage& out) { process_shadow_rays(ray_in, out); },
+        [this] (RayQueue<PTState>& ray_in, RayQueue<ShadowState>& ray_out_shadow, AtomicImage& out) {
             process_primary_rays(ray_in, ray_out_shadow, out);
         },
         [this] (int x, int y, ::Ray& ray_out, PTState& state_out) {

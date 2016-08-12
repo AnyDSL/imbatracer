@@ -15,8 +15,8 @@ template <typename StateType>
 class RayScheduler {
 protected:
     using SamplePixelFn = typename RayGen<StateType>::SamplePixelFn;
-    typedef std::function<void (RayQueue<StateType>&, RayQueue<StateType>&, AtomicImage&)> ProcessPrimaryFn;
-    typedef std::function<void (RayQueue<StateType>&, AtomicImage&)> ProcessShadowFn;
+    typedef std::function<void (RayQueue<StateType>&, RayQueue<ShadowState>&, AtomicImage&)> ProcessPrimaryFn;
+    typedef std::function<void (RayQueue<ShadowState>&, AtomicImage&)> ProcessShadowFn;
 
 public:
     RayScheduler(Scene& scene)

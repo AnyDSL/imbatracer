@@ -100,17 +100,17 @@ private:
         return dot(out_dir, normal) * dot(in_dir, geom_normal) / dot(out_dir, geom_normal);
     }
 
-    void process_light_rays(RayQueue<VCMState>& rays_in, RayQueue<VCMState>& rays_out_shadow, AtomicImage& img);
-    void process_camera_rays(RayQueue<VCMState>& rays_in, RayQueue<VCMState>& shadow_rays, AtomicImage& img);
-    void process_shadow_rays(RayQueue<VCMState>& rays_in, AtomicImage& img);
+    void process_light_rays(RayQueue<VCMState>& rays_in, RayQueue<ShadowState>& rays_out_shadow, AtomicImage& img);
+    void process_camera_rays(RayQueue<VCMState>& rays_in, RayQueue<ShadowState>& shadow_rays, AtomicImage& img);
+    void process_shadow_rays(RayQueue<ShadowState>& rays_in, AtomicImage& img);
 
     void trace_light_paths(AtomicImage& img);
     void trace_camera_paths(AtomicImage& img);
 
-    void connect_to_camera(const VCMState& light_state, const Intersection& isect, const BSDF* bsdf, RayQueue<VCMState>& rays_out_shadow);
+    void connect_to_camera(const VCMState& light_state, const Intersection& isect, const BSDF* bsdf, RayQueue<ShadowState>& rays_out_shadow);
 
-    void direct_illum(VCMState& cam_state, const Intersection& isect, BSDF* bsdf, RayQueue<VCMState>& rays_out_shadow);
-    void connect(VCMState& cam_state, const Intersection& isect, BSDF* bsdf, MemoryArena& bsdf_arena, RayQueue<VCMState>& rays_out_shadow);
+    void direct_illum(VCMState& cam_state, const Intersection& isect, BSDF* bsdf, RayQueue<ShadowState>& rays_out_shadow);
+    void connect(VCMState& cam_state, const Intersection& isect, BSDF* bsdf, MemoryArena& bsdf_arena, RayQueue<ShadowState>& rays_out_shadow);
     void vertex_merging(const VCMState& state, const Intersection& isect, const BSDF* bsdf, AtomicImage& img);
 
     void bounce(VCMState& state, const Intersection& isect, BSDF* bsdf, Ray& rays_out, bool adjoint);

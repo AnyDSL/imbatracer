@@ -5,55 +5,55 @@ import datetime
 
 # contains a dictionary of settings for every benchmark test
 bench_settings = [
-    {
-        'name': 'Cornell box',
-        'scene': 'scenes/cornell/cornell_org.scene',
-        'reference': 'references/ref_cornell_org.png',
-        'width': 1024,
-        'height': 1024,
-        'base_filename': 'cornell',
-        'args': ['-r', '0.003']
-    },
+    # {
+    #     'name': 'Cornell box',
+    #     'scene': 'scenes/cornell/cornell_org.scene',
+    #     'reference': 'references/ref_cornell_org.png',
+    #     'width': 1024,
+    #     'height': 1024,
+    #     'base_filename': 'cornell',
+    #     'args': ['-r', '0.003']
+    # },
 
-    {
-        'name': 'Cornell specular balls',
-        'scene': 'scenes/cornell/cornell_specular_front.scene',
-        'reference': 'references/ref_cornell_specular_front.png',
-        'width': 1024,
-        'height': 1024,
-        'base_filename': 'cornell_specular_front',
-        'args': ['-r', '0.003']
-    },
+    # {
+    #     'name': 'Cornell specular balls',
+    #     'scene': 'scenes/cornell/cornell_specular_front.scene',
+    #     'reference': 'references/ref_cornell_specular_front.png',
+    #     'width': 1024,
+    #     'height': 1024,
+    #     'base_filename': 'cornell_specular_front',
+    #     'args': ['-r', '0.003']
+    # },
 
-    {
-        'name': 'Cornell specular balls close',
-        'scene': 'scenes/cornell/cornell_specular.scene',
-        'reference': 'references/ref_cornell_specular.png',
-        'width': 1024,
-        'height': 1024,
-        'base_filename': 'cornell_specular',
-        'args': ['-r', '0.003']
-    },
+    # {
+    #     'name': 'Cornell specular balls close',
+    #     'scene': 'scenes/cornell/cornell_specular.scene',
+    #     'reference': 'references/ref_cornell_specular.png',
+    #     'width': 1024,
+    #     'height': 1024,
+    #     'base_filename': 'cornell_specular',
+    #     'args': ['-r', '0.003']
+    # },
 
-    {
-        'name': 'Cornell indirect',
-        'scene': 'scenes/cornell/cornell_indirect.scene',
-        'reference': 'references/ref_cornell_indirect.png',
-        'width': 1024,
-        'height': 1024,
-        'base_filename': 'cornell_indirect',
-        'args': ['-r', '0.003']
-    },
+    # {
+    #     'name': 'Cornell indirect',
+    #     'scene': 'scenes/cornell/cornell_indirect.scene',
+    #     'reference': 'references/ref_cornell_indirect.png',
+    #     'width': 1024,
+    #     'height': 1024,
+    #     'base_filename': 'cornell_indirect',
+    #     'args': ['-r', '0.003']
+    # },
 
-    {
-        'name': 'Cornell water',
-        'scene': 'scenes/cornell/cornell_water.scene',
-        'reference': 'references/ref_cornell_water.png',
-        'width': 1024,
-        'height': 1024,
-        'base_filename': 'cornell_water',
-        'args': ['-r', '0.003']
-    },
+    # {
+    #     'name': 'Cornell water',
+    #     'scene': 'scenes/cornell/cornell_water.scene',
+    #     'reference': 'references/ref_cornell_water.png',
+    #     'width': 1024,
+    #     'height': 1024,
+    #     'base_filename': 'cornell_water',
+    #     'args': ['-r', '0.003']
+    # },
 
     {
         'name': 'Sponza behind curtain',
@@ -96,7 +96,7 @@ for t in thread_counts:
 
 times_in_seconds = [60]
 algorithms = ['pt', 'vcm']
-convergence = True
+convergence = False
 convergence_step_sec = 5
 
 

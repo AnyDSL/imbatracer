@@ -24,6 +24,11 @@ struct RayState {
     RNG rng;
 };
 
+struct ShadowState {
+    int pixel_id;
+    rgb throughput;
+};
+
 #ifdef GPU_TRAVERSAL
 
 #define TRAVERSAL_DEVICE    thorin::Device(0)

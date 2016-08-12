@@ -169,11 +169,13 @@ public:
         , regen_threshold_(regen_threshold)
     {
         // Initialize the GPU buffer
-        RayQueue<StateType>::setup_device_buffer(queue_size * max_shadow_rays_per_hit);
+        RayQueue<StateType>::setup_device_buffer(queue_size);
+        RayQueue<ShadowState>::setup_device_buffer(queue_size * max_shadow_rays_per_hit);
     }
 
     ~QueueScheduler() noexcept(true) {
         RayQueue<StateType>::release_device_buffer();
+        RayQueue<ShadowState>::release_device_buffer();
     }
 
     void run_iteration(AtomicImage& out,
@@ -272,7 +274,7 @@ private:
     RayGen<StateType>& ray_gen_;
 
     RayQueuePool<StateType> primary_queue_pool_;
-    RayQueuePool<StateType> shadow_queue_pool_;
+    RayQueuePool<ShadowState> shadow_queue_pool_;
     tbb::task_group shading_tasks_;
 
     std::condition_variable cv_;

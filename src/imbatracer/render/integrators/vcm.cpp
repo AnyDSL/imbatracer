@@ -51,8 +51,8 @@ void VCM_INTEGRATOR::render(AtomicImage& img) {
 VCM_TEMPLATE
 void VCM_INTEGRATOR::trace_light_paths(AtomicImage& img) {
     scheduler_.run_iteration(img,
-        [this] (RayQueue<VCMState>& ray_in, AtomicImage& out) { process_shadow_rays(ray_in, out); },
-        [this] (RayQueue<VCMState>& ray_in, RayQueue<VCMState>& ray_out_shadow, AtomicImage& out) {
+        [this] (RayQueue<ShadowState>& ray_in, AtomicImage& out) { process_shadow_rays(ray_in, out); },
+        [this] (RayQueue<VCMState>& ray_in, RayQueue<ShadowState>& ray_out_shadow, AtomicImage& out) {
             process_light_rays(ray_in, ray_out_shadow, out);
         },
         [this] (int x, int y, ::Ray& ray_out, VCMState& state_out) {
@@ -94,8 +94,8 @@ void VCM_INTEGRATOR::trace_light_paths(AtomicImage& img) {
 VCM_TEMPLATE
 void VCM_INTEGRATOR::trace_camera_paths(AtomicImage& img) {
     scheduler_.run_iteration(img,
-        [this] (RayQueue<VCMState>& ray_in, AtomicImage& out) { process_shadow_rays(ray_in, out); },
-        [this] (RayQueue<VCMState>& ray_in, RayQueue<VCMState>& ray_out_shadow, AtomicImage& out) {
+        [this] (RayQueue<ShadowState>& ray_in, AtomicImage& out) { process_shadow_rays(ray_in, out); },
+        [this] (RayQueue<VCMState>& ray_in, RayQueue<ShadowState>& ray_out_shadow, AtomicImage& out) {
             process_camera_rays(ray_in, ray_out_shadow, out);
         },
         [this] (int x, int y, ::Ray& ray_out, VCMState& state_out) {
@@ -178,7 +178,7 @@ void VCM_INTEGRATOR::bounce(VCMState& state_out, const Intersection& isect, BSDF
 }
 
 VCM_TEMPLATE
-void VCM_INTEGRATOR::process_light_rays(RayQueue<VCMState>& rays_in, RayQueue<VCMState>& ray_out_shadow, AtomicImage& img) {
+void VCM_INTEGRATOR::process_light_rays(RayQueue<VCMState>& rays_in, RayQueue<ShadowState>& ray_out_shadow, AtomicImage& img) {
     VCMState* states = rays_in.states();
     const Hit* hits = rays_in.hits();
     Ray* rays = rays_in.rays();
@@ -234,7 +234,7 @@ void VCM_INTEGRATOR::process_light_rays(RayQueue<VCMState>& rays_in, RayQueue<VC
 
 VCM_TEMPLATE
 void VCM_INTEGRATOR::connect_to_camera(const VCMState& light_state, const Intersection& isect,
-                                       const BSDF* bsdf, RayQueue<VCMState>& ray_out_shadow) {
+                                       const BSDF* bsdf, RayQueue<ShadowState>& ray_out_shadow) {
     float3 dir_to_cam = cam_.pos() - isect.pos;
 
     if (dot(-dir_to_cam, cam_.dir()) < 0.0f)
@@ -242,7 +242,8 @@ void VCM_INTEGRATOR::connect_to_camera(const VCMState& light_state, const Inters
 
     const float2 raster_pos = cam_.world_to_raster(isect.pos);
 
-    VCMState state = light_state;
+    ShadowState state;
+    state.throughput = light_state.throughput;
     state.pixel_id = cam_.raster_to_id(raster_pos);
 
     if (state.pixel_id < 0 || state.pixel_id >= width_ * height_)
@@ -287,7 +288,7 @@ void VCM_INTEGRATOR::connect_to_camera(const VCMState& light_state, const Inters
 }
 
 VCM_TEMPLATE
-void VCM_INTEGRATOR::process_camera_rays(RayQueue<VCMState>& rays_in, RayQueue<VCMState>& ray_out_shadow, AtomicImage& img) {
+void VCM_INTEGRATOR::process_camera_rays(RayQueue<VCMState>& rays_in, RayQueue<ShadowState>& ray_out_shadow, AtomicImage& img) {
     VCMState* states = rays_in.states();
     const Hit* hits = rays_in.hits();
     Ray* rays = rays_in.rays();
@@ -368,7 +369,7 @@ void VCM_INTEGRATOR::process_camera_rays(RayQueue<VCMState>& rays_in, RayQueue<V
 }
 
 VCM_TEMPLATE
-void VCM_INTEGRATOR::direct_illum(VCMState& cam_state, const Intersection& isect, BSDF* bsdf, RayQueue<VCMState>& rays_out_shadow) {
+void VCM_INTEGRATOR::direct_illum(VCMState& cam_state, const Intersection& isect, BSDF* bsdf, RayQueue<ShadowState>& rays_out_shadow) {
     // Generate the shadow ray (sample one point on one lightsource)
     const auto& ls = scene_.light(cam_state.rng.random_int(0, scene_.light_count()));
     const float pdf_lightpick_inv = scene_.light_count();
@@ -399,14 +400,15 @@ void VCM_INTEGRATOR::direct_illum(VCMState& cam_state, const Intersection& isect
 
     const float mis_weight = algo == ALGO_PT ? 1.0f : (1.0f / (mis_weight_camera + 1.0f + mis_weight_light));
 
-    VCMState s = cam_state;
-    s.throughput *= mis_weight * bsdf_value * cos_theta_i * sample.radiance * pdf_lightpick_inv;
+    ShadowState s;
+    s.pixel_id = cam_state.pixel_id;
+    s.throughput = cam_state.throughput * mis_weight * bsdf_value * cos_theta_i * sample.radiance * pdf_lightpick_inv;
 
     rays_out_shadow.push(ray, s);
 }
 
 VCM_TEMPLATE
-void VCM_INTEGRATOR::connect(VCMState& cam_state, const Intersection& isect, BSDF* bsdf_cam, MemoryArena& bsdf_arena, RayQueue<VCMState>& rays_out_shadow) {
+void VCM_INTEGRATOR::connect(VCMState& cam_state, const Intersection& isect, BSDF* bsdf_cam, MemoryArena& bsdf_arena, RayQueue<ShadowState>& rays_out_shadow) {
     // PDF conversion factor from using the vertex cache.
     // Vertex Cache is equivalent to randomly sampling a path with pdf ~ path length and uniformly sampling a vertex on this path.
     const float vc_weight = (light_vertices_.count(cam_state.sample_id) / light_path_count_) / num_connections_;
@@ -467,8 +469,9 @@ void VCM_INTEGRATOR::connect(VCMState& cam_state, const Intersection& isect, BSD
 
         const float mis_weight = 1.0f / (mis_weight_camera + 1.0f + mis_weight_light);
 
-        VCMState s = cam_state;
-        s.throughput *= vc_weight * mis_weight * geom_term * bsdf_value_cam * bsdf_value_light * light_vertex.throughput;
+        ShadowState s;
+        s.pixel_id = cam_state.pixel_id;
+        s.throughput = cam_state.throughput * vc_weight * mis_weight * geom_term * bsdf_value_cam * bsdf_value_light * light_vertex.throughput;
 
         Ray ray {
             { isect.pos.x, isect.pos.y, isect.pos.z, offset },
@@ -516,8 +519,8 @@ void VCM_INTEGRATOR::vertex_merging(const VCMState& state, const Intersection& i
 }
 
 VCM_TEMPLATE
-void VCM_INTEGRATOR::process_shadow_rays(RayQueue<VCMState>& rays_in, AtomicImage& img) {
-    const VCMState* states = rays_in.states();
+void VCM_INTEGRATOR::process_shadow_rays(RayQueue<ShadowState>& rays_in, AtomicImage& img) {
+    const ShadowState* states = rays_in.states();
     const Hit* hits = rays_in.hits();
 
     tbb::parallel_for(tbb::blocked_range<int>(0, rays_in.size()),
