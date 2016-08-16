@@ -15,19 +15,17 @@ struct PhotonHashGrid {
     cell_size      : f32,
     inv_cell_size  : f32,
     photons_size   : i32,
-    indices_size   : i32,
-    cell_ends_size : i32,
+    hashtable_size      : i32, 
     bbox_min       : Float3,
     bbox_max       : Float3,
     
     indices        : &[i32],
-    cell_ends      : &[i32],
+    cnts           : &[i32], 
     photons        : &[f32],
 
     photons_buf    : Buffer,
     indices_buf    : Buffer,
-    cell_ends_buf  : Buffer,
-    result_buf     : Buffer,
+    cnts_buf       : Buffer,
 }
 
 struct RawDataInfo {
@@ -37,15 +35,14 @@ struct RawDataInfo {
 
 struct QueryResult {
     size   : i32,
-    data   : &[i32],
+    data   : &[i32]
 }
 
 struct BatchQueryResult {
-    size : i32,           // size of indices
     indices : &[i32],
-    offsets : &[i32],
-    indices_buf : Buffer, // indices for all queried photons
-    offsets_buf : Buffer  // prefix-sum of the number of queried photons for all query positions
+    rrw     : &[i32],
+    indices_buf : Buffer,
+    rrw_buf     : Buffer  
 }
 
 fn has_negative(a: Float3) -> bool {
@@ -92,7 +89,7 @@ fn cell_index(pos: Float3, bbox_min: Float3, inv_cell_size: f32, cell_ends_size:
     hash_func(coord.x as u32, coord.y as u32, coord.z as u32, cell_ends_size as u32)
 }
 
-fn iterate_neighbor_cells(query_pos: Float3, bbox_min: Float3, inv_cell_size: f32, body: fn(i32, i32, i32) -> ()) -> () {
+fn iterate_covered_cells(query_pos: Float3, bbox_min: Float3, inv_cell_size: f32, body: fn(i32, i32, i32) -> ()) -> () {
     let cell_x = inv_cell_size * (query_pos.x - bbox_min.x);
     let cell_y = inv_cell_size * (query_pos.y - bbox_min.y);
     let cell_z = inv_cell_size * (query_pos.z - bbox_min.z);
@@ -122,21 +119,32 @@ fn iterate_neighbor_cells(query_pos: Float3, bbox_min: Float3, inv_cell_size: f3
 }
 
 fn build(mut hg: &PhotonHashGrid) -> () {
-    let cnt_buf  = alloc_buf(hg.cell_ends_size * sizeof[i32]()); 
-    let pos_buf  = alloc_buf(hg.photons_size * sizeof[i32]()); 
-    let hash_buf = alloc_buf(hg.photons_size * sizeof[i32]());
-    let mut cnts   = bitcast[&[i32]](cnt_buf.data);
-    let mut poses  = bitcast[&[i32]](pos_buf.data);
-    let mut hashes = bitcast[&[i32]](hash_buf.data);
+    //let start_time = thorin_get_micro_time();
     
-    let photons       = hg.photons;
-    let mut indices   = hg.indices;
-    let mut cell_ends = hg.cell_ends;
-
+    let photons        = hg.photons;
+    let mut indices    = hg.indices;
+    let mut cnts       = hg.cnts;
     let photons_size   = hg.photons_size;
-    let cell_ends_size = hg.cell_ends_size;
+    let hashtable_size = hg.hashtable_size;
     let inv_cell_size  = hg.inv_cell_size;
     
+    let offset_buf = alloc_buf(hashtable_size * sizeof[i32]()); 
+    let pos_buf    = alloc_buf(photons_size * sizeof[i32]()); 
+    let hash_buf   = alloc_buf(photons_size * sizeof[i32]());
+    let rand_buf   = alloc_cpu(hashtable_size * sizeof[f32]()); 
+    let complete_indices_buf = alloc_buf(photons_size * sizeof[i32]());
+    
+    let offsets      = bitcast[&[i32]](offset_buf.data);
+    let mut poses    = bitcast[&[i32]](pos_buf.data);
+    let mut hashes   = bitcast[&[i32]](hash_buf.data);
+    let mut rands    = bitcast[&[f32]](rand_buf.data);
+    let mut cindices = bitcast[&[i32]](complete_indices_buf.data);
+    
+    //thorin_random_seed(thorin_get_micro_time() as u32);
+    for i in range(0, hashtable_size) {
+        rands(i) = thorin_random_val();
+    } 
+
     for bbox_min, bbox_max in compute_bbox(photons, photons_size) {
         hg.bbox_min.x = bbox_min.x;
         hg.bbox_min.y = bbox_min.y;
@@ -146,8 +154,9 @@ fn build(mut hg: &PhotonHashGrid) -> () {
         hg.bbox_max.z = bbox_max.z;
     }  
 
-    for i in iterate(0, cell_ends_size) {
+    for i in iterate(0, hashtable_size) {
         cnts(i) = 0;
+        //indices(i) = -1;
     } 
 
     let bbox_min = hg.bbox_min;
@@ -158,58 +167,75 @@ fn build(mut hg: &PhotonHashGrid) -> () {
             y : photons(3 * i + 1),
             z : photons(3 * i + 2)
         };
-        let hash  = cell_index(pos, bbox_min, inv_cell_size, cell_ends_size);
+        let hash  = cell_index(pos, bbox_min, inv_cell_size, hashtable_size);
         hashes(i) = hash;
         poses(i)  = atomic_add(&(cnts(hash)), 1);
+        // random writes version which is tested being not uniformly distributed
+        //indices(hash) = i;
+        //atomic_add(&(cnts(hash)), 1);
     }
 
-    exclusive_prefix_sum(cnts, cell_ends, cell_ends_size);
+    exclusive_prefix_sum(cnts, offsets, hashtable_size);
 
     for i in iterate(0, photons_size) {
-        indices(poses(i) + cell_ends(hashes(i))) = i;
+        cindices(poses(i) + offsets(hashes(i))) = i;
     }
 
-    for i in iterate(0, cell_ends_size) {
-        cell_ends(i) += cnts(i);
+    for rand_seq_buf in use_host_buf_as(rand_buf, hashtable_size * sizeof[f32]()) {
+        let rand_seq = bitcast[&[f32]](rand_seq_buf.data);
+        for i in iterate(0, hashtable_size) {
+            // use prn seq to choose only one photon for each hash bucket
+            let cnt = cnts(i);
+            if (cnt == 0) {
+                indices(i) = -1;
+            }
+            else {
+                indices(i) = cindices(offsets(i) + (floorf32(cnt as f32 * rand_seq(i)) as i32));
+            }
+        }
     }
 
-    release(cnt_buf);
+    release(offset_buf);
     release(pos_buf);
     release(hash_buf);
+    release(rand_buf);
+    release(complete_indices_buf);
+
+    //print_string("Time to build the hashgrid: ");
+    //print_int((thorin_get_micro_time() - start_time) as i32);
+    //print_string("\n");
 }
 
 fn batch_query(hg: &PhotonHashGrid, query_poses: &[f32], size: i32) -> &BatchQueryResult {
+    //let start_time = thorin_get_micro_time();
+    
     let radius_sqr     = hg.radius_sqr;
-    let cell_ends_size = hg.cell_ends_size;
+    let hashtable_size = hg.hashtable_size;
     let inv_cell_size  = hg.inv_cell_size;
     let bbox_min       = hg.bbox_min;
     let bbox_max       = hg.bbox_max;
-    let cell_ends      = hg.cell_ends; 
+    let cnts           = hg.cnts; 
     let indices        = hg.indices; 
     let photons        = hg.photons; 
     
-    let MAX_SIZE = 1024; // max size of output photons of each query
-    let batch_buf  = alloc_buf(MAX_SIZE * size * sizeof[i32]());
-    let sizes_buf  = alloc_buf(size * sizeof[i32]());
-    let mut sizes  = bitcast[&[i32]](sizes_buf.data);
+    let batch_buf  = alloc_buf(8 * size * sizeof[i32]());
+    let rrw_buf    = alloc_buf(8 * size * sizeof[i32]());
+    let mut rrw    = bitcast[&[i32]](rrw_buf.data);
     let mut batch  = bitcast[&[i32]](batch_buf.data);
     
-    for i in iterate(0, size) {
-        sizes(i) = 0;
-        let offset = i * MAX_SIZE;
+    for i in iterate(0, size) @{
+        let offset = i * 8;
         let query_pos = Float3 { x : query_poses(i * 3),
                                  y : query_poses(i * 3 + 1),
                                  z : query_poses(i * 3 + 2) };
+        let mut stride = &(batch(offset)) as &simd[i32 * 8];
+        *stride = simd[-1, -1, -1, -1, -1, -1, -1, -1]; 
         if (!is_query_out_of_bbox(query_pos, bbox_min, bbox_max)) {
-            for x, y, z in iterate_neighbor_cells(query_pos, bbox_min, inv_cell_size) {
-                let cell_idx = hash_func(x as u32, y as u32, z as u32, cell_ends_size as u32);
-                let mut start = 0;
-                let end = cell_ends(cell_idx);
-                if ( cell_idx > 0) {
-                    start = cell_ends(cell_idx - 1);
-                }
-                for j in range(start, end) {
-                    let photon_idx = indices(j);
+            let mut cnt = 0;
+            for x, y, z in iterate_covered_cells(query_pos, bbox_min, inv_cell_size) {
+                let hash = hash_func(x as u32, y as u32, z as u32, hashtable_size as u32);
+                let photon_idx = indices(hash);
+                if (photon_idx != -1) { 
                     let px = photons(photon_idx * 3); 
                     let py = photons(photon_idx * 3 + 1); 
                     let pz = photons(photon_idx * 3 + 2);
@@ -217,64 +243,44 @@ fn batch_query(hg: &PhotonHashGrid, query_poses: &[f32], size: i32) -> &BatchQue
                     let dy = query_pos.y - py;
                     let dz = query_pos.z - pz;
                     let dist_sqr = dx * dx + dy * dy + dz * dz;
+                    let idx = offset + cnt;
                     if (dist_sqr <= radius_sqr) {
-                        if (sizes(i) < MAX_SIZE) {
-                            batch(offset + (sizes(i)++)) = photon_idx;
-                        } 
-                    }                   
+                        batch(idx) = photon_idx;
+                        rrw(idx) = cnts(hash);
+                    }
                 }
+                cnt++;
             }
         }
     }
-
-    let offsets_buf = alloc_buf(size * sizeof[i32]());
-    let offsets     = bitcast[&[i32]](offsets_buf.data);
-//print_string("before_scan\n");
-    exclusive_prefix_sum(sizes, offsets, size);
-//print_string("after_scan\n");
 
     let mut retval : &BatchQueryResult;
 
-    for host_sizes_buf in use_buf_on_cpu(sizes_buf, size * sizeof[i32]()) {
-        let output_offsets_buf = alloc_cpu(size * sizeof[i32]());
-
-        copy(offsets_buf, output_offsets_buf, size * sizeof[i32]());
-        
-        let output_size = bitcast[&[i32]](host_sizes_buf.data)(size - 1) + bitcast[&[i32]](output_offsets_buf.data)(size - 1);
-        
-        let output_indices_buf = alloc_cpu(output_size * sizeof[i32]());
-
-        let output_offsets = bitcast[&[i32]](output_offsets_buf.data);
-        let host_sizes     = bitcast[&[i32]](host_sizes_buf.data);
-        for i in range(0, size) {
-            if (host_sizes(i) > 0) {
-                copy_offset(batch_buf, i * MAX_SIZE * sizeof[i32](), output_indices_buf, output_offsets(i) * sizeof[i32](), host_sizes(i) * sizeof[i32]());
-            }
-            //if (host_sizes(i) >= 1024) { abort(); }
-        }         
-
-        retval = ~BatchQueryResult {
-            size : output_size,
-            indices : bitcast[&[i32]](output_indices_buf.data),
-            offsets : bitcast[&[i32]](output_offsets_buf.data),
-            indices_buf : output_indices_buf,
-            offsets_buf : output_offsets_buf
+    for output_rrw_buf in output_as_host_buf(rrw_buf, 8 * size * sizeof[i32]()) {
+        for output_indices_buf in output_as_host_buf(batch_buf, 8 * size * sizeof[i32]()) {         
+            retval = ~BatchQueryResult {
+                indices : bitcast[&[i32]](output_indices_buf.data),
+                rrw     : bitcast[&[i32]](output_rrw_buf.data),
+                indices_buf : output_indices_buf,
+                rrw_buf     : output_rrw_buf
+            };
         }
     }
 
-    //
-    release(sizes_buf);
-    release(offsets_buf);
-    release(batch_buf);
-
+    //print_string("Total time to batch query the hashgrid: ");
+    //print_int((thorin_get_micro_time() - start_time) as i32);
+    //print_string(" among ");
+    //print_int(size);
+    //print_string(" queries");
+    //print_string("\n");
+    
     retval
 } 
 
 extern fn destroy_hashgrid(hg: &PhotonHashGrid) -> () {
     release((*hg).photons_buf);
     release((*hg).indices_buf);
-    release((*hg).cell_ends_buf);
-    release((*hg).result_buf);
+    release((*hg).cnts_buf);
 }
 
 extern fn release_query(arr: &QueryResult) -> () {
@@ -282,5 +288,5 @@ extern fn release_query(arr: &QueryResult) -> () {
 
 extern fn release_batch_query(query: &BatchQueryResult) -> () {
     release((*query).indices_buf);
-    release((*query).offsets_buf);
+    release((*query).rrw_buf);
 }

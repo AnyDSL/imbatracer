@@ -26,9 +26,9 @@ fn compute_bbox(photons: &[f32], size: i32, body: fn(Float3, Float3)->()) -> () 
 
 // Interfaces
 extern fn build_hashgrid(info: &RawDataInfo, photon_cnt: i32, cell_size: i32, rad: f32) -> &PhotonHashGrid {
-    let indices_buf   = alloc_cpu(photon_cnt * sizeof[i32]());
-    let cell_ends_buf = alloc_cpu(cell_size * sizeof[i32]());
-    let photons_buf   = alloc_cpu(photon_cnt * 3 * sizeof[f32]());
+    let indices_buf = alloc_cpu(cell_size * sizeof[i32]());
+    let cnts_buf    = alloc_cpu(cell_size * sizeof[i32]());
+    let photons_buf = alloc_cpu(photon_cnt * 3 * sizeof[f32]());
 
     let mut ptr_photons = bitcast[&[f32]](photons_buf.data);
     for i in range (0, photon_cnt) {
@@ -43,19 +43,17 @@ extern fn build_hashgrid(info: &RawDataInfo, photon_cnt: i32, cell_size: i32, ra
         cell_size      : rad * 2.f,
         inv_cell_size  : 1.f / (rad * 2.f),
         photons_size   : photon_cnt,
-        indices_size   : photon_cnt,
-        cell_ends_size : cell_size,
+        hashtable_size : cell_size,
         bbox_min       : Float3 { x:1e36f,  y:1e36f,  z:1e36f },
         bbox_max       : Float3 { x:-1e36f, y:-1e36f, z:-1e36f },
         
         indices        : bitcast[&[i32]](indices_buf.data),
-        cell_ends      : bitcast[&[i32]](cell_ends_buf.data),
+        cnts           : bitcast[&[i32]](cnts_buf.data),
         photons        : bitcast[&[f32]](photons_buf.data),     
 
         photons_buf    : photons_buf,
         indices_buf    : indices_buf,
-        cell_ends_buf  : cell_ends_buf,
-        result_buf     : alloc_cpu(photon_cnt * sizeof[i32]()),
+        cnts_buf       : cnts_buf,
     };
     
     build(hg);

@@ -2,8 +2,12 @@ fn alloc_buf(size: i32) -> Buffer {
     alloc_cpu(size)
 }
 
-fn use_buf_on_cpu(origin_buf: Buffer, size: i32, body: fn(Buffer) -> ()) -> () {
+fn output_as_host_buf(origin_buf: Buffer, size: i32, body: fn(Buffer) -> ()) -> () {
     body(origin_buf);
+}
+
+fn use_host_buf_as(host_buf: Buffer, size: i32, body: fn(Buffer) -> ()) -> () {
+    body(host_buf);
 }
 
 fn iterate(start: i32, end: i32, body: fn(i32) -> ()) -> () {

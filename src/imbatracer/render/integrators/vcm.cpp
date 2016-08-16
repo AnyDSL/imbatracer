@@ -523,13 +523,12 @@ void VCM_INTEGRATOR::vertex_merging(VCMState* states, Intersection* intersection
     // TODO only work for 1 concurrent spp atm
     const int sample_id = states[0].sample_id;
     BatchQueryResult* result = light_vertices_.get_merge(sample_id, isect_poses.data(), query_count);
-    int output_size = result->size;
     int* indices = result->indices;
-    int* offsets = result->offsets;
+    int* rrw     = result->rrw;
 
     //
     const float radius_sqr = pm_radius_ * pm_radius_;
-    tbb::parallel_for(tbb::blocked_range<size_t>(0, query_count), [this, radius_sqr, output_size, query_count, sample_id, indices, offsets, new_states, new_intersections, &img] (const tbb::blocked_range<size_t>& range) {  
+    tbb::parallel_for(tbb::blocked_range<size_t>(0, query_count), [this, radius_sqr, query_count, sample_id, indices, rrw, new_states, new_intersections, &img] (const tbb::blocked_range<size_t>& range) {  
         auto& bsdf_mem_arena = bsdf_memory_arenas.local();
         for (size_t i = range.begin(); i != range.end(); ++i) {
             bsdf_mem_arena.free_all();
@@ -539,18 +538,12 @@ void VCM_INTEGRATOR::vertex_merging(VCMState* states, Intersection* intersection
             
             // TODO only work for 1 consurrect spp atm
             assert(state->sample_id == sample_id);
-
-            int start = offsets[i];
-            int end;
-            if (i < query_count - 1) {
-                end = offsets[i + 1];
-            }
-            else
-                end = output_size;
-                
+               
             rgb contrib(0.0f);
-            for (int i = start; i < end; ++i) {
-                PhotonIterator pi = std::next(light_vertices_.begin(sample_id), indices[i]);
+            for (int j = 0; j < 8; ++j) {
+                int idx = indices[8 * i + j];
+                if (idx == -1) continue;
+                PhotonIterator pi = std::next(light_vertices_.begin(sample_id), idx);
                 VCMPhoton p2 = VCMPhoton(*pi);
                 VCMPhoton* p = &p2;
 
@@ -572,7 +565,8 @@ void VCM_INTEGRATOR::vertex_merging(VCMState* states, Intersection* intersection
                 // Epanechnikov filter
                 const float kernel = 1.0f - dot(isect->pos - p->position, isect->pos - p->position) / radius_sqr;
 
-                contrib += mis_weight * bsdf_value * kernel * p->throughput;
+                contrib += mis_weight * bsdf_value * kernel * p->throughput * rrw[8 * i + j];
+                //std::cout << rrw[8*i+j] << std::endl;
             }
             add_contribution(img, state->pixel_id, state->throughput * contrib * vm_normalization_ * 2.0f); // Factor 2.0f is part of the Epanechnikov filter
         }

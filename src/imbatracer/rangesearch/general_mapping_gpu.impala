@@ -2,9 +2,16 @@ fn alloc_buf(size: i32) -> Buffer {
     acc_alloc(acc_dev(), size)
 }
 
-fn use_buf_on_cpu(origin_buf: Buffer, size: i32, body: fn(Buffer) -> ()) -> () {
+fn output_as_host_buf(origin_buf: Buffer, size: i32, body: fn(Buffer) -> ()) -> () {
     let buf = alloc_cpu(size);
     copy(origin_buf, buf, size);
+    body(buf);
+    release(origin_buf); // release related device buffer
+}
+
+fn use_host_buf_as(host_buf: Buffer, size: i32, body: fn(Buffer) -> ()) -> () {
+    let buf = acc_alloc(acc_dev(), size);
+    copy(host_buf, buf, size);
     body(buf);
     release(buf);
 }
