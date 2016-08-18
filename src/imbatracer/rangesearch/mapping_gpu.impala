@@ -60,6 +60,8 @@ extern fn build_hashgrid(info: &RawDataInfo, photon_cnt: i32, cell_size: i32, ra
         photons_buf    : photons_buf2,
         indices_buf    : indices_buf,
         cnts_buf       : cnts_buf,
+    
+        time_count     : 0i64
     };
 
     build(hg);

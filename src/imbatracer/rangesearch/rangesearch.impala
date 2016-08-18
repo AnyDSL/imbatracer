@@ -1,3 +1,7 @@
+extern "C" {
+    fn rand() -> i32;
+}
+
 struct Float3 {
     x : f32,
     y : f32,
@@ -15,7 +19,7 @@ struct PhotonHashGrid {
     cell_size      : f32,
     inv_cell_size  : f32,
     photons_size   : i32,
-    hashtable_size      : i32, 
+    hashtable_size : i32, 
     bbox_min       : Float3,
     bbox_max       : Float3,
     
@@ -26,6 +30,8 @@ struct PhotonHashGrid {
     photons_buf    : Buffer,
     indices_buf    : Buffer,
     cnts_buf       : Buffer,
+
+    time_count     : i64
 }
 
 struct RawDataInfo {
@@ -119,8 +125,11 @@ fn iterate_covered_cells(query_pos: Float3, bbox_min: Float3, inv_cell_size: f32
 }
 
 fn build(mut hg: &PhotonHashGrid) -> () {
-    //let start_time = thorin_get_micro_time();
-    
+//print_string("Time to build the hashgrid: ");
+//let start_time = thorin_get_micro_time();
+//let mut prev_time = start_time;
+//let mut tmp_time = 0i64;
+
     let photons        = hg.photons;
     let mut indices    = hg.indices;
     let mut cnts       = hg.cnts;
@@ -131,19 +140,30 @@ fn build(mut hg: &PhotonHashGrid) -> () {
     let offset_buf = alloc_buf(hashtable_size * sizeof[i32]()); 
     let pos_buf    = alloc_buf(photons_size * sizeof[i32]()); 
     let hash_buf   = alloc_buf(photons_size * sizeof[i32]());
-    let rand_buf   = alloc_cpu(hashtable_size * sizeof[f32]()); 
+    let rand_buf   = alloc_cpu(hashtable_size * sizeof[i32]()); 
     let complete_indices_buf = alloc_buf(photons_size * sizeof[i32]());
     
     let offsets      = bitcast[&[i32]](offset_buf.data);
     let mut poses    = bitcast[&[i32]](pos_buf.data);
     let mut hashes   = bitcast[&[i32]](hash_buf.data);
-    let mut rands    = bitcast[&[f32]](rand_buf.data);
+    let mut rands    = bitcast[&[i32]](rand_buf.data);
     let mut cindices = bitcast[&[i32]](complete_indices_buf.data);
-    
+
+//tmp_time = thorin_get_micro_time();
+//print_int((tmp_time - prev_time) as i32);
+//print_char('/');
+//prev_time = tmp_time;
+
     //thorin_random_seed(thorin_get_micro_time() as u32);
     for i in range(0, hashtable_size) {
-        rands(i) = thorin_random_val();
+        //rands(i) = thorin_random_val(); // this use std::mt19937 takes 10x times as c rand() but better distribution
+        rands(i) = rand(); // this is faster
     } 
+
+//tmp_time = thorin_get_micro_time();
+//print_int((tmp_time - prev_time) as i32);
+//print_char('/');
+//prev_time = tmp_time;
 
     for bbox_min, bbox_max in compute_bbox(photons, photons_size) {
         hg.bbox_min.x = bbox_min.x;
@@ -154,11 +174,21 @@ fn build(mut hg: &PhotonHashGrid) -> () {
         hg.bbox_max.z = bbox_max.z;
     }  
 
+//tmp_time = thorin_get_micro_time();
+//print_int((tmp_time - prev_time) as i32);
+//print_char('/');
+//prev_time = tmp_time;
+    
     for i in iterate(0, hashtable_size) {
         cnts(i) = 0;
         //indices(i) = -1;
     } 
 
+//tmp_time = thorin_get_micro_time();
+//print_int((tmp_time - prev_time) as i32);
+//print_char('/');
+//prev_time = tmp_time;
+    
     let bbox_min = hg.bbox_min;
 
     for i in iterate(0, photons_size) {
@@ -175,14 +205,29 @@ fn build(mut hg: &PhotonHashGrid) -> () {
         //atomic_add(&(cnts(hash)), 1);
     }
 
+//tmp_time = thorin_get_micro_time();
+//print_int((tmp_time - prev_time) as i32);
+//print_char('/');
+//prev_time = tmp_time;
+    
     exclusive_prefix_sum(cnts, offsets, hashtable_size);
 
+//tmp_time = thorin_get_micro_time();
+//print_int((tmp_time - prev_time) as i32);
+//print_char('/');
+//prev_time = tmp_time;
+    
     for i in iterate(0, photons_size) {
         cindices(poses(i) + offsets(hashes(i))) = i;
     }
 
-    for rand_seq_buf in use_host_buf_as(rand_buf, hashtable_size * sizeof[f32]()) {
-        let rand_seq = bitcast[&[f32]](rand_seq_buf.data);
+//tmp_time = thorin_get_micro_time();
+//print_int((tmp_time - prev_time) as i32);
+//print_char('/');
+//prev_time = tmp_time;
+    
+    for rand_seq_buf in use_host_buf_as(rand_buf, hashtable_size * sizeof[i32]()) {
+        let rand_seq = bitcast[&[i32]](rand_seq_buf.data);
         for i in iterate(0, hashtable_size) {
             // use prn seq to choose only one photon for each hash bucket
             let cnt = cnts(i);
@@ -190,24 +235,31 @@ fn build(mut hg: &PhotonHashGrid) -> () {
                 indices(i) = -1;
             }
             else {
-                indices(i) = cindices(offsets(i) + (floorf32(cnt as f32 * rand_seq(i)) as i32));
+                indices(i) = cindices(offsets(i) + (rand_seq(i) % cnt));
             }
         }
     }
 
+//tmp_time = thorin_get_micro_time();
+//print_int((tmp_time - prev_time) as i32);
+//print_char('/');
+//prev_time = tmp_time;
+    
     release(offset_buf);
     release(pos_buf);
     release(hash_buf);
     release(rand_buf);
     release(complete_indices_buf);
 
-    //print_string("Time to build the hashgrid: ");
-    //print_int((thorin_get_micro_time() - start_time) as i32);
-    //print_string("\n");
+//tmp_time = thorin_get_micro_time();
+//print_int((tmp_time - prev_time) as i32);
+//print_string("->");
+//print_int((thorin_get_micro_time() - start_time) as i32);
+//print_string("\n");
 }
 
-fn batch_query(hg: &PhotonHashGrid, query_poses: &[f32], size: i32) -> &BatchQueryResult {
-    //let start_time = thorin_get_micro_time();
+fn batch_query(mut hg: &PhotonHashGrid, query_poses: &[f32], size: i32) -> &BatchQueryResult {
+//let start_time = thorin_get_micro_time();
     
     let radius_sqr     = hg.radius_sqr;
     let hashtable_size = hg.hashtable_size;
@@ -267,13 +319,8 @@ fn batch_query(hg: &PhotonHashGrid, query_poses: &[f32], size: i32) -> &BatchQue
         }
     }
 
-    //print_string("Total time to batch query the hashgrid: ");
-    //print_int((thorin_get_micro_time() - start_time) as i32);
-    //print_string(" among ");
-    //print_int(size);
-    //print_string(" queries");
-    //print_string("\n");
-    
+//hg.time_count += thorin_get_micro_time() - start_time;
+
     retval
 } 
 

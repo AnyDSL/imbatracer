@@ -37,6 +37,7 @@ struct PhotonHashGrid {
     struct Buffer photons_buf;
     struct Buffer indices_buf;
     struct Buffer cnts_buf;
+    long long time_count;
 };
 
 struct QueryResult {

@@ -30,6 +30,8 @@ public:
 
     HashGrid() : hg(nullptr) {}
 
+    int64_t get_query_time_count() { if (hg) return hg->time_count; return -1; }
+    
     void build(const Iter& photons_begin, const Iter& photons_end, float radius) {
         std::lock_guard<std::mutex> lock(traversal_mutex);
         if (hg) {
