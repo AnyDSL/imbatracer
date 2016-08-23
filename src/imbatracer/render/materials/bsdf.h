@@ -64,7 +64,7 @@ public:
     }
 
     virtual float pdf(const float3& out_dir, const float3& in_dir) const {
-        return same_hemisphere(out_dir, in_dir) ? cos_hemisphere_pdf(in_dir) : 0.0f;
+        return same_hemisphere(out_dir, in_dir) ? cos_hemisphere_pdf(in_dir.z) : 0.0f;
     }
 
     /// Returns the desired probability for importance sampling when choosing between BRDF and BTDF.

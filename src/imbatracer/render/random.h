@@ -78,11 +78,11 @@ inline float3 spherical_dir(float sintheta, float costheta, float phi) {
 
 inline DirectionSample sample_cos_hemisphere(float u1, float u2) {
     const float3 local_dir = spherical_dir(sqrtf(1 - u2), sqrtf(u2), 2.f * pi * u1);
-    return DirectionSample(local_dir, local_dir.z * 1.0f / pi);
+    return DirectionSample(local_dir, local_dir.z / pi);
 }
 
-inline float cos_hemisphere_pdf(const float3& dir) {
-    return fabsf(dir.z) * 1.0f / pi;
+inline float cos_hemisphere_pdf(float cos) {
+    return fabsf(cos) / pi;
 }
 
 inline DirectionSample sample_power_cos_hemisphere(float power, float u1, float u2) {
@@ -172,7 +172,7 @@ inline DirectionSample sample_uniform_cone(float angle, float cos_angle, float u
     const float cos_t = 1.0f - u2 * (1.0f - cos_angle);
     const float sin_t = sqrtf(1.0f - cos_t * cos_t);
     const float3 local_dir = spherical_dir(sin_t, cos_t, phi);
-    return DirectionSample(local_dir, 1.0f / (4.0f * pi * sqr(sinf(0.5f * angle))));
+    return DirectionSample(local_dir, 1.0f / (4.0f * pi * (1 - cos_angle) * 0.5f));
 }
 
 inline float uniform_cone_pdf(float angle, float cos_angle, float cos) {

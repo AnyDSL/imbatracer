@@ -36,7 +36,7 @@ struct AreaEmitter {
         auto local_out_dir = float3(dot(binormal, out_dir),
                                     dot(tangent, out_dir),
                                     dot(normal, out_dir));
-        pdf_emit_w   = 1.0f / area * cos_hemisphere_pdf(local_out_dir);
+        pdf_emit_w   = 1.0f / area * cos_hemisphere_pdf(local_out_dir.z);
 
         return intensity;
     }
@@ -163,7 +163,7 @@ public:
             sample.radiance = emit_.intensity * cos_out * (emit_.area / distsq);
 
             sample.cos_out      = cos_out;
-            sample.pdf_emit_w   = (cos_out * 1.0f / pi) / emit_.area;
+            sample.pdf_emit_w   = cos_hemisphere_pdf(cos_out) / emit_.area;
             sample.pdf_direct_w = 1.0f / emit_.area * distsq / cos_out;
         } else {
             sample.radiance = rgb(0.0f);
@@ -306,14 +306,13 @@ public:
         sample.pos      = pos_;
 
         auto dir_sample = sample_uniform_cone(angle_, cos_angle_, rng.random_float(), rng.random_float());
+        sample.cos_out = dir_sample.dir.z;
         sample.dir = dir_sample.dir.z * normal_ + dir_sample.dir.x * tangent_ + dir_sample.dir.y * binormal_;
 
         sample.radiance = intensity_;
 
         sample.pdf_direct_a = 1.0f;
         sample.pdf_emit_w   = dir_sample.pdf;
-
-        sample.cos_out = dir_sample.dir.z;
 
         return sample;
     }
@@ -324,12 +323,13 @@ public:
         const float dist   = sqrtf(sqdist);
         dir *= 1.0f / dist;
 
+        const float cos_o = -dot(dir, normal_);
+
         DirectIllumSample sample;
         sample.dir       = dir;
         sample.distance  = dist;
-        sample.pdf_direct_w = sqdist;
+        sample.pdf_direct_w = sqdist / cos_o;
 
-        const float cos_o = -dot(dir, normal_);
         sample.radiance   = cos_o < cos_angle_ ? rgb(0.0f) : intensity_ / (4.0f * pi * sqdist);
         sample.pdf_emit_w = uniform_cone_pdf(angle_, cos_angle_, cos_o);
         sample.cos_out = cos_o;
