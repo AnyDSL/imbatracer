@@ -115,16 +115,15 @@ public:
 
         // Sample an outgoing direction
         DirectionSample dir_sample = sample_cos_hemisphere(rng.random_float(), rng.random_float());
-        const auto world_dir = dir_sample.dir.x * binormal_ +
-                               dir_sample.dir.y * tangent_ +
-                               dir_sample.dir.z * normal_;
+        sample.dir = dir_sample.dir.x * binormal_ +
+                     dir_sample.dir.y * tangent_ +
+                     dir_sample.dir.z * normal_;
         const float cos_out = dir_sample.dir.z;
 
         if (dir_sample.pdf <= 0.0f) {
             // pdf and cosine are zero! In theory impossible, but happens roughly once in a thousand frames in practice.
             // To prevent NaNs (cosine and pdf are divided by each other for the MIS weight), set values appropriately.
             // Numerical inaccuracies also cause this issue if the cosine is almost zero and the division by pi turns the pdf into zero
-            sample.dir = world_dir;
             sample.radiance = rgb(0.0f);
             sample.cos_out = 0.0f;
             sample.pdf_emit_w = 1.0f;
@@ -132,7 +131,6 @@ public:
             return sample;
         }
 
-        sample.dir      = world_dir;
         sample.radiance = emit_.intensity * emit_.area * pi; // The cosine cancels out with the pdf
 
         sample.cos_out      = cos_out;
@@ -305,11 +303,13 @@ public:
 
         sample.pos      = pos_;
 
-        auto dir_sample = sample_uniform_cone(angle_, cos_angle_, rng.random_float(), rng.random_float());
-        sample.cos_out = dir_sample.dir.z;
-        sample.dir = dir_sample.dir.z * normal_ + dir_sample.dir.x * tangent_ + dir_sample.dir.y * binormal_;
+        auto dir_sample = sample_uniform_cone(cos_angle_, rng.random_float(), rng.random_float());
+        sample.cos_out = 1.0f;
+        sample.dir = dir_sample.dir.x * binormal_ +
+                     dir_sample.dir.y * tangent_ +
+                     dir_sample.dir.z * normal_;
 
-        sample.radiance = intensity_;
+        sample.radiance = intensity_ / dir_sample.pdf;
 
         sample.pdf_direct_a = 1.0f;
         sample.pdf_emit_w   = dir_sample.pdf;
@@ -328,11 +328,17 @@ public:
         DirectIllumSample sample;
         sample.dir       = dir;
         sample.distance  = dist;
-        sample.pdf_direct_w = sqdist / cos_o;
+        sample.pdf_direct_w = sqdist; // 1 * sqdist / 1
 
-        sample.radiance   = cos_o < cos_angle_ ? rgb(0.0f) : intensity_ / (4.0f * pi * sqdist);
-        sample.pdf_emit_w = uniform_cone_pdf(angle_, cos_angle_, cos_o);
-        sample.cos_out = cos_o;
+        if (cos_o < cos_angle_) {
+            sample.radiance   = rgb(0.0f);
+            sample.pdf_emit_w = 0.0f;
+        } else {
+            sample.radiance   = intensity_ / sqdist;
+            sample.pdf_emit_w = uniform_cone_pdf(cos_angle_, cos_o);
+        }
+
+        sample.cos_out = 1.0f;
 
         return sample;
     }

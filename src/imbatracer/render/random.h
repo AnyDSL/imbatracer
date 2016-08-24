@@ -167,16 +167,16 @@ inline float concentric_disc_pdf() {
     return 1.0f / pi;
 }
 
-inline DirectionSample sample_uniform_cone(float angle, float cos_angle, float u1, float u2) {
+inline DirectionSample sample_uniform_cone(float cos_angle, float u1, float u2) {
     const float phi = 2.0f * pi * u1;
     const float cos_t = 1.0f - u2 * (1.0f - cos_angle);
     const float sin_t = sqrtf(1.0f - cos_t * cos_t);
     const float3 local_dir = spherical_dir(sin_t, cos_t, phi);
-    return DirectionSample(local_dir, 1.0f / (4.0f * pi * (1 - cos_angle) * 0.5f));
+    return DirectionSample(local_dir, 1.0f / (2.0f * pi * (1 - cos_angle)));
 }
 
-inline float uniform_cone_pdf(float angle, float cos_angle, float cos) {
-    return cos < cos_angle ? 0.0f : 1.0f / (4.0f * pi * sqr(sinf(0.5f * angle)));
+inline float uniform_cone_pdf(float cos_angle, float cos) {
+    return cos < cos_angle ? 0.0f : 1.0f / (2.0f * pi * (1 - cos_angle));
 }
 
 inline bool russian_roulette(const rgb& throughput, float rnd_num, float& pdf) {
