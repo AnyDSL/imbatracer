@@ -183,7 +183,7 @@ void VCM_INTEGRATOR::process_light_rays(RayQueue<VCMState>& rays_in, RayQueue<Sh
     const Hit* hits = rays_in.hits();
     Ray* rays = rays_in.rays();
 
-    compact_hits(scene_, rays_in);
+    rays_in.compact_hits();
 
     tbb::parallel_for(tbb::blocked_range<int>(0, rays_in.size()), [&] (const tbb::blocked_range<int>& range) {
         auto& bsdf_mem_arena = bsdf_memory_arenas.local();
@@ -229,7 +229,7 @@ void VCM_INTEGRATOR::process_light_rays(RayQueue<VCMState>& rays_in, RayQueue<Sh
         }
     });
 
-    compact_rays(scene_, rays_in);
+    rays_in.compact_rays();
 }
 
 VCM_TEMPLATE
@@ -293,7 +293,7 @@ void VCM_INTEGRATOR::process_camera_rays(RayQueue<VCMState>& rays_in, RayQueue<S
     const Hit* hits = rays_in.hits();
     Ray* rays = rays_in.rays();
 
-    compact_hits(scene_, rays_in);
+    rays_in.compact_hits();
 
     tbb::parallel_for(tbb::blocked_range<int>(0, rays_in.size()), [&] (const tbb::blocked_range<int>& range) {
         auto& bsdf_mem_arena = bsdf_memory_arenas.local();
@@ -365,7 +365,7 @@ void VCM_INTEGRATOR::process_camera_rays(RayQueue<VCMState>& rays_in, RayQueue<S
         }
     });
 
-    compact_rays(scene_, rays_in);
+    rays_in.compact_rays();
 }
 
 VCM_TEMPLATE

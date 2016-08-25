@@ -96,58 +96,8 @@ inline Intersection calculate_intersection(const Scene& scene, const Hit& hit, c
     return res;
 }
 
-/// Compact the queue by moving all rays that hit something (and their associated states and hits) to the front.
 template<typename StateType>
-inline void compact_hits(const Scene& scene, RayQueue<StateType>& q) {
-    auto hits   = q.hits();
-    auto states = q.states();
-    auto rays   = q.rays();
-
-    // TODO sort by material id
-
-    int last_empty = -1;
-    for (int i = 0; i < q.size(); ++i) {
-        if (hits[i].tri_id < 0 && last_empty == -1) {
-            last_empty = i;
-        } else if (hits[i].tri_id >= 0 && last_empty != -1) {
-            hits[last_empty]   = hits[i];
-            states[last_empty] = states[i];
-            rays[last_empty]   = rays[i];
-            last_empty++;
-        }
-    }
-
-    // If at least one empty ray was replaced, shrink the queue.
-    // last_empty corresponds to the new queue size.
-    if (last_empty != -1)
-        q.shrink(last_empty);
-}
-
-/// Compacts the queue by moving all continued rays to the front. Does not move the hits.
-template<typename StateType>
-inline void compact_rays(const Scene& scene, RayQueue<StateType>& q) {
-    auto states = q.states();
-    auto rays   = q.rays();
-
-    int last_empty = -1;
-    for (int i = 0; i < q.size(); ++i) {
-        if (states[i].pixel_id < 0 && last_empty == -1) {
-            last_empty = i;
-        } else if (states[i].pixel_id >= 0 && last_empty != -1) {
-            states[last_empty] = states[i];
-            rays[last_empty]   = rays[i];
-            last_empty++;
-        }
-    }
-
-    // If at least one empty ray was replaced, shrink the queue.
-    // last_empty corresponds to the new queue size.
-    if (last_empty != -1)
-        q.shrink(last_empty);
-}
-
-template<typename StateType>
-inline void terminate_path(StateType& state) {
+void terminate_path(StateType& state) {
     state.pixel_id = -1;
 }
 

@@ -153,6 +153,54 @@ public:
         std::copy(other.state_buffer_.begin(), other.state_buffer_.end(), state_buffer_.begin() + start_idx);
     }
 
+    /// Compact the queue by moving all rays that hit something (and their associated states and hits) to the front.
+    inline void compact_hits() {
+        auto hits   = this->hits();
+        auto states = this->states();
+        auto rays   = this->rays();
+
+        // TODO sort by material id
+
+        int last_empty = -1;
+        for (int i = 0; i < size(); ++i) {
+            if (hits[i].tri_id < 0 && last_empty == -1) {
+                last_empty = i;
+            } else if (hits[i].tri_id >= 0 && last_empty != -1) {
+                hits[last_empty]   = hits[i];
+                states[last_empty] = states[i];
+                rays[last_empty]   = rays[i];
+                last_empty++;
+            }
+        }
+
+        // If at least one empty ray was replaced, shrink the queue.
+        // last_empty corresponds to the new queue size.
+        if (last_empty != -1)
+            shrink(last_empty);
+    }
+
+    /// Compacts the queue by moving all continued rays to the front. Does not move the hits.
+    inline void compact_rays() {
+        auto states = this->states();
+        auto rays   = this->rays();
+
+        int last_empty = -1;
+        for (int i = 0; i < size(); ++i) {
+            if (states[i].pixel_id < 0 && last_empty == -1) {
+                last_empty = i;
+            } else if (states[i].pixel_id >= 0 && last_empty != -1) {
+                states[last_empty] = states[i];
+                rays[last_empty]   = rays[i];
+                last_empty++;
+            }
+        }
+
+        // If at least one empty ray was replaced, shrink the queue.
+        // last_empty corresponds to the new queue size.
+        if (last_empty != -1)
+            shrink(last_empty);
+    }
+
     /// Traverses the acceleration structure with the rays currently inside the queue.
     void traverse(const TraversalData& c_data) {
         assert(size() != 0);

@@ -82,7 +82,7 @@ void PathTracer::process_primary_rays(RayQueue<PTState>& ray_in, RayQueue<Shadow
     const Hit* hits = ray_in.hits();
     Ray* rays = ray_in.rays();
 
-    compact_hits(scene_, ray_in);
+    ray_in.compact_hits();
 
     tbb::parallel_for(tbb::blocked_range<int>(0, ray_in.size()),
         [&] (const tbb::blocked_range<int>& range)
@@ -114,7 +114,7 @@ void PathTracer::process_primary_rays(RayQueue<PTState>& ray_in, RayQueue<Shadow
         }
     });
 
-    compact_rays(scene_, ray_in);
+    ray_in.compact_rays();
 }
 
 void PathTracer::process_shadow_rays(RayQueue<ShadowState>& ray_in, AtomicImage& out) {
