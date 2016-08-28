@@ -25,44 +25,6 @@ fn compute_bbox(photons: &[f32], size: i32, body: fn(Float3, Float3)->()) -> () 
 }
 
 // Interfaces
-extern fn build_hashgrid(info: &RawDataInfo, photon_cnt: i32, cell_size: i32, rad: f32) -> &PhotonHashGrid {
-    let indices_buf = alloc_cpu(cell_size * sizeof[i32]());
-    let cnts_buf    = alloc_cpu(cell_size * sizeof[i32]());
-    let photons_buf = alloc_cpu(photon_cnt * 3 * sizeof[f32]());
-
-    let mut ptr_photons = bitcast[&[f32]](photons_buf.data);
-    for i in range (0, photon_cnt) {
-        for j in @unroll(0, 3) {
-            ptr_photons(3 * i + j) = (*info).begin(i * (*info).stride + j); 
-        }
-    }
-
-    let hg = ~PhotonHashGrid {
-        radius         : rad,
-        radius_sqr     : rad * rad,
-        cell_size      : rad * 2.f,
-        inv_cell_size  : 1.f / (rad * 2.f),
-        photons_size   : photon_cnt,
-        hashtable_size : cell_size,
-        bbox_min       : Float3 { x:1e36f,  y:1e36f,  z:1e36f },
-        bbox_max       : Float3 { x:-1e36f, y:-1e36f, z:-1e36f },
-        
-        indices        : bitcast[&[i32]](indices_buf.data),
-        cnts           : bitcast[&[i32]](cnts_buf.data),
-        photons        : bitcast[&[f32]](photons_buf.data),     
-
-        photons_buf    : photons_buf,
-        indices_buf    : indices_buf,
-        cnts_buf       : cnts_buf,
-    
-        time_count     : 0i64
-    };
-    
-    build(hg);
-
-    hg
-}
-
 //extern fn query_hashgrid(mut hg: &PhotonHashGrid, x: f32, y: f32, z: f32) -> &QueryResult {
 //    let size = (*hg).photons_size;
 //    
@@ -130,8 +92,4 @@ extern fn build_hashgrid(info: &RawDataInfo, photon_cnt: i32, cell_size: i32, ra
 //
 //    arr
 //}
-
-extern fn batch_query_hashgrid(hg: &PhotonHashGrid, query_poses: &[f32], size: i32) -> &BatchQueryResult {
-    batch_query(hg, query_poses, size) 
-}
 

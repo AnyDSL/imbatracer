@@ -48,7 +48,7 @@ void VCM_INTEGRATOR::render(AtomicImage& img) {
     if (algo != ALGO_LT)
         trace_camera_paths(img);
 
-    //std::cout << "Time to query the hash grid: " << light_vertices_.get_query_time_count(0) << std::endl;
+    light_vertices_.print_query_time_count(0);
 }
 
 VCM_TEMPLATE

@@ -14,12 +14,14 @@ endif()
 #set(MAPPING_SRCS 
 #    rangesearch/mapping_cpu.impala
 #    rangesearch/general_mapping_cpu.impala)  
+#set(RANGESEARCH_DEFS "-DRANGESEARCH_PLATFORM=HOST" "-DRANGESEARCH_DEVICE=0")
 
 # HASHGRID PM GPU
 set(MAPPING_SRCS 
     rangesearch/mapping_gpu.impala
     rangesearch/general_mapping_gpu.impala             
     rangesearch/gpu_primitives.impala)
+set(RANGESEARCH_DEFS "-DRANGESEARCH_PLATFORM=CUDA" "-DRANGESEARCH_DEVICE=0")
 
 set(IMPALA_SRCS
     ${MAPPING_SRCS}
@@ -97,18 +99,19 @@ add_library(imba_render
             render/ray_scheduler.h
             rangesearch/rangesearch.h
             ${IMPALA_INTERFACES})
+target_compile_definitions(imba_render PUBLIC ${RANGESEARCH_DEFS})
 
 # Rangesearch Impala library
 add_library(rangesearch ${IMPALA_PROGRAM})
 target_link_libraries(rangesearch ${THORIN_RUNTIME_LIBRARY} ${THORIN_RUNTIME_LIBRARIES})
 
+#
 add_executable(imbatracer
                frontend/main.cpp
                frontend/render_window.h
                frontend/render_window.cpp
                frontend/build_scene.h
                frontend/build_scene.cpp)
-
 target_link_libraries(imbatracer
                       imba_render
                       imba_core

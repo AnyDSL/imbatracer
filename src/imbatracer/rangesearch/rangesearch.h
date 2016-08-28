@@ -30,36 +30,57 @@ public:
 
     HashGrid() : hg(nullptr) {}
 
-    int64_t get_query_time_count() { if (hg) return hg->time_count; return -1; }
+    void print_query_time_count() { if (hg) std::cout << "Time to query hash grid: " << hg->time_count1 << "/" << hg->time_count2 << "->" << hg->time_count1 + hg->time_count2 << std::endl; }
     
     void build(const Iter& photons_begin, const Iter& photons_end, float radius) {
         std::lock_guard<std::mutex> lock(traversal_mutex);
-        if (hg) {
-            destroy_hashgrid(hg);
-            delete hg;
-            hg = nullptr;
+      	
+        // memory allocation and copy onto proper device if necessary
+        int photon_count = std::distance(photons_begin, photons_end);	
+        thorin::Array<float> host_poses(3 * photon_count);
+        for(int i = 0; i < photon_count; ++i) {
+            Iter it = std::next(photons_begin, i);
+            float *pos = &(host_poses.data()[3 * i]);
+            const float3 &p = it->position();
+            pos[0] = p[0];
+            pos[1] = p[1];
+            pos[2] = p[2];
         }
 
-	    int photon_count = std::distance(photons_begin, photons_end);	
+        photon_poses = std::move(thorin::Array<float>(thorin::Platform::RANGESEARCH_PLATFORM, thorin::Device(RANGESEARCH_DEVICE), 3 * photon_count));
 
-	    struct RawDataInfo rdi;
-	    rdi.begin = &(photons_begin->position()[0]);
-        rdi.stride = sizeof(*photons_begin) / sizeof(float);
-        
-        // Impala API
-	    hg = build_hashgrid(&rdi, photon_count, CELL_ENDS_SIZE, radius);
+        thorin::copy(host_poses, photon_poses);
+
+        // impala API
+	    hg = build_hashgrid(hg, photon_poses.data(), photon_count, CELL_ENDS_SIZE, radius);
     }
 
 
     BatchQueryResult* process(float3* query_poses, const int size) {
         std::lock_guard<std::mutex> lock(traversal_mutex);
+        
+        // memory allocation and copy onto proper device if necessary
+        thorin::Array<float> host_poses(3 * size);
+        for(int i = 0; i < size; ++i) {
+            float *pos = &(host_poses.data()[3 * i]);
+            const float3 &p = query_poses[i];
+            pos[0] = p[0];
+            pos[1] = p[1];
+            pos[2] = p[2];
+        }
+
+        thorin::Array<float> ref_poses = std::move(thorin::Array<float>(thorin::Platform::RANGESEARCH_PLATFORM, thorin::Device(RANGESEARCH_DEVICE), 3 * size));
+
+        thorin::copy(host_poses, ref_poses);
+
         // Impala API
-        return batch_query_hashgrid(hg, &(query_poses[0].x), size);
+        return batch_query_hashgrid(hg, ref_poses.data(), size);
     }
 
 private:
     const int CELL_ENDS_SIZE = 1000000;
     PhotonHashGrid* hg = nullptr;
+    thorin::Array<float> photon_poses;
 
 };
 

@@ -6,11 +6,6 @@
 extern "C" {
 #endif
 
-struct RawDataInfo {
-    float* begin;
-    int stride;
-};
-
 struct Float3 {
     float x;
     float y;
@@ -34,10 +29,12 @@ struct PhotonHashGrid {
     int* indices;
     int* cnts;
     float* photons;
-    struct Buffer photons_buf;
+    long long* rands;
     struct Buffer indices_buf;
     struct Buffer cnts_buf;
-    long long time_count;
+    struct Buffer rands_buf;
+    long long time_count1;
+    long long time_count2;
 };
 
 struct QueryResult {
@@ -52,7 +49,7 @@ struct BatchQueryResult {
     struct Buffer rrw_buf;
 };
 
-struct PhotonHashGrid* build_hashgrid(struct RawDataInfo* info, int photon_cnt, int cell_size, float rad);
+struct PhotonHashGrid* build_hashgrid(struct PhotonHashGrid* hg, float* photon_poses, int photon_cnt, int hash_size, float rad);
 struct BatchQueryResult* batch_query_hashgrid(struct PhotonHashGrid* hg, float* query_poses, int size);
 void destroy_hashgrid(struct PhotonHashGrid* hg);
 void release_query(struct QueryResult* arr);
