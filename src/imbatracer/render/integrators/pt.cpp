@@ -83,6 +83,15 @@ void PathTracer::process_primary_rays(RayQueue<PTState>& ray_in, RayQueue<Shadow
     Ray* rays = ray_in.rays();
 
     ray_in.compact_hits();
+    ray_in.sort_by_material([this](const Hit& hit){
+            const Mesh::Instance& inst = scene_.instance(hit.inst_id);
+            const Mesh& mesh = scene_.mesh(inst.id);
+            const int local_tri_id = scene_.local_tri_id(hit.tri_id, inst.id);
+            const int m = mesh.indices()[local_tri_id * 4 + 3];
+            return m;
+        },
+        scene_.material_count()
+    );
 
     tbb::parallel_for(tbb::blocked_range<int>(0, ray_in.size()),
         [&] (const tbb::blocked_range<int>& range)
@@ -91,26 +100,26 @@ void PathTracer::process_primary_rays(RayQueue<PTState>& ray_in, RayQueue<Shadow
 
         for (auto i = range.begin(); i != range.end(); ++i) {
             bsdf_mem_arena.free_all();
-
-            const auto isect = calculate_intersection(scene_, hits[i], rays[i]);
+            PTState& state = ray_in.state(i);
+            const auto isect = calculate_intersection(scene_, ray_in.hit(i), ray_in.ray(i));
 
             if (auto emit = isect.mat->emitter()) {
                 float pdf_direct_a, pdf_emit_w;
                 const auto li = emit->radiance(isect.out_dir, isect.geom_normal, pdf_direct_a, pdf_emit_w);
 
                 const float pdf_di = pdf_direct_a / scene_.light_count();
-                const float mis_weight = (states[i].bounces == 0 || states[i].last_specular) ? 1.0f
-                                         : states[i].last_pdf / (states[i].last_pdf + pdf_di);
+                const float mis_weight = (state.bounces == 0 || state.last_specular) ? 1.0f
+                                         : state.last_pdf / (state.last_pdf + pdf_di);
 
-                add_contribution(out, states[i].pixel_id, states[i].throughput * li * mis_weight);
+                add_contribution(out, state.pixel_id, state.throughput * li * mis_weight);
 
-                terminate_path(states[i]);
+                terminate_path(state);
                 continue;
             }
 
             const auto bsdf = isect.mat->get_bsdf(isect, bsdf_mem_arena);
-            compute_direct_illum(isect, states[i], ray_out_shadow, bsdf);
-            bounce(isect, states[i], rays[i], bsdf);
+            compute_direct_illum(isect, state, ray_out_shadow, bsdf);
+            bounce(isect, state, ray_in.ray(i), bsdf);
         }
     });
 

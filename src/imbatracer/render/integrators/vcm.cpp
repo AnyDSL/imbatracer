@@ -184,6 +184,15 @@ void VCM_INTEGRATOR::process_light_rays(RayQueue<VCMState>& rays_in, RayQueue<Sh
     Ray* rays = rays_in.rays();
 
     rays_in.compact_hits();
+    rays_in.sort_by_material([this](const Hit& hit){
+            const Mesh::Instance& inst = scene_.instance(hit.inst_id);
+            const Mesh& mesh = scene_.mesh(inst.id);
+            const int local_tri_id = scene_.local_tri_id(hit.tri_id, inst.id);
+            const int m = mesh.indices()[local_tri_id * 4 + 3];
+            return m;
+        },
+        scene_.material_count()
+    );
 
     tbb::parallel_for(tbb::blocked_range<int>(0, rays_in.size()), [&] (const tbb::blocked_range<int>& range) {
         auto& bsdf_mem_arena = bsdf_memory_arenas.local();
@@ -294,6 +303,15 @@ void VCM_INTEGRATOR::process_camera_rays(RayQueue<VCMState>& rays_in, RayQueue<S
     Ray* rays = rays_in.rays();
 
     rays_in.compact_hits();
+    rays_in.sort_by_material([this](const Hit& hit){
+            const Mesh::Instance& inst = scene_.instance(hit.inst_id);
+            const Mesh& mesh = scene_.mesh(inst.id);
+            const int local_tri_id = scene_.local_tri_id(hit.tri_id, inst.id);
+            const int m = mesh.indices()[local_tri_id * 4 + 3];
+            return m;
+        },
+        scene_.material_count()
+    );
 
     tbb::parallel_for(tbb::blocked_range<int>(0, rays_in.size()), [&] (const tbb::blocked_range<int>& range) {
         auto& bsdf_mem_arena = bsdf_memory_arenas.local();

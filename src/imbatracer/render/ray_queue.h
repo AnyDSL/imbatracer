@@ -9,6 +9,8 @@
 #include <mutex>
 #include <memory>
 
+#include <tbb/parallel_sort.h>
+
 #include <thorin_runtime.hpp>
 #include <traversal.h>
 
@@ -72,30 +74,33 @@ public:
     RayQueue() { }
 
     RayQueue(int capacity)
-        : ray_buffer_(align(capacity))
-        , hit_buffer_(align(capacity))\
-        , state_buffer_(align(capacity))
+        : ray_buffer_    (align(capacity))
+        , hit_buffer_    (align(capacity))
+        , state_buffer_  (align(capacity))
+        , sorted_indices_(align(capacity))
         , last_(-1)
     {
         // Initializing ray and hit buffer memory to zero helps with traversal debugging.
-        memset(ray_buffer_.data(), 0, sizeof(Ray) * align(capacity));
-        memset(hit_buffer_.data(), 0, sizeof(Hit) * align(capacity));
+        //memset(ray_buffer_.data(), 0, sizeof(Ray) * align(capacity));
+        //memset(hit_buffer_.data(), 0, sizeof(Hit) * align(capacity));
     }
 
     RayQueue(const RayQueue<StateType>&) = delete;
     RayQueue& operator= (const RayQueue<StateType>&) = delete;
 
     RayQueue(RayQueue<StateType>&& rhs)
-        : ray_buffer_(std::move(rhs.ray_buffer_)),
-          hit_buffer_(std::move(rhs.hit_buffer_)),
-          state_buffer_(std::move(rhs.state_buffer_)),
-          last_(rhs.last_.load())
+        : ray_buffer_(std::move(rhs.ray_buffer_))
+        , hit_buffer_(std::move(rhs.hit_buffer_))
+        , state_buffer_(std::move(rhs.state_buffer_))
+        , sorted_indices_(std::move(rhs.sorted_indices_))
+        , last_(rhs.last_.load())
     {}
 
     RayQueue& operator= (RayQueue<StateType>&& rhs) {
         ray_buffer_ = std::move(rhs.ray_buffer_);
         hit_buffer_ = std::move(rhs.hit_buffer_);
         state_buffer_ = std::move(rhs.state_buffer_);
+        sorted_indices_ = std::move(rhs.sorted_indices_);
         last_ = rhs.last_.load();
 
         return *this;
@@ -110,6 +115,10 @@ public:
     ::Ray* rays() { return ray_buffer_.data(); }
     StateType* states() { return state_buffer_.data(); }
     ::Hit* hits() { return hit_buffer_.data(); }
+
+    Ray& ray(int idx) { return ray_buffer_[sorted_indices_[idx]]; }
+    Hit& hit(int idx) { return hit_buffer_[sorted_indices_[idx]]; }
+    StateType& state(int idx) { return state_buffer_[sorted_indices_[idx]]; }
 
     void clear() {
         last_ = -1;
@@ -159,8 +168,6 @@ public:
         auto states = this->states();
         auto rays   = this->rays();
 
-        // TODO sort by material id
-
         int last_empty = -1;
         for (int i = 0; i < size(); ++i) {
             if (hits[i].tri_id < 0 && last_empty == -1) {
@@ -177,6 +184,9 @@ public:
         // last_empty corresponds to the new queue size.
         if (last_empty != -1)
             shrink(last_empty);
+
+        for (int i = 0; i <= last_; ++i)
+            sorted_indices_[i] = i;
     }
 
     /// Compacts the queue by moving all continued rays to the front. Does not move the hits.
@@ -199,6 +209,60 @@ public:
         // last_empty corresponds to the new queue size.
         if (last_empty != -1)
             shrink(last_empty);
+    }
+
+    typedef std::function<int (const Hit&)> GetMatIDFn;
+
+    inline void sort_by_material(GetMatIDFn get_mat_id, int num_mats) {
+#if 0
+        // Alternative implementation using tbb::parallel_sort, roughly 1% slower on average.
+
+        // Precompute the material ids of all hitpoints. Use the unused memory in every ray to store them.
+        for (int i = 0; i < size(); ++i) {
+            ray_buffer_[i].dir.w = int_as_float(get_mat_id(hit_buffer_[i]));
+        }
+
+        tbb::parallel_sort(sorted_indices_.begin(), sorted_indices_.begin() + size(), [this](int a, int b){
+            int mat_a = float_as_int(ray_buffer_[a].dir.w);
+            int mat_b = float_as_int(ray_buffer_[b].dir.w);
+            return mat_a < mat_b;
+        });
+#else
+        // Sort using counting sort.
+
+        if (matcount_.size() < num_mats)
+            matcount_ = std::vector<std::atomic<int> >(num_mats);
+        std::fill(matcount_.begin(), matcount_.end(), 0);
+
+        // Count the number of hit points per material.
+        tbb::parallel_for(tbb::blocked_range<int>(0, size()),
+            [&] (const tbb::blocked_range<int>& range)
+        {
+            for (auto i = range.begin(); i != range.end(); ++i) {
+                const int mat_id = get_mat_id(hit_buffer_[i]);
+                ray_buffer_[i].dir.w = int_as_float(mat_id);
+                matcount_[mat_id]++;
+            }
+        });
+
+        // Compute the starting index of every bin.
+        int accum = 0;
+        for (int i = 0; i < num_mats; ++i) {
+            const int tmp = matcount_[i];
+            matcount_[i] = accum;
+            accum += tmp;
+        }
+
+        // Distribute the indices according to their material ids.
+        tbb::parallel_for(tbb::blocked_range<int>(0, size()),
+            [&] (const tbb::blocked_range<int>& range)
+        {
+            for (auto i = range.begin(); i != range.end(); ++i) {
+                const int mat = float_as_int(ray_buffer_[i].dir.w);
+                sorted_indices_[matcount_[mat]++] = i;
+            }
+        });
+#endif
     }
 
     /// Traverses the acceleration structure with the rays currently inside the queue.
@@ -291,10 +355,12 @@ public:
 private:
     thorin::Array<Ray> ray_buffer_;
     thorin::Array<Hit> hit_buffer_;
-
     std::vector<StateType> state_buffer_;
-
     std::atomic<int> last_;
+
+    // Used for sorting the hit points with counting sort
+    std::vector<int> sorted_indices_;
+    std::vector<std::atomic<int> > matcount_;
 };
 
 #ifdef GPU_TRAVERSAL

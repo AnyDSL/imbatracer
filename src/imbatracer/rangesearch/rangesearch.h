@@ -48,7 +48,6 @@ public:
 
         // Count the number of photons in each cell.
         tbb::parallel_for(tbb::blocked_range<Iter>(photons_begin, photons_end), [this](const tbb::blocked_range<Iter>& range){
-            //for (Iter it = photons_begin; it != photons_end; ++it) {
             for (Iter it = range.begin(); it != range.end(); ++it) {
                 const float3 &pos = it->position();
                 cell_ends_[cell_index(pos)]++;
@@ -65,7 +64,6 @@ public:
 
         // Assign the photons to the cells.
         tbb::parallel_for(tbb::blocked_range<Iter>(photons_begin, photons_end), [this](const tbb::blocked_range<Iter>& range){
-            //for (Iter it = photons_begin; it != photons_end; ++it) {
             for (Iter it = range.begin(); it != range.end(); ++it) {
                 const float3 &pos = it->position();
                 const int target_idx = cell_ends_[cell_index(pos)]++;
