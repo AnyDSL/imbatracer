@@ -30,7 +30,6 @@ private:
 
     const int max_path_len_;
 
-    void process_shadow_rays(RayQueue<ShadowState>& ray_in, AtomicImage& out);
     void process_primary_rays(RayQueue<PTState>& ray_in, RayQueue<ShadowState>& ray_out_shadow, AtomicImage& out);
 
     void compute_direct_illum(const Intersection& isect, PTState& state, RayQueue<ShadowState>& ray_out_shadow, BSDF* bsdf);

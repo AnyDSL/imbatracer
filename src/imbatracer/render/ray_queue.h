@@ -80,9 +80,7 @@ public:
         , sorted_indices_(align(capacity))
         , last_(-1)
     {
-        // Initializing ray and hit buffer memory to zero helps with traversal debugging.
-        //memset(ray_buffer_.data(), 0, sizeof(Ray) * align(capacity));
-        //memset(hit_buffer_.data(), 0, sizeof(Hit) * align(capacity));
+        memset(ray_buffer_.data(), 0, sizeof(Ray) * align(capacity));
     }
 
     RayQueue(const RayQueue<StateType>&) = delete;
@@ -214,22 +212,6 @@ public:
     typedef std::function<int (const Hit&)> GetMatIDFn;
 
     inline void sort_by_material(GetMatIDFn get_mat_id, int num_mats) {
-#if 0
-        // Alternative implementation using tbb::parallel_sort, roughly 1% slower on average.
-
-        // Precompute the material ids of all hitpoints. Use the unused memory in every ray to store them.
-        for (int i = 0; i < size(); ++i) {
-            ray_buffer_[i].dir.w = int_as_float(get_mat_id(hit_buffer_[i]));
-        }
-
-        tbb::parallel_sort(sorted_indices_.begin(), sorted_indices_.begin() + size(), [this](int a, int b){
-            int mat_a = float_as_int(ray_buffer_[a].dir.w);
-            int mat_b = float_as_int(ray_buffer_[b].dir.w);
-            return mat_a < mat_b;
-        });
-#else
-        // Sort using counting sort.
-
         if (matcount_.size() < num_mats)
             matcount_ = std::vector<std::atomic<int> >(num_mats);
         std::fill(matcount_.begin(), matcount_.end(), 0);
@@ -262,7 +244,6 @@ public:
                 sorted_indices_[matcount_[mat]++] = i;
             }
         });
-#endif
     }
 
     /// Traverses the acceleration structure with the rays currently inside the queue.

@@ -148,7 +148,7 @@ void VCM_INTEGRATOR::bounce(VCMState& state_out, const Intersection& isect, BSDF
     }
 
     float pdf_rev_w = pdf_dir_w;
-    if (!is_specular) // cannot evaluate reverse pdf of specular surfaces (but is the same as forward due to symmetry)
+    if (!is_specular) // The reverse pdf of specular surfaces is the same as the forward pdf due to symmetry.
         pdf_rev_w = bsdf->pdf(sample_dir, isect.out_dir);
 
     const float cos_theta_i = adjoint ? fabsf(shading_normal_adjoint(isect.normal, isect.geom_normal, isect.out_dir, sample_dir))
@@ -200,22 +200,22 @@ void VCM_INTEGRATOR::process_light_rays(RayQueue<VCMState>& rays_in, RayQueue<Sh
         for (auto i = range.begin(); i != range.end(); ++i) {
             bsdf_mem_arena.free_all();
 
-            RNG& rng = states[i].rng;
-            const auto isect = calculate_intersection(scene_, hits[i], rays[i]);
+            VCMState& state = rays_in.state(i);
+            const auto isect = calculate_intersection(scene_, rays_in.hit(i), rays_in.ray(i));
             const float cos_theta_o = fabsf(dot(isect.out_dir, isect.normal));
 
             if (cos_theta_o == 0.0f) { // Prevent NaNs
-                terminate_path(states[i]);
+                terminate_path(state);
                 continue;
             }
 
             // Complete calculation of the partial weights.
-            if (states[i].path_length > 1 || states[i].finite_light)
-                states[i].dVCM *= mis_pow(sqr(isect.distance));
+            if (state.path_length > 1 || state.finite_light)
+                state.dVCM *= mis_pow(sqr(isect.distance));
 
-            states[i].dVCM *= 1.0f / mis_pow(cos_theta_o);
-            states[i].dVC  *= 1.0f / mis_pow(cos_theta_o);
-            states[i].dVM  *= 1.0f / mis_pow(cos_theta_o);
+            state.dVCM *= 1.0f / mis_pow(cos_theta_o);
+            state.dVC  *= 1.0f / mis_pow(cos_theta_o);
+            state.dVM  *= 1.0f / mis_pow(cos_theta_o);
 
             auto bsdf = isect.mat->get_bsdf(isect, bsdf_mem_arena, true);
 
@@ -223,18 +223,18 @@ void VCM_INTEGRATOR::process_light_rays(RayQueue<VCMState>& rays_in, RayQueue<Sh
                 if (algo != ALGO_LT) {
                     light_vertices_.add_vertex_to_cache(LightPathVertex(
                         isect,
-                        states[i].throughput,
-                        states[i].dVC,
-                        states[i].dVCM,
-                        states[i].dVM,
-                        states[i].path_length + 1), states[i].sample_id);
+                        state.throughput,
+                        state.dVC,
+                        state.dVCM,
+                        state.dVM,
+                        state.path_length + 1), state.sample_id);
                 }
 
                 if (algo != ALGO_PPM)
-                    connect_to_camera(states[i], isect, bsdf, ray_out_shadow);
+                    connect_to_camera(state, isect, bsdf, ray_out_shadow);
             }
 
-            bounce(states[i], isect, bsdf, rays[i], true);
+            bounce(state, isect, bsdf, rays_in.ray(i), true);
         }
     });
 
@@ -319,19 +319,20 @@ void VCM_INTEGRATOR::process_camera_rays(RayQueue<VCMState>& rays_in, RayQueue<S
         for (auto i = range.begin(); i != range.end(); ++i) {
             bsdf_mem_arena.free_all();
 
-            RNG& rng = states[i].rng;
-            const auto isect = calculate_intersection(scene_, hits[i], rays[i]);
+            VCMState& state = rays_in.state(i);
+            RNG& rng = state.rng;
+            const auto isect = calculate_intersection(scene_, rays_in.hit(i), rays_in.ray(i));
             const float cos_theta_o = fabsf(dot(isect.out_dir, isect.normal));
 
             auto bsdf = isect.mat->get_bsdf(isect, bsdf_mem_arena);
 
             // Complete computation of partial MIS weights.
-            states[i].dVCM *= mis_pow(sqr(isect.distance)) / mis_pow(cos_theta_o); // convert divided pdf from solid angle to area
-            states[i].dVC *= 1.0f / mis_pow(cos_theta_o);
-            states[i].dVM *= 1.0f / mis_pow(cos_theta_o);
+            state.dVCM *= mis_pow(sqr(isect.distance)) / mis_pow(cos_theta_o); // convert divided pdf from solid angle to area
+            state.dVC *= 1.0f / mis_pow(cos_theta_o);
+            state.dVM *= 1.0f / mis_pow(cos_theta_o);
 
             if (cos_theta_o == 0.0f) { // Prevent NaNs
-                terminate_path(states[i]);
+                terminate_path(state);
                 continue;
             }
 
@@ -345,41 +346,41 @@ void VCM_INTEGRATOR::process_camera_rays(RayQueue<VCMState>& rays_in, RayQueue<S
                 const float pdf_di = pdf_direct_a * pdf_lightpick;
                 const float pdf_e = pdf_emit_w * pdf_lightpick;
 
-                const float mis_weight_camera = mis_pow(pdf_di) * states[i].dVCM + mis_pow(pdf_e) * states[i].dVC;
+                const float mis_weight_camera = mis_pow(pdf_di) * state.dVCM + mis_pow(pdf_e) * state.dVC;
                 const float mis_weight = 1.0f / (mis_weight_camera + 1.0f);
 
-                if (states[i].path_length > 1) {
-                    rgb color = states[i].throughput * radiance * (algo == ALGO_PPM ? 1.0f : mis_weight);
+                if (state.path_length > 1) {
+                    rgb color = state.throughput * radiance * (algo == ALGO_PPM ? 1.0f : mis_weight);
 
                     if (algo != ALGO_PT)
-                        add_contribution(img, states[i].pixel_id, color);
+                        add_contribution(img, state.pixel_id, color);
                 } else
-                    add_contribution(img, states[i].pixel_id, radiance); // Light directly visible, no weighting required.
+                    add_contribution(img, state.pixel_id, radiance); // Light directly visible, no weighting required.
 
-                terminate_path(states[i]);
+                terminate_path(state);
                 continue;
             }
 
             // Compute direct illumination.
-            if (states[i].path_length < max_path_len_) {
+            if (state.path_length < max_path_len_) {
                 if (algo != ALGO_PPM)
-                    direct_illum(states[i], isect, bsdf, ray_out_shadow);
+                    direct_illum(state, isect, bsdf, ray_out_shadow);
             } else {
-                terminate_path(states[i]);
+                terminate_path(state);
                 continue; // No point in continuing this path. It is too long already
             }
 
             // Connect to light path vertices.
             if (algo != ALGO_PT && algo != ALGO_PPM && !isect.mat->is_specular())
-                connect(states[i], isect, bsdf, bsdf_mem_arena, ray_out_shadow);
+                connect(state, isect, bsdf, bsdf_mem_arena, ray_out_shadow);
 
-            if (algo != ALGO_BPT) {
+            if (algo != ALGO_BPT && algo != ALGO_PT) {
                 if (!isect.mat->is_specular())
-                    vertex_merging(states[i], isect, bsdf, img);
+                    vertex_merging(state, isect, bsdf, img);
             }
 
             // Continue the path using russian roulette.
-            bounce(states[i], isect, bsdf, rays[i], false);
+            bounce(state, isect, bsdf, rays_in.ray(i), false);
         }
     });
 
@@ -534,20 +535,6 @@ void VCM_INTEGRATOR::vertex_merging(const VCMState& state, const Intersection& i
     }
 
     add_contribution(img, state.pixel_id, state.throughput * contrib * vm_normalization_ * 2.0f); // Factor 2.0f is part of the Epanechnikov filter
-}
-
-VCM_TEMPLATE
-void VCM_INTEGRATOR::process_shadow_rays(RayQueue<ShadowState>& rays_in, AtomicImage& img) {
-    const ShadowState* states = rays_in.states();
-    const Hit* hits = rays_in.hits();
-
-    tbb::parallel_for(tbb::blocked_range<int>(0, rays_in.size()),
-        [&] (const tbb::blocked_range<int>& range)
-    {
-        for (auto i = range.begin(); i != range.end(); ++i)
-            if (hits[i].tri_id < 0) // Nothing was hit, the light is visible.
-                add_contribution(img, states[i].pixel_id, states[i].throughput);
-    });
 }
 
 // Explicit instantiations

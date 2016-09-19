@@ -40,6 +40,22 @@ protected:
     inline static void add_contribution(AtomicImage& out, int pixel_id, const rgb& contrib) {
         out.pixels()[pixel_id].apply<std::plus<float> >(contrib);
     }
+
+    inline void process_shadow_rays(RayQueue<ShadowState>& ray_in, AtomicImage& out) {
+        ShadowState* states = ray_in.states();
+        Hit* hits = ray_in.hits();
+
+        tbb::parallel_for(tbb::blocked_range<int>(0, ray_in.size()),
+            [&] (const tbb::blocked_range<int>& range)
+        {
+            for (auto i = range.begin(); i != range.end(); ++i) {
+                if (hits[i].tri_id < 0) {
+                    // Nothing was hit, the light source is visible.
+                    add_contribution(out, states[i].pixel_id, states[i].throughput);
+                }
+            }
+        });
+    }
 };
 
 inline Intersection calculate_intersection(const Scene& scene, const Hit& hit, const Ray& ray) {

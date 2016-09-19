@@ -102,7 +102,6 @@ private:
 
     void process_light_rays(RayQueue<VCMState>& rays_in, RayQueue<ShadowState>& rays_out_shadow, AtomicImage& img);
     void process_camera_rays(RayQueue<VCMState>& rays_in, RayQueue<ShadowState>& shadow_rays, AtomicImage& img);
-    void process_shadow_rays(RayQueue<ShadowState>& rays_in, AtomicImage& img);
 
     void trace_light_paths(AtomicImage& img);
     void trace_camera_paths(AtomicImage& img);

@@ -78,10 +78,6 @@ void PathTracer::bounce(const Intersection& isect, PTState& state_out, Ray& ray_
 }
 
 void PathTracer::process_primary_rays(RayQueue<PTState>& ray_in, RayQueue<ShadowState>& ray_out_shadow, AtomicImage& out) {
-    PTState* states = ray_in.states();
-    const Hit* hits = ray_in.hits();
-    Ray* rays = ray_in.rays();
-
     ray_in.compact_hits();
     ray_in.sort_by_material([this](const Hit& hit){
             const Mesh::Instance& inst = scene_.instance(hit.inst_id);
@@ -124,22 +120,6 @@ void PathTracer::process_primary_rays(RayQueue<PTState>& ray_in, RayQueue<Shadow
     });
 
     ray_in.compact_rays();
-}
-
-void PathTracer::process_shadow_rays(RayQueue<ShadowState>& ray_in, AtomicImage& out) {
-    ShadowState* states = ray_in.states();
-    Hit* hits = ray_in.hits();
-
-    tbb::parallel_for(tbb::blocked_range<int>(0, ray_in.size()),
-        [&] (const tbb::blocked_range<int>& range)
-    {
-        for (auto i = range.begin(); i != range.end(); ++i) {
-            if (hits[i].tri_id < 0) {
-                // Nothing was hit, the light source is visible.
-                add_contribution(out, states[i].pixel_id, states[i].throughput);
-            }
-        }
-    });
 }
 
 void PathTracer::render(AtomicImage& out) {
