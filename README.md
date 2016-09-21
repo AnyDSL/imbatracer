@@ -21,3 +21,8 @@ On the rendering side, the following algorithms work :
 * Vertex Connection and Merging
 * Progressive Photon Mapping
 * Light Tracing
+
+## Building
+
+This project depends on the [AnyDSL framework](https://github.com/AnyDSL/anydsl) and the [traversal code](https://github.com/AnyDSL/traversal). Additionally, it requires _TBB_, _libpng_, and _SDL2_.
+Once the dependencies are installed, use CMake to configure the project and set the `BACKEND` variable to the same value as the one used for the traversal.
