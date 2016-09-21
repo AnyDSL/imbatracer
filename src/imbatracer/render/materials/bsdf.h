@@ -119,7 +119,7 @@ class BSDF {
 public:
     /// Initializes the BSDF for the given surface point.
     BSDF(const Intersection& isect, BxDF* brdf, BxDF* btdf)
-        : isect_(isect), brdf_(brdf), btdf_(btdf), tangent_(isect.u_tangent), binormal_(isect.v_tangent) {
+        : isect_(isect), brdf_(brdf), btdf_(btdf) {
     }
 
     rgb eval(const float3& out_dir, const float3& in_dir, BxDFFlags flags = BSDF_ALL) const {
@@ -219,21 +219,19 @@ public:
     }
 
     float3 world_to_local(const float3& dir) const {
-        return float3(dot(binormal_, dir),
-                      dot(tangent_, dir),
+        return float3(dot(isect_.v_tangent, dir),
+                      dot(isect_.u_tangent, dir),
                       dot(isect_.normal, dir));
     }
 
     float3 local_to_world(const float3& dir) const {
-        return float3(binormal_.x * dir.x + tangent_.x * dir.y + isect_.normal.x * dir.z,
-                      binormal_.y * dir.x + tangent_.y * dir.y + isect_.normal.y * dir.z,
-                      binormal_.z * dir.x + tangent_.z * dir.y + isect_.normal.z * dir.z);
+        return float3(isect_.v_tangent.x * dir.x + isect_.u_tangent.x * dir.y + isect_.normal.x * dir.z,
+                      isect_.v_tangent.y * dir.x + isect_.u_tangent.y * dir.y + isect_.normal.y * dir.z,
+                      isect_.v_tangent.z * dir.x + isect_.u_tangent.z * dir.y + isect_.normal.z * dir.z);
     }
 
 private:
     const Intersection& isect_;
-    float3 tangent_;
-    float3 binormal_;
 
     BxDF* brdf_;
     BxDF* btdf_;
