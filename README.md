@@ -25,4 +25,17 @@ On the rendering side, the following algorithms work :
 ## Building
 
 This project depends on the [AnyDSL framework](https://github.com/AnyDSL/anydsl) and the [traversal code](https://github.com/AnyDSL/traversal). Additionally, it requires _TBB_, _libpng_, and _SDL2_.
-Once the dependencies are installed, use CMake to configure the project and set the `BACKEND` variable to the same value as the one used for the traversal.
+Once the dependencies are installed, use CMake to configure the project and set the `BACKEND` variable to the same value as the one used for the traversal:
+
+    git clone https://user@github.com/AnyDSL/imbatracer
+    cd imbatracer
+    mkdir build
+    cd build
+    cmake-gui .. -DBACKEND=<traversal backend>
+
+## Running
+
+The renderer can be tested with the _Still Life_ benchmarking scene:
+
+    cd build
+    src/imbatracer/imbatracer ../test/scenes/stilllife/still_life.scene
