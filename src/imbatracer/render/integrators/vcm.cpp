@@ -211,7 +211,7 @@ void VCM_INTEGRATOR::process_light_rays(RayQueue<VCMState>& rays_in, RayQueue<Sh
 
             // Complete calculation of the partial weights.
             if (state.path_length > 1 || state.finite_light)
-                state.dVCM *= mis_pow(sqr(isect.distance));
+                state.dVCM *= mis_pow(sqr(rays_in.hit(i).tmax));
 
             state.dVCM *= 1.0f / mis_pow(cos_theta_o);
             state.dVC  *= 1.0f / mis_pow(cos_theta_o);
@@ -327,7 +327,7 @@ void VCM_INTEGRATOR::process_camera_rays(RayQueue<VCMState>& rays_in, RayQueue<S
             auto bsdf = isect.mat->get_bsdf(isect, bsdf_mem_arena);
 
             // Complete computation of partial MIS weights.
-            state.dVCM *= mis_pow(sqr(isect.distance)) / mis_pow(cos_theta_o); // convert divided pdf from solid angle to area
+            state.dVCM *= mis_pow(sqr(rays_in.hit(i).tmax)) / mis_pow(cos_theta_o); // convert divided pdf from solid angle to area
             state.dVC *= 1.0f / mis_pow(cos_theta_o);
             state.dVM *= 1.0f / mis_pow(cos_theta_o);
 

@@ -99,7 +99,7 @@ inline Intersection calculate_intersection(const Scene& scene, const Hit& hit, c
     local_coordinates(normal, u_tangent, v_tangent);
 
     Intersection res {
-        pos, w_out, hit.tmax, normal, uv_coords, geom_normal, u_tangent, v_tangent, mat.get()
+        pos, w_out, normal, uv_coords, geom_normal, u_tangent, v_tangent, mat.get()
     };
 
     // If the material has a bump map, modify the shading normal accordingly.

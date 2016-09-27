@@ -8,7 +8,6 @@ class Material;
 struct Intersection {
     float3 pos;
     float3 out_dir; // Inverted direction of the ray at the hitpoint
-    float distance;
 
     float3 normal;
     float2 uv;
