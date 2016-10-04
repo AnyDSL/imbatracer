@@ -2,7 +2,7 @@
 echo "Rendering all reference images..."
 
 echo "Rendering still life scene (4 hours, vcm)"
-../build/src/imbatracer/imbatracer scenes/stilllife/still_life.scene -a vcm -r 0.02 -w 1280 -h 720 --max-path-len 12 -q -t 14400 references/ref_still_life.png
+../build/src/imbatracer/imbatracer scenes/stilllife/still_life.scene -a vcm -r 0.02 -w 1280 -h 720 --max-path-len 22 -q -t 14400 references/ref_still_life.png
 
 echo "Rendering sponza scene (4 hours, pt)"
 ../build/src/imbatracer/imbatracer scenes/sponza/sponza.scene -a pt -w 1024 -h 1024 -q -t 14400 references/ref_sponza_curtain.png
@@ -21,5 +21,8 @@ echo "Rendering specular cornell box (front view) (1 hour, vcm)"
 
 echo "Rendering cornell box with water (1 hour vcm)"
 ../build/src/imbatracer/imbatracer scenes/cornell/cornell_water.scene -a vcm -r 0.003 -w 1024 -h 1024 -q -t 3600 references/ref_cornell_water.png
+
+echo "Rendering car scene (4 hours, vcm)"
+../build/src/imbatracer/imbatracer scenes/car/car.scene -a vcm -w 1280 -h 720 --max-path-len 22 -q -t 14400 references/ref_car.png
 
 echo "DONE"

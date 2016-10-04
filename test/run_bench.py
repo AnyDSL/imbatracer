@@ -15,35 +15,35 @@ bench_settings = [
         'args': ['-r', '0.003']
     },
 
-    # {
-    #     'name': 'Cornell specular balls',
-    #     'scene': 'scenes/cornell/cornell_specular_front.scene',
-    #     'reference': 'references/ref_cornell_specular_front.png',
-    #     'width': 1024,
-    #     'height': 1024,
-    #     'base_filename': 'cornell_specular_front',
-    #     'args': ['-r', '0.003']
-    # },
+    {
+        'name': 'Cornell specular balls',
+        'scene': 'scenes/cornell/cornell_specular_front.scene',
+        'reference': 'references/ref_cornell_specular_front.png',
+        'width': 1024,
+        'height': 1024,
+        'base_filename': 'cornell_specular_front',
+        'args': ['-r', '0.003']
+    },
 
-    # {
-    #     'name': 'Cornell specular balls close',
-    #     'scene': 'scenes/cornell/cornell_specular.scene',
-    #     'reference': 'references/ref_cornell_specular.png',
-    #     'width': 1024,
-    #     'height': 1024,
-    #     'base_filename': 'cornell_specular',
-    #     'args': ['-r', '0.003']
-    # },
+    {
+        'name': 'Cornell specular balls close',
+        'scene': 'scenes/cornell/cornell_specular.scene',
+        'reference': 'references/ref_cornell_specular.png',
+        'width': 1024,
+        'height': 1024,
+        'base_filename': 'cornell_specular',
+        'args': ['-r', '0.003']
+    },
 
-    # {
-    #     'name': 'Cornell indirect',
-    #     'scene': 'scenes/cornell/cornell_indirect.scene',
-    #     'reference': 'references/ref_cornell_indirect.png',
-    #     'width': 1024,
-    #     'height': 1024,
-    #     'base_filename': 'cornell_indirect',
-    #     'args': ['-r', '0.003']
-    # },
+    {
+        'name': 'Cornell indirect',
+        'scene': 'scenes/cornell/cornell_indirect.scene',
+        'reference': 'references/ref_cornell_indirect.png',
+        'width': 1024,
+        'height': 1024,
+        'base_filename': 'cornell_indirect',
+        'args': ['-r', '0.003']
+    },
 
     {
         'name': 'Cornell water',
@@ -73,6 +73,16 @@ bench_settings = [
         'height': 720,
         'base_filename': 'still_life',
         'args': ['-r', '0.02', '--max-path-len', '22']
+    },
+
+    {
+        'name': 'Car',
+        'scene': 'scenes/car/car.scene',
+        'reference': 'references/ref_car.png',
+        'width': 1280,
+        'height': 720,
+        'base_filename': 'car',
+        'args': ['--max-path-len', '22']
     },
 ]
 

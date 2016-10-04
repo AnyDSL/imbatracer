@@ -25,13 +25,13 @@ illum 6
 
 newmtl apple_001
 Ns 15
-Ks 0.1 0.1 0.1
+#Ks 0.1 0.1 0.1
 map_Kd apple_001.tga
 illum 2
 
 newmtl apple_002
 Ns 15
-Ks 0.1 0.1 0.1
+#Ks 0.1 0.1 0.1
 map_Kd apple_002.tga
 illum 2
 
