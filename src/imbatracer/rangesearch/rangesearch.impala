@@ -2,6 +2,9 @@ extern "C" {
     fn rand() -> i32;
 }
 
+static mut TEST_CNT = 0;
+static mut TEST_SUM = 0;
+
 struct Float3 {
     x : f32,
     y : f32,
@@ -11,6 +14,12 @@ struct Float3 {
 struct Integer2 {
     x : i32,
     y : i32
+}
+
+struct Vector3 {
+    x : RS_Float,
+    y : RS_Float,
+    z : RS_Float
 }
 
 struct PhotonHashGrid {
@@ -32,8 +41,7 @@ struct PhotonHashGrid {
     cnts_buf       : Buffer,
     rands_buf      : Buffer,
 
-    time_count1    : i64,
-    time_count2    : i64
+    time_count     : i64,
 }
 
 struct QueryResult {
@@ -46,6 +54,14 @@ struct BatchQueryResult {
     rrw     : &[i32],
     indices_buf : Buffer,
     rrw_buf     : Buffer  
+}
+
+fn vector3(f3: Float3) -> Vector3 {
+    Vector3 {
+        x : get_rs_float(f3.x),
+        y : get_rs_float(f3.y),
+        z : get_rs_float(f3.z)
+    }
 }
 
 fn has_negative(a: Float3) -> bool {
@@ -65,6 +81,17 @@ fn is_query_out_of_bbox(query_pos: Float3, bbox_min: Float3, bbox_max: Float3) -
     false
 }
 
+fn is_query_inside_bbox(query_pos: Vector3, bbox_min: Vector3, bbox_max: Vector3) -> RS_Mask {
+    let z = get_rs_float(0.f);
+    let a = greater_eq((query_pos.x - bbox_min.x), z);
+    let b = greater_eq((query_pos.y - bbox_min.y), z);
+    let c = greater_eq((query_pos.z - bbox_min.z), z);
+    let d = greater_eq((bbox_max.x - query_pos.x), z);
+    let e = greater_eq((bbox_max.y - query_pos.y), z);
+    let f = greater_eq((bbox_max.z - query_pos.z), z);
+    and(a, and(b, and(c, and(d, and(e, f)))))
+} 
+
 fn cell_range(cell_idx: i32, cell_ends: &[i32]) -> Integer2 {
     let mut interval = Integer2 {
         x : 0,
@@ -82,6 +109,14 @@ fn hash_func(x: u32, y: u32, z: u32, m: u32) -> i32 {
     ret as i32
 }
 
+// TODO CLEAN UP!
+fn hash_func_p(x: RS_Unsigned, y: RS_Unsigned, z: RS_Unsigned, m: RS_Unsigned) -> RS_Unsigned {
+    let m2 = get_rs_unsigned(bitcast[u32]((1 << 20) - 1));
+    let ret = ((x * get_rs_unsigned(73856093u32)) ^ (y * get_rs_unsigned(19349663u32)) ^ (z * get_rs_unsigned(83492791u32))) & m2;
+    ret
+    //convert_u2i(ret)
+} 
+
 fn cell_index(pos: Float3, bbox_min: Float3, inv_cell_size: f32, cell_ends_size: i32) -> i32 {
     let dist_min = sub(pos, bbox_min);
     let coord = Float3 {
@@ -92,6 +127,7 @@ fn cell_index(pos: Float3, bbox_min: Float3, inv_cell_size: f32, cell_ends_size:
     hash_func(coord.x as u32, coord.y as u32, coord.z as u32, cell_ends_size as u32)
 }
 
+// TODO change to return hash value rather than xyz
 fn iterate_covered_cells(query_pos: Float3, bbox_min: Float3, inv_cell_size: f32, body: fn(i32, i32, i32) -> ()) -> () {
     let cell_x = inv_cell_size * (query_pos.x - bbox_min.x);
     let cell_y = inv_cell_size * (query_pos.y - bbox_min.y);
@@ -121,7 +157,56 @@ fn iterate_covered_cells(query_pos: Float3, bbox_min: Float3, inv_cell_size: f32
     }
 }
 
-// Xn+1 = (a * Xn + c) % m
+fn compute_hash_vals(query_pos: Vector3, bbox_min: Vector3, inv_cell_size: RS_Float, hashtable_size: RS_Unsigned, body: fn(RS_Unsigned, i32) -> ()) -> () {
+    let cell_x = inv_cell_size * (query_pos.x - bbox_min.x);
+    let cell_y = inv_cell_size * (query_pos.y - bbox_min.y);
+    let cell_z = inv_cell_size * (query_pos.z - bbox_min.z);
+    
+    let px = truncate(cell_x);
+    let py = truncate(cell_y);
+    let pz = truncate(cell_z);
+
+    let frac_coord_x = cell_x - px;
+    let frac_coord_y = cell_y - py;
+    let frac_coord_z = cell_z - pz;
+
+    let a = get_rs_float(1f);
+    let b = get_rs_float(-1f);
+    let c = get_rs_float(0.5f);
+
+    let dx = select_rs_float(greater_eq(frac_coord_x, c), a, b);
+    let dy = select_rs_float(greater_eq(frac_coord_y, c), a, b);
+    let dz = select_rs_float(greater_eq(frac_coord_z, c), a, b);
+
+    let pxo = px + dx;
+    let pyo = py + dy;
+    let pzo = pz + dz;
+
+    let u_px  = convert_f2u(px);
+    let u_py  = convert_f2u(py);
+    let u_pz  = convert_f2u(pz);
+    let u_pxo = convert_f2u(pxo);
+    let u_pyo = convert_f2u(pyo);
+    let u_pzo = convert_f2u(pzo);
+
+    //let mut hashes : [RS_Unsigned * 8];
+
+    for i in @unroll(0, 8) {
+        let z = if ((i & 1) != 0) { u_pzo } else { u_pz };
+        let y = if ((i & 2) != 0) { u_pyo } else { u_py };
+        let x = if ((i & 4) != 0) { u_pxo } else { u_px };
+        //let hash = hash_func_p(x, y, z, hashtable_size);
+        //for j in @unroll(0, 8) {
+        //    hashes(j)(i) = hash(j);
+        //}
+        body(hash_func_p(x, y, z, hashtable_size), i);
+    }
+    //for i in @unroll(0, 8) {
+    //    body(hashes(i));
+    //}
+}
+
+// LCG: Xn+1 = (a * Xn + c) % m
 static RAND_DENOMINATOR = 2147483648f32; // 2^31
 static MODULO = 0x7fffffffi64; // actually modulo - 1 = 2^31 - 1
 static MULTIP = 1103515245i64;
@@ -168,6 +253,14 @@ prev_time = thorin_get_micro_time();
             rands(i) = lcg(rands(i));
         }
     }
+
+    //let tmp_buf = alloc_cpu(hashtable_size * sizeof[i32]());
+    //let mut tmp = bitcast[&[i32]](tmp_buf.data);
+    //for i in range(0, hashtable_size) { tmp(i) = rand(); }
+    //for i in iterate(0, hashtable_size) {
+    //    indices(i) = -1;
+    //    cnts(i) = 0;
+    //}
 
 tmp_time = thorin_get_micro_time();
 print_int((tmp_time - prev_time) as i32);
@@ -217,15 +310,18 @@ print_int((tmp_time - prev_time) as i32);
 print_char('/');
 prev_time = tmp_time;
     
+//for rand_seq_buf in use_host_buf_as(tmp_buf, hashtable_size * sizeof[i32]()) {
+//    let rand_seq = bitcast[&[i32]](rand_seq_buf.data);
     for i in iterate(0, hashtable_size) {
         let cnt = cnts(i);
         if (cnt != 0) {
             let r = (rands(i) as f32) / RAND_DENOMINATOR; // uniformly distributed prn between [0,1)
             let os = floorf32(r * (cnt as f32)) as i32;
-            //indices(i) = cindices(offsets(i) + (rands(i) % cnt));
             indices(i) = cindices(offsets(i) + os);
+            //indices(i) = cindices(offsets(i) + (rand_seq(i) % cnt));
         }
     }
+//}
 
 tmp_time = thorin_get_micro_time();
 print_int((tmp_time - prev_time) as i32);
@@ -234,6 +330,7 @@ print_int((tmp_time - prev_time) as i32);
     release(pos_buf);
     release(hash_buf);
     release(complete_indices_buf);
+    //release(tmp_buf);
 }
 
 extern fn build_hashgrid(mut hg: &PhotonHashGrid, photon_poses: &[f32], photon_cnt: i32, hash_size: i32, rad: f32) -> &PhotonHashGrid {
@@ -265,8 +362,7 @@ let start_time = thorin_get_micro_time();
             cnts_buf       : cnts_buf,
             rands_buf      : rands_buf,
         
-            time_count1    : 0i64,
-            time_count2    : 0i64
+            time_count     : 0i64,
         };
         build(retval, true);
     }
@@ -280,23 +376,27 @@ let start_time = thorin_get_micro_time();
         hg.bbox_min       =  Float3 { x:1e36f,  y:1e36f,  z:1e36f };
         hg.bbox_max       =  Float3 { x:-1e36f, y:-1e36f, z:-1e36f };
         hg.photons        =  photon_poses;
-        hg.time_count1    =  0i64;
-        hg.time_count2    =  0i64;
+        hg.time_count     =  0i64;
         retval = hg;
         build(retval, false);
     }
 
 print_string("->");
-print_int((thorin_get_micro_time() - start_time) as i32);
+let tmp = thorin_get_micro_time() - start_time;
+print_int(tmp as i32);
+TEST_SUM += tmp as i32;
+print_char('(');
+print_int(TEST_SUM / ++TEST_CNT);
+print_char(')');
 print_string("\n");
 
     retval
 }
 
-
+// Query Abstraction: Ver.1 w/o vectorization
 extern fn batch_query_hashgrid(mut hg: &PhotonHashGrid, query_poses: &[f32], size: i32) -> &BatchQueryResult {
 let start_time = thorin_get_micro_time();
-    
+   
     let radius_sqr     = hg.radius_sqr;
     let hashtable_size = hg.hashtable_size;
     let inv_cell_size  = hg.inv_cell_size;
@@ -310,7 +410,7 @@ let start_time = thorin_get_micro_time();
     let rrw_buf    = alloc_buf(8 * size * sizeof[i32]());
     let mut rrw    = bitcast[&[i32]](rrw_buf.data);
     let mut batch  = bitcast[&[i32]](batch_buf.data);
-    
+   
     for i in iterate(0, size) @{
         let offset = i * 8;
         let query_pos = Float3 { x : query_poses(i * 3),
@@ -355,10 +455,75 @@ let start_time = thorin_get_micro_time();
         }
     }
 
-hg.time_count2 += thorin_get_micro_time() - start_time;
+hg.time_count += thorin_get_micro_time() - start_time;
 
     retval
 } 
+
+// Query Abstraction: Ver.2 with AVX
+extern fn batch_query_hashgrid2(mut hg: &PhotonHashGrid, query_poses: &[f32], size: i32) -> &BatchQueryResult {
+let start_time = thorin_get_micro_time();
+    
+    let radius_sqr     = hg.radius_sqr;
+    let hashtable_size = get_rs_unsigned(hg.hashtable_size as u32);
+    let inv_cell_size  = get_rs_float(hg.inv_cell_size);
+    let bbox_min       = vector3(hg.bbox_min);
+    let bbox_max       = vector3(hg.bbox_max);
+    let cnts           = hg.cnts; 
+    let indices        = hg.indices; 
+    let photons        = hg.photons; 
+    
+    let batch_buf  = alloc_buf(8 * size * sizeof[i32]());
+    let rrw_buf    = alloc_buf(8 * size * sizeof[i32]());
+    let mut rrw    = bitcast[&[i32]](rrw_buf.data);
+    let mut batch  = bitcast[&[i32]](batch_buf.data);
+
+    for query_pos, cur_vec_size, out_idx_os in iterate_queries(query_poses, size) @{
+        
+        let masks = is_query_inside_bbox(query_pos, bbox_min, bbox_max);
+       
+        for hash_vals, neighbor_idx in compute_hash_vals(query_pos, bbox_min, inv_cell_size, hashtable_size) {
+            
+            for mask, hash_val, out_idx, pos in iterate_single_query(out_idx_os, neighbor_idx, cur_vec_size, query_pos, hash_vals, masks) {
+                batch(out_idx) = -1;
+                if (mask) {
+                    let photon_idx = indices(hash_val);
+                    if (photon_idx != -1) {
+                        let px = photons(photon_idx * 3);
+                        let py = photons(photon_idx * 3 + 1);
+                        let pz = photons(photon_idx * 3 + 2);
+                        let dx = pos.x - px;
+                        let dy = pos.y - py;
+                        let dz = pos.z - pz;
+                        let dist_sqr = dx * dx + dy * dy + dz * dz;
+                        if (dist_sqr <= radius_sqr) {
+                            batch(out_idx) = photon_idx;
+                            rrw(out_idx) = cnts(hash_val);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    let mut retval : &BatchQueryResult;
+
+    for output_rrw_buf in output_as_host_buf(rrw_buf, 8 * size * sizeof[i32]()) {
+        for output_indices_buf in output_as_host_buf(batch_buf, 8 * size * sizeof[i32]()) {         
+            retval = ~BatchQueryResult {
+                indices : bitcast[&[i32]](output_indices_buf.data),
+                rrw     : bitcast[&[i32]](output_rrw_buf.data),
+                indices_buf : output_indices_buf,
+                rrw_buf     : output_rrw_buf
+            };
+        }
+    }
+
+hg.time_count += thorin_get_micro_time() - start_time;
+
+    retval
+}
+
 
 extern fn destroy_hashgrid(hg: &PhotonHashGrid) -> () {
     release((*hg).indices_buf);

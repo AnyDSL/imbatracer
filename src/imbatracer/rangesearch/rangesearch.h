@@ -30,7 +30,7 @@ public:
 
     HashGrid() : hg(nullptr) {}
 
-    void print_query_time_count() { if (hg) std::cout << "Time to query hash grid: " << hg->time_count1 << "/" << hg->time_count2 << "->" << hg->time_count1 + hg->time_count2 << std::endl; }
+    int get_query_time_count() { return (int)hg->time_count; }
     
     void build(const Iter& photons_begin, const Iter& photons_end, float radius) {
         std::lock_guard<std::mutex> lock(traversal_mutex);
@@ -74,11 +74,11 @@ public:
         thorin::copy(host_poses, ref_poses);
 
         // Impala API
-        return batch_query_hashgrid(hg, ref_poses.data(), size);
+        return batch_query_hashgrid2(hg, ref_poses.data(), size);
     }
 
 private:
-    const int CELL_ENDS_SIZE = 1000000;
+    const int CELL_ENDS_SIZE = 1 << 20;
     PhotonHashGrid* hg = nullptr;
     thorin::Array<float> photon_poses;
 

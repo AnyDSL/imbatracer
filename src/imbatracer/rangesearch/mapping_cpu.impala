@@ -1,10 +1,16 @@
-// HashGrid partial implementation in impala
-// Try different array operations in impala 
-
 extern "C" {
     fn abort() -> ();
 }
 
+extern "device" {
+    fn "llvm.x86.avx.movmsk.ps.256" movmskps256(simd[f32 * 8]) -> i32;
+    fn "llvm.x86.avx.cmp.ps.256" cmpps256(simd[f32 * 8], simd[f32 * 8], i8) -> simd[f32 * 8];
+    fn "llvm.x86.avx.blendv.ps.256" blendvps256(simd[f32 * 8], simd[f32 * 8], simd[f32 * 8]) -> simd[f32 * 8];
+    
+    fn "llvm.x86.sse.movmsk.ps" movmskps128(simd[f32 * 4]) -> i32;
+    fn "llvm.x86.sse.cmp.ps" cmpps128(simd[f32 * 4], simd[f32 * 4], i8) -> simd[f32 * 4];
+    fn "llvm.x86.sse41.blendvps" blendvps128(simd[f32 * 4], simd[f32 * 4], simd[f32 * 4]) -> simd[f32 * 4];
+}
 
 fn compute_bbox(photons: &[f32], size: i32, body: fn(Float3, Float3)->()) -> () {
     let mut bbox_min = Float3 { x : 1e36f,  y : 1e36f,  z : 1e36f };
@@ -23,6 +29,225 @@ fn compute_bbox(photons: &[f32], size: i32, body: fn(Float3, Float3)->()) -> () 
 
     body(bbox_min, bbox_max)
 }
+
+static VEC_SIZE  = 8;
+type RS_Float    = simd[f32 * 8];
+type RS_Integer  = simd[i32 * 8];
+type RS_Mask     = simd[f32 * 8]; 
+type RS_Unsigned = simd[u32 * 8];
+
+fn get_rs_float(f: f32) -> RS_Float       { simd[f, f, f, f, f, f, f, f] }
+fn get_rs_int(i: i32) -> RS_Integer       { simd[i, i, i, i, i, i, i, i] }
+fn get_rs_unsigned(i: u32) -> RS_Unsigned { simd[i, i, i, i, i, i, i, i] }
+
+fn convert_u2i(x : RS_Unsigned) -> RS_Integer {
+    simd[x(0) as i32, x(1) as i32, x(2) as i32, x(3) as i32, 
+         x(4) as i32, x(5) as i32, x(6) as i32, x(7) as i32]
+}
+
+fn convert_f2u(x : RS_Float) -> RS_Unsigned {
+    simd[x(0) as u32, x(1) as u32, x(2) as u32, x(3) as u32, 
+         x(4) as u32, x(5) as u32, x(6) as u32, x(7) as u32]
+}
+
+fn convert_i2f(x : RS_Integer) -> RS_Float {
+    simd[x(0) as f32, x(1) as f32, x(2) as f32, x(3) as f32, 
+         x(4) as f32, x(5) as f32, x(6) as f32, x(7) as f32]
+}
+
+fn and(a: RS_Mask, b: RS_Mask) -> RS_Mask { bitcast[simd[f32 * 8]](bitcast[simd[i32 * 8]](a) & bitcast[simd[i32 * 8]](b)) }
+fn greater(a: RS_Float, b: RS_Float) -> RS_Mask    { cmpps256(b, a, 1i8) }
+fn greater_eq(a: RS_Float, b: RS_Float) -> RS_Mask { cmpps256(b, a, 2i8) }
+fn not_eq(a: RS_Float, b: RS_Float) -> RS_Mask     { cmpps256(b, a, 4i8) }
+fn select_rs_float(m: RS_Mask, a: RS_Float, b: RS_Float) -> RS_Float {
+    blendvps256(b, a, m)
+}
+
+fn truncate(f: RS_Float) -> RS_Float {
+    simd[f(0) as i32 as f32,
+         f(1) as i32 as f32, 
+         f(2) as i32 as f32, 
+         f(3) as i32 as f32,
+         f(4) as i32 as f32, 
+         f(5) as i32 as f32, 
+         f(6) as i32 as f32, 
+         f(7) as i32 as f32]
+}
+
+fn iterate_queries(query_poses: &[f32], size: i32, body: fn(Vector3, i32, i32) -> ()) -> () {
+    let n = ceil_pos_int_div(size, VEC_SIZE);
+    let mut r = size % VEC_SIZE;
+    if ( r == 0) { r = VEC_SIZE; }
+    for i in iterate(0, n) {
+        let mut cur_vec_size = VEC_SIZE;
+        if (i == n-1) { cur_vec_size = r; }
+        let mut query_pos : Vector3;
+        for j in range(0, cur_vec_size) {
+            query_pos.x(j) = query_poses((i * VEC_SIZE + j) * 3);
+            query_pos.y(j) = query_poses((i * VEC_SIZE + j) * 3 + 1);
+            query_pos.z(j) = query_poses((i * VEC_SIZE + j) * 3 + 2);
+        }
+        body(query_pos,            // vectorized query position
+             cur_vec_size,         // current vector size
+             i * 8 * VEC_SIZE);    // output array offset
+    }
+}
+
+fn iterate_single_query(out_idx_os: i32, neighbor_idx: i32, vec_size: i32, query_pos: Vector3, hash: RS_Unsigned, mask: RS_Mask, body: fn(bool, i32, i32, Float3) -> ()) -> () {
+    for i in range(0, vec_size) {
+        body(bitcast[u32](mask(i)) == 0xFFFFFFFFu,    // is_query_inside_bbox
+             hash(i) as i32,                          // hash_val
+             out_idx_os + i * 8 + neighbor_idx,       // output array index
+             Float3 { x: query_pos.x(i),              // query position
+                      y: query_pos.y(i),
+                      z: query_pos.z(i)});
+    }
+}
+
+extern fn batch_query_hashgrid_cpu_avx(mut hg: &PhotonHashGrid, query_poses: &[f32], size: i32) -> &BatchQueryResult {
+let start_time = thorin_get_micro_time();
+    
+    //let radius_sqr     = get_rs_float(hg.radius_sqr);
+    let radius_sqr     = hg.radius_sqr;
+    let hashtable_size = get_rs_unsigned(hg.hashtable_size as u32);
+    let inv_cell_size  = get_rs_float(hg.inv_cell_size);
+    let bbox_min       = vector3(hg.bbox_min);
+    let bbox_max       = vector3(hg.bbox_max);
+    let cnts           = hg.cnts; 
+    let indices        = hg.indices; 
+    let photons        = hg.photons; 
+    
+    let batch_buf  = alloc_buf(8 * size * sizeof[i32]());
+    let rrw_buf    = alloc_buf(8 * size * sizeof[i32]());
+    let mut rrw    = bitcast[&[i32]](rrw_buf.data);
+    let mut batch  = bitcast[&[i32]](batch_buf.data);
+
+    // vectorization version of parallel cpu
+    let n = ceilf32((size as f32) / (VEC_SIZE as f32)) as i32;
+    let mut r = size % VEC_SIZE;
+    if (r == 0) { r = VEC_SIZE; }
+
+    for i in iterate(0, n) {
+        let mut cur_vec_size = VEC_SIZE;
+        if (i == n-1) { cur_vec_size = r; }
+        let offset = i * 8 * VEC_SIZE;
+        let mut query_pos : Vector3;
+        for j in @range(0, cur_vec_size) {
+            query_pos.x(j) = query_poses((i * VEC_SIZE + j) * 3);
+            query_pos.y(j) = query_poses((i * VEC_SIZE + j) * 3 + 1);
+            query_pos.z(j) = query_poses((i * VEC_SIZE + j) * 3 + 2);
+        }
+
+        let mask = is_query_inside_bbox(query_pos, bbox_min, bbox_max);
+
+        for hash, cnt in compute_hash_vals(query_pos, bbox_min, inv_cell_size, hashtable_size) {
+            for j in range(0, cur_vec_size) {
+                let idx = offset + j * 8 + cnt;
+                let h = hash(j) as i32;;
+                batch(idx) = -1;
+                if (bitcast[u32](mask(j)) == 0xFFFFFFFFu) {
+                    let photon_idx = indices(h);
+                    if (photon_idx != -1) {
+                        let px = photons(photon_idx * 3);
+                        let py = photons(photon_idx * 3 + 1);
+                        let pz = photons(photon_idx * 3 + 2);
+                        let dx = query_pos.x(j) - px;
+                        let dy = query_pos.y(j) - py;
+                        let dz = query_pos.z(j) - pz;
+                        let dist_sqr = dx * dx + dy * dy + dz * dz;
+                        
+                        if (dist_sqr <= radius_sqr) {
+                            batch(idx) = photon_idx;
+                            rrw(idx) = cnts(h);
+                        }
+                    }
+                }
+            } 
+            
+            // VECTORIZED QUERIES VER
+            //let mut photon_idx = get_rs_int(-1);;
+            //let mut px = get_rs_float(0.f);
+            //let mut py = get_rs_float(0.f);
+            //let mut pz = get_rs_float(0.f);
+            //for j in range(0, cur_vec_size) {
+            //    let tmp  = indices(hash(j) as i32);
+            //    photon_idx(j) = tmp;
+            //    if (tmp != -1) {
+            //        px(j) = photons(tmp * 3);
+            //        py(j) = photons(tmp * 3 + 1);
+            //        pz(j) = photons(tmp * 3 + 2);
+            //    }
+            //}
+            //let dx = query_pos.x - px;
+            //let dy = query_pos.y - py;
+            //let dz = query_pos.z - pz;
+            //let dist_sqr = dx * dx + dy * dy + dz * dz;
+            //let mask2 = and(mask, greater_eq(radius_sqr, dist_sqr));
+            //for j in range(0, cur_vec_size) {
+            //    let idx = offset + 8 * j + cnt;
+            //    batch(idx) = -1;
+            //    if (bitcast[u32](mask2(j)) == 0xFFFFFFFFu
+            //            && photon_idx(j) != -1) {
+            //        batch(idx) = photon_idx(j);
+            //        rrw(idx) = cnts(hash(j) as i32);
+            //    }
+            //}
+        
+            // VECTORIZED NEIGHBOUR VER
+            //if (cnt < cur_vec_size) {
+            //    let idx = offset + cnt * 8;
+            //    let mut stride = &(batch(idx)) as &simd[i32 * 8];
+            //    *stride = simd[-1, -1, -1, -1, -1, -1, -1, -1]; 
+            //    if (bitcast[u32](mask(cnt)) == 0xFFFFFFFFu) {
+            //        let mut photon_idx = get_rs_int(-1);
+            //        let mut px = get_rs_float(0.f);
+            //        let mut py = get_rs_float(0.f);
+            //        let mut pz = get_rs_float(0.f);
+            //        for j in @unroll(0, 8) {
+            //            let tmp = indices(hash(j) as i32);
+            //            photon_idx(j) = tmp;
+            //            if (tmp != -1) {
+            //                px(j) = photons(tmp * 3);
+            //                py(j) = photons(tmp * 3 + 1);
+            //                pz(j) = photons(tmp * 3 + 2);
+            //            }
+            //        }
+            //        let qx = get_rs_float(query_pos.x(cnt));
+            //        let qy = get_rs_float(query_pos.y(cnt));
+            //        let qz = get_rs_float(query_pos.z(cnt));
+            //        let dx = qx - px;
+            //        let dy = qy - py;
+            //        let dz = qz - pz;
+            //        let dist_sqr = dx * dx + dy * dy + dz * dz;
+            //        let mask2 = greater_eq(radius_sqr, dist_sqr);
+            //        for j in @unroll(0, 8) {
+            //            if(bitcast[u32](mask2(j)) == 0xFFFFFFFFu) {
+            //                batch(idx + j) = photon_idx(j);
+            //                rrw(idx + j) = cnts(hash(j) as i32);
+            //            }
+            //        }
+            //    }
+            //}
+        }
+    }
+
+    let mut retval : &BatchQueryResult;
+
+    for output_rrw_buf in output_as_host_buf(rrw_buf, 8 * size * sizeof[i32]()) {
+        for output_indices_buf in output_as_host_buf(batch_buf, 8 * size * sizeof[i32]()) {         
+            retval = ~BatchQueryResult {
+                indices : bitcast[&[i32]](output_indices_buf.data),
+                rrw     : bitcast[&[i32]](output_rrw_buf.data),
+                indices_buf : output_indices_buf,
+                rrw_buf     : output_rrw_buf
+            };
+        }
+    }
+
+hg.time_count += thorin_get_micro_time() - start_time;
+
+    retval
+} 
 
 // Interfaces
 //extern fn query_hashgrid(mut hg: &PhotonHashGrid, x: f32, y: f32, z: f32) -> &QueryResult {

@@ -112,8 +112,8 @@ public:
             i = 0;
     }
 
-    void print_query_time_count(int sample_id) {
-        photon_grid_[sample_id].print_query_time_count(); }
+    int get_query_time_count(int sample_id) {
+        return photon_grid_[sample_id].get_query_time_count(); }
 
 private:
     // Light path vertices and associated data are stored separately per sample / iteration.

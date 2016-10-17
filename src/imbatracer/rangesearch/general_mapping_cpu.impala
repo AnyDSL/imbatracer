@@ -11,7 +11,8 @@ fn use_host_buf_as(host_buf: Buffer, size: i32, body: fn(Buffer) -> ()) -> () {
 }
 
 fn iterate(start: i32, end: i32, body: fn(i32) -> ()) -> () {
-    for i in range(start, end) {
+    for i in parallel(0, start, end) {
+    //for i in range(start, end) {
         body(i);
     }
 }

@@ -5,6 +5,56 @@ extern "C" {
     fn abort() -> ();
 }
 
+type RS_Float    = f32;
+type RS_Integer  = i32;
+type RS_Mask     = bool;
+type RS_Unsigned = u32;
+
+fn get_rs_float(f: f32) -> RS_Float       { f }
+fn get_rs_int(i: i32) -> RS_Integer       { i }
+fn get_rs_unsigned(i: u32) -> RS_Unsigned { i }
+
+fn convert_u2i(x : RS_Unsigned) -> RS_Integer { x as i32 }
+
+// using "x as u32" directly leads to incorrect result
+// this not happens in cpu mapping, so llvm typ conversion related?
+fn convert_f2u(x : RS_Float) -> RS_Unsigned   { x as i32 as u32 }
+
+fn convert_i2f(x : RS_Integer) -> RS_Float    { x as f32 }
+
+fn and(a: RS_Mask, b: RS_Mask) -> RS_Mask { a && b }
+fn greater(a: RS_Float, b: RS_Float) -> RS_Mask    { a > b }
+fn greater_eq(a: RS_Float, b: RS_Float) -> RS_Mask { a >= b }
+fn not_eq(a: RS_Float, b: RS_Float) -> RS_Mask     { a != b }
+fn select_rs_float(m: RS_Mask, a: RS_Float, b: RS_Float) -> RS_Float {
+    if (m) { a } else { b }
+}
+
+fn truncate(f: RS_Float) -> RS_Float {
+    f as i32 as f32
+}
+
+fn iterate_queries(query_poses: &[f32], size: i32, body: fn(Vector3, i32, i32) -> ()) -> () {
+    for i in iterate(0, size) {
+        body(Vector3{ x: query_poses(i * 3),        // single query position
+                      y: query_poses(i * 3 + 1),
+                      z: query_poses(i * 3 + 2)},
+             1,                                     // current vector size
+             i * 8);                                // output array offset
+    } 
+}
+
+fn iterate_single_query(out_idx_os: i32, neighbor_idx: i32, vec_size: i32, query_pos: Vector3, hash: RS_Unsigned, mask: RS_Mask, body: fn(bool, i32, i32, Float3) -> ()) -> () {
+   body(mask,                         // is_query_inside_bbox
+        hash as i32,                  // hash_val
+        out_idx_os + neighbor_idx,    // output array index
+        Float3 { x: query_pos.x,      // query position
+                 y: query_pos.y,
+                 z: query_pos.z});
+}
+
+
+
 fn compute_bbox(photons: &[f32], size: i32, body: fn(Float3, Float3)->()) -> () {
     let host_bbox_min_buf = alloc_cpu(3 * sizeof[f32]());
     let host_bbox_max_buf = alloc_cpu(3 * sizeof[f32]());

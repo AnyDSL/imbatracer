@@ -43,6 +43,11 @@ fn ceilf32(f : f32) -> f32 {
     tmp + 1f32
 }
 
+// ceil(x/y) : x>0 y>0
+fn ceil_pos_int_div(x: i32, y: i32) -> i32 {
+    1 + ((x - 1) / y)
+}
+
 fn min(a: f32, b : f32) -> f32 {
     if (a > b) { return(b) }
     a

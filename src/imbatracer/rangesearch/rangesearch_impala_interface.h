@@ -33,8 +33,7 @@ struct PhotonHashGrid {
     struct Buffer indices_buf;
     struct Buffer cnts_buf;
     struct Buffer rands_buf;
-    long long time_count1;
-    long long time_count2;
+    long long time_count;
 };
 
 struct QueryResult {
@@ -51,6 +50,7 @@ struct BatchQueryResult {
 
 struct PhotonHashGrid* build_hashgrid(struct PhotonHashGrid* hg, float* photon_poses, int photon_cnt, int hash_size, float rad);
 struct BatchQueryResult* batch_query_hashgrid(struct PhotonHashGrid* hg, float* query_poses, int size);
+struct BatchQueryResult* batch_query_hashgrid2(struct PhotonHashGrid* hg, float* query_poses, int size);
 void destroy_hashgrid(struct PhotonHashGrid* hg);
 void release_query(struct QueryResult* arr);
 void release_batch_query(struct BatchQueryResult* query);
