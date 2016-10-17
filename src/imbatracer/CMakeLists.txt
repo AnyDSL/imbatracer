@@ -33,7 +33,8 @@ add_library(imba_loaders
             loaders/load_obj.h
             loaders/load_obj.cpp
             loaders/path.h
-            loaders/load_bvh.cpp)
+            loaders/load_bvh.cpp
+            loaders/load_hdr.cpp)
 
 add_library(imba_render
             render/camera.h

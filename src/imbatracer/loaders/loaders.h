@@ -11,6 +11,7 @@ namespace imba {
 
 bool load_png(const Path&, Image&);
 bool load_tga(const Path&, Image&);
+bool load_hdr(const Path&, Image&);
 
 inline bool load_image(const Path& path, Image& image) {
     if (!load_png(path, image)) {
