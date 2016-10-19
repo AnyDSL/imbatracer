@@ -10,7 +10,7 @@ namespace imba {
 struct HDRInfo {
     int width;
     int height;
-}
+};
 
 struct HDRPixel {
     char r, g, b, e;
@@ -30,9 +30,9 @@ struct HDRPixel {
     }
 
     operator rgba () const {
-        return rgba(static_cast<rgb>(*this), 0.0f);
+        return rgba(*this, 0.0f);
     }
-}
+};
 
 std::istream& operator >> (std::istream& str, HDRPixel& out) {
     str >> out.r;
@@ -43,13 +43,13 @@ std::istream& operator >> (std::istream& str, HDRPixel& out) {
 }
 
 bool hdr_check_signature(std::ifstream& file) {
-    auto sig = "#?RADIANCE"
+    auto sig = "#?RADIANCE";
     char buf[10];
     if (!file.get(buf, 10) || memcmp(sig, buf, 10))
         return false;
 }
 
-bool hdr_parse_command(cmd, HDRInfo& info) {
+bool hdr_parse_command(const std::string& cmd, HDRInfo& info) {
     // Handle commands (Format, Exposure, Color correction, etc.) here.
     return true;
 }
@@ -178,7 +178,7 @@ bool load_hdr(const Path& path, Image& image) {
     image.resize(info.width, info.height);
 
     // Parse the actual color values.
-    for (int y = 0; y < info.height) {
+    for (int y = 0; y < info.height; ++y) {
         std::string scanline;
         if (!std::getline(file, scanline))
             return false;
