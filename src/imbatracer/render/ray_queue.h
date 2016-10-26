@@ -161,7 +161,7 @@ public:
     }
 
     /// Compact the queue by moving all rays that hit something (and their associated states and hits) to the front.
-    inline void compact_hits() {
+    inline int compact_hits() {
         auto hits   = this->hits();
         auto states = this->states();
         auto rays   = this->rays();
@@ -171,20 +171,20 @@ public:
             if (hits[i].tri_id < 0 && last_empty == -1) {
                 last_empty = i;
             } else if (hits[i].tri_id >= 0 && last_empty != -1) {
-                hits[last_empty]   = hits[i];
-                states[last_empty] = states[i];
-                rays[last_empty]   = rays[i];
+                std::swap(hits[last_empty],   hits[i]);
+                std::swap(states[last_empty], states[i]);
+                std::swap(rays[last_empty],   rays[i]);
                 last_empty++;
             }
         }
 
-        // If at least one empty ray was replaced, shrink the queue.
-        // last_empty corresponds to the new queue size.
-        if (last_empty != -1)
-            shrink(last_empty);
-
         for (int i = 0; i <= last_; ++i)
             sorted_indices_[i] = i;
+
+        if (last_empty != -1)
+            return last_empty;
+        else
+            return size();
     }
 
     /// Compacts the queue by moving all continued rays to the front. Does not move the hits.
@@ -211,13 +211,13 @@ public:
 
     typedef std::function<int (const Hit&)> GetMatIDFn;
 
-    inline void sort_by_material(GetMatIDFn get_mat_id, int num_mats) {
+    inline void sort_by_material(GetMatIDFn get_mat_id, int num_mats, int count) {
         if (matcount_.size() < num_mats)
             matcount_ = std::vector<std::atomic<int> >(num_mats);
         std::fill(matcount_.begin(), matcount_.end(), 0);
 
         // Count the number of hit points per material.
-        tbb::parallel_for(tbb::blocked_range<int>(0, size()),
+        tbb::parallel_for(tbb::blocked_range<int>(0, count),
             [&] (const tbb::blocked_range<int>& range)
         {
             for (auto i = range.begin(); i != range.end(); ++i) {
@@ -236,7 +236,7 @@ public:
         }
 
         // Distribute the indices according to their material ids.
-        tbb::parallel_for(tbb::blocked_range<int>(0, size()),
+        tbb::parallel_for(tbb::blocked_range<int>(0, count),
             [&] (const tbb::blocked_range<int>& range)
         {
             for (auto i = range.begin(); i != range.end(); ++i) {

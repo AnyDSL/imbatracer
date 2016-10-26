@@ -183,7 +183,7 @@ void VCM_INTEGRATOR::process_light_rays(RayQueue<VCMState>& rays_in, RayQueue<Sh
     const Hit* hits = rays_in.hits();
     Ray* rays = rays_in.rays();
 
-    rays_in.compact_hits();
+    const int hit_count = rays_in.compact_hits();
     rays_in.sort_by_material([this](const Hit& hit){
             const Mesh::Instance& inst = scene_.instance(hit.inst_id);
             const Mesh& mesh = scene_.mesh(inst.id);
@@ -191,8 +191,11 @@ void VCM_INTEGRATOR::process_light_rays(RayQueue<VCMState>& rays_in, RayQueue<Sh
             const int m = mesh.indices()[local_tri_id * 4 + 3];
             return m;
         },
-        scene_.material_count()
+        scene_.material_count(), hit_count
     );
+
+    // During light tracing, we ignore rays that do not intersect anything (no point in considering the environment map here)/
+    rays_in.shrink(hit_count);
 
     tbb::parallel_for(tbb::blocked_range<int>(0, rays_in.size()), [&] (const tbb::blocked_range<int>& range) {
         auto& bsdf_mem_arena = bsdf_memory_arenas.local();
@@ -302,7 +305,7 @@ void VCM_INTEGRATOR::process_camera_rays(RayQueue<VCMState>& rays_in, RayQueue<S
     const Hit* hits = rays_in.hits();
     Ray* rays = rays_in.rays();
 
-    rays_in.compact_hits();
+    const int hit_count = rays_in.compact_hits();
     rays_in.sort_by_material([this](const Hit& hit){
             const Mesh::Instance& inst = scene_.instance(hit.inst_id);
             const Mesh& mesh = scene_.mesh(inst.id);
@@ -310,8 +313,36 @@ void VCM_INTEGRATOR::process_camera_rays(RayQueue<VCMState>& rays_in, RayQueue<S
             const int m = mesh.indices()[local_tri_id * 4 + 3];
             return m;
         },
-        scene_.material_count()
-    );
+        scene_.material_count(), hit_count);
+
+    // Process all rays that hit nothing, if there is an environment map.
+    if (scene_.env_map() != nullptr) {
+        tbb::parallel_for(tbb::blocked_range<int>(hit_count, rays_in.size()),
+            [&] (const tbb::blocked_range<int>& range)
+        {
+            for (auto i = range.begin(); i != range.end(); ++i) {
+                VCMState& state = rays_in.state(i);
+                float3 out_dir(rays_in.ray(i).dir.x, rays_in.ray(i).dir.y, rays_in.ray(i).dir.z);
+                out_dir = normalize(out_dir);
+
+                float pdf_direct_a, pdf_emit_w;
+                const auto li = scene_.env_map()->radiance(out_dir, pdf_direct_a, pdf_emit_w);
+
+                const float pdf_di = pdf_direct_a / scene_.light_count();
+
+
+                // TODO compute correct MIS values for VCM!!!
+                const float mis_weight = 1.0f;/*(state.bounces == 0 || state.last_specular) ? 1.0f
+                                         : state.last_pdf / (state.last_pdf + pdf_di);*/
+
+
+                add_contribution(img, state.pixel_id, state.throughput * li * mis_weight);
+            }
+        });
+    }
+
+    // Shrink the queue to only contain valid hits.
+    rays_in.shrink(hit_count);
 
     tbb::parallel_for(tbb::blocked_range<int>(0, rays_in.size()), [&] (const tbb::blocked_range<int>& range) {
         auto& bsdf_mem_arena = bsdf_memory_arenas.local();

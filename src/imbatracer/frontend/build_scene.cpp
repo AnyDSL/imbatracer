@@ -488,6 +488,29 @@ bool parse_scene_file(const Path& path, Scene& scene, SceneInfo& info) {
 
             scene.instances().emplace_back(idx, mat);
             skip = true;
+        } else if (cmd == "env") {
+            if (scene.env_map() != nullptr) {
+                std::cout << " Found more than one environment map. Ignoring..." << std::endl;
+                continue;
+            }
+
+            std::string filename;
+            float intensity;
+            if (!(stream >> filename) || !(stream >> intensity)) {
+                std::cout << " Unexpected EOF in the environment map parameters." << std::endl;
+                return false;
+            }
+
+            filename = path.base_name() + '/' + filename;
+
+            Image img;
+            if (!load_hdr(filename, img)) {
+                std::cout << " Failed to load the environment map." << std::endl;
+                return false;
+            }
+
+            scene.set_env_map(new EnvMap(img, intensity));
+            //scene.lights().emplace_back(new EnvLight(scene.env_map()));
         }
     }
 
@@ -511,7 +534,7 @@ bool parse_scene_file(const Path& path, Scene& scene, SceneInfo& info) {
 
 bool build_scene(const Path& path, Scene& scene, float3& cam_pos, float3& cam_dir, float3& cam_up) {
     SceneInfo scene_info;
-    std::cout << "[1/5] Parsing Scene File..." << std::flush;
+    std::cout << "[1/5] Parsing Scene File..." << std::endl;
     if (!parse_scene_file(path, scene, scene_info)) {
         std::cout << " FAILED" << std::endl;
         return false;

@@ -77,8 +77,9 @@ void PathTracer::bounce(const Intersection& isect, PTState& state_out, Ray& ray_
     };
 }
 
-void PathTracer::process_primary_rays(RayQueue<PTState>& ray_in, RayQueue<ShadowState>& ray_out_shadow, AtomicImage& out) {
-    ray_in.compact_hits();
+void PathTracer::process_primary_rays(RayQueue<PTState>& ray_in, RayQueue<ShadowState>& ray_out_shadow, AtomicImage& res_img) {
+    // Compact and sort the input hits.
+    int hit_count = ray_in.compact_hits();
     ray_in.sort_by_material([this](const Hit& hit){
             const Mesh::Instance& inst = scene_.instance(hit.inst_id);
             const Mesh& mesh = scene_.mesh(inst.id);
@@ -86,9 +87,34 @@ void PathTracer::process_primary_rays(RayQueue<PTState>& ray_in, RayQueue<Shadow
             const int m = mesh.indices()[local_tri_id * 4 + 3];
             return m;
         },
-        scene_.material_count()
-    );
+        scene_.material_count(), hit_count);
 
+    // Process all rays that hit nothing, if there is an environment map.
+    if (scene_.env_map() != nullptr) {
+        tbb::parallel_for(tbb::blocked_range<int>(hit_count, ray_in.size()),
+            [&] (const tbb::blocked_range<int>& range)
+        {
+            for (auto i = range.begin(); i != range.end(); ++i) {
+                PTState& state = ray_in.state(i);
+                float3 out_dir(ray_in.ray(i).dir.x, ray_in.ray(i).dir.y, ray_in.ray(i).dir.z);
+                out_dir = normalize(out_dir);
+
+                float pdf_direct_a, pdf_emit_w;
+                const auto li = scene_.env_map()->radiance(out_dir, pdf_direct_a, pdf_emit_w);
+
+                const float pdf_di = pdf_direct_a / scene_.light_count();
+                const float mis_weight = (state.bounces == 0 || state.last_specular) ? 1.0f
+                                         : state.last_pdf / (state.last_pdf + pdf_di);
+
+                add_contribution(res_img, state.pixel_id, state.throughput * li * mis_weight);
+            }
+        });
+    }
+
+    // Shrink the queue to only contain valid hits.
+    ray_in.shrink(hit_count);
+
+    // Process all hits, creating continuation and shadow rays.
     tbb::parallel_for(tbb::blocked_range<int>(0, ray_in.size()),
         [&] (const tbb::blocked_range<int>& range)
     {
@@ -107,7 +133,7 @@ void PathTracer::process_primary_rays(RayQueue<PTState>& ray_in, RayQueue<Shadow
                 const float mis_weight = (state.bounces == 0 || state.last_specular) ? 1.0f
                                          : state.last_pdf / (state.last_pdf + pdf_di);
 
-                add_contribution(out, state.pixel_id, state.throughput * li * mis_weight);
+                add_contribution(res_img, state.pixel_id, state.throughput * li * mis_weight);
 
                 terminate_path(state);
                 continue;

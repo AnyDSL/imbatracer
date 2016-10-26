@@ -3,6 +3,7 @@
 
 #include "random.h"
 #include "../core/bsphere.h"
+#include "../core/image.h"
 
 #include <cfloat>
 #include <memory>
@@ -353,6 +354,45 @@ private:
     float3 tangent_;
     float angle_;
     float cos_angle_;
+};
+
+class EnvMap {
+public:
+    EnvMap(const Image& img, float intensity)
+    : img_(img), intensity_(intensity)
+    {}
+
+    /// Returns the amount of radiance due to environment map lighting from a certain direction.
+    rgb radiance(const float3& out_dir, float& pdf_direct_a, float& pdf_emit_w) const {
+        // Compute lat/long coordinates in the image.
+        float phi = atan2f(out_dir.x, out_dir.z);
+        phi = (phi < 0.0f) ? (phi + 2.0f * pi) : phi;
+
+        const float s = phi / (2.0f * pi);
+        const float t = acosf(out_dir.y) / pi;
+
+        return intensity_ * static_cast<rgb>(img_(s * (img_.width() - 1), t * (img_.height() - 1)));
+    }
+
+private:
+    Image img_;
+    float intensity_;
+};
+
+class EnvLight : Light {
+public:
+    /// Samples an outgoing ray from the light source.
+    EmitSample sample_emit(RNG& rng) override {
+
+    }
+
+    /// Samples a point on the light source. Used for shadow rays.
+    DirectIllumSample sample_direct(const float3& from, RNG& rng) override {
+
+    }
+
+    bool is_delta()  const override { return false; }
+    bool is_finite() const override { return false; }
 };
 
 } // namespace imba

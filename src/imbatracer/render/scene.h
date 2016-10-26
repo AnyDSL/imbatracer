@@ -72,6 +72,14 @@ public:
         return tri_id - tri_layout_[mesh_id];
     }
 
+    void set_env_map(EnvMap* map) {
+        env_map_.reset(map);
+    }
+
+    const EnvMap* env_map() const {
+        return env_map_.get();
+    }
+
 private:
     void setup_traversal_buffers();
 
@@ -94,6 +102,8 @@ private:
     int node_count_;
 
     BSphere sphere_;
+
+    std::unique_ptr<EnvMap> env_map_;
 };
 
 } // namespace imba
