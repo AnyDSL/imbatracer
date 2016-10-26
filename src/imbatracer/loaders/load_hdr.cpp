@@ -12,10 +12,12 @@ struct HDRInfo {
     int height;
 };
 
-struct HDRPixel {
-    char r, g, b, e;
+using hdr_byte = unsigned char;
 
-    char& operator[](int i) {
+struct HDRPixel {
+    hdr_byte r, g, b, e;
+
+    hdr_byte& operator[](int i) {
         if (i == 0) return r;
         else if (i == 1) return g;
         else if (i == 2) return b;
@@ -23,10 +25,10 @@ struct HDRPixel {
     }
 
     operator rgb () const {
-        float exp = powf(2.0f, e);
-        return rgb((r / 256.0f) * exp,
-                   (g / 256.0f) * exp,
-                   (b / 256.0f) * exp);
+        float exp = ldexp(1.0, e - (128 + 8));
+        return rgb((r + 0.5) * exp,
+                   (g + 0.5) * exp,
+                   (b + 0.5) * exp);
     }
 
     operator rgba () const {
@@ -35,18 +37,24 @@ struct HDRPixel {
 };
 
 std::istream& operator >> (std::istream& str, HDRPixel& out) {
-    str >> out.r;
-    str >> out.g;
-    str >> out.b;
-    str >> out.e;
+    out.r = str.get();
+    out.g = str.get();
+    out.b = str.get();
+    out.e = str.get();
     return str;
 }
 
 bool hdr_check_signature(std::ifstream& file) {
     auto sig = "#?RADIANCE";
-    char buf[10];
-    if (!file.get(buf, 10) || memcmp(sig, buf, 10))
+
+    std::string buf;
+    if (!std::getline(file, buf))
         return false;
+
+    /*if (buf != sig)
+        return false;*/
+
+    return true;
 }
 
 bool hdr_parse_command(const std::string& cmd, HDRInfo& info) {
@@ -64,8 +72,10 @@ bool hdr_parse_resolution(const std::string& resline, HDRInfo& info) {
     str >> info.width;
 
     // We only support the standard coordinate system at the moment.
-    if (first_axis != "-Y" || second_axis != "+X")
+    if (first_axis != "-Y" || second_axis != "+X") {
+        std::cout << " Unsupported axis configuration in the .hdr file." << std::endl;
         return false;
+    }
 
     return true;
 }
@@ -98,19 +108,29 @@ bool hdr_adaptive_rle_decode(std::istream& str, rgba* out, int len) {
     // Each component is stored individually.
     std::vector<HDRPixel> pixels(len);
     for (int comp = 0; comp < 4; ++comp) {
-        for (int i = 0; i < len; ++i) {
-            char code;
-            str >> code;
+        for (int i = 0; i < len; /*i is not incremented*/) {
+            hdr_byte code = str.get();
+
             if (code > 128) { // run
-                char val;
-                str >> val;
+                code &= 127;
+                hdr_byte val = str.get();
+
+                if (i + code > len) {
+                    std::cout << " ERROR: overrun in hdr scanline (rle run)." << std::endl;
+                    return false;
+                }
+
                 while (code--) {
                     pixels[i++][comp] = val;
                 }
             } else { // dump
+                if (i + code > len) {
+                    std::cout << " ERROR: overrun in hdr scanline (rle dump)." << std::endl;
+                    return false;
+                }
+
                 while (code--) {
-                    char val;
-                    str >> val;
+                    hdr_byte val = str.get();
                     pixels[i++][comp] = val;
                 }
             }
@@ -119,25 +139,33 @@ bool hdr_adaptive_rle_decode(std::istream& str, rgba* out, int len) {
 
     // Convert all HDRPixels to rgba.
     for (auto& p : pixels) {
-        *(out++) = p;
+        // auto x = rgba(p);
+        // printf("%f %f %f    ", x.x, x.y, x.z);
+        // printf("%d %d %d %d  ", p.r, p.g, p.b, p.e);
+        // printf("\n");
+        // break;
+
+        *(out++) = rgba(p);
     }
 }
 
-bool hdr_parse_scanline(const std::string& scanline, const HDRInfo& info, Image& image, int y) {
+bool hdr_parse_scanline(std::istream& str, const HDRInfo& info, Image& image, int y) {
     const int min_scanline_len = 8;
     const int max_scanline_len = 0x7fff;
-
-    std::stringstream str(scanline);
 
     HDRPixel pix;
     str >> pix;
 
-    if (pix.r == 2 && pix.g == 2) {
+    if (pix.r == 2 && pix.g == 2 && !(pix.b & 128)) {
         // Adaptive run-length encoding.
+        if (((pix.b << 8) | pix.e) != image.width()) {
+            std::cout << " ERROR: hdr scanline length mismatch!" << std::endl;
+            return false;
+        }
         hdr_adaptive_rle_decode(str, image.row(y), image.width());
     } else {
         // Run-length encoding or uncompressed.
-        str.seekg(0);
+        str.seekg(-4, std::ios_base::cur);
         hdr_rle_decode(str, image.row(y), image.width());
     }
 
@@ -146,20 +174,26 @@ bool hdr_parse_scanline(const std::string& scanline, const HDRInfo& info, Image&
 
 bool load_hdr(const Path& path, Image& image) {
     std::ifstream file(path, std::ifstream::binary);
-    if (!file)
+    if (!file) {
+        std::cout << " ERROR: Could not open file " << path.path() << std::endl;
         return false;
+    }
 
     // Check the signature
-    if (!hdr_check_signature(file))
+    if (!hdr_check_signature(file)) {
+        std::cout << " ERROR: Not a valid .hdr file " << path.file_name() << std::endl;
         return false;
+    }
 
     HDRInfo info;
 
     // Everything until the next empty line is a header command.
     std::string cmd;
     while(true) {
-        if (!std::getline(file, cmd))
+        if (!std::getline(file, cmd)) {
+            std::cout << " Unexpected EOF while parsing the .hdr header " << path.file_name() << std::endl;
             return false;
+        }
 
         if (cmd.size() == 0)
             break;
@@ -170,8 +204,11 @@ bool load_hdr(const Path& path, Image& image) {
 
     // Read the resolution string.
     std::string resline;
-    if (!std::getline(file, resline))
+    if (!std::getline(file, resline)) {
+        std::cout << " Unexpected EOF while parsing the .hdr resolution string " << path.file_name() << std::endl;
         return false;
+    }
+
     if (!hdr_parse_resolution(resline, info))
         return false;
 
@@ -179,11 +216,10 @@ bool load_hdr(const Path& path, Image& image) {
 
     // Parse the actual color values.
     for (int y = 0; y < info.height; ++y) {
-        std::string scanline;
-        if (!std::getline(file, scanline))
+        if (!hdr_parse_scanline(file, info, image, y)) {
+            std::cout << " Unexpected EOF while reading the .hdr scanlines " << path.file_name() << std::endl;
             return false;
-        if (!hdr_parse_scanline(scanline, info, image, y))
-            return false;
+        }
     }
 
     return true;
