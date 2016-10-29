@@ -14,6 +14,7 @@ namespace imba {
 // For test purpose only
 static int t_cnt = 0;
 static int t_sum = 0;
+static int t_sum_cp = 0;
 
 // Offset to prevent self intersection.
 static const float offset = 0.0001f;
@@ -52,9 +53,13 @@ void VCM_INTEGRATOR::render(AtomicImage& img) {
     if (algo != ALGO_LT)
         trace_camera_paths(img);
 
-    int tmp = light_vertices_.get_query_time_count(0);
+    int tmp  = light_vertices_.get_query_time_count(0);
+    int tmp2 = light_vertices_.get_query_copy_time(0);
     t_sum += tmp;
+    t_sum_cp += tmp2;
     int avg = t_sum / (++t_cnt);
+    int avg2 = t_sum_cp / t_cnt;
+    std::cout << "Query Copy Query: " << tmp2 << "(" << avg2 << ")" << std::endl;
     std::cout << "Time to query hash grid: " << tmp << "(" << avg << ")" << std::endl;
 }
 
