@@ -42,14 +42,17 @@ public:
         // memory allocation and copy onto proper device if necessary
         int photon_count = std::distance(photons_begin, photons_end);	
         thorin::Array<float> host_poses(3 * photon_count);
-        for(int i = 0; i < photon_count; ++i) {
-            Iter it = std::next(photons_begin, i);
-            float *pos = &(host_poses.data()[3 * i]);
-            const float3 &p = it->position();
-            pos[0] = p[0];
-            pos[1] = p[1];
-            pos[2] = p[2];
-        }
+        
+        tbb::parallel_for(tbb::blocked_range<int>(0, photon_count), [&] (const tbb::blocked_range<int>& range) {
+            for(auto i = range.begin(); i != range.end(); ++i) {
+                Iter it = std::next(photons_begin, i);
+                float *pos = &(host_poses.data()[3 * i]);
+                const float3 &p = it->position();
+                pos[0] = p[0];
+                pos[1] = p[1];
+                pos[2] = p[2];
+            }
+        });
 
         photon_poses = std::move(thorin::Array<float>(thorin::Platform::RANGESEARCH_PLATFORM, thorin::Device(RANGESEARCH_DEVICE), 3 * photon_count));
 
@@ -72,13 +75,15 @@ public:
 
         // memory allocation and copy onto proper device if necessary
         thorin::Array<float> host_poses(3 * size);
-        for(int i = 0; i < size; ++i) {
-            float *pos = &(host_poses.data()[3 * i]);
-            const float3 &p = query_poses[i];
-            pos[0] = p[0];
-            pos[1] = p[1];
-            pos[2] = p[2];
-        }
+        tbb::parallel_for(tbb::blocked_range<int>(0, size), [&] (const tbb::blocked_range<int>& range) {
+            for(int i = range.begin(); i != range.end(); ++i) {
+                float *pos = &(host_poses.data()[3 * i]);
+                const float3 &p = query_poses[i];
+                pos[0] = p[0];
+                pos[1] = p[1];
+                pos[2] = p[2];
+            }
+        });
 
         thorin::Array<float> ref_poses = std::move(thorin::Array<float>(thorin::Platform::RANGESEARCH_PLATFORM, thorin::Device(RANGESEARCH_DEVICE), 3 * size));
 
