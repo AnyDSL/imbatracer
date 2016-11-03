@@ -521,14 +521,17 @@ void VCM_INTEGRATOR::vertex_merging(VCMState* states, Intersection* intersection
     int query_count = 0;
     std::vector<const VCMState*> new_states;
     std::vector<const Intersection*> new_intersections;
-    std::vector<float3> isect_poses;
+    thorin::Array<float> host_poses(3 * size);
     for (int i = 0; i < size; ++i) {
         if (mask[i]) {
             Intersection& isect = intersections[i];
             if (!isect.mat->is_specular()) {
                 new_states.push_back(&states[i]);
                 new_intersections.push_back(&isect);
-                isect_poses.push_back(isect.pos);
+                const float3& pos = isect.pos; 
+                host_poses[3 * query_count] = pos.x;  
+                host_poses[3 * query_count + 1] = pos.y;  
+                host_poses[3 * query_count + 2] = pos.z;  
                 ++query_count;
             }
         }
@@ -536,7 +539,7 @@ void VCM_INTEGRATOR::vertex_merging(VCMState* states, Intersection* intersection
     if (query_count == 0) return;
     // TODO only work for 1 concurrent spp atm
     const int sample_id = states[0].sample_id;
-    BatchQueryResult* result = light_vertices_.get_merge(sample_id, isect_poses.data(), query_count);
+    BatchQueryResult* result = light_vertices_.get_merge(sample_id, host_poses, query_count);
     int* indices = result->indices;
     int* rrw     = result->rrw;
 

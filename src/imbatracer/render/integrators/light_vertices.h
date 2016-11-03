@@ -38,6 +38,19 @@ struct LightPathVertex {
 
 using PhotonIterator = std::vector<LightPathVertex>::iterator;
 
+/// Wrapper of std::vector<LightPathVertex> to addtionally store LightPathVertex position in a contigous fashion
+struct VertexCache {
+    std::vector<LightPathVertex> vertex_cache;
+    thorin::Array<float> vertex_poses; // this array is redundant, but serves well for photon mapping query
+   
+    // add wrapper methods at here to avoid changing code at somewhere else
+    size_t size() { return vertex_cache.size(); }
+    void resize(const int &s) { vertex_cache.resize(s); vertex_poses = thorin::Array<float>(3 * s); }
+    PhotonIterator begin() { return vertex_cache.begin(); }
+    LightPathVertex& operator[](size_t pos) { return vertex_cache[pos]; }
+    const LightPathVertex& operator[](size_t pos) const { return vertex_cache[pos]; }
+};
+
 struct VCMPhoton {
     float3 position;
     float3 out_dir;
@@ -76,7 +89,7 @@ public:
             for (auto i = range.begin(); i != range.end(); ++i) {
                 light_vertices_count_[i] = std::min(static_cast<int>(vertex_caches_[i].size()), static_cast<int>(vertex_cache_last_[i]));
                 if (use_merging) {
-                    photon_grid_[i].build(vertex_caches_[i].begin(), vertex_caches_[i].begin() + light_vertices_count_[i], radius);
+                    photon_grid_[i].build(vertex_caches_[i].vertex_poses, vertex_caches_[i].size(), radius);
                 }
             }
         });
@@ -87,6 +100,12 @@ public:
         if (i > vertex_caches_[sample_id].size())
             return; // Discard vertices that do not fit. This is very unlikely to happen.
         vertex_caches_[sample_id][i] = v;
+        // 
+        const float3& pos = v.position(); 
+        float *p = &(vertex_caches_[sample_id].vertex_poses[3 * i]);
+        p[0] = pos.x;
+        p[1] = pos.y;
+        p[2] = pos.z;
     }
 
     inline int count(int sample_id) {
@@ -99,8 +118,8 @@ public:
     }
 
     /// Calls Impala API to get batch query result returned as a struct 
-    inline BatchQueryResult* get_merge(int sample_id, float3* poses, int size) {
-        return photon_grid_[sample_id].process(poses, size);
+    inline BatchQueryResult* get_merge(int sample_id, thorin::Array<float> &host_poses, int size) {
+        return photon_grid_[sample_id].process(host_poses, size);
     }
 
     inline PhotonIterator begin(int sample_id) {
@@ -120,7 +139,7 @@ public:
 
 private:
     // Light path vertices and associated data are stored separately per sample / iteration.
-    std::vector<std::vector<LightPathVertex> > vertex_caches_;
+    std::vector<VertexCache> vertex_caches_;
     std::vector<std::atomic<int> > vertex_cache_last_;
     std::vector<int> light_vertices_count_;
     std::vector<HashGrid<PhotonIterator, VCMPhoton> > photon_grid_;
