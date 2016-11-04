@@ -45,7 +45,7 @@ struct VertexCache {
    
     // add wrapper methods at here to avoid changing code at somewhere else
     size_t size() { return vertex_cache.size(); }
-    void resize(const int &s) { vertex_cache.resize(s); vertex_poses = thorin::Array<float>(3 * s); }
+    void resize(const int &s) { vertex_cache.resize(s); vertex_poses = std::move(thorin::Array<float>(3 * s)); }
     PhotonIterator begin() { return vertex_cache.begin(); }
     LightPathVertex& operator[](size_t pos) { return vertex_cache[pos]; }
     const LightPathVertex& operator[](size_t pos) const { return vertex_cache[pos]; }
@@ -89,7 +89,7 @@ public:
             for (auto i = range.begin(); i != range.end(); ++i) {
                 light_vertices_count_[i] = std::min(static_cast<int>(vertex_caches_[i].size()), static_cast<int>(vertex_cache_last_[i]));
                 if (use_merging) {
-                    photon_grid_[i].build(vertex_caches_[i].vertex_poses, vertex_caches_[i].size(), radius);
+                    photon_grid_[i].build(vertex_caches_[i].vertex_poses, light_vertices_count_[i], radius);
                 }
             }
         });

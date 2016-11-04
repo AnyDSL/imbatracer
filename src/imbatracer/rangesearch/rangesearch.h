@@ -41,24 +41,25 @@ public:
 
         // memory allocation and copy onto proper device if necessary
         if (thorin::Platform::RANGESEARCH_PLATFORM != thorin::Platform::HOST) {
+            thorin::Array<float> dummy_poses(3 * size);
             dev_photon_poses = std::move(thorin::Array<float>(thorin::Platform::RANGESEARCH_PLATFORM, thorin::Device(RANGESEARCH_DEVICE), 3 * size));
+
             thorin::copy(host_poses, 0, dev_photon_poses, 0, 3 * size);
 
     t = thorin_get_micro_time() - t;
     sum_cp_b += t;
     std::cout << "Build Copy Time: " << t << "(" << sum_cp_b / (++cnt_b) << ")"  << std::endl;
-        
-	        hg = build_hashgrid(hg, dev_photon_poses.data(), size, CELL_ENDS_SIZE, radius);
+	        
+            hg = build_hashgrid(hg, dev_photon_poses.data(), size, CELL_ENDS_SIZE, radius);
         }
         else {
     t = thorin_get_micro_time() - t;
     sum_cp_b += t;
     std::cout << "Build Copy Time: " << t << "(" << sum_cp_b / (++cnt_b) << ")"  << std::endl;
-	        hg = build_hashgrid(hg, host_poses.data(), size, CELL_ENDS_SIZE, radius);
-        }
+            hg = build_hashgrid(hg, host_poses.data(), size, CELL_ENDS_SIZE, radius);
+        } 
     }
-
-
+ 
     BatchQueryResult* process(thorin::Array<float> &host_poses, const int size) {
         std::lock_guard<std::mutex> lock(traversal_mutex);
        
@@ -77,6 +78,7 @@ public:
             return batch_query_hashgrid2(hg, host_poses.data(), size);
         }
     }
+
 
 private:
     const int CELL_ENDS_SIZE = 1 << 20;
