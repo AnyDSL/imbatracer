@@ -74,7 +74,8 @@ void RenderWindow::render_loop() {
         if (conv_file_base_ != "" && elapsed_ms / static_cast<int>(1000 * conv_interval_sec_) >= conv_count_) {
             ++conv_count_;
             std::stringstream str;
-            str << conv_file_base_ << elapsed_ms << "ms" << ".png";
+            //str << conv_file_base_ << elapsed_ms << "ms" << ".png";
+            str << conv_file_base_ << elapsed_ms / 1000 << "_" << frames_ << ".png";
             write_image(str.str().c_str());
         }
     }
