@@ -20,7 +20,7 @@ struct MultiNode {
         count = 1;
     }
 
-    bool full() const { return count == N; }
+    bool is_full() const { return count == N; }
     bool is_leaf() const { return count == 1; }
 
     void sort_nodes() {

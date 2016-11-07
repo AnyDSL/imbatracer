@@ -59,7 +59,7 @@ public:
             MultiNode<Node, N> multi_node(stack.pop());
 
             // Iterate over the available split candidates in the multi-node
-            while (!multi_node.full() && multi_node.node_available()) {
+            while (!multi_node.is_full() && multi_node.node_available()) {
                 const int node_id = multi_node.next_node();
                 Node node = multi_node.nodes[node_id];
 

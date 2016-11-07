@@ -55,7 +55,7 @@ public:
             MultiNode<Node, N> multi_node(stack.pop());
 
             // Iterate over the available split candidates in the multi-node
-            while (!multi_node.full() && multi_node.node_available()) {
+            while (!multi_node.is_full() && multi_node.node_available()) {
                 const int node_id = multi_node.next_node();
                 Node node = multi_node.nodes[node_id];
                 Ref* refs = node.refs;
@@ -177,7 +177,8 @@ public:
 #endif
 
 private:
-    static constexpr int spatial_bins = 256;
+    static constexpr int spatial_bins = 64;
+    static constexpr int binning_passes = 2;
 
     struct Ref {
         uint32_t id;
@@ -290,36 +291,30 @@ private:
         sort_refs(split.axis, refs, ref_count);
     }
 
-    void find_spatial_split(SpatialSplit& split, const BBox& parent_bb,
-                            const Mesh& mesh, int axis,
-                            Ref* refs, int ref_count) {
-        const float min = parent_bb.min[axis];
-        const float max = parent_bb.max[axis];
-        assert(max > min);
-        Bin bins[spatial_bins];
-
+    int spatial_binning(Bin* bins, int num_bins, SpatialSplit& split,
+                         const Mesh& mesh, int axis,
+                         Ref* refs, int ref_count,
+                         float axis_min, float axis_max) {
         // Initialize bins
-        for (int i = 0; i < spatial_bins; i++) {
+        for (int i = 0; i < num_bins; i++) {
             bins[i].entry = 0;
             bins[i].exit = 0;
             bins[i].bb = BBox::empty();
         }
 
         // Put the primitives in the bins
-        const float bin_size = (max - min) / spatial_bins;
+        const float bin_size = (axis_max - axis_min) / num_bins;
         const float inv_size = 1.0f / bin_size;
         for (int i = 0; i < ref_count; i++) {
             const Ref& ref = refs[i];
 
-            assert(ref.bb.is_included(parent_bb));
-
-            const int first_bin = clamp((int)(inv_size * (ref.bb.min[axis] - min)), 0, spatial_bins - 1);
-            const int last_bin  = clamp((int)(inv_size * (ref.bb.max[axis] - min)), 0, spatial_bins - 1);
+            const int first_bin = clamp(int(inv_size * (ref.bb.min[axis] - axis_min)), 0, num_bins - 1);
+            const int last_bin  = clamp(int(inv_size * (ref.bb.max[axis] - axis_min)), 0, num_bins - 1);
 
             BBox cur_bb = ref.bb;
             for (int j = first_bin; j < last_bin; j++) {
                 BBox left_bb, right_bb;
-                mesh.triangle(ref.id).compute_split(left_bb, right_bb, axis, min + (j + 1) * bin_size);
+                mesh.triangle(ref.id).compute_split(left_bb, right_bb, axis, j < num_bins - 1 ? axis_min + (j + 1) * bin_size : axis_max);
                 bins[j].bb.extend(left_bb.overlap(cur_bb));
                 cur_bb.overlap(right_bb);
             }
@@ -331,7 +326,7 @@ private:
 
         // Sweep from the right and accumulate the bounding boxes
         BBox cur_bb = BBox::empty();
-        for (int i = spatial_bins - 1; i > 0; i--) {
+        for (int i = num_bins - 1; i > 0; i--) {
             cur_bb.extend(bins[i].bb);
             right_bbs_[i - 1] = cur_bb;
         }
@@ -340,7 +335,8 @@ private:
         int left_count = 0, right_count = ref_count;
         cur_bb = BBox::empty();
 
-        for (int i = 0; i < spatial_bins - 1; i++) {
+        int split_index = -1;
+        for (int i = 0; i < num_bins - 1; i++) {
             left_count += bins[i].entry;
             right_count -= bins[i].exit;
             cur_bb.extend(bins[i].bb);
@@ -349,9 +345,33 @@ private:
             if (cost < split.cost) {
                 split.axis = axis;
                 split.cost = cost;
-                split.position = min + (i + 1) * bin_size;
+                split.position = axis_min + (i + 1) * bin_size;
+                split_index = i;
             }
         }
+        return split_index;
+    }
+
+    void find_spatial_split(SpatialSplit& split, const BBox& parent_bb,
+                            const Mesh& mesh, int axis,
+                            Ref* refs, int ref_count) {
+        float axis_min = parent_bb.min[axis];
+        float axis_max = parent_bb.max[axis];
+        assert(axis_max > axis_min);
+        Bin bins[spatial_bins];
+        int n = 0;
+
+        do {
+            if (axis_max <= axis_min) break;
+
+            int split_index = spatial_binning(bins, spatial_bins, split, mesh, axis, refs, ref_count, axis_min, axis_max);
+            if (split_index < 0) break;
+
+            float bin_size = (axis_max - axis_min) / spatial_bins;
+            axis_min = split.position - bin_size;
+            axis_max = split.position + bin_size;
+            n++;
+        } while (n < binning_passes);
     }
 
     void apply_spatial_split(const SpatialSplit& split, const Mesh& mesh,
