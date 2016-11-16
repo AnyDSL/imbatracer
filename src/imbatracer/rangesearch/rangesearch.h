@@ -18,6 +18,8 @@ struct CellIdx {
     CellIdx() : x(0), y(0) {}
 };
 
+typedef unsigned int uint;
+
 /// Prelim. photon range search accelerator, taken from SmallVCM
 /// Will be replaced later on by a high performance parallel version.
 template<typename Iter, typename Photon>
