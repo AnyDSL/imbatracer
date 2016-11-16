@@ -29,17 +29,17 @@ struct float4x4 {
     }
 };
 
-inline float4x4 perspective(float fov, float aspect, float zNear, float zFar) {
-    // Camera points towards -z.  0 < near < far.
-    // Matrix maps z range [-near, -far] to [-1, 1], after homogeneous division.
+inline float4x4 perspective(float fov, float aspect, float znear, float zfar) {
+    // Camera points towards -z.  0 < znear < zfar.
+    // Matrix maps z range [-znear, -zfar] to [-1, 1], after homogeneous division.
     const float f_h =   1.0f / std::tan(fov * pi / 360.0f);
     const float f_v = aspect / std::tan(fov * pi / 360.0f);
-    const float d = 1.0f / (zNear - zFar);
+    const float d = 1.0f / (znear - zfar);
 
     float4x4 r;
     r[0][0] = f_h;  r[0][1] = 0.0f; r[0][2] = 0.0f;               r[0][3] = 0.0f;
     r[1][0] = 0.0f; r[1][1] = -f_v; r[1][2] = 0.0f;               r[1][3] = 0.0f;
-    r[2][0] = 0.0f; r[2][1] = 0.0f; r[2][2] = (zNear + zFar) * d; r[2][3] = 2.0f * zNear * zFar * d;
+    r[2][0] = 0.0f; r[2][1] = 0.0f; r[2][2] = (znear + zfar) * d; r[2][3] = 2.0f * znear * zfar * d;
     r[3][0] = 0.0f; r[3][1] = 0.0f; r[3][2] = -1.0f;              r[3][3] = 0.0f;
 
     return r;
