@@ -3,7 +3,10 @@
 #include <fstream>
 #include <sstream>
 
+#ifndef _MSC_VER
 #include <unistd.h>
+#endif // !_MSC_VER
+
 #include <png.h>
 
 #include <tbb/tbb.h>
