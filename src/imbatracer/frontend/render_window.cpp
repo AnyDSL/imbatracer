@@ -9,6 +9,7 @@
 
 #include <png.h>
 
+#define NOMINMAX
 #include <tbb/tbb.h>
 
 #include "render_window.h"

@@ -4,6 +4,8 @@
 #include "../core/float4.h"
 
 #include <vector>
+
+#define NOMINMAX
 #include <tbb/tbb.h>
 
 namespace imba {
