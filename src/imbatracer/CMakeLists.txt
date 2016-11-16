@@ -11,18 +11,25 @@ endif()
 
 add_library(imba_core
             core/adapter.h
+            core/atomic_vector.h
             core/bbox.h
             core/bsphere.h
+            core/bvh_helper.h
             core/common.h
             core/rgb.h
             core/float4x4.h
             core/float3x4.h
+            core/float2.h
+            core/float3.h
+            core/float4.h
+            core/image.h
             core/mask.h
             core/mem_pool.h
             core/mesh.h
             core/mesh.cpp
             core/sbvh_builder.h
             core/fast_bvh_builder.h
+            core/stack.h
             core/tri.h
             ${CORE_SRCS})
 
@@ -38,6 +45,7 @@ add_library(imba_loaders
 
 add_library(imba_render
             render/camera.h
+            render/light.h
             render/integrators/integrator.h
             render/integrators/pt.h
             render/integrators/pt.cpp
@@ -46,13 +54,14 @@ add_library(imba_render
             render/integrators/light_vertices.h
             render/integrators/light_vertices.cpp
             render/ray_queue.h
+            render/ray_gen.h
             render/random.h
             render/intersection.h
             render/mem_arena.h
             render/scene.h
             render/scene.cpp
             render/texture_sampler.h
-            render/ray_scheduler.h
+            render/queue_scheduler.h
             render/tile_scheduler.h
             render/ray_scheduler.h
             rangesearch/rangesearch.h)
