@@ -2,6 +2,7 @@
 #include <iostream>
 #include <cstring>
 #include <cstdlib>
+#include <cctype>
 
 #include "load_obj.h"
 
