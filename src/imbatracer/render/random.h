@@ -6,6 +6,7 @@
 #include "../core/common.h"
 
 #include <random>
+#include <algorithm>
 
 namespace imba {
 
