@@ -1,5 +1,5 @@
-#ifndef STACK_H
-#define STACK_H
+#ifndef IMBA_STACK_H
+#define IMBA_STACK_H
 
 #include <cassert>
 
