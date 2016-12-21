@@ -321,22 +321,24 @@ void VCM_INTEGRATOR::process_camera_rays(RayQueue<VCMState>& rays_in, RayQueue<S
             [&] (const tbb::blocked_range<int>& range)
         {
             for (auto i = range.begin(); i != range.end(); ++i) {
+                if (algo == ALGO_PT)
+                    break;
+
                 VCMState& state = rays_in.state(i);
                 float3 out_dir(rays_in.ray(i).dir.x, rays_in.ray(i).dir.y, rays_in.ray(i).dir.z);
                 out_dir = normalize(out_dir);
 
-                float pdf_direct_a, pdf_emit_w;
-                const auto li = scene_.env_map()->radiance(out_dir, pdf_direct_a, pdf_emit_w);
+                float pdf_direct_w, pdf_emit_w;
+                const auto li = scene_.env_map()->radiance(out_dir, pdf_direct_w, pdf_emit_w);
 
-                const float pdf_di = pdf_direct_a / scene_.light_count();
+                const float pdf_lightpick = 1.0f / scene_.light_count();
+                const float pdf_di = pdf_direct_w * pdf_lightpick;
+                const float pdf_e = pdf_emit_w * pdf_lightpick;
 
+                const float mis_weight_camera = mis_pow(pdf_di) * state.dVCM + mis_pow(pdf_e) * state.dVC;
+                const float mis_weight = 1.0f / (mis_weight_camera + 1.0f);
 
-                // TODO compute correct MIS values for VCM!!!
-                const float mis_weight = 1.0f;/*(state.bounces == 0 || state.last_specular) ? 1.0f
-                                         : state.last_pdf / (state.last_pdf + pdf_di);*/
-
-
-                add_contribution(img, state.pixel_id, state.throughput * li * mis_weight);
+                add_contribution(img, state.pixel_id, state.throughput * li * (algo == ALGO_PPM ? 1.0f : mis_weight));
             }
         });
     }
@@ -358,7 +360,7 @@ void VCM_INTEGRATOR::process_camera_rays(RayQueue<VCMState>& rays_in, RayQueue<S
             auto bsdf = isect.mat->get_bsdf(isect, bsdf_mem_arena);
 
             // Complete computation of partial MIS weights.
-            state.dVCM *= mis_pow(sqr(rays_in.hit(i).tmax)) / mis_pow(cos_theta_o); // convert divided pdf from solid angle to area
+            state.dVCM *= mis_pow(sqr(rays_in.hit(i).tmax)) / mis_pow(cos_theta_o); // transform divided pdf from solid angle to area
             state.dVC *= 1.0f / mis_pow(cos_theta_o);
             state.dVM *= 1.0f / mis_pow(cos_theta_o);
 

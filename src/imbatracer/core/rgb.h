@@ -21,6 +21,10 @@ inline float luminance(const rgb& color) {
     return dot(color, rgb(0.2126f, 0.7152f, 0.0722f));
 }
 
+inline float luminance(const rgba& color) {
+    return dot(rgb(color), rgb(0.2126f, 0.7152f, 0.0722f));
+}
+
 using atomic_rgb  = AtomicVector<float, 3, rgb>;
 using atomic_rgba = AtomicVector<float, 4, rgba>;
 

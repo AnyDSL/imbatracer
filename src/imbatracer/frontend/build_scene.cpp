@@ -509,8 +509,8 @@ bool parse_scene_file(const Path& path, Scene& scene, SceneInfo& info) {
                 return false;
             }
 
-            scene.set_env_map(new EnvMap(img, intensity));
-            //scene.lights().emplace_back(new EnvLight(scene.env_map()));
+            scene.set_env_map(new EnvMap(img, intensity, scene.bounding_sphere()));
+            scene.lights().emplace_back(new EnvLight(scene.env_map(), scene.bounding_sphere()));
         }
     }
 

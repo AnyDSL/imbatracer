@@ -25,8 +25,11 @@ void PathTracer::compute_direct_illum(const Intersection& isect, PTState& state,
     const auto bsdf_value = bsdf->eval(isect.out_dir, sample.dir, BSDF_ALL);
 
     const float pdf_hit = bsdf->pdf(isect.out_dir, sample.dir);
-    const float pdf_di  = pdf_lightpick * sample.pdf_direct_w / (sample.distance * sample.distance) * sample.cos_out;
+    const float pdf_di  = pdf_lightpick * sample.pdf_direct_w;
     const float mis_weight = ls->is_delta() ? 1.0f : pdf_di / (pdf_di + pdf_hit);
+
+    if (pdf_hit == 0.0f || pdf_di == 0.0f)
+        return;
 
     // The contribution is stored in the state of the shadow ray and added, if the shadow ray does not intersect anything.
     ShadowState s;
@@ -99,12 +102,14 @@ void PathTracer::process_primary_rays(RayQueue<PTState>& ray_in, RayQueue<Shadow
                 float3 out_dir(ray_in.ray(i).dir.x, ray_in.ray(i).dir.y, ray_in.ray(i).dir.z);
                 out_dir = normalize(out_dir);
 
-                float pdf_direct_a, pdf_emit_w;
-                const auto li = scene_.env_map()->radiance(out_dir, pdf_direct_a, pdf_emit_w);
+                float pdf_direct_w, pdf_emit_w;
+                const auto li = scene_.env_map()->radiance(out_dir, pdf_direct_w, pdf_emit_w);
 
-                const float pdf_di = pdf_direct_a / scene_.light_count();
+                const float pdf_lightpick = 1.0f / scene_.light_count();
+                const float pdf_di  = pdf_direct_w * pdf_lightpick;
+                const float pdf_hit = state.last_pdf;
                 const float mis_weight = (state.bounces == 0 || state.last_specular) ? 1.0f
-                                         : state.last_pdf / (state.last_pdf + pdf_di);
+                                         : (pdf_hit / (pdf_hit + pdf_di));
 
                 add_contribution(res_img, state.pixel_id, state.throughput * li * mis_weight);
             }

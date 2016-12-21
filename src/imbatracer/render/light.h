@@ -235,7 +235,8 @@ private:
     rgb intensity_;
     float3 dir_;
     float3 tangent_, binormal_;
-    BSphere bsphere_;
+    // The scene geometry is not yet known when the lights are created. Hence we store a reference to the bounding sphere which will be updated later on.
+    const BSphere& bsphere_;
 };
 
 class PointLight : public Light {
@@ -329,7 +330,7 @@ public:
         DirectIllumSample sample;
         sample.dir       = dir;
         sample.distance  = dist;
-        sample.pdf_direct_w = sqdist; // 1 * sqdist / 1
+        sample.pdf_direct_w = sqdist;
 
         if (cos_o < cos_angle_) {
             sample.radiance   = rgb(0.0f);
@@ -358,12 +359,63 @@ private:
 
 class EnvMap {
 public:
-    EnvMap(const Image& img, float intensity)
-    : img_(img), intensity_(intensity)
-    {}
+    EnvMap(const Image& img, float intensity, const BSphere& bsphere)
+    : img_(img), intensity_(intensity), bsphere_(bsphere)
+    {
+        // Compute the piecewise constant pdf, marginal pdf, and corresponding cdfs for sampling.
+        const int w = img.width();
+        const int h = img.height();
+
+        float total_value = 0.0f;
+
+        // Compute piecewise constant pdf, cdf, and marginals.
+        func_.resize(w * h);
+        marginal_.resize(h);
+        cdf_.resize((w + 1) * h);
+        for (int row = 0; row < h; ++row) {
+            marginal_[row] = 0.0f;
+            for (int col = 0; col < w; ++col) {
+                // Average over four pixels (with repeat boundary handling)
+                func_[row * w + col] = luminance(img_(row,           col          )) +
+                                       luminance(img_(row,           (col + 1) % w)) +
+                                       luminance(img_((row + 1) % h, col          )) +
+                                       luminance(img_((row + 1) % h, (col + 1) % w));
+                func_[row * w + col] *= 0.25f;
+
+                const float sin_theta = 1.0f;
+                func_[row * w + col] *= sin_theta;
+
+                total_value += func_[row * w + col];
+
+                marginal_[row] += func_[row * w + col];
+            }
+
+            // Sum up values to compute cdf for this row
+            cdf_[row * (w + 1)] = 0.0f;
+            for (int col = 0; col < w; ++col)
+                cdf_[row * (w + 1) + col + 1] = cdf_[row * (w + 1) + col] + func_[row * w + col] / w;
+            for (int col = 0; col <= w; ++col)
+                cdf_[row * (w + 1) + col] /= cdf_[row * (w + 1) + w + 1];
+        }
+
+        // Compute marginal CDF for sampling
+        marginal_cdf_.resize(h + 1);
+        marginal_cdf_[0] = 0.0f;
+        for (int row = 0; row < h; ++row)
+            marginal_cdf_[row + 1] = marginal_cdf_[row] + marginal_[row] / h;
+        for (int row = 0; row <= h; ++row)
+            marginal_cdf_[row] /= marginal_cdf_.back();
+
+        // Compute the actual pdf values.
+        for (int row = 0; row < h; ++row) {
+            for (int col = 0; col < w; ++col) {
+                func_[row * w + col] /= total_value / (w * h);
+            }
+        }
+    }
 
     /// Returns the amount of radiance due to environment map lighting from a certain direction.
-    rgb radiance(const float3& out_dir, float& pdf_direct_a, float& pdf_emit_w) const {
+    rgb radiance(const float3& out_dir, float& pdf_direct_w, float& pdf_emit_w) const {
         // Compute lat/long coordinates in the image.
         float phi = atan2f(out_dir.x, out_dir.z);
         phi = (phi < 0.0f) ? (phi + 2.0f * pi) : phi;
@@ -371,28 +423,123 @@ public:
         const float s = phi / (2.0f * pi);
         const float t = acosf(out_dir.y) / pi;
 
+        pdf_direct_w = pdf(s, t) / (2.0f * pi * pi * sinf(t));
+        pdf_emit_w   = concentric_disc_pdf() * bsphere_.inv_radius_sqr * pdf_direct_w;
+
         return intensity_ * static_cast<rgb>(img_(s * (img_.width() - 1), t * (img_.height() - 1)));
+    }
+
+    float pdf(float s, float t) const {
+        return 1.0f;// / float(img_.width() * img_.height());
+    }
+
+    /// Samples a direction for incoming light from the environment map, using importance sampling.
+    float3 sample_dir(RNG& rng, float3& dir, float& pdf) const {
+        float2 uv;
+        const auto color = sample_uv(rng, uv, pdf);
+
+        // Convert uv point to spherical coordinates and compute direction out of those.
+        const float theta = pi * uv.y;
+        const float sin_theta = sinf(theta);
+        const float phi = 2.0f * pi * uv.x;
+        dir = float3(sin_theta * sinf(phi),
+                     cosf(theta),
+                     sin_theta * cosf(phi));
+
+        if (sin_theta != 0.0f)
+            // Transform pdf from image space sampling to solid angle.
+            pdf /= 2.0f * pi * pi * sin_theta;
+        else
+            pdf = 0.0f;
+
+        return color;
+    }
+
+    /// Importance samples a point on the environment map.
+    rgb sample_uv(RNG& rng, float2& uv, float& pdf) const {
+        pdf = 1.0f / float(img_.width() * img_.height());
+
+        uv.x = rng.random_float();
+        uv.y = rng.random_float();
+
+        // TODO importance sample the image.
+
+        // Transform pdf for transformation from pixel coordinates to uv
+        pdf *= float(img_.width() * img_.height());
+
+        return intensity_ * static_cast<rgb>(img_(uv.x * (img_.width() - 1), uv.y * (img_.height() - 1)));
     }
 
 private:
     Image img_;
     float intensity_;
+
+    std::vector<float> func_;
+    std::vector<float> cdf_;
+    std::vector<float> marginal_;
+    std::vector<float> marginal_cdf_;
+
+    // The scene geometry is not yet known when the lights are created. Hence we store a reference to the bounding sphere which will be updated later on.
+    const BSphere& bsphere_;
 };
 
-class EnvLight : Light {
+class EnvLight : public Light {
 public:
+    EnvLight(const EnvMap* map, const BSphere& bsphere)
+        : bsphere_(bsphere), map_(map)
+    {}
+
     /// Samples an outgoing ray from the light source.
     EmitSample sample_emit(RNG& rng) override {
+        float pdf;
+        float3 dir;
+        auto radiance = map_->sample_dir(rng, dir, pdf);
+        dir *= -1.0f;
 
+        float2 disc_pos = sample_concentric_disc(rng.random_float(), rng.random_float());
+
+        float3 tangent, binormal;
+        local_coordinates(dir, tangent, binormal);
+
+        EmitSample sample;
+        sample.pos = bsphere_.center + bsphere_.radius * (-dir + binormal * disc_pos.x + tangent * disc_pos.y);
+        sample.dir = dir;
+
+        sample.pdf_direct_a = pdf;
+        sample.pdf_emit_w   = concentric_disc_pdf() * bsphere_.inv_radius_sqr * pdf;
+        sample.cos_out      = 1.0f;
+
+        sample.radiance = radiance / sample.pdf_emit_w;
+
+        return sample;
     }
 
     /// Samples a point on the light source. Used for shadow rays.
     DirectIllumSample sample_direct(const float3& from, RNG& rng) override {
+        float pdf;
+        float3 dir;
+        auto radiance = map_->sample_dir(rng, dir, pdf);
 
+        DirectIllumSample sample;
+
+        sample.dir      = dir;
+        sample.distance = FLT_MAX;
+        sample.radiance = radiance / pdf;
+
+        sample.pdf_direct_w = pdf;
+        sample.pdf_emit_w   = concentric_disc_pdf() * bsphere_.inv_radius_sqr * pdf;
+        sample.cos_out      = 1.0f;
+
+        return sample;
     }
 
     bool is_delta()  const override { return false; }
     bool is_finite() const override { return false; }
+
+private:
+    const EnvMap* map_;
+    // The scene geometry is not yet known when the lights are created. Hence we store a reference to the bounding sphere which will be updated later on.
+    const BSphere& bsphere_;
 };
 
 } // namespace imba
