@@ -9,6 +9,7 @@
 
 #include "../random.h"
 
+#define NOMINMAX
 #include <tbb/tbb.h>
 
 namespace imba {

@@ -1,5 +1,5 @@
-#ifndef STACK_H
-#define STACK_H
+#ifndef IMBA_STACK_H
+#define IMBA_STACK_H
 
 #include <cassert>
 
@@ -16,7 +16,7 @@ struct Stack {
 
     template <typename... Args>
     void push(Args... args) {
-        assert(!full());
+        assert(!is_full());
         elems[++top] = T(args...);
     }
 
@@ -26,7 +26,7 @@ struct Stack {
     }
 
     bool is_empty() const { return top < 0; }
-    bool full() const { return top >= N - 1; }
+    bool is_full() const { return top >= N - 1; }
     int size() const { return top + 1; }
 };
 

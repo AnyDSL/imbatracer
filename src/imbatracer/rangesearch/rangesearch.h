@@ -4,6 +4,8 @@
 #include "../core/float4.h"
 
 #include <vector>
+
+#define NOMINMAX
 #include <tbb/tbb.h>
 
 namespace imba {
@@ -15,6 +17,8 @@ struct CellIdx {
     CellIdx(int x, int y) : x(x), y(y) {}
     CellIdx() : x(0), y(0) {}
 };
+
+typedef unsigned int uint;
 
 /// Prelim. photon range search accelerator, taken from SmallVCM
 /// Will be replaced later on by a high performance parallel version.

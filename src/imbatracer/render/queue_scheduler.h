@@ -3,6 +3,7 @@
 
 #include "ray_scheduler.h"
 
+#define NOMINMAX
 #include <tbb/tbb.h>
 #include <tbb/task_group.h>
 
