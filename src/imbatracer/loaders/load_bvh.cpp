@@ -1,7 +1,7 @@
 #include <string>
 #include <vector>
 #include <fstream>
-#include <thorin_runtime.hpp>
+#include <anydsl_runtime.hpp>
 
 #include "traversal.h"
 #include "../core/common.h"

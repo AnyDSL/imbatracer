@@ -11,19 +11,19 @@ void Scene::setup_traversal_buffers() {
     // Make sure the buffers have the right size
     const int total_nodes = (2 * instances_.size() - 1) + node_count_;
     if (traversal_.nodes.size() < total_nodes) {
-        traversal_.nodes = std::move(thorin::Array<Node>(TRAVERSAL_PLATFORM, TRAVERSAL_DEVICE, total_nodes));
+        traversal_.nodes = std::move(anydsl::Array<Node>(TRAVERSAL_PLATFORM, TRAVERSAL_DEVICE, total_nodes));
     }
     if (traversal_.tris.size() < tris_.size()) {
-        traversal_.tris = std::move(thorin::Array<Vec4>(TRAVERSAL_PLATFORM, TRAVERSAL_DEVICE, tris_.size()));
+        traversal_.tris = std::move(anydsl::Array<Vec4>(TRAVERSAL_PLATFORM, TRAVERSAL_DEVICE, tris_.size()));
     }
     if (traversal_.instances.size() < instance_nodes_.size()) {
-        traversal_.instances = std::move(thorin::Array<InstanceNode>(TRAVERSAL_PLATFORM, TRAVERSAL_DEVICE, instance_nodes_.size()));
+        traversal_.instances = std::move(anydsl::Array<InstanceNode>(TRAVERSAL_PLATFORM, TRAVERSAL_DEVICE, instance_nodes_.size()));
     }
     if (traversal_.indices.size() < index_buf_.size()) {
-        traversal_.indices = thorin::Array<int>(TRAVERSAL_PLATFORM, TRAVERSAL_DEVICE, index_buf_.size());
+        traversal_.indices = anydsl::Array<int>(TRAVERSAL_PLATFORM, TRAVERSAL_DEVICE, index_buf_.size());
     }
     if (traversal_.texcoords.size() < texcoord_buf_.size()) {
-        traversal_.texcoords = thorin::Array<Vec2>(TRAVERSAL_PLATFORM, TRAVERSAL_DEVICE, texcoord_buf_.size());
+        traversal_.texcoords = anydsl::Array<Vec2>(TRAVERSAL_PLATFORM, TRAVERSAL_DEVICE, texcoord_buf_.size());
     }
 }
 
@@ -94,13 +94,13 @@ void Scene::build_top_level_accel() {
 }
 
 void Scene::upload_mask_buffer(const MaskBuffer& masks) {
-    traversal_.masks = std::move(thorin::Array<::TransparencyMask>(TRAVERSAL_PLATFORM, TRAVERSAL_DEVICE, masks.mask_count()));
-    thorin_copy(0, masks.descs(), 0,
+    traversal_.masks = std::move(anydsl::Array<::TransparencyMask>(TRAVERSAL_PLATFORM, TRAVERSAL_DEVICE, masks.mask_count()));
+    anydsl_copy(0, masks.descs(), 0,
                 traversal_.masks.device(), traversal_.masks.data(), 0,
                 sizeof(MaskBuffer::MaskDesc) * masks.mask_count());
 
-    traversal_.mask_buffer = std::move(thorin::Array<char>(TRAVERSAL_PLATFORM, TRAVERSAL_DEVICE, masks.buffer_size()));
-    thorin_copy(0, masks.buffer(), 0,
+    traversal_.mask_buffer = std::move(anydsl::Array<char>(TRAVERSAL_PLATFORM, TRAVERSAL_DEVICE, masks.buffer_size()));
+    anydsl_copy(0, masks.buffer(), 0,
                 traversal_.mask_buffer.device(), traversal_.mask_buffer.data(), 0,
                 masks.buffer_size());
 }
@@ -108,17 +108,17 @@ void Scene::upload_mask_buffer(const MaskBuffer& masks) {
 void Scene::upload_mesh_accels() {
     setup_traversal_buffers();
 
-    thorin_copy(0, nodes_.data(), 0,
+    anydsl_copy(0, nodes_.data(), 0,
                 traversal_.nodes.device(), traversal_.nodes.data(), 0,
                 sizeof(Node) * nodes_.size());
-    thorin_copy(0, tris_.data(), 0,
+    anydsl_copy(0, tris_.data(), 0,
                 traversal_.tris.device(), traversal_.tris.data(), 0,
                 sizeof(Vec4) * tris_.size());
 
-    thorin_copy(0, index_buf_.data(), 0,
+    anydsl_copy(0, index_buf_.data(), 0,
                 traversal_.indices.device(), traversal_.indices.data(), 0,
                 sizeof(int) * index_buf_.size());
-    thorin_copy(0, texcoord_buf_.data(), 0,
+    anydsl_copy(0, texcoord_buf_.data(), 0,
                 traversal_.texcoords.device(), traversal_.texcoords.data(), 0,
                 sizeof(Vec2) * texcoord_buf_.size());
 
@@ -132,10 +132,10 @@ void Scene::upload_mesh_accels() {
 void Scene::upload_top_level_accel() {
     setup_traversal_buffers();
 
-    thorin_copy(0, top_nodes_.data(), 0,
+    anydsl_copy(0, top_nodes_.data(), 0,
                 traversal_.nodes.device(), traversal_.nodes.data(), sizeof(Node) * node_count_,
                 sizeof(Node) * top_nodes_.size());
-    thorin_copy(0, instance_nodes_.data(), 0,
+    anydsl_copy(0, instance_nodes_.data(), 0,
                 traversal_.instances.device(), traversal_.instances.data(), 0,
                 sizeof(InstanceNode) * instance_nodes_.size());
 

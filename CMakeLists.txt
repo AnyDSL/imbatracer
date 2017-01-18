@@ -16,10 +16,10 @@ else()
 endif()
 
 # Thorin setup
-find_package(THORIN REQUIRED)
+find_package(AnyDSL-runtime REQUIRED)
 
-include(${THORIN_CMAKE_DIR}/ThorinRuntime.cmake)
-include_directories(${THORIN_RUNTIME_DIR})
+include(${ANYDSL_RUNTIME_CMAKE_DIR}/Runtime.cmake)
+include_directories(${ANYDSL_RUNTIME_DIR}/src)
 
 # pthreads
 find_package(Threads REQUIRED)

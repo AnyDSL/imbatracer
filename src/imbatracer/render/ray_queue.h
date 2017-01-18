@@ -11,14 +11,14 @@
 
 #include <tbb/parallel_sort.h>
 
-#include <thorin_runtime.hpp>
+#include <anydsl_runtime.hpp>
 #include <traversal.h>
 
 #include "random.h"
 
 namespace imba {
 
-/// Base class for storing the current state associated with a ray.
+/// State associated with a ray.
 struct RayState {
     int pixel_id;
     int sample_id;
@@ -26,6 +26,7 @@ struct RayState {
     RNG rng;
 };
 
+/// State associated with a shadow ray
 struct ShadowState {
     int pixel_id;
     rgb throughput;
@@ -33,8 +34,8 @@ struct ShadowState {
 
 #ifdef GPU_TRAVERSAL
 
-#define TRAVERSAL_DEVICE    thorin::Device(0)
-#define TRAVERSAL_PLATFORM  thorin::Platform::CUDA
+#define TRAVERSAL_DEVICE    anydsl::Device(0)
+#define TRAVERSAL_PLATFORM  anydsl::Platform::CUDA
 #define TRAVERSAL_INTERSECT intersect_gpu_masked_instanced
 #define TRAVERSAL_OCCLUDED  occluded_gpu_masked_instanced
 
@@ -46,8 +47,8 @@ static constexpr int traversal_block_size() { return 64; }
 
 static constexpr int traversal_block_size() { return 8; }
 
-#define TRAVERSAL_DEVICE    thorin::Device(0)
-#define TRAVERSAL_PLATFORM  thorin::Platform::HOST
+#define TRAVERSAL_DEVICE    anydsl::Device(0)
+#define TRAVERSAL_PLATFORM  anydsl::Platform::HOST
 #define TRAVERSAL_INTERSECT intersect_cpu_masked_instanced
 #define TRAVERSAL_OCCLUDED  occluded_cpu_masked_instanced
 
@@ -56,13 +57,13 @@ static constexpr int traversal_block_size() { return 8; }
 /// Structure that contains the traversal data, such as the BVH nodes or opacity masks.
 struct TraversalData {
     int root;
-    thorin::Array<::Node> nodes;
-    thorin::Array<::InstanceNode> instances;
-    thorin::Array<::Vec4> tris;
-    thorin::Array<::Vec2> texcoords;
-    thorin::Array<int> indices;
-    thorin::Array<::TransparencyMask> masks;
-    thorin::Array<char> mask_buffer;
+    anydsl::Array<::Node> nodes;
+    anydsl::Array<::InstanceNode> instances;
+    anydsl::Array<::Vec4> tris;
+    anydsl::Array<::Vec2> texcoords;
+    anydsl::Array<int> indices;
+    anydsl::Array<::TransparencyMask> masks;
+    anydsl::Array<char> mask_buffer;
 };
 
 /// Stores a set of rays for traversal along with their state.
@@ -257,7 +258,7 @@ public:
         {
             std::lock_guard<std::mutex> lock(traversal_mutex);
 
-            thorin::copy(ray_buffer_, *device_ray_buffer.get(), size());
+            anydsl::copy(ray_buffer_, *device_ray_buffer.get(), size());
 #else
             auto* device_ray_buffer = &ray_buffer_;
             auto* device_hit_buffer = &hit_buffer_;
@@ -273,7 +274,7 @@ public:
                                 data.mask_buffer.data(),
                                 count);
 #ifdef GPU_TRAVERSAL
-            thorin::copy(*device_hit_buffer.get(), hit_buffer_, size());
+            anydsl::copy(*device_hit_buffer.get(), hit_buffer_, size());
         }
 #endif
     }
@@ -288,7 +289,7 @@ public:
         {
             std::lock_guard<std::mutex> lock(traversal_mutex);
 
-            thorin::copy(ray_buffer_, *device_ray_buffer.get(), size());
+            anydsl::copy(ray_buffer_, *device_ray_buffer.get(), size());
 #else
             auto* device_ray_buffer = &ray_buffer_;
             auto* device_hit_buffer = &hit_buffer_;
@@ -304,7 +305,7 @@ public:
                                data.mask_buffer.data(),
                                count);
 #ifdef GPU_TRAVERSAL
-            thorin::copy(*device_hit_buffer.get(), hit_buffer_, size());
+            anydsl::copy(*device_hit_buffer.get(), hit_buffer_, size());
         }
 #endif
     }
@@ -312,13 +313,13 @@ public:
 #ifdef GPU_TRAVERSAL
 private:
     // Keep only one shared buffer on the device to reduce memory usage.
-    static std::unique_ptr<thorin::Array<Ray> > device_ray_buffer;
-    static std::unique_ptr<thorin::Array<Hit> > device_hit_buffer;
+    static std::unique_ptr<anydsl::Array<Ray> > device_ray_buffer;
+    static std::unique_ptr<anydsl::Array<Hit> > device_hit_buffer;
     static size_t device_buffer_size;
 public:
     static void setup_device_buffer(size_t max_count) {
-        device_ray_buffer.reset(new thorin::Array<Ray>(TRAVERSAL_PLATFORM, TRAVERSAL_DEVICE, align(max_count)));
-        device_hit_buffer.reset(new thorin::Array<Hit>(TRAVERSAL_PLATFORM, TRAVERSAL_DEVICE, align(max_count)));
+        device_ray_buffer.reset(new anydsl::Array<Ray>(TRAVERSAL_PLATFORM, TRAVERSAL_DEVICE, align(max_count)));
+        device_hit_buffer.reset(new anydsl::Array<Hit>(TRAVERSAL_PLATFORM, TRAVERSAL_DEVICE, align(max_count)));
         device_buffer_size = max_count;
     }
 
@@ -334,8 +335,8 @@ public:
 #endif
 
 private:
-    thorin::Array<Ray> ray_buffer_;
-    thorin::Array<Hit> hit_buffer_;
+    anydsl::Array<Ray> ray_buffer_;
+    anydsl::Array<Hit> hit_buffer_;
     std::vector<StateType> state_buffer_;
     std::atomic<int> last_;
 
@@ -347,9 +348,9 @@ private:
 #ifdef GPU_TRAVERSAL
 
 template<typename StateType>
-std::unique_ptr<thorin::Array<Ray> > RayQueue<StateType>::device_ray_buffer;
+std::unique_ptr<anydsl::Array<Ray> > RayQueue<StateType>::device_ray_buffer;
 template<typename StateType>
-std::unique_ptr<thorin::Array<Hit> > RayQueue<StateType>::device_hit_buffer;
+std::unique_ptr<anydsl::Array<Hit> > RayQueue<StateType>::device_hit_buffer;
 template<typename StateType>
 size_t RayQueue<StateType>::device_buffer_size;
 

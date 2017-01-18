@@ -80,7 +80,7 @@ target_link_libraries(imbatracer
                       ${SDL2_LIBRARY}
                       ${PNG_LIBRARIES}
                       ${TRAVERSAL_LIBRARY}
-                      ${THORIN_RUNTIME_LIBRARY}
-                      ${THORIN_RUNTIME_LIBRARIES}
+                      ${ANYDSL_RUNTIME_LIBRARY}
+                      ${ANYDSL_RUNTIME_LIBRARIES}
                       ${TBB_LIBRARIES})
 
