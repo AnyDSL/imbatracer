@@ -168,16 +168,9 @@ public:
         , primary_queue_pool_(queue_size, queue_count)
         , shadow_queue_pool_(queue_size * max_shadow_rays_per_hit, 2 * queue_count / 3 + 1)
         , regen_threshold_(regen_threshold)
-    {
-        // Initialize the GPU buffer
-        RayQueue<StateType>::setup_device_buffer(queue_size);
-        RayQueue<ShadowState>::setup_device_buffer(queue_size * max_shadow_rays_per_hit);
-    }
+    {}
 
-    ~QueueScheduler() noexcept(true) {
-        RayQueue<StateType>::release_device_buffer();
-        RayQueue<ShadowState>::release_device_buffer();
-    }
+    ~QueueScheduler() noexcept(true) {}
 
     void run_iteration(AtomicImage& out,
                        ProcessShadowFn process_shadow_rays, ProcessPrimaryFn process_primary_rays,

@@ -12,7 +12,7 @@
 #include "../render/integrators/pt.h"
 #include "../render/integrators/vcm.h"
 
-//#define QUEUE_SCHEDULER
+#define QUEUE_SCHEDULER
 
 using namespace imba;
 

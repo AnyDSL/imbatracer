@@ -26,8 +26,6 @@ void imba::LightVertices::compute_cache_size(const Scene& scene) {
         new RayQueue<ProbePathState>(LIGHT_PATH_LEN_PROBES)
     };
 
-    RayQueue<ProbePathState>::setup_device_buffer(LIGHT_PATH_LEN_PROBES);
-
     int in_q = 0;
     int out_q = 1;
 
@@ -126,8 +124,6 @@ void imba::LightVertices::compute_cache_size(const Scene& scene) {
 
     for (auto& vc : vertex_caches_)
         vc.resize(vc_size);
-
-    RayQueue<ProbePathState>::release_device_buffer();
 }
 
 } // namespace imba

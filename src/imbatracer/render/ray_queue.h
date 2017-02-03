@@ -75,10 +75,14 @@ public:
     RayQueue() { }
 
     RayQueue(int capacity)
-        : ray_buffer_    (align(capacity))
-        , hit_buffer_    (align(capacity))
-        , state_buffer_  (align(capacity))
-        , sorted_indices_(align(capacity))
+        : ray_buffer_     (align(capacity))
+        , hit_buffer_     (align(capacity))
+#ifdef GPU_TRAVERSAL
+        , dev_ray_buffer_ (TRAVERSAL_PLATFORM, TRAVERSAL_DEVICE, align(capacity))
+        , dev_hit_buffer_ (TRAVERSAL_PLATFORM, TRAVERSAL_DEVICE, align(capacity))
+#endif
+        , state_buffer_   (align(capacity))
+        , sorted_indices_ (align(capacity))
         , last_(-1)
     {
         memset(ray_buffer_.data(), 0, sizeof(Ray) * align(capacity));
@@ -255,27 +259,23 @@ public:
         TraversalData& data = const_cast<TraversalData&>(c_data);
 
 #ifdef GPU_TRAVERSAL
-        {
-            std::lock_guard<std::mutex> lock(traversal_mutex);
-
-            anydsl::copy(ray_buffer_, *device_ray_buffer.get(), size());
+        anydsl::copy(ray_buffer_, dev_ray_buffer_, size());
 #else
-            auto* device_ray_buffer = &ray_buffer_;
-            auto* device_hit_buffer = &hit_buffer_;
+        auto& dev_ray_buffer_ = ray_buffer_;
+        auto& dev_hit_buffer_ = hit_buffer_;
 #endif
-            TRAVERSAL_INTERSECT(data.root, data.nodes.data(),
-                                data.instances.data(),
-                                data.tris.data(),
-                                device_ray_buffer->data(),
-                                device_hit_buffer->data(),
-                                data.indices.data(),
-                                data.texcoords.data(),
-                                data.masks.data(),
-                                data.mask_buffer.data(),
-                                count);
+        TRAVERSAL_INTERSECT(data.root, data.nodes.data(),
+                            data.instances.data(),
+                            data.tris.data(),
+                            dev_ray_buffer_.data(),
+                            dev_hit_buffer_.data(),
+                            data.indices.data(),
+                            data.texcoords.data(),
+                            data.masks.data(),
+                            data.mask_buffer.data(),
+                            count);
 #ifdef GPU_TRAVERSAL
-            anydsl::copy(*device_hit_buffer.get(), hit_buffer_, size());
-        }
+        anydsl::copy(dev_hit_buffer_, hit_buffer_, size());
 #endif
     }
 
@@ -286,57 +286,34 @@ public:
         TraversalData& data = const_cast<TraversalData&>(c_data);
 
 #ifdef GPU_TRAVERSAL
-        {
-            std::lock_guard<std::mutex> lock(traversal_mutex);
-
-            anydsl::copy(ray_buffer_, *device_ray_buffer.get(), size());
+        anydsl::copy(ray_buffer_, dev_ray_buffer_, size());
 #else
-            auto* device_ray_buffer = &ray_buffer_;
-            auto* device_hit_buffer = &hit_buffer_;
+        auto& dev_ray_buffer_ = ray_buffer_;
+        auto& dev_hit_buffer_ = hit_buffer_;
 #endif
-            TRAVERSAL_OCCLUDED(data.root, data.nodes.data(),
-                               data.instances.data(),
-                               data.tris.data(),
-                               device_ray_buffer->data(),
-                               device_hit_buffer->data(),
-                               data.indices.data(),
-                               data.texcoords.data(),
-                               data.masks.data(),
-                               data.mask_buffer.data(),
-                               count);
+        TRAVERSAL_OCCLUDED(data.root, data.nodes.data(),
+                           data.instances.data(),
+                           data.tris.data(),
+                           dev_ray_buffer_.data(),
+                           dev_hit_buffer_.data(),
+                           data.indices.data(),
+                           data.texcoords.data(),
+                           data.masks.data(),
+                           data.mask_buffer.data(),
+                           count);
 #ifdef GPU_TRAVERSAL
-            anydsl::copy(*device_hit_buffer.get(), hit_buffer_, size());
-        }
+        anydsl::copy(dev_hit_buffer_, hit_buffer_, size());
 #endif
     }
-
-#ifdef GPU_TRAVERSAL
-private:
-    // Keep only one shared buffer on the device to reduce memory usage.
-    static std::unique_ptr<anydsl::Array<Ray> > device_ray_buffer;
-    static std::unique_ptr<anydsl::Array<Hit> > device_hit_buffer;
-    static size_t device_buffer_size;
-public:
-    static void setup_device_buffer(size_t max_count) {
-        device_ray_buffer.reset(new anydsl::Array<Ray>(TRAVERSAL_PLATFORM, TRAVERSAL_DEVICE, align(max_count)));
-        device_hit_buffer.reset(new anydsl::Array<Hit>(TRAVERSAL_PLATFORM, TRAVERSAL_DEVICE, align(max_count)));
-        device_buffer_size = max_count;
-    }
-
-    static void release_device_buffer() {
-        device_hit_buffer.reset(nullptr);
-        device_ray_buffer.reset(nullptr);
-    }
-
-#else
-public:
-    static void setup_device_buffer(size_t max_count) {}
-    static void release_device_buffer() {}
-#endif
 
 private:
     anydsl::Array<Ray> ray_buffer_;
     anydsl::Array<Hit> hit_buffer_;
+#ifdef GPU_TRAVERSAL
+    anydsl::Array<Ray> dev_ray_buffer_;
+    anydsl::Array<Hit> dev_hit_buffer_;
+#endif
+
     std::vector<StateType> state_buffer_;
     std::atomic<int> last_;
 
@@ -344,17 +321,6 @@ private:
     std::vector<int> sorted_indices_;
     std::vector<std::atomic<int> > matcount_;
 };
-
-#ifdef GPU_TRAVERSAL
-
-template<typename StateType>
-std::unique_ptr<anydsl::Array<Ray> > RayQueue<StateType>::device_ray_buffer;
-template<typename StateType>
-std::unique_ptr<anydsl::Array<Hit> > RayQueue<StateType>::device_hit_buffer;
-template<typename StateType>
-size_t RayQueue<StateType>::device_buffer_size;
-
-#endif
 
 } // namespace imba
 

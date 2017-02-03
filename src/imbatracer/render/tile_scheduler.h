@@ -42,16 +42,9 @@ public:
 
         for (auto& ptr : thread_local_ray_gen_)
             ptr = new uint8_t[tile_gen_.sizeof_ray_gen()];
-
-        // Initialize the GPU buffer
-        RayQueue<StateType>::setup_device_buffer(q_size);
-        RayQueue<ShadowState>::setup_device_buffer(q_size * max_shadow_rays_per_hit);
     }
 
     ~TileScheduler() {
-        RayQueue<StateType>::release_device_buffer();
-        RayQueue<ShadowState>::release_device_buffer();
-
         for (auto q : thread_local_prim_queues_) delete q;
         for (auto q : thread_local_shadow_queues_) delete q;
 
