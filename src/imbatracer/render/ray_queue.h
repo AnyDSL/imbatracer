@@ -35,7 +35,7 @@ struct ShadowState {
 #ifdef GPU_TRAVERSAL
 
 #define TRAVERSAL_DEVICE    anydsl::Device(0)
-#define TRAVERSAL_PLATFORM  anydsl::Platform::CUDA
+#define TRAVERSAL_PLATFORM  anydsl::Platform::Cuda
 #define TRAVERSAL_INTERSECT intersect_gpu_masked_instanced
 #define TRAVERSAL_OCCLUDED  occluded_gpu_masked_instanced
 
@@ -48,7 +48,7 @@ static constexpr int traversal_block_size() { return 64; }
 static constexpr int traversal_block_size() { return 8; }
 
 #define TRAVERSAL_DEVICE    anydsl::Device(0)
-#define TRAVERSAL_PLATFORM  anydsl::Platform::HOST
+#define TRAVERSAL_PLATFORM  anydsl::Platform::Host
 #define TRAVERSAL_INTERSECT intersect_cpu_masked_instanced
 #define TRAVERSAL_OCCLUDED  occluded_cpu_masked_instanced
 
