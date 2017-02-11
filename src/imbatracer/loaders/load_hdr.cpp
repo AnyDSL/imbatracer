@@ -147,6 +147,8 @@ bool hdr_adaptive_rle_decode(std::istream& str, rgba* out, int len) {
 
         *(out++) = rgba(p);
     }
+
+    return true;
 }
 
 bool hdr_parse_scanline(std::istream& str, const HDRInfo& info, Image& image, int y) {
