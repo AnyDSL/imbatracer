@@ -1,8 +1,15 @@
 # Configure traversal platform
-if(BACKEND STREQUAL "cpu" OR BACKEND STREQUAL "avx")
+set(BACKEND ${BACKEND} CACHE STRING "select the backend from the following: CPU, NVVM")
+if(NOT BACKEND)
+    set(BACKEND nvvm CACHE STRING "select the backend from the following: CPU, NVVM" FORCE)
+endif()
+string(TOLOWER "${BACKEND}" BACKEND)
+message(STATUS "Selected backend: ${BACKEND}")
+
+if(BACKEND STREQUAL "cpu")
   add_definitions(-DCPU_TRAVERSAL)
   list(APPEND CORE_SRCS core/cpu_adapter.cpp)
-elseif(BACKEND STREQUAL "nvvm" OR BACKEND STREQUAL "cuda" OR BACKEND STREQUAL "gpu")
+elseif(BACKEND STREQUAL "nvvm")
   add_definitions(-DGPU_TRAVERSAL)
   list(APPEND CORE_SRCS core/gpu_adapter.cpp)
 else()

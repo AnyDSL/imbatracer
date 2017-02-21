@@ -15,7 +15,7 @@ else()
     message(STATUS "The compiler ${CMAKE_CXX_COMPILER} has no C++11 support. Please use a different C++ compiler.")
 endif()
 
-# Thorin setup
+# AnyDSL runtime setup
 find_package(AnyDSL-runtime REQUIRED)
 
 include(${ANYDSL_RUNTIME_CMAKE_DIR}/Runtime.cmake)
