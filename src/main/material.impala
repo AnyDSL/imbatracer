@@ -29,7 +29,7 @@ fn phongFactor(normal:Vec, outDir:Vec, inDir:Vec, exponent:float) -> float
     let cosReflIn = @dot(inDir, mirroredOut);
     if (cosReflIn <= 0.0f) { return(0.0f) }
     // use this to compute the final factor applied to the texture
-    powf(cosReflIn, exponent)*(exponent+2.0f)/(2.0f*pi()) // TODO don't compute normalisation factor all the time
+    cpu_powf(cosReflIn, exponent)*(exponent+2.0f)/(2.0f*pi()) // TODO don't compute normalisation factor all the time
 }
 
 type ReflectanceFn = fn(TexCoord, Point, Vec, Vec, Vec) -> Color;

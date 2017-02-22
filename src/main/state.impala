@@ -25,5 +25,5 @@ struct RTScratch
 }
 fn emptyScratch() -> RTScratch
 {
-    @RTScratch{ isec:emptyIntersection() }
+    RTScratch{ isec:emptyIntersection() }
 }

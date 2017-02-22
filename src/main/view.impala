@@ -14,7 +14,7 @@ fn viewEx(origin : Point, forward : Vec, up : Vec, upFactor : float, rightFactor
     let mut v = View{ origin : origin, forward : forward, up : up, upFactor : upFactor, rightFactor : rightFactor,
         right : vec0(), originalUp : up
     };
-    @viewNormalize(&v);
+    @viewNormalize(&mut v);
     v
 }
 
@@ -34,7 +34,7 @@ fn view0() -> View
 }
 
 // re-establish the invariants of the view, by computing the up and right vector appropriately
-fn viewNormalize(mut v : &View) -> ()
+fn viewNormalize(v : &mut View) -> ()
 {
     let u = v.originalUp;
     let fnorm = @normalize(v.forward);
@@ -45,38 +45,38 @@ fn viewNormalize(mut v : &View) -> ()
     v.right = @vfmul(t(1), v.rightFactor);
 }
 
-fn viewSetForward(mut v : &View, f : Vec) -> ()
+fn viewSetForward(v : &mut View, f : Vec) -> ()
 {
     v.forward = f;
     @viewNormalize(v)
 }
 
-fn viewSetLookAt(v : &View, at : Point) -> ()
+fn viewSetLookAt(v : &mut View, at : Point) -> ()
 {
     @viewSetForward(v, to(v.origin, at))
 }
 
-fn viewSetUp(mut v : &View, up : Vec) -> ()
+fn viewSetUp(v : &mut View, up : Vec) -> ()
 {
     v.originalUp = up;
     @viewNormalize(v)
 }
 
-fn viewSetScale(mut v : &View, upFactor : float, rightFactor : float) -> ()
+fn viewSetScale(v : &mut View, upFactor : float, rightFactor : float) -> ()
 {
     v.rightFactor = rightFactor;
     v.upFactor = upFactor;
     @viewNormalize(v);
 }
 
-fn viewSetOpeningAngle(v : &View, vertical : float, horiz : float) -> ()
+fn viewSetOpeningAngle(v : &mut View, vertical : float, horiz : float) -> ()
 {
-    @viewSetScale(v, tanf(vertical / 2.0f), tanf(horiz / 2.0f));
+    @viewSetScale(v, cpu_tanf(vertical / 2.0f), cpu_tanf(horiz / 2.0f));
 }
 
-fn viewSetOpeningAngleWithAspectRatio(v : &View, vertical : float, aspect : float) -> ()
+fn viewSetOpeningAngleWithAspectRatio(v : &mut View, vertical : float, aspect : float) -> ()
 {
-    let a = tanf(vertical / 2.0f);
+    let a = cpu_tanf(vertical / 2.0f);
     @viewSetScale(v, a, a*aspect);
 }
 

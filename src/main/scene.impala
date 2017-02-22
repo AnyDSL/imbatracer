@@ -71,7 +71,7 @@ fn triMaterial(tri : uint, scene : &Scene) -> Material
 
 
 // TODO: Figure out the best way to pass around stuff. Scene as pointer or as copy? Intersection as pointer, or as function from Ray to isect?
-fn sceneIntersectFirst(scene: &Scene, scratch : &RTScratch) -> ()
+fn sceneIntersectFirst(scene: &Scene, scratch : &mut RTScratch) -> ()
 {
     for obj in urange(0u, scene.nObjs)
     {
@@ -79,7 +79,7 @@ fn sceneIntersectFirst(scene: &Scene, scratch : &RTScratch) -> ()
     }
 }
 
-fn sceneIntersectAny(scene: &Scene, scratch : &RTScratch, ray : Ray, maxdist : float) -> bool
+fn sceneIntersectAny(scene: &Scene, scratch : &RTScratch, ray : Ray, maxdist : &mut float) -> bool
 {
     let done = return;
     for obj in urange(0u, scene.nObjs)

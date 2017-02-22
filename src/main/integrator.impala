@@ -64,8 +64,8 @@ fn integrateLightSources(scratch : &RTScratch, scene : &Scene, hitP : Point, out
             if @cAny(contrib, isstrictpos)
             {
                 let shadowRay = @ray(pvadd(hitP, vfmul(surfaceN, rayEps)), lhit.dir);
-                let dist = lhit.dist - 2.0f*rayEps; // we substract rayEps at both ends
-                if @!sceneIntersectAny(scene, scratch, shadowRay, dist)
+                let mut dist = lhit.dist - 2.0f*rayEps; // we substract rayEps at both ends
+                if !@sceneIntersectAny(scene, scratch, shadowRay, &mut dist)
                 {
                     c = @ccapply2(c, contrib, add); // light shines on hit point
                 }
@@ -133,9 +133,9 @@ fn getRadianceForHit(integr : &Integrator, isec : &Intersection, scene : &Scene,
     else            { debuggerRadiance(integr.mode, integr.minDist, integr.maxDist, isec) }
 }
 
-fn runIntegrator(integr : &Integrator, scene : &Scene, ray : Ray, mut scratch : &RTScratch) -> Color
+fn runIntegrator(integr : &Integrator, scene : &Scene, ray : Ray, scratch : &mut RTScratch) -> Color
 {
-    let isec = &scratch.isec;
+    let isec = &mut scratch.isec;
     @beginIntersection(ray, isec);
     @sceneIntersectFirst(scene, scratch);
 

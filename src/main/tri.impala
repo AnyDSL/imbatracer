@@ -93,7 +93,7 @@ fn triIntersectDistance_fast(tri : uint, scene : &Scene, ray : Ray, maxDistance 
         return (t, @vec0(), @point0(), -1.0f)
     }
     else {
-        return (t, @normalize(cross(e1, e2)), @point(1.0f-b1-b2, b1, b2), @sqrtf((vlensq(e1)+vlensq(e2))*defaultRayEps()))
+        return (t, @normalize(cross(e1, e2)), @point(1.0f-b1-b2, b1, b2), @cpu_sqrtf((vlensq(e1)+vlensq(e2))*defaultRayEps()))
     }
 }
 
@@ -102,7 +102,7 @@ fn triIntersectAny(tri : uint, scene : &Scene, ray : Ray, maxDistance : float) -
     @triIntersectDistance_fast(tri, scene, ray, maxDistance, true)(0) >= 0.0f
 }
 
-fn triIntersectFirst(tri : uint, scene : &Scene, isec : &Intersection) -> ()
+fn triIntersectFirst(tri : uint, scene : &Scene, isec : &mut Intersection) -> ()
 {
     let res = @triIntersectDistance_fast(tri, scene, isec.ray, isec.dist, false);
     let t = res(0); // TODO: would be nice to have syntax for tuple unpacking

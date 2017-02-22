@@ -27,18 +27,18 @@ fn bvhMakeNeg(invDir : Vec) -> uint
 fn bvhIntersectNode(bounds : BBox, o : Point, maxDist : float, invDir : Vec, neg: uint) -> bool
 {
     // Check for ray intersection against x and y slabs
-    let txmin = (@bvhBBoxComp(bounds,  @bvhDirIsNeg(neg, 0u)).x - o.x) * invDir.x;
-    let txmax = (@bvhBBoxComp(bounds, !@bvhDirIsNeg(neg, 0u)).x - o.x) * invDir.x;
-    let tymin = (@bvhBBoxComp(bounds,  @bvhDirIsNeg(neg, 1u)).y - o.y) * invDir.y;
-    let tymax = (@bvhBBoxComp(bounds, !@bvhDirIsNeg(neg, 1u)).y - o.y) * invDir.y;
+    let txmin = ((@bvhBBoxComp(bounds,  @bvhDirIsNeg(neg, 0u))).x - o.x) * invDir.x;
+    let txmax = ((@bvhBBoxComp(bounds, !@bvhDirIsNeg(neg, 0u))).x - o.x) * invDir.x;
+    let tymin = ((@bvhBBoxComp(bounds,  @bvhDirIsNeg(neg, 1u))).y - o.y) * invDir.y;
+    let tymax = ((@bvhBBoxComp(bounds, !@bvhDirIsNeg(neg, 1u))).y - o.y) * invDir.y;
     if (txmin > tymax) || (tymin > txmax)
     { false }
     else {
         let tmin = max(txmin, tymin);
         let tmax = min(txmax, tymax);
         // Check for ray intersection against z slab
-        let tzmin = (@bvhBBoxComp(bounds,  @bvhDirIsNeg(neg, 2u)).z - o.z) * invDir.z;
-        let tzmax = (@bvhBBoxComp(bounds, !@bvhDirIsNeg(neg, 2u)).z - o.z) * invDir.z;
+        let tzmin = ((@bvhBBoxComp(bounds,  @bvhDirIsNeg(neg, 2u))).z - o.z) * invDir.z;
+        let tzmax = ((@bvhBBoxComp(bounds, !@bvhDirIsNeg(neg, 2u))).z - o.z) * invDir.z;
         if  (tmin > tzmax) || (tzmin > tmax)
         { false }
         else
@@ -48,7 +48,7 @@ fn bvhIntersectNode(bounds : BBox, o : Point, maxDist : float, invDir : Vec, neg
     }
 }
 
-fn bvhIntersectGeneric(scratch : &RTScratch, root: uint, scene : &Scene, ray : Ray, mut maxdist : float, checkIntersect : fn(uint, &float) -> ()) -> ()
+fn bvhIntersectGeneric(scratch : &RTScratch, root: uint, scene : &Scene, ray : Ray, maxdist : &mut float, checkIntersect : fn(uint, &mut float) -> ()) -> ()
 {
     let invDir = @vapply1(ray.d, |f|1.0f/f);
     let neg = @bvhMakeNeg(invDir);
@@ -66,7 +66,7 @@ fn bvhIntersectGeneric(scratch : &RTScratch, root: uint, scene : &Scene, ray : R
             todo(todoIdx) = node; // do the left child later
             todoIdx = todoIdx+1;
         }
-        fn popNode()
+        fn popNode() -> !
         {
             if todoIdx == 0 {
                 done() // DONE!
@@ -78,7 +78,7 @@ fn bvhIntersectGeneric(scratch : &RTScratch, root: uint, scene : &Scene, ray : R
             }
         }
 
-        if @bvhIntersectNode(scene.bvhNodes(curNode).bbox, ray.o, maxdist, invDir, neg)
+        if @bvhIntersectNode(scene.bvhNodes(curNode).bbox, ray.o, *maxdist, invDir, neg)
         {
             // inner loop: we assume the current node does not intersect
             let inner = continue;
@@ -88,13 +88,13 @@ fn bvhIntersectGeneric(scratch : &RTScratch, root: uint, scene : &Scene, ray : R
             if (nPrim > 0u16) {
                 // a leaf
                 for tri in urange(sndChildFirstPrim, sndChildFirstPrim+(nPrim as uint)) {
-                    @checkIntersect(tri, &maxdist); // try and intersect the thing, and do whatever. Called function is expected to update maxdist to narrow the search.
+                    @checkIntersect(tri, maxdist); // try and intersect the thing, and do whatever. Called function is expected to update maxdist to narrow the search.
                 }
                 // done with this node, pop one off the stack
                 @popNode()
             }
             else {
-                fn descend(fstNode : uint, sndNode : uint) {
+                fn descend(fstNode : uint, sndNode : uint) -> ! {
                     @pushNode(sndNode);
                     continue(fstNode)
                 }
@@ -115,13 +115,13 @@ fn bvhIntersectGeneric(scratch : &RTScratch, root: uint, scene : &Scene, ray : R
     };
 }
 
-fn bvhIntersectFirst(root: uint, scene : &Scene, mut scratch : &RTScratch) -> ()
+fn bvhIntersectFirst(root: uint, scene : &Scene, scratch : &mut RTScratch) -> ()
 {
-    let isec = &scratch.isec;
-    let maxdist = scratch.isec.dist;
+    let isec = &mut scratch.isec;
+    let maxdist = &mut scratch.isec.dist;
 
     @bvhIntersectGeneric(scratch, root, scene, isec.ray, maxdist,
-        |tri, mut pmaxdist|
+        |tri, pmaxdist|
         {
             triIntersectFirst(tri, scene, isec); // triIntersectFirst() updates maxdist, re-assign afterwards
             // update the pointer used by traversal. for some reason, letting traversal directly access the isec dist via pointer or function makes it way slower.
@@ -131,14 +131,14 @@ fn bvhIntersectFirst(root: uint, scene : &Scene, mut scratch : &RTScratch) -> ()
 }
 
 
-fn bvhIntersectAny(root: uint, scene : &Scene, scratch : &RTScratch, ray : Ray, maxdist : float) -> bool
+fn bvhIntersectAny(root: uint, scene : &Scene, scratch : &RTScratch, ray : Ray, maxdist : &mut float) -> bool
 {
     let success = return; // jump out once we hit anything
 
     @bvhIntersectGeneric(scratch, root, scene, ray, maxdist,
         |tri, _|
         {
-            if @triIntersectAny(tri, scene, ray, maxdist)
+            if @triIntersectAny(tri, scene, ray, *maxdist)
             {
                 success(true)
             }

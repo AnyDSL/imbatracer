@@ -7,7 +7,7 @@ struct Object
 	swapsHandedness : bool, // is the determinant of the above matrices negative?
 }
 
-fn objIntersectFirst(objidx : uint, scene : &Scene, mut scratch : &RTScratch) -> ()
+fn objIntersectFirst(objidx : uint, scene : &Scene, scratch : &mut RTScratch) -> ()
 {
     // translate world to object
     let io = @mpmul(scene.objs(objidx).w2o, scratch.isec.ray.o);
@@ -17,9 +17,9 @@ fn objIntersectFirst(objidx : uint, scene : &Scene, mut scratch : &RTScratch) ->
 
     // perform intersection with new scratch space [HACK!]
     let mut tmpScratch = RTScratch { isec:@emptyIntersection() };
-    @beginIntersection(@ray(io, @vfmul(idir, invUnitLen)), &tmpScratch.isec);
+    @beginIntersection(@ray(io, @vfmul(idir, invUnitLen)), &mut tmpScratch.isec);
     tmpScratch.isec.dist = scratch.isec.dist*unitLen;
-    @bvhIntersectFirst(scene.objs(objidx).bvhRoot, scene, &tmpScratch);
+    @bvhIntersectFirst(scene.objs(objidx).bvhRoot, scene, &mut tmpScratch);
     if (tmpScratch.isec.obj == @noObj()) { return() }
     let newDist = tmpScratch.isec.dist*invUnitLen; // this is in world units
     if (newDist >= scratch.isec.dist) { return () } // after scaling back, we're no better than the alreaady best hit
@@ -32,10 +32,10 @@ fn objIntersectFirst(objidx : uint, scene : &Scene, mut scratch : &RTScratch) ->
     let surfaceNormal = @transformNormal(tmpScratch.isec.surfaceNormal);
     let shadingNormal = @transformNormal(tmpScratch.isec.shadingNormal);
     let epsilonFactor = @max(unitLen, invUnitLen);
-    @improveIntersection(&scratch.isec, newDist, tmpScratch.isec.obj, surfaceNormal, shadingNormal, tmpScratch.isec.uv, tmpScratch.isec.local, tmpScratch.isec.eps*epsilonFactor)
+    @improveIntersection(&mut scratch.isec, newDist, tmpScratch.isec.obj, surfaceNormal, shadingNormal, tmpScratch.isec.uv, tmpScratch.isec.local, tmpScratch.isec.eps*epsilonFactor)
 }
 
-fn objIntersectAny(objidx : uint, scene : &Scene, scratch : &RTScratch, theRay : Ray, maxdist : float) -> bool
+fn objIntersectAny(objidx : uint, scene : &Scene, scratch : &RTScratch, theRay : Ray, maxdist : &mut float) -> bool
 {
     // translate world to object
     let io = @mpmul(scene.objs(objidx).w2o, theRay.o);

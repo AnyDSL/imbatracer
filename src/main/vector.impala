@@ -62,15 +62,15 @@ fn vapply1(a : Vec, f: fn(float) -> float) -> Vec
 
 fn vvapply2(a : Vec, b : Vec, f: fn(float, float) -> float) -> Vec
 {
-    @Vec{ x : f(a.x, b.x), y : f(a.y, b.y), z : f(a.z, b.z) }
+    Vec{ x : f(a.x, b.x), y : f(a.y, b.y), z : f(a.z, b.z) }
 }
 fn vfapply2(a : Vec, b : float, f: fn(float, float) -> float) -> Vec
 {
-    @Vec{ x : f(a.x, b), y : f(a.y, b), z : f(a.z, b) }
+    Vec{ x : f(a.x, b), y : f(a.y, b), z : f(a.z, b) }
 }
 fn fvapply2(a : float, b : Vec, f: fn(float, float) -> float) -> Vec
 {
-    @Vec{ x : f(a, b.x), y : f(a, b.y), z : f(a, b.z) }
+    Vec{ x : f(a, b.x), y : f(a, b.y), z : f(a, b.z) }
 }
 
 fn vclamp(v : Vec, mi : Vec, ma : Vec) -> Vec { @vmin(ma, vmax(mi, v)) }
@@ -89,7 +89,7 @@ fn vfdiv(a : Vec, b : float) -> Vec { @vfapply2(a, b, div) }
 fn fvmul(a : float, b : Vec) -> Vec { @fvapply2(a, b, mul) }
 fn fvdiv(a : float, b : Vec) -> Vec { @fvapply2(a, b, div) }
 
-fn vabs(a : Vec) -> Vec { @vapply1(a, fabsf) }
+fn vabs(a : Vec) -> Vec { @vapply1(a, cpu_fabsf) }
 
 fn vflip(a : Vec) -> Vec { @vapply1(a, neg) }
 
@@ -97,7 +97,7 @@ fn vdiff(a : Vec, b : Vec) -> Vec { @vabs(@vsub(a, b)) }
 
 fn vlensq(v : Vec) -> float { v.x*v.x + v.y*v.y + v.z*v.z }
 
-fn vlen(v : Vec) -> float { @sqrtf(@vlensq(v)) }
+fn vlen(v : Vec) -> float { @cpu_sqrtf(@vlensq(v)) }
 
 fn normalize(v : Vec) -> Vec { vfmul(v, 1.0f/vlen(v)) }
 
@@ -105,7 +105,7 @@ fn vmaxf(v : Vec) -> float { max(v.x, max(v.y, v.z)) }
 fn vminf(v : Vec) -> float { min(v.x, min(v.y, v.z))}
 
 fn dot(a : Vec, b : Vec) -> float { a.x*b.x + a.y*b.y + a.z*b.z }
-fn absdot(a : Vec, b : Vec) -> float { fabsf(dot(a, b)) }
+fn absdot(a : Vec, b : Vec) -> float { cpu_fabsf(dot(a, b)) }
 fn cross(a : Vec, b : Vec) -> Vec { Vec { x : a.y*b.z - a.z*b.y, y : a.z*b.x - a.x*b.z, z : a.x*b.y - a.y*b.x } }
 
 fn vequals(a : Vec, b : Vec) -> bool {  a.x==b.x && a.y==b.y && a.z==b.z }

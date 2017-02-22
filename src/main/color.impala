@@ -84,8 +84,8 @@ fn col_toXYZ(c : Color) -> XYZ
 
 fn colorDistXYZ(a : XYZ, b : XYZ) -> float
 {
-    let dx = fabsf(a.x - b.x);
-    let dy = fabsf(a.y - b.y);
-    let dz = fabsf(a.z - b.z);
+    let dx = cpu_fabsf(a.x - b.x);
+    let dy = cpu_fabsf(a.y - b.y);
+    let dz = cpu_fabsf(a.z - b.z);
     dx + dy + dz
 }

@@ -21,18 +21,18 @@ struct Intersection
 
 fn emptyIntersection() -> Intersection
 {
-    @Intersection{ dist:-1.0f, obj:noObj(),
+    Intersection{ dist:-1.0f, obj:noObj(),
         ray:ray0(), surfaceNormal:vec0(), shadingNormal:vec0(), uv:texCoord0(), local:point0(), eps:0.0f }
 }
 
-fn beginIntersection(ray : Ray, mut isec: &Intersection) -> ()
+fn beginIntersection(ray : Ray, isec: &mut Intersection) -> ()
 {
     isec.dist = 1e10f; // max. drawing distance
     isec.obj = @noObj();
     isec.ray = ray;
 }
 
-fn improveIntersection(mut isec : &Intersection, dist : float, obj : uint, surfaceNormal : Vec, shadingNormal : Vec, uv : TexCoord, local : Point, eps : float) -> ()
+fn improveIntersection(isec : &mut Intersection, dist : float, obj : uint, surfaceNormal : Vec, shadingNormal : Vec, uv : TexCoord, local : Point, eps : float) -> ()
 {
     @assert(||dist < isec.dist && obj != @noObj(), "Improved intersection must have object at smaller distance");
     @assert(||almost(vlen(surfaceNormal), 1.0f), "Improved intersection surface normal must be normalised");
