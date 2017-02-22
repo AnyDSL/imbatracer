@@ -1,5 +1,5 @@
 
-fn rangestep(a : int, b : int, step : int, yield : fn(int, fn()))
+fn rangestep(a : int, b : int, step : int, yield : fn(int) -> ())
 -> ()
 {
     if a < b {
@@ -9,7 +9,7 @@ fn rangestep(a : int, b : int, step : int, yield : fn(int, fn()))
 }
 
 
-fn range(a : int, b : int, yield : fn(int, fn()))
+fn range(a : int, b : int, yield : fn(int) -> ())
 -> ()
 {
     if a < b {
@@ -19,7 +19,7 @@ fn range(a : int, b : int, yield : fn(int, fn()))
 }
 
 
-fn urangestep(a : uint, b : uint, step : uint, yield : fn(uint, fn()))
+fn urangestep(a : uint, b : uint, step : uint, yield : fn(uint) -> ())
 -> ()
 {
     if a < b {
@@ -28,7 +28,7 @@ fn urangestep(a : uint, b : uint, step : uint, yield : fn(uint, fn()))
     }
 }
 
-fn urange(a : uint, b : uint, yield : fn(uint, fn()))
+fn urange(a : uint, b : uint, yield : fn(uint) -> ())
 -> ()
 {
     if a < b {
@@ -96,7 +96,7 @@ fn isstrictpos(a : float) -> bool { a > 0.0f }
 
 fn almost(a : float, b : float) -> bool
 {
-    fabsf(a - b) < epsilon
+    cpu_fabsf(a - b) < epsilon
 }
 
 fn lerp(a : float, b : float, t : float) -> float
@@ -128,12 +128,12 @@ fn scaleLin(v : float, vMin : float, vMax : float, targetMin : float, targetMax 
 
 fn fractional(v : float) -> float
 {
-    v - floorf(v)
+    v - cpu_floorf(v)
 }
 
 fn absfractional(v : float) -> float
 {
-    @fabsf(fractional(v))
+    @cpu_fabsf(fractional(v))
 }
 
 /*

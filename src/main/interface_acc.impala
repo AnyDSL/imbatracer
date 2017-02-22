@@ -1,7 +1,7 @@
 
-extern fn impala_render(buf : &[u32], width : int, height : int, measureTime : bool, state : &State) -> ()
+extern fn impala_render(buf : &mut[u32], width : int, height : int, measureTime : bool, state : &State) -> ()
 {
-    for x, y, mut rtstate in renderImage(buf, width, height, measureTime, state) {
+    for x, y, rtstate in renderImage(buf, width, height, measureTime, state) {
         @runIntegrator(&rtstate.integrator, &rtstate.scene, runCamera(&rtstate.cam, x, y))
     }
 }

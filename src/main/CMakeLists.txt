@@ -42,11 +42,9 @@ set(impala_acc_SRC
     interface_acc.impala
 )
 
-THORIN_RUNTIME_WRAP(impala_acc_PROGRAM
-    BACKEND ${BACKEND}
+anydsl_runtime_wrap(impala_acc_PROGRAM
     FILES ${impala_shared_SRC} ${impala_acc_SRC})
-THORIN_RUNTIME_WRAP(impala_loc_PROGRAM
-    BACKEND cpu
+anydsl_runtime_wrap(impala_loc_PROGRAM
     FILES ${impala_shared_SRC} ${impala_loc_SRC})
 
 add_library(rt ${cpp_SRC} ${impala_shared_SRC} ${impala_loc_SRC} ${impala_acc_SRC} ${impala_loc_PROGRAM} ${impala_acc_PROGRAM})

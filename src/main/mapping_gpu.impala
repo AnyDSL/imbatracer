@@ -3,6 +3,8 @@ extern "C" {
     fn magic_uint_array_id(&[uint]) -> &[uint];
 }
 
+static acc = nvvm_accelerator;
+
 fn renderIteration(width : int, height : int, measureTime : bool, state : &State, setcolor: SetColorFn, getcolor: GetColorIFn ) -> ()
 {
     let unroll = 1;
@@ -31,9 +33,9 @@ fn renderIteration(width : int, height : int, measureTime : bool, state : &State
     let nLights = (*state).scene.nLights;
 
     // FIXME measure rendering time
-    acc(@acc_dev(), grid, block, || -> () {
-        let gid_x = acc_gidx();
-        let gid_y = acc_tidy() + acc_bdimy() * acc_bidy() * unroll;
+    acc.exec(@acc.dev(), grid, block, || -> () {
+        let gid_x = acc.gidx();
+        let gid_y = acc.tidy() + acc.bdimy() * acc.bidy() * unroll;
         let mut rtstate = RTState { cam:cam, integrator:integrator,
                                     scene:Scene { verts:verts, triVerts:magic_uint_array_id(triVerts),
                                                   normals:normals, texcoords:texcoords, materials:materials, textures:textures, triData:magic_uint_array_id(triData),
@@ -42,7 +44,7 @@ fn renderIteration(width : int, height : int, measureTime : bool, state : &State
 
         for i in @range(0, unroll) {
             let x = gid_x;
-            let y = gid_y + i * acc_bdimy();
+            let y = gid_y + i * acc.bdimy();
             if x < width && y < height {
                 @setcolor(x, y, @getcolor(x, y, &rtstate));
             }

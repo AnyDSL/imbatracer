@@ -29,18 +29,18 @@ fn bvhMakeNeg(invDir : Vec) -> uint
 fn bvhIntersectNode(bounds : BBox, o : Point, maxDist : float, invDir : Vec, neg: uint) -> bool
 {
     // Check for ray intersection against x and y slabs
-    let txmin = (@bvhBBoxComp(bounds,  @bvhDirIsNeg(neg, 0u)).x - o.x) * invDir.x;
-    let txmax = (@bvhBBoxComp(bounds, !@bvhDirIsNeg(neg, 0u)).x - o.x) * invDir.x;
-    let tymin = (@bvhBBoxComp(bounds,  @bvhDirIsNeg(neg, 1u)).y - o.y) * invDir.y;
-    let tymax = (@bvhBBoxComp(bounds, !@bvhDirIsNeg(neg, 1u)).y - o.y) * invDir.y;
+    let txmin = ((@bvhBBoxComp(bounds,  @bvhDirIsNeg(neg, 0u))).x - o.x) * invDir.x;
+    let txmax = ((@bvhBBoxComp(bounds, !@bvhDirIsNeg(neg, 0u))).x - o.x) * invDir.x;
+    let tymin = ((@bvhBBoxComp(bounds,  @bvhDirIsNeg(neg, 1u))).y - o.y) * invDir.y;
+    let tymax = ((@bvhBBoxComp(bounds, !@bvhDirIsNeg(neg, 1u))).y - o.y) * invDir.y;
     if (txmin > tymax) || (tymin > txmax)
     { false }
     else {
         let tmin = max(txmin, tymin);
         let tmax = min(txmax, tymax);
         // Check for ray intersection against z slab
-        let tzmin = (@bvhBBoxComp(bounds,  @bvhDirIsNeg(neg, 2u)).z - o.z) * invDir.z;
-        let tzmax = (@bvhBBoxComp(bounds, !@bvhDirIsNeg(neg, 2u)).z - o.z) * invDir.z;
+        let tzmin = ((@bvhBBoxComp(bounds,  @bvhDirIsNeg(neg, 2u))).z - o.z) * invDir.z;
+        let tzmax = ((@bvhBBoxComp(bounds, !@bvhDirIsNeg(neg, 2u))).z - o.z) * invDir.z;
         if  (tmin > tzmax) || (tzmin > tmax)
         { false }
         else
@@ -50,7 +50,7 @@ fn bvhIntersectNode(bounds : BBox, o : Point, maxDist : float, invDir : Vec, neg
     }
 }
 
-fn bvhIntersectGeneric(root: uint, scene : &Scene, ray : Ray, mut maxdist : float, checkIntersect : fn(uint, float) -> float) -> float
+fn bvhIntersectGeneric(root: uint, scene : &Scene, ray : Ray, maxdist : &mut float, checkIntersect : fn(uint, float) -> float) -> float
 {
     let invDir = @vapply1(ray.d, |f|1.0f/f);
     let neg = @bvhMakeNeg(invDir);
@@ -68,7 +68,7 @@ fn bvhIntersectGeneric(root: uint, scene : &Scene, ray : Ray, mut maxdist : floa
             todo(todoIdx) = node; // do the left child later
             todoIdx = todoIdx+1;
         }
-        fn popNode()
+        fn popNode() -> !
         {
             if todoIdx == 0 {
                 done(maxdist) // DONE!
@@ -80,7 +80,7 @@ fn bvhIntersectGeneric(root: uint, scene : &Scene, ray : Ray, mut maxdist : floa
             }
         }
 
-        if @bvhIntersectNode(scene.bvhNodes(curNode).bbox, ray.o, maxdist, invDir, neg)
+        if @bvhIntersectNode(scene.bvhNodes(curNode).bbox, ray.o, *maxdist, invDir, neg)
         {
             // inner loop: we assume the current node does not intersect
             let inner = continue;

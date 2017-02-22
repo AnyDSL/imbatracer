@@ -7,7 +7,7 @@ struct Object
 	swapsHandedness : bool, // is the determinant of the above matrices negative?
 }
 
-fn objIntersectFirst(objidx : uint, scene : &Scene, theRay: Ray, maxdist: float, mut sisec : &ShadingIntersection) -> float
+fn objIntersectFirst(objidx : uint, scene : &Scene, theRay: Ray, maxdist: float, sisec : &mut ShadingIntersection) -> float
 {
     // translate world to object
     let io = @mpmul(scene.objs(objidx).w2o, theRay.o);

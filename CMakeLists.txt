@@ -30,16 +30,15 @@ link_directories(${SDL2_LIBRARY_DIRS})
 # compiler options
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pthread -std=c++11 -Wall -Wextra")
 
-# thorin stuff
-FIND_PACKAGE ( THORIN REQUIRED )
-message(STATUS "Using THORIN at ${THORIN_RUNTIME_DIR}")
-include(${THORIN_CMAKE_DIR}/ThorinRuntime.cmake)
-include_directories(${THORIN_RUNTIME_DIR})
+# AnyDSL stuff
+find_package(AnyDSL-runtime REQUIRED)
+include(${ANYDSL_RUNTIME_CMAKE_DIR}/Runtime.cmake)
+include_directories(${ANYDSL_RUNTIME_DIR}/src)
 
 # which run-time do we use?
 set(BACKEND "nvvm" CACHE STRING "The runtime-type of the tests")
 message(STATUS "Using runtime-type ${BACKEND}")
-if(BACKEND STREQUAL "cpu" OR BACKEND STREQUAL "avx")
+if(BACKEND STREQUAL "cpu")
     set(DEVICE "cpu")
 else()
     set(DEVICE "gpu")

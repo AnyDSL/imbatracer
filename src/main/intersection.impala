@@ -27,7 +27,7 @@ fn intersection(ray : Ray, dist: float) -> Intersection
         tri:@noObj(), b:texCoord0(), obj:@noObj(), unitLen:0.0f }
 }
 
-fn improveIntersection(mut isec : &Intersection, dist : float) -> ()
+fn improveIntersection(isec : &mut Intersection, dist : float) -> ()
 {
     @assert(||dist < isec.dist, "Improved intersection must have smaller distance");
     isec.dist = dist;
