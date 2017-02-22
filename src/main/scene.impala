@@ -71,7 +71,7 @@ fn triMaterialIdx(tri : uint, scene : &Scene) -> uint
  */
 
 // TODO: Figure out the best way to pass around stuff. Scene as pointer or as copy? Intersection as pointer, or as function from Ray to isect?
-fn sceneIntersectFirst(scene: &Scene, ray : Ray, maxdist : &mut float, sisec : &ShadingIntersection) -> float
+fn sceneIntersectFirst(scene: &Scene, ray : Ray, mut maxdist : float, sisec : &mut ShadingIntersection) -> float
 {
     for obj in urange(0u, scene.nObjs)
     {
@@ -80,7 +80,7 @@ fn sceneIntersectFirst(scene: &Scene, ray : Ray, maxdist : &mut float, sisec : &
     maxdist
 }
 
-fn sceneIntersectAny(scene: &Scene, ray : Ray, maxdist : &mut float) -> bool
+fn sceneIntersectAny(scene: &Scene, ray : Ray, maxdist : float) -> bool
 {
     for obj in urange(0u, scene.nObjs)
     {

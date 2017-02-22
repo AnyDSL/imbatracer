@@ -77,14 +77,14 @@ fn buildBvhNode(prims: &[uint], nPrims: uint, totalBounds: BBox, depth: uint, le
                 node.sndChildFirstPrim = primFinalIdx;
             }
         }
-        return(dynArrayAppend(bvhNodes, &node as &u8))
+        return(dynArrayAppend(bvhNodes, &node as &[u8]))
     }
 
     // Create an inner node
     // node.secondChild is not yet known, will be fixed up below
     node.axis = splitInfo.bestAxis as u16;
     node.nPrims = 0u16;
-    let nodeIdx = dynArrayAppend(bvhNodes, &node as &u8);
+    let nodeIdx = dynArrayAppend(bvhNodes, &node as &[u8]);
 
     /*/ Process child nodes recursively, using space further down in our arrays (after the space in leftPrims, rightPrims that we needed)
     assert(splitInfo.nLeft <= nTris, "Keeping too few or too many triangles");

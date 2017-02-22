@@ -1,4 +1,4 @@
-#include <thorin_runtime.h>
+#include <runtime.h>
 #include <iostream>
 #include <core/util.h>
 #include <core/assert.h>
@@ -30,20 +30,20 @@ public:
                std::vector<impala::Material> &materials, std::vector<impala::Texture> &textures)
         : scene(scene), nVerts(0), nNorms(0), nTris(0), nTexCoords(0), nObjs(0)
     {
-        scene->verts = thorin_new<impala::Point>(totalVerts);
-        scene->triVerts = thorin_new<unsigned>(3*totalTris);
+        scene->verts = new impala::Point[totalVerts];
+        scene->triVerts = new unsigned[3*totalTris];
 
-        scene->normals = thorin_new<impala::Vec>(totalNorms);
-        scene->texcoords = thorin_new<impala::TexCoord>(totalTexcoords);
-        scene->triData = thorin_new<unsigned>(7*totalTris);
+        scene->normals = new impala::Vec[totalNorms];
+        scene->texcoords = new impala::TexCoord[totalTexcoords];
+        scene->triData = new unsigned[7*totalTris];
 
-        scene->objs = thorin_new<impala::Object>(totalObjects);
+        scene->objs = new impala::Object[totalObjects];
         scene->nObjs = totalObjects;
 
-        scene->materials = thorin_new<impala::Material>(materials.size());
+        scene->materials = new impala::Material[materials.size()];
         std::copy(materials.begin(), materials.end(), scene->materials);
 
-        scene->textures = thorin_new<impala::Texture>(textures.size());
+        scene->textures = new impala::Texture[textures.size()];
         std::copy(textures.begin(), textures.end(), scene->textures);
 
         bvhNodes.reserve(totalTris/2); // just a wild guess
@@ -97,7 +97,7 @@ public:
     void copyNodes()
     {
         assert(nVerts == totalVerts && nNorms == totalNorms && nTexCoords == totalTexcoords && nTris == totalTris && nObjs == totalObjects, "Wrong number of things added");
-        scene->bvhNodes = thorin_new<impala::BVHNode>(bvhNodes.size());
+        scene->bvhNodes = new impala::BVHNode[bvhNodes.size()];
         std::copy(bvhNodes.begin(), bvhNodes.end(), scene->bvhNodes);
     }
 };
@@ -313,7 +313,7 @@ Scene::Scene(impala::Scene *scene) : scene(scene)
     scene->nObjs = 0;
 
     // make sure they have a sensible value, but leave them oherwise untouched
-    scene->lights = (impala::Light*)thorin_malloc(0);
+    scene->lights = nullptr;
     scene->nLights = 0;
 
 
@@ -326,31 +326,31 @@ Scene::Scene(impala::Scene *scene) : scene(scene)
 Scene::~Scene(void)
 {
     free();
-    thorin_free(scene->lights); // someone has to do it...
+    delete []scene->lights; // someone has to do it...
 }
 
 void Scene::free(void)
 {
-    thorin_free(scene->bvhNodes);
+    delete []scene->bvhNodes;
     scene->bvhNodes = nullptr;
 
-    thorin_free(scene->verts);
+    delete []scene->verts;
     scene->verts = nullptr;
-    thorin_free(scene->triVerts);
+    delete []scene->triVerts;
     scene->triVerts = nullptr;
 
-    thorin_free(scene->normals);
+    delete []scene->normals;
     scene->normals = nullptr;
-    thorin_free(scene->texcoords);
+    delete []scene->texcoords;
     scene->texcoords = nullptr;
-    thorin_free(scene->materials);
+    delete []scene->materials;
     scene->materials = nullptr;
-    thorin_free(scene->textures);
+    delete []scene->textures;
     scene->textures = nullptr;
-    thorin_free(scene->triData);
+    delete []scene->triData;
     scene->triData = nullptr;
 
-    thorin_free(scene->objs);
+    delete []scene->objs;
     scene->objs = nullptr;
     scene->nObjs = 0;
 }

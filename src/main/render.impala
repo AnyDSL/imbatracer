@@ -1,8 +1,8 @@
 type SetColorFn = fn(int, int, Color) -> ();
-type GetColorIFn = fn(int, int, &RTState) -> Color;
-type GetColorFFn = fn(float, float, &RTState) -> Color;
+type GetColorIFn = fn(int, int, &mut RTState) -> Color;
+type GetColorFFn = fn(float, float, &mut RTState) -> Color;
 
-fn renderImage(buf : &mut[u32], width : int, height : int, measureTime : bool, state : &State, body : GetColorFFn) -> ()
+fn renderImage(buf : &mut[u32], width : int, height : int, measureTime : bool, state : &mut State, body : GetColorFFn) -> ()
 {
     let wf = width as float;
     let hf = height as float;

@@ -50,7 +50,7 @@ fn bvhIntersectNode(bounds : BBox, o : Point, maxDist : float, invDir : Vec, neg
     }
 }
 
-fn bvhIntersectGeneric(root: uint, scene : &Scene, ray : Ray, maxdist : &mut float, checkIntersect : fn(uint, float) -> float) -> float
+fn bvhIntersectGeneric(root: uint, scene : &Scene, ray : Ray, mut maxdist : float, checkIntersect : fn(uint, float) -> float) -> float
 {
     let invDir = @vapply1(ray.d, |f|1.0f/f);
     let neg = @bvhMakeNeg(invDir);
@@ -80,7 +80,7 @@ fn bvhIntersectGeneric(root: uint, scene : &Scene, ray : Ray, maxdist : &mut flo
             }
         }
 
-        if @bvhIntersectNode(scene.bvhNodes(curNode).bbox, ray.o, *maxdist, invDir, neg)
+        if @bvhIntersectNode(scene.bvhNodes(curNode).bbox, ray.o, maxdist, invDir, neg)
         {
             // inner loop: we assume the current node does not intersect
             let inner = continue;
@@ -96,7 +96,7 @@ fn bvhIntersectGeneric(root: uint, scene : &Scene, ray : Ray, maxdist : &mut flo
                 popNode()
             }
             else {
-                fn descend(fstNode : uint, sndNode : uint) {
+                fn descend(fstNode : uint, sndNode : uint) -> ! {
                     pushNode(sndNode);
                     continue(fstNode)
                 }
@@ -119,7 +119,7 @@ fn bvhIntersectGeneric(root: uint, scene : &Scene, ray : Ray, maxdist : &mut flo
     maxdist
 }
 
-fn bvhIntersectFirst(root: uint, scene : &Scene, ray: Ray, maxdist: float, sisec : &ShadingIntersection) -> float
+fn bvhIntersectFirst(root: uint, scene : &Scene, ray: Ray, maxdist: float, sisec : &mut ShadingIntersection) -> float
 {
     @bvhIntersectGeneric(root, scene, ray, maxdist,
         |tri, maxdist|

@@ -46,7 +46,7 @@ fn renderIteration(width : int, height : int, measureTime : bool, state : &State
             let x = gid_x;
             let y = gid_y + i * acc.bdimy();
             if x < width && y < height {
-                @setcolor(x, y, @getcolor(x, y, &rtstate));
+                @setcolor(x, y, @getcolor(x, y, &mut rtstate));
             }
         }
     });

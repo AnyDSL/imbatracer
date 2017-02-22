@@ -1,7 +1,7 @@
 #include <io/sdlbuffergui.h>
 #include <io/image.h>
 #include <SDL.h>
-#include <thorin_runtime.h>
+#include <runtime.h>
 #include <core/util.h>
 
 #include "interface.h"
@@ -64,7 +64,6 @@ int main(int argc, char *argv[])
     }
 
     // global initialisation
-    thorin_init();
     SDL_Init(0);
     atexit(SDL_Quit);
 

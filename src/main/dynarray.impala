@@ -12,12 +12,12 @@ fn dynArrayInit() -> &DynArray
 }
 
 // append an entry to the array, return its index
-fn dynArrayAppend(array: &DynArray, obj: &u8) -> uint
+fn dynArrayAppend(array: &DynArray, obj: &[u8]) -> uint
 {
     0u // FIXME
 }
 
-fn dynArrayFetch(mut array: &DynArray, idx: uint) -> &u8
+fn dynArrayFetch(array: &mut DynArray, idx: uint) -> &u8
 {
     &array.data(idx*array.elemSize)
 }
