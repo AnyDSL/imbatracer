@@ -1,10 +1,10 @@
 
-fn renderIteration(width : int, height : int, measureTime : bool, state : &State, setcolor: SetColorFn, getcolor: GetColorIFn) -> ()
+fn renderIteration(width : int, height : int, measureTime : bool, state : &mut State, setcolor: SetColorFn, getcolor: GetColorIFn) -> ()
 {
-    let start = thorin_get_micro_time();
+    let start = get_micro_time();
     $renderSubsampled(8u, width as uint, height as uint, state, setcolor, getcolor);
-    let stop = thorin_get_micro_time();
-    if measureTime { thorin_print_long(stop-start); thorin_print_char('\n'); }
+    let stop = get_micro_time();
+    if measureTime { print_long(stop-start); print_char('\n'); }
 }
 
 
@@ -31,13 +31,13 @@ struct PixelBuffer
 
 fn free_PixelBuffer(p : &PixelBuffer) -> ()
 {
-    thorin_free(p.pix as &u8);
-    thorin_free(p.used as &u8);
-    thorin_free(p as &u8);
+    runtime_release(0, p.pix as &[i8]);
+    runtime_release(0, p.used as &[i8]);
+    runtime_release(0, p as &[i8]);
 }
 
 
-fn preparePixelBuffer(level : uint, mut state : &State, w : uint, h : uint) -> &PixelBuffer
+fn preparePixelBuffer(level : uint, state : &mut State, w : uint, h : uint) -> &PixelBuffer
 {
     let mut pb = state.user1 as &PixelBuffer;
 
@@ -70,7 +70,7 @@ fn preparePixelBuffer(level : uint, mut state : &State, w : uint, h : uint) -> &
 
 type RenderFunc = fn(uint, uint) -> Color;
 
-fn renderSubsampled(level : uint, width : uint, height : uint, state : &State, setcolor: SetColorFn, getcolor: GetColorIFn) -> ()
+fn renderSubsampled(level : uint, width : uint, height : uint, state : &mut State, setcolor: SetColorFn, getcolor: GetColorIFn) -> ()
 {
     let mut rtstate = RTState{ cam: state.cam, integrator: state.integrator, scene: state.scene };
 
@@ -79,19 +79,19 @@ fn renderSubsampled(level : uint, width : uint, height : uint, state : &State, s
         let mut scratch = @emptyScratch(); // scratch space for the current intersection (TODO is this better than passing it around?)
         for y in $urange(0u, height) {
             for x in $urange(0u, width) { // TODO: this used to be $inner_loop(), but wfv2 is too slow to be practical, for now
-                @setcolor(x as int, y as int, $getcolor(x as int, y as int, &rtstate, &scratch));
+                @setcolor(x as int, y as int, $getcolor(x as int, y as int, &mut rtstate, &mut scratch));
             }
         }
         return()
     }
 
-    let pixcache = $preparePixelBuffer(level, state, width, height);
+    let pixcache: &mut PixelBuffer = $preparePixelBuffer(level, state, width, height);
 
 
     fn renderPixel(x:uint, y:uint) -> Color
     {
         let mut scratch = @emptyScratch();
-        let c = $getcolor(x as int, y as int, &rtstate, &scratch);
+        let c = $getcolor(x as int, y as int, &mut rtstate, &mut scratch);
         @setcolor(x as int, y as int, c);
         c
     }
@@ -103,7 +103,7 @@ fn renderSubsampled(level : uint, width : uint, height : uint, state : &State, s
     }
 }
 
-fn getCachePixel(body : RenderFunc, mut pixcache : &PixelBuffer, x : uint, y : uint) -> &PixelInfo
+fn getCachePixel(body : RenderFunc, pixcache : &mut PixelBuffer, x : uint, y : uint) -> &PixelInfo
 {
     //print_ii(x, y);
     assert(||{(x&1u)==0u && (y&1u)==0u}, "Subsampling cached x and y must be even");
@@ -112,18 +112,18 @@ fn getCachePixel(body : RenderFunc, mut pixcache : &PixelBuffer, x : uint, y : u
     if pixcache.used(idx) == 0u8
     {
         let c = cclamp01($body(x, y));  // TODO: do the clamping elsewhere?
-        pixcache.pix(idx) = PixelInfo{rgb:c, xyz:col_toXYZ(c)};
-        pixcache.used(idx) = 1u8;
+        bitcast[&mut[PixelInfo]](pixcache.pix)(idx) = PixelInfo{rgb:c, xyz:col_toXYZ(c)};
+        bitcast[&mut[u8]](pixcache.used)(idx) = 1u8;
     }
     &pixcache.pix(idx)
 }
 
-fn renderBlock(body : RenderFunc, setcolor: SetColorFn, pixcache : &PixelBuffer, x : uint, y : uint, w : uint, h : uint, level : uint) -> ()
+fn renderBlock(body : RenderFunc, setcolor: SetColorFn, pixcache : &mut PixelBuffer, x : uint, y : uint, w : uint, h : uint, level : uint) -> ()
 {
     $renderBlock2(body, setcolor, pixcache, x, y, w, h, level, getCachePixel(body, pixcache, x, y))
 }
 
-fn renderBlock2(body : RenderFunc, setcolor: SetColorFn, pixcache : &PixelBuffer, x : uint, y : uint, w : uint, h : uint, level : uint, topleft : &PixelInfo) -> ()
+fn renderBlock2(body : RenderFunc, setcolor: SetColorFn, pixcache : &mut PixelBuffer, x : uint, y : uint, w : uint, h : uint, level : uint, topleft : &PixelInfo) -> ()
 {
     assert(||{(level%2u)==0u && level>1u}, "Subsampling Level must be even and > 1");
 

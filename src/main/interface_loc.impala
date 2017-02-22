@@ -1,11 +1,11 @@
-extern fn impala_object_init(mut obj : &Object, root : uint) -> ()
+extern fn impala_object_init(obj : &mut Object, root : uint) -> ()
 {
     obj.bvhRoot = root;
     obj.w2o = @matrix0();
     obj.swapsHandedness = false;
 }
 
-extern fn impala_init(mut state : &State) -> ()
+extern fn impala_init(state : &mut State) -> ()
 {
     state.time = 0.0f;
     state.integrator.itype = 1; //4:debug, 1:raytrace
@@ -18,7 +18,7 @@ extern fn impala_init(mut state : &State) -> ()
     scene_build(state);
 
     // add point light
-    let mut lights = ~[3:Light];
+    let lights = ~[3:Light];
     let intens = 4.1f;
     lights(0) = @pointLight(point0(), color(intens*500.0f, intens*500.0f, intens*500.0f));
     lights(1) = @pointLight(point0(), color(intens*100.0f, intens*100.0f, intens*100.0f));
@@ -29,12 +29,12 @@ extern fn impala_init(mut state : &State) -> ()
     state.user1 = (0 as &u8);
 }
 
-extern fn impala_update(mut state : &State, dt : float) -> ()
+extern fn impala_update(state : &mut State, dt : float) -> ()
 {
     let time = state.time;
     state.time = time + dt;
     let scale = 10.0f;
-    let pos = @point(-3.5f*scale*sinf(time), 1.2f*scale*sinf(0.2f*time), 3.7f*scale*cosf(time));
+    let pos = @point(-3.5f*scale*cpu_sinf(time), 1.2f*scale*cpu_sinf(0.2f*time), 3.7f*scale*cpu_cosf(time));
     let at = @point0();
     let up = @vec(0.0f, 1.0f, 0.0f);
     let horzOpenAngle = @pi() / 4.0f;
@@ -42,17 +42,17 @@ extern fn impala_update(mut state : &State, dt : float) -> ()
     state.cam = @camPerspectiveLookAt(pos, at, up, horzOpenAngle, vertOpenAngle);
 
     // put light right where the cam was shortly ago, and on the other side
-    state.scene.lights(0).pos = @point(-3.5f*scale*sinf(time-0.5f), +1.2f*scale*sinf(0.2f*time-0.5f), +3.7f*scale*cosf(time-0.5f));
-    state.scene.lights(1).pos = @point(-3.5f*scale*sinf(time+0.5f), +1.9f*scale*sinf(0.2f*time+0.5f), +3.7f*scale*cosf(time+0.5f));
-    state.scene.lights(2).pos = @point(-3.5f*scale*sinf(time+0.5f+pi()), +2.2f*scale*sinf(0.2f*time+0.5f+pi()), +3.7f*scale*cosf(time+0.5f+pi()));
+    bitcast[&mut[Light]](state.scene.lights)(0).pos = @point(-3.5f*scale*cpu_sinf(time-0.5f), +1.2f*scale*cpu_sinf(0.2f*time-0.5f), +3.7f*scale*cpu_cosf(time-0.5f));
+    bitcast[&mut[Light]](state.scene.lights)(1).pos = @point(-3.5f*scale*cpu_sinf(time+0.5f), +1.9f*scale*cpu_sinf(0.2f*time+0.5f), +3.7f*scale*cpu_cosf(time+0.5f));
+    bitcast[&mut[Light]](state.scene.lights)(2).pos = @point(-3.5f*scale*cpu_sinf(time+0.5f+pi()), +2.2f*scale*cpu_sinf(0.2f*time+0.5f+pi()), +3.7f*scale*cpu_cosf(time+0.5f+pi()));
 
     // scale our teapot
-    let potScale = (fabsf(sinf(0.8f*time))/2.0f+0.5f);
-    state.scene.objs(0).w2o = @matrix_scalingv(@vec(potScale, 1.0f, 1.2f*potScale));
-    state.scene.objs(0).swapsHandedness = false;
+    let potScale = (cpu_fabsf(cpu_sinf(0.8f*time))/2.0f+0.5f);
+    bitcast[&mut[Object]](state.scene.objs)(0).w2o = @matrix_scalingv(@vec(potScale, 1.0f, 1.2f*potScale));
+    bitcast[&mut[Object]](state.scene.objs)(0).swapsHandedness = false;
 }
 
-extern fn impala_init_bench1(mut state : &State) -> ()
+extern fn impala_init_bench1(state : &mut State) -> ()
 {
     state.integrator.itype = 0;
 
@@ -68,7 +68,7 @@ extern fn impala_init_bench1(mut state : &State) -> ()
     state.cam = @camPerspectiveLookAt(pos, at, up, horzOpenAngle, vertOpenAngle);
 }
 
-extern fn impala_init_bench2(mut state : &State) -> ()
+extern fn impala_init_bench2(state : &mut State) -> ()
 {
     state.integrator.itype = 1;
 
@@ -76,7 +76,7 @@ extern fn impala_init_bench2(mut state : &State) -> ()
     scene_build(state);
 
     // add point lights
-    let mut lights = ~[3:Light];
+    let lights = ~[3:Light];
     let intens = 4.1f;
     lights(0) = @pointLight(point0(), color(intens*500.0f, intens*500.0f, intens*500.0f));
     lights(1) = @pointLight(point0(), color(intens*100.0f, intens*100.0f, intens*100.0f));
@@ -86,7 +86,7 @@ extern fn impala_init_bench2(mut state : &State) -> ()
 
     let time = 44.05f;
     let scale = 8.0f;
-    let pos = @point(-3.5f*scale*sinf(time), 1.2f*scale*sinf(0.2f*time), 3.7f*scale*cosf(time));
+    let pos = @point(-3.5f*scale*cpu_sinf(time), 1.2f*scale*cpu_sinf(0.2f*time), 3.7f*scale*cpu_cosf(time));
     let at = @point0();
     let up = @vec(0.0f, 1.0f, 0.0f);
     let horzOpenAngle = @pi() / 4.0f;
@@ -94,7 +94,7 @@ extern fn impala_init_bench2(mut state : &State) -> ()
     state.cam = @camPerspectiveLookAt(pos, at, up, horzOpenAngle, vertOpenAngle);
 
     // put light right where the cam was shortly ago, and on the other side
-    state.scene.lights(0).pos = @point(-3.5f*scale*sinf(time-0.5f), +1.2f*scale*sinf(0.2f*time-0.5f), +3.7f*scale*cosf(time-0.5f));
-    state.scene.lights(1).pos = @point(-3.5f*scale*sinf(time+0.5f), +1.9f*scale*sinf(0.2f*time+0.5f), +3.7f*scale*cosf(time+0.5f));
-    state.scene.lights(2).pos = @point(-3.5f*scale*sinf(time+0.5f+pi()), +2.2f*scale*sinf(0.2f*time+0.5f+pi()), +3.7f*scale*cosf(time+0.5f+pi()));
+    bitcast[&mut[Light]](state.scene.lights)(0).pos = @point(-3.5f*scale*cpu_sinf(time-0.5f), +1.2f*scale*cpu_sinf(0.2f*time-0.5f), +3.7f*scale*cpu_cosf(time-0.5f));
+    bitcast[&mut[Light]](state.scene.lights)(1).pos = @point(-3.5f*scale*cpu_sinf(time+0.5f), +1.9f*scale*cpu_sinf(0.2f*time+0.5f), +3.7f*scale*cpu_cosf(time+0.5f));
+    bitcast[&mut[Light]](state.scene.lights)(2).pos = @point(-3.5f*scale*cpu_sinf(time+0.5f+pi()), +2.2f*scale*cpu_sinf(0.2f*time+0.5f+pi()), +3.7f*scale*cpu_cosf(time+0.5f+pi()));
 }
