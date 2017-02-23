@@ -48,11 +48,11 @@ anydsl_runtime_wrap(impala_loc_PROGRAM
     FILES ${impala_shared_SRC} ${impala_loc_SRC})
 
 add_library(rt ${cpp_SRC} ${impala_shared_SRC} ${impala_loc_SRC} ${impala_acc_SRC} ${impala_loc_PROGRAM} ${impala_acc_PROGRAM})
-target_link_libraries(rt core ${THORIN_RUNTIME_LIBRARY} ${THORIN_RUNTIME_LIBRARIES})
+target_link_libraries(rt core ${ANYDSL_RUNTIME_LIBRARY} ${ANYDSL_RUNTIME_LIBRARIES})
 
 add_executable(main main.cpp)
-target_link_libraries(main rt io ${THORIN_RUNTIME_LIBRARY} ${THORIN_RUNTIME_LIBRARIES})
+target_link_libraries(main rt io ${SDL2_LIBRARY} ${ANYDSL_RUNTIME_LIBRARY} ${ANYDSL_RUNTIME_LIBRARIES})
 
 add_executable(bench bench.cpp)
-target_link_libraries(bench rt ${THORIN_RUNTIME_LIBRARY} ${THORIN_RUNTIME_LIBRARIES})
+target_link_libraries(bench rt ${ANYDSL_RUNTIME_LIBRARY} ${ANYDSL_RUNTIME_LIBRARIES})
 
