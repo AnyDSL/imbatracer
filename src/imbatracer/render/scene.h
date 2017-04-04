@@ -70,8 +70,8 @@ public:
 
 #undef CONTAINER_ACCESSORS
 
-    const TraversalData& traversal_data_gpu() const { assert(gpu_buffers_); return traversal_gpu_; }
-    const TraversalData& traversal_data_cpu() const { assert(cpu_buffers_); return traversal_cpu_; }
+    const TraversalData<traversal_gpu::Node>& traversal_data_gpu() const { assert(gpu_buffers_); return traversal_gpu_; }
+    const TraversalData<traversal_cpu::Node>& traversal_data_cpu() const { assert(cpu_buffers_); return traversal_cpu_; }
 
     const BSphere& bounding_sphere() const { return sphere_; }
 
@@ -88,12 +88,32 @@ public:
     }
 
 private:
+    template <typename Node>
+    struct BuildAccelData {
+        std::vector<Node> top_nodes;
+        std::vector<Node> nodes;
+        std::vector<Vec4> tris;
+        std::vector<int>  layout;
+        int node_count;
+    };
+
     bool cpu_buffers_;
     bool gpu_buffers_;
 
+    template <typename Node>
+    void setup_traversal_buffers(BuildAccelData<Node>&, TraversalData<Node>&, anydsl::Platform);
+    template <typename Node, typename NewAdapterFn>
+    void build_top_level_accel(BuildAccelData<Node>&, NewAdapterFn);
+    template <typename Node, typename NewAdapterFn, typename LoadAccelFn, typename StoreAccelFn>
+    void build_mesh_accels(BuildAccelData<Node>&, const std::vector<std::string>&, NewAdapterFn, LoadAccelFn, StoreAccelFn);
+    template <typename Node>
+    void upload_mask_buffer(TraversalData<Node>&, anydsl::Platform, const MaskBuffer&);
+    template <typename Node>
+    void upload_mesh_accels(BuildAccelData<Node>&, TraversalData<Node>&);
+    template <typename Node>
+    void upload_top_level_accel(BuildAccelData<Node>&, TraversalData<Node>&);
+
     void setup_traversal_buffers();
-    void setup_traversal_buffers_cpu();
-    void setup_traversal_buffers_gpu();
 
     LightContainer     lights_;
     TextureContainer   textures_;
@@ -101,20 +121,11 @@ private:
     MeshContainer      meshes_;
     InstanceContainer  instances_;
 
-    TraversalData traversal_gpu_;
-    TraversalData traversal_cpu_;
+    TraversalData<traversal_gpu::Node> traversal_gpu_;
+    TraversalData<traversal_cpu::Node> traversal_cpu_;
 
-    std::vector<traversal_gpu::Node> top_nodes_gpu_;
-    std::vector<traversal_gpu::Node> nodes_gpu_;
-    std::vector<Vec4> tris_gpu_;
-    std::vector<int>  layout_gpu_;
-    int node_count_gpu_;
-
-    std::vector<traversal_cpu::Node> top_nodes_cpu_;
-    std::vector<traversal_cpu::Node> nodes_cpu_;
-    std::vector<Vec4> tris_cpu_;
-    std::vector<int>  layout_cpu_;
-    int node_count_cpu_;
+    BuildAccelData<traversal_gpu::Node> build_gpu_;
+    BuildAccelData<traversal_cpu::Node> build_cpu_;
 
     std::vector<Vec2> texcoord_buf_;
     std::vector<int>  index_buf_;

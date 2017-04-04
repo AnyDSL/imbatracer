@@ -32,11 +32,11 @@ struct ShadowState {
 };
 
 /// Structure that contains the traversal data, such as the BVH nodes or opacity masks.
+template <typename Node>
 struct TraversalData {
     int root;
 
-    // Node type is different for the cpu and the gpu.
-    anydsl::Array<char> nodes;
+    anydsl::Array<Node> nodes;
 
     anydsl::Array<InstanceNode> instances;
     anydsl::Array<Vec4> tris;
@@ -237,12 +237,11 @@ public:
     }
 
     /// Traverses all rays currently in the queue on the CPU.
-    void traverse_cpu(const TraversalData& c_data) {
+    void traverse_cpu(const TraversalData<traversal_cpu::Node>& c_data) {
         assert(size() != 0);
 
         int count = align_cpu(size());
-        TraversalData& data = const_cast<TraversalData&>(c_data);
-
+        auto& data = const_cast<TraversalData<traversal_cpu::Node>&>(c_data);
         auto nodes = reinterpret_cast<traversal_cpu::Node*>(data.nodes.data());
 
         traversal_cpu::intersect_cpu_masked_instanced(
@@ -260,12 +259,12 @@ public:
     }
 
     // Traverses all rays currently in the queue on the GPU.
-    void traverse_gpu(const TraversalData& c_data) {
+    void traverse_gpu(const TraversalData<traversal_gpu::Node>& c_data) {
         assert(size() != 0);
         assert(gpu_buffers_);
 
         int count = align_gpu(size());
-        TraversalData& data = const_cast<TraversalData&>(c_data);
+        auto& data = const_cast<TraversalData<traversal_gpu::Node>&>(c_data);
         auto nodes = reinterpret_cast<traversal_gpu::Node*>(data.nodes.data());
 
         anydsl::copy(ray_buffer_, dev_ray_buffer_, size());
@@ -287,11 +286,11 @@ public:
     }
 
     /// Traverses all rays currently in the queue on the CPU. For shadow rays.
-    void traverse_occluded_cpu(const TraversalData& c_data) {
+    void traverse_occluded_cpu(const TraversalData<traversal_cpu::Node>& c_data) {
         assert(size() != 0);
 
         int count = align_cpu(size());
-        TraversalData& data = const_cast<TraversalData&>(c_data);
+        auto& data = const_cast<TraversalData<traversal_cpu::Node>&>(c_data);
 
         auto nodes = reinterpret_cast<traversal_cpu::Node*>(data.nodes.data());
 
@@ -310,12 +309,12 @@ public:
     }
 
     // Traverses all rays currently in the queue on the GPU. For shadow rays.
-    void traverse_occluded_gpu(const TraversalData& c_data) {
+    void traverse_occluded_gpu(const TraversalData<traversal_gpu::Node>& c_data) {
         assert(size() != 0);
         assert(gpu_buffers_);
 
         int count = align_gpu(size());
-        TraversalData& data = const_cast<TraversalData&>(c_data);
+        auto& data = const_cast<TraversalData<traversal_gpu::Node>&>(c_data);
         auto nodes = reinterpret_cast<traversal_gpu::Node*>(data.nodes.data());
 
         anydsl::copy(ray_buffer_, dev_ray_buffer_, size());
