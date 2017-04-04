@@ -69,7 +69,7 @@ public:
         , spp_(spp)
     {}
 
-    void compute_cache_size(const Scene& scene);
+    void compute_cache_size(const Scene& scene, bool use_gpu = true);
 
     void build(float radius, bool use_merging) {
         tbb::parallel_for(tbb::blocked_range<int>(0, spp_), [&] (const tbb::blocked_range<int>& range) {

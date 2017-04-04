@@ -21,13 +21,15 @@ class TileScheduler : public RayScheduler<StateType> {
 
 protected:
     using BaseType::scene_;
+    using BaseType::gpu_traversal;
 
 public:
     TileScheduler(TileGen<StateType>& tile_gen,
                   Scene& scene,
                   int max_shadow_rays_per_hit,
-                  int num_threads, int q_size)
-        : BaseType(scene)
+                  int num_threads, int q_size,
+                  bool gpu_traversal = true)
+        : BaseType(scene, gpu_traversal)
         , tile_gen_(tile_gen)
         , num_threads_(num_threads), q_size_(q_size)
         , thread_local_prim_queues_(num_threads)
@@ -35,10 +37,10 @@ public:
         , thread_local_ray_gen_(num_threads)
     {
         for (auto& q : thread_local_prim_queues_)
-            q = new RayQueue<StateType>(q_size);
+            q = new RayQueue<StateType>(q_size, gpu_traversal);
 
         for (auto& q : thread_local_shadow_queues_)
-            q = new RayQueue<ShadowState>(q_size * max_shadow_rays_per_hit);
+            q = new RayQueue<ShadowState>(q_size * max_shadow_rays_per_hit, gpu_traversal);
 
         for (auto& ptr : thread_local_ray_gen_)
             ptr = new uint8_t[tile_gen_.sizeof_ray_gen()];
@@ -102,11 +104,18 @@ private:
 
                 // TODO Add regeneration again (minor performance increase)
 
-                prim_q->traverse(scene_.traversal_data());
+                if (gpu_traversal)
+                    prim_q->traverse_gpu(scene_.traversal_data_gpu());
+                else
+                    prim_q->traverse_cpu(scene_.traversal_data_cpu());
+
                 process_primary_rays(*prim_q, *shadow_q, image);
 
                 if (shadow_q->size() > MIN_QUEUE_SIZE) {
-                    shadow_q->traverse_occluded(scene_.traversal_data());
+                    if (gpu_traversal)
+                        shadow_q->traverse_occluded_gpu(scene_.traversal_data_gpu());
+                    else
+                        shadow_q->traverse_occluded_cpu(scene_.traversal_data_cpu());
                     process_shadow_rays(*shadow_q, image);
                 }
 

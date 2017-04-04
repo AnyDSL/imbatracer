@@ -1,11 +1,11 @@
 #ifndef IMBA_LOADERS_H
 #define IMBA_LOADERS_H
 
-#include "../core/image.h"
+#include "image.h"
 #include "path.h"
 #include "load_obj.h"
 
-#include "traversal.h"
+#include "ray_queue.h"
 
 namespace imba {
 
@@ -20,8 +20,11 @@ inline bool load_image(const Path& path, Image& image) {
     return true;
 }
 
-bool load_accel(const std::string& filename, std::vector<Node>& nodes_out, std::vector<Vec4>& tris_out, const int tri_id_offset);
-bool store_accel(const std::string& filename, const std::vector<Node>& nodes, const int node_offset, const std::vector<Vec4>& tris, const int tris_offset, const int tri_id_offset);
+bool load_accel_cpu (const std::string& filename, std::vector<traversal_cpu::Node>& nodes_out, std::vector<Vec4>& tris_out, const int tri_id_offset);
+bool store_accel_cpu(const std::string& filename, const std::vector<traversal_cpu::Node>& nodes, const int node_offset, const std::vector<Vec4>& tris, const int tris_offset, const int tri_id_offset);
+
+bool load_accel_gpu (const std::string& filename, std::vector<traversal_gpu::Node>& nodes_out, std::vector<Vec4>& tris_out, const int tri_id_offset);
+bool store_accel_gpu(const std::string& filename, const std::vector<traversal_gpu::Node>& nodes, const int node_offset, const std::vector<Vec4>& tris, const int tris_offset, const int tri_id_offset);
 
 } // namespace imba
 

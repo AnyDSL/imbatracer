@@ -20,8 +20,6 @@ struct CellIdx {
 
 typedef unsigned int uint;
 
-/// Prelim. photon range search accelerator, taken from SmallVCM
-/// Will be replaced later on by a high performance parallel version.
 template<typename Iter, typename Photon>
 class HashGrid {
 public:

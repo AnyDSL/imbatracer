@@ -9,6 +9,8 @@
 
 namespace imba {
 
+using traversal_cpu::Node;
+
 static void fill_dummy_parent(Node& node, const BBox& leaf_bb, int index) {
     node.children[0] = index;
     node.children[1] = 0;
@@ -23,9 +25,11 @@ static void fill_dummy_parent(Node& node, const BBox& leaf_bb, int index) {
 }
 
 class CpuMeshAdapter : public MeshAdapter {
+    std::vector<Node>& nodes_;
+    std::vector<Vec4>& tris_;
 public:
     CpuMeshAdapter(std::vector<Node>& nodes, std::vector<Vec4>& tris)
-        : MeshAdapter(nodes, tris)
+        : nodes_(nodes), tris_(tris)
     {}
 
     void build_accel(const Mesh& mesh, int mesh_id, const std::vector<int>& tri_layout) override {
@@ -215,9 +219,11 @@ private:
 };
 
 class CpuTopLevelAdapter : public TopLevelAdapter {
+    std::vector<Node>& nodes_;
+    std::vector<InstanceNode>& instance_nodes_;
 public:
     CpuTopLevelAdapter(std::vector<Node>& nodes, std::vector<InstanceNode>& instance_nodes)
-        : TopLevelAdapter(nodes, instance_nodes)
+        : nodes_(nodes), instance_nodes_(instance_nodes)
     {}
 
     void build_accel(const std::vector<Mesh>& meshes,
@@ -371,11 +377,11 @@ private:
     BvhBuilder builder_;
 };
 
-std::unique_ptr<MeshAdapter> new_mesh_adapter(std::vector<Node>& nodes, std::vector<Vec4>& tris) {
+std::unique_ptr<MeshAdapter> new_mesh_adapter_cpu(std::vector<Node>& nodes, std::vector<Vec4>& tris) {
     return std::unique_ptr<MeshAdapter>(new CpuMeshAdapter(nodes, tris));
 }
 
-std::unique_ptr<TopLevelAdapter> new_top_level_adapter(std::vector<Node>& nodes, std::vector<InstanceNode>& instance_nodes) {
+std::unique_ptr<TopLevelAdapter> new_top_level_adapter_cpu(std::vector<Node>& nodes, std::vector<InstanceNode>& instance_nodes) {
     return std::unique_ptr<TopLevelAdapter>(new CpuTopLevelAdapter(nodes, instance_nodes));
 }
 

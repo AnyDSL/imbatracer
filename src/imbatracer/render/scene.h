@@ -1,8 +1,6 @@
 #ifndef IMBA_SCENE_H
 #define IMBA_SCENE_H
 
-#include <traversal.h>
-
 #include "materials/materials.h"
 #include "light.h"
 #include "ray_queue.h"
@@ -30,7 +28,15 @@ using InstanceContainer = std::vector<Mesh::Instance>;
 /// Stores all data required to render a scene.
 class Scene {
 public:
-    Scene() {}
+    Scene(bool cpu_buffers = false, bool gpu_buffers = true)
+        : cpu_buffers_(cpu_buffers)
+        , gpu_buffers_(gpu_buffers)
+    {
+        if (!cpu_buffers && !gpu_buffers) {
+            std::cout << "Neither CPU nor GPU traversal was enabled!" << std::endl;
+            exit(0);
+        }
+    }
 
     /// Builds an acceleration structure for every mesh in the scene.
     void build_mesh_accels(const std::vector<std::string>& accel_filenames);
@@ -64,7 +70,8 @@ public:
 
 #undef CONTAINER_ACCESSORS
 
-    const TraversalData& traversal_data() const { return traversal_; }
+    const TraversalData& traversal_data_gpu() const { assert(gpu_buffers_); return traversal_gpu_; }
+    const TraversalData& traversal_data_cpu() const { assert(cpu_buffers_); return traversal_cpu_; }
 
     const BSphere& bounding_sphere() const { return sphere_; }
 
@@ -81,7 +88,12 @@ public:
     }
 
 private:
+    bool cpu_buffers_;
+    bool gpu_buffers_;
+
     void setup_traversal_buffers();
+    void setup_traversal_buffers_cpu();
+    void setup_traversal_buffers_gpu();
 
     LightContainer     lights_;
     TextureContainer   textures_;
@@ -89,17 +101,25 @@ private:
     MeshContainer      meshes_;
     InstanceContainer  instances_;
 
-    TraversalData traversal_;
+    TraversalData traversal_gpu_;
+    TraversalData traversal_cpu_;
 
-    std::vector<Node> top_nodes_;
-    std::vector<Node> nodes_;
-    std::vector<Vec4> tris_;
-    std::vector<int>  layout_;
+    std::vector<traversal_gpu::Node> top_nodes_gpu_;
+    std::vector<traversal_gpu::Node> nodes_gpu_;
+    std::vector<Vec4> tris_gpu_;
+    std::vector<int>  layout_gpu_;
+    int node_count_gpu_;
+
+    std::vector<traversal_cpu::Node> top_nodes_cpu_;
+    std::vector<traversal_cpu::Node> nodes_cpu_;
+    std::vector<Vec4> tris_cpu_;
+    std::vector<int>  layout_cpu_;
+    int node_count_cpu_;
+
     std::vector<Vec2> texcoord_buf_;
     std::vector<int>  index_buf_;
     std::vector<int>  tri_layout_;
     std::vector<InstanceNode> instance_nodes_;
-    int node_count_;
 
     BSphere sphere_;
 

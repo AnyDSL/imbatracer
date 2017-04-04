@@ -10,10 +10,9 @@
 #include <memory>
 
 #include <tbb/parallel_sort.h>
-
 #include <anydsl_runtime.hpp>
-#include <traversal.h>
 
+#include "traversal_interface.h"
 #include "random.h"
 
 namespace imba {
@@ -32,60 +31,46 @@ struct ShadowState {
     rgb throughput;
 };
 
-#ifdef GPU_TRAVERSAL
-
-#define TRAVERSAL_DEVICE    anydsl::Device(0)
-#define TRAVERSAL_PLATFORM  anydsl::Platform::Cuda
-#define TRAVERSAL_INTERSECT intersect_gpu_masked_instanced
-#define TRAVERSAL_OCCLUDED  occluded_gpu_masked_instanced
-
-// Do not allow running multiple traversal instances at the same time on the GPU.
-static std::mutex traversal_mutex;
-static constexpr int traversal_block_size() { return 64; }
-
-#else
-
-static constexpr int traversal_block_size() { return 8; }
-
-#define TRAVERSAL_DEVICE    anydsl::Device(0)
-#define TRAVERSAL_PLATFORM  anydsl::Platform::Host
-#define TRAVERSAL_INTERSECT intersect_cpu_masked_instanced
-#define TRAVERSAL_OCCLUDED  occluded_cpu_masked_instanced
-
-#endif
-
 /// Structure that contains the traversal data, such as the BVH nodes or opacity masks.
 struct TraversalData {
     int root;
-    anydsl::Array<::Node> nodes;
-    anydsl::Array<::InstanceNode> instances;
-    anydsl::Array<::Vec4> tris;
-    anydsl::Array<::Vec2> texcoords;
+
+    // Node type is different for the cpu and the gpu.
+    anydsl::Array<char> nodes;
+
+    anydsl::Array<InstanceNode> instances;
+    anydsl::Array<Vec4> tris;
+    anydsl::Array<Vec2> texcoords;
     anydsl::Array<int> indices;
-    anydsl::Array<::TransparencyMask> masks;
+    anydsl::Array<TransparencyMask> masks;
     anydsl::Array<char> mask_buffer;
 };
 
 /// Stores a set of rays for traversal along with their state.
 template <typename StateType>
 class RayQueue {
-    static int align(int v) { return v % traversal_block_size() == 0 ? v : v + traversal_block_size() - v % traversal_block_size(); }
+    static int align_cpu(int v) { return v %  8 == 0 ? v : v +  8 - v %  8; }
+    static int align_gpu(int v) { return v % 64 == 0 ? v : v + 64 - v % 64; }
+    static int align(int v) { return std::max(align_cpu(v), align_gpu(v)); }
 
 public:
     RayQueue() { }
 
-    RayQueue(int capacity)
+    RayQueue(int capacity, bool gpu_buffers = true)
         : ray_buffer_     (align(capacity))
         , hit_buffer_     (align(capacity))
-#ifdef GPU_TRAVERSAL
-        , dev_ray_buffer_ (TRAVERSAL_PLATFORM, TRAVERSAL_DEVICE, align(capacity))
-        , dev_hit_buffer_ (TRAVERSAL_PLATFORM, TRAVERSAL_DEVICE, align(capacity))
-#endif
         , state_buffer_   (align(capacity))
         , sorted_indices_ (align(capacity))
         , last_(-1)
+        , gpu_buffers_(gpu_buffers)
     {
         memset(ray_buffer_.data(), 0, sizeof(Ray) * align(capacity));
+
+        // Create buffers on the GPU if necessary.
+        if (gpu_buffers) {
+            dev_ray_buffer_ = anydsl::Array<Ray>(anydsl::Platform::Cuda, anydsl::Device(0), align_gpu(capacity));
+            dev_hit_buffer_ = anydsl::Array<Hit>(anydsl::Platform::Cuda, anydsl::Device(0), align_gpu(capacity));
+        }
     }
 
     RayQueue(const RayQueue<StateType>&) = delete;
@@ -115,9 +100,9 @@ public:
     // Shrinks the queue to the given size.
     void shrink(int size) { last_ = size - 1; }
 
-    ::Ray* rays() { return ray_buffer_.data(); }
+    Ray* rays() { return ray_buffer_.data(); }
     StateType* states() { return state_buffer_.data(); }
-    ::Hit* hits() { return hit_buffer_.data(); }
+    Hit* hits() { return hit_buffer_.data(); }
 
     Ray& ray(int idx) { return ray_buffer_[sorted_indices_[idx]]; }
     Hit& hit(int idx) { return hit_buffer_[sorted_indices_[idx]]; }
@@ -251,68 +236,114 @@ public:
         });
     }
 
-    /// Traverses the acceleration structure with the rays currently inside the queue.
-    void traverse(const TraversalData& c_data) {
+    /// Traverses all rays currently in the queue on the CPU.
+    void traverse_cpu(const TraversalData& c_data) {
         assert(size() != 0);
 
-        int count = align(size());
+        int count = align_cpu(size());
         TraversalData& data = const_cast<TraversalData&>(c_data);
 
-#ifdef GPU_TRAVERSAL
-        anydsl::copy(ray_buffer_, dev_ray_buffer_, size());
-#else
-        auto& dev_ray_buffer_ = ray_buffer_;
-        auto& dev_hit_buffer_ = hit_buffer_;
-#endif
-        TRAVERSAL_INTERSECT(data.root, data.nodes.data(),
-                            data.instances.data(),
-                            data.tris.data(),
-                            dev_ray_buffer_.data(),
-                            dev_hit_buffer_.data(),
-                            data.indices.data(),
-                            data.texcoords.data(),
-                            data.masks.data(),
-                            data.mask_buffer.data(),
-                            count);
-#ifdef GPU_TRAVERSAL
-        anydsl::copy(dev_hit_buffer_, hit_buffer_, size());
-#endif
+        auto nodes = reinterpret_cast<traversal_cpu::Node*>(data.nodes.data());
+
+        traversal_cpu::intersect_cpu_masked_instanced(
+            data.root,
+            nodes,
+            data.instances.data(),
+            data.tris.data(),
+            ray_buffer_.data(),
+            hit_buffer_.data(),
+            data.indices.data(),
+            data.texcoords.data(),
+            data.masks.data(),
+            data.mask_buffer.data(),
+            count);
     }
 
-    void traverse_occluded(const TraversalData& c_data) {
+    // Traverses all rays currently in the queue on the GPU.
+    void traverse_gpu(const TraversalData& c_data) {
+        assert(size() != 0);
+        assert(gpu_buffers_);
+
+        int count = align_gpu(size());
+        TraversalData& data = const_cast<TraversalData&>(c_data);
+        auto nodes = reinterpret_cast<traversal_gpu::Node*>(data.nodes.data());
+
+        anydsl::copy(ray_buffer_, dev_ray_buffer_, size());
+
+        traversal_gpu::intersect_gpu_masked_instanced(
+            data.root,
+            nodes,
+            (traversal_gpu::InstanceNode*)data.instances.data(),
+            (traversal_gpu::Vec4*)data.tris.data(),
+            (traversal_gpu::Ray*)dev_ray_buffer_.data(),
+            (traversal_gpu::Hit*)dev_hit_buffer_.data(),
+            data.indices.data(),
+            (traversal_gpu::Vec2*)data.texcoords.data(),
+            (traversal_gpu::TransparencyMask*)data.masks.data(),
+            data.mask_buffer.data(),
+            count);
+
+        anydsl::copy(dev_hit_buffer_, hit_buffer_, size());
+    }
+
+    /// Traverses all rays currently in the queue on the CPU. For shadow rays.
+    void traverse_occluded_cpu(const TraversalData& c_data) {
         assert(size() != 0);
 
-        int count = align(size());
+        int count = align_cpu(size());
         TraversalData& data = const_cast<TraversalData&>(c_data);
 
-#ifdef GPU_TRAVERSAL
+        auto nodes = reinterpret_cast<traversal_cpu::Node*>(data.nodes.data());
+
+        traversal_cpu::occluded_cpu_masked_instanced(
+            data.root,
+            nodes,
+            data.instances.data(),
+            data.tris.data(),
+            ray_buffer_.data(),
+            hit_buffer_.data(),
+            data.indices.data(),
+            data.texcoords.data(),
+            data.masks.data(),
+            data.mask_buffer.data(),
+            count);
+    }
+
+    // Traverses all rays currently in the queue on the GPU. For shadow rays.
+    void traverse_occluded_gpu(const TraversalData& c_data) {
+        assert(size() != 0);
+        assert(gpu_buffers_);
+
+        int count = align_gpu(size());
+        TraversalData& data = const_cast<TraversalData&>(c_data);
+        auto nodes = reinterpret_cast<traversal_gpu::Node*>(data.nodes.data());
+
         anydsl::copy(ray_buffer_, dev_ray_buffer_, size());
-#else
-        auto& dev_ray_buffer_ = ray_buffer_;
-        auto& dev_hit_buffer_ = hit_buffer_;
-#endif
-        TRAVERSAL_OCCLUDED(data.root, data.nodes.data(),
-                           data.instances.data(),
-                           data.tris.data(),
-                           dev_ray_buffer_.data(),
-                           dev_hit_buffer_.data(),
-                           data.indices.data(),
-                           data.texcoords.data(),
-                           data.masks.data(),
-                           data.mask_buffer.data(),
-                           count);
-#ifdef GPU_TRAVERSAL
+
+        traversal_gpu::occluded_gpu_masked_instanced(
+            data.root,
+            nodes,
+            (traversal_gpu::InstanceNode*)data.instances.data(),
+            (traversal_gpu::Vec4*)data.tris.data(),
+            (traversal_gpu::Ray*)dev_ray_buffer_.data(),
+            (traversal_gpu::Hit*)dev_hit_buffer_.data(),
+            data.indices.data(),
+            (traversal_gpu::Vec2*)data.texcoords.data(),
+            (traversal_gpu::TransparencyMask*)data.masks.data(),
+            data.mask_buffer.data(),
+            count);
+
         anydsl::copy(dev_hit_buffer_, hit_buffer_, size());
-#endif
     }
 
 private:
     anydsl::Array<Ray> ray_buffer_;
     anydsl::Array<Hit> hit_buffer_;
-#ifdef GPU_TRAVERSAL
+
+    /// True if the buffers for rays and hits on the GPU have been initialized.
+    bool gpu_buffers_;
     anydsl::Array<Ray> dev_ray_buffer_;
     anydsl::Array<Hit> dev_hit_buffer_;
-#endif
 
     std::vector<StateType> state_buffer_;
     std::atomic<int> last_;

@@ -12,7 +12,7 @@
 #include "../render/integrators/pt.h"
 #include "../render/integrators/vcm.h"
 
-#define QUEUE_SCHEDULER
+//#define QUEUE_SCHEDULER
 
 using namespace imba;
 
@@ -89,7 +89,8 @@ int main(int argc, char* argv[]) {
     if (!parse_cmd_line(argc, argv, settings))
         return 0;
 
-    Scene scene;
+    Scene scene(settings.traversal_platform == UserSettings::cpu || settings.traversal_platform == UserSettings::hybrid,
+                settings.traversal_platform == UserSettings::gpu || settings.traversal_platform == UserSettings::hybrid);
     float3 cam_pos, cam_dir, cam_up;
     if (!build_scene(Path(settings.input_file), scene, cam_pos, cam_dir, cam_up)) {
         std::cerr << "ERROR: Scene could not be built" << std::endl;
@@ -101,13 +102,15 @@ int main(int argc, char* argv[]) {
     PerspectiveCamera cam(settings.width, settings.height, settings.fov);
     CameraControl ctrl(cam, cam_pos, cam_dir, cam_up);
 
+    const bool gpu_traversal = settings.traversal_platform == UserSettings::gpu;
+
     if (settings.algorithm == UserSettings::PT) {
 #ifdef QUEUE_SCHEDULER
         PixelRayGen<PTState> ray_gen(settings.width, settings.height, settings.concurrent_spp);
-        QueueScheduler<PTState> scheduler(ray_gen, scene, 1);
+        QueueScheduler<PTState> scheduler(ray_gen, scene, 1, gpu_traversal);
 #else
         DefaultTileGen<PTState> ray_gen(settings.width, settings.height, settings.concurrent_spp, settings.tile_size);
-        TileScheduler<PTState> scheduler(ray_gen, scene, 1, settings.thread_count, settings.tile_size * settings.tile_size * settings.concurrent_spp);
+        TileScheduler<PTState> scheduler(ray_gen, scene, 1, settings.thread_count, settings.tile_size * settings.tile_size * settings.concurrent_spp, gpu_traversal);
 #endif
         PathTracer integrator(scene, cam, scheduler, settings.max_path_len);
 
@@ -119,10 +122,10 @@ int main(int argc, char* argv[]) {
 
 #ifdef QUEUE_SCHEDULER
     PixelRayGen<VCMState> ray_gen(settings.width, settings.height, settings.concurrent_spp);
-    QueueScheduler<VCMState> scheduler(ray_gen, scene, settings.num_connections + 1);
+    QueueScheduler<VCMState> scheduler(ray_gen, scene, settings.num_connections + 1, gpu_traversal);
 #else
     DefaultTileGen<VCMState> ray_gen(settings.width, settings.height, settings.concurrent_spp, settings.tile_size);
-    TileScheduler<VCMState> scheduler(ray_gen, scene, settings.num_connections + 1, settings.thread_count, settings.tile_size * settings.tile_size * settings.concurrent_spp);
+    TileScheduler<VCMState> scheduler(ray_gen, scene, settings.num_connections + 1, settings.thread_count, settings.tile_size * settings.tile_size * settings.concurrent_spp, gpu_traversal);
 #endif
 
     Integrator* integrator;

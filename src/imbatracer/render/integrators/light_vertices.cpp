@@ -16,7 +16,7 @@ struct ProbePathState : RayState {
     rgb throughput;
 };
 
-void imba::LightVertices::compute_cache_size(const Scene& scene) {
+void imba::LightVertices::compute_cache_size(const Scene& scene, bool use_gpu) {
     // Trace a couple of light paths into the scene and calculate the average number of
     // vertices that would have been stored by these paths.
 
@@ -62,7 +62,10 @@ void imba::LightVertices::compute_cache_size(const Scene& scene) {
     // Count the vertices they would store.
     std::atomic<int> vertex_count(0);
     while (queues[in_q]->size() > 256) {
-        queues[in_q]->traverse(scene.traversal_data());
+        if (use_gpu)
+            queues[in_q]->traverse_gpu(scene.traversal_data_gpu());
+        else
+            queues[in_q]->traverse_cpu(scene.traversal_data_cpu());
 
         // Process hitpoints and bounce or terminate paths.
         const int ray_count = queues[in_q]->size();

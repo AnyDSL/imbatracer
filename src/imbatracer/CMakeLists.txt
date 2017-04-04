@@ -1,20 +1,4 @@
-# Configure traversal platform
-set(BACKEND ${BACKEND} CACHE STRING "select the backend from the following: CPU, NVVM")
-if(NOT BACKEND)
-    set(BACKEND nvvm CACHE STRING "select the backend from the following: CPU, NVVM" FORCE)
-endif()
-string(TOLOWER "${BACKEND}" BACKEND)
-message(STATUS "Selected backend: ${BACKEND}")
-
-if(BACKEND STREQUAL "cpu")
-  add_definitions(-DCPU_TRAVERSAL)
-  list(APPEND CORE_SRCS core/cpu_adapter.cpp)
-elseif(BACKEND STREQUAL "nvvm")
-  add_definitions(-DGPU_TRAVERSAL)
-  list(APPEND CORE_SRCS core/gpu_adapter.cpp)
-else()
-  message(FATAL_ERROR "Backend not supported")
-endif()
+include_directories(core loaders render)
 
 add_library(imba_core
             core/adapter.h
@@ -38,7 +22,8 @@ add_library(imba_core
             core/fast_bvh_builder.h
             core/stack.h
             core/tri.h
-            ${CORE_SRCS})
+            core/cpu_adapter.cpp
+            core/gpu_adapter.cpp)
 
 add_library(imba_loaders
             loaders/loaders.h
@@ -71,6 +56,7 @@ add_library(imba_render
             render/queue_scheduler.h
             render/tile_scheduler.h
             render/ray_scheduler.h
+            render/traversal_interface.h
             rangesearch/rangesearch.h)
 
 add_executable(imbatracer
@@ -86,7 +72,8 @@ target_link_libraries(imbatracer
                       imba_loaders
                       ${SDL2_LIBRARY}
                       ${PNG_LIBRARIES}
-                      ${TRAVERSAL_LIBRARY}
+                      ${TRAVERSAL_LIBRARY_CPU}
+                      ${TRAVERSAL_LIBRARY_GPU}
                       ${ANYDSL_RUNTIME_LIBRARY}
                       ${ANYDSL_RUNTIME_LIBRARIES}
                       ${TBB_LIBRARIES})

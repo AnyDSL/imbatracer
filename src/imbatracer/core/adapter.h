@@ -4,18 +4,13 @@
 #include <vector>
 #include <memory>
 
-#include <traversal.h>
-
+#include "traversal_interface.h"
 #include "mesh.h"
 
 namespace imba {
 
 class MeshAdapter {
 public:
-    MeshAdapter(std::vector<Node>& nodes, std::vector<Vec4>& tris)
-        : nodes_(nodes), tris_(tris)
-    {}
-
     virtual ~MeshAdapter() {}
 
     /// Writes the acceleration structure for the given mesh
@@ -25,18 +20,10 @@ public:
 #ifdef STATISTICS
     virtual void print_stats() const {};
 #endif
-
-protected:
-    std::vector<Node>& nodes_;
-    std::vector<Vec4>& tris_;
 };
 
 class TopLevelAdapter {
 public:
-    TopLevelAdapter(std::vector<Node>& nodes, std::vector<InstanceNode>& instance_nodes)
-        : nodes_(nodes), instance_nodes_(instance_nodes)
-    {}
-
     virtual ~TopLevelAdapter() {}
 
     /// Writes the acceleration structure for the given mesh
@@ -49,16 +36,14 @@ public:
 #ifdef STATISTICS
     virtual void print_stats() const {};
 #endif
-
-protected:
-    std::vector<Node>& nodes_;
-    std::vector<InstanceNode>& instance_nodes_;
 };
 
 /// Returns the correct mesh acceleration structure adapter for the traversal implementation.
-std::unique_ptr<MeshAdapter> new_mesh_adapter(std::vector<Node>& nodes, std::vector<Vec4>& tris);
+std::unique_ptr<MeshAdapter> new_mesh_adapter_cpu(std::vector<traversal_cpu::Node>& nodes, std::vector<Vec4>& tris);
+std::unique_ptr<MeshAdapter> new_mesh_adapter_gpu(std::vector<traversal_gpu::Node>& nodes, std::vector<Vec4>& tris);
 /// Returns the correct top-level acceleration structure adapter for the traversal implementation.
-std::unique_ptr<TopLevelAdapter> new_top_level_adapter(std::vector<Node>& nodes, std::vector<InstanceNode>& instance_nodes);
+std::unique_ptr<TopLevelAdapter> new_top_level_adapter_cpu(std::vector<traversal_cpu::Node>& nodes, std::vector<InstanceNode>& instance_nodes);
+std::unique_ptr<TopLevelAdapter> new_top_level_adapter_gpu(std::vector<traversal_gpu::Node>& nodes, std::vector<InstanceNode>& instance_nodes);
 
 } // namespace imba
 

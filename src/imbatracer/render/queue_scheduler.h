@@ -58,14 +58,14 @@ enum QueueTag : int {
 template <typename StateType>
 class RayQueuePool {
 public:
-    RayQueuePool(size_t queue_size, size_t count)
+    RayQueuePool(size_t queue_size, size_t count, bool gpu_traversal = true)
         : queues_(count), queue_flags_(count)
     {
         for (auto iter = queue_flags_.begin(); iter != queue_flags_.end(); ++iter)
             iter->store(QUEUE_EMPTY);
 
         for (auto& q : queues_)
-            q = new RayQueue<StateType>(queue_size);
+            q = new RayQueue<StateType>(queue_size, gpu_traversal);
 
         nonempty_count_ = 0;
     }
@@ -155,18 +155,20 @@ class QueueScheduler : public RayScheduler<StateType> {
 
 protected:
     using BaseType::scene_;
+    using BaseType::gpu_traversal;
 
 public:
     QueueScheduler(RayGen<StateType>& ray_gen,
                    Scene& scene,
                    int max_shadow_rays_per_hit,
+                   bool gpu_traversal = true,
                    float regen_threshold = 0.75f,
                    int queue_size = DEFAULT_QUEUE_SIZE,
                    int queue_count = DEFAULT_QUEUE_COUNT)
-        : BaseType(scene)
+        : BaseType(scene, gpu_traversal)
         , ray_gen_(ray_gen)
-        , primary_queue_pool_(queue_size, queue_count)
-        , shadow_queue_pool_(queue_size * max_shadow_rays_per_hit, 2 * queue_count / 3 + 1)
+        , primary_queue_pool_(queue_size, queue_count, gpu_traversal)
+        , shadow_queue_pool_(queue_size * max_shadow_rays_per_hit, 2 * queue_count / 3 + 1, gpu_traversal)
         , regen_threshold_(regen_threshold)
     {}
 
@@ -187,7 +189,12 @@ public:
             auto q_shadow = shadow_queue_pool_.claim_queue_with_tag(QUEUE_READY_FOR_TRAVERSAL);
             if (q_shadow) {
                 idle = false;
-                q_shadow->traverse_occluded(scene_.traversal_data());
+
+                if (gpu_traversal)
+                    q_shadow->traverse_occluded_gpu(scene_.traversal_data_gpu());
+                else
+                    q_shadow->traverse_occluded_cpu(scene_.traversal_data_cpu());
+
                 shading_tasks_.run([this, process_shadow_rays, q_shadow, &out] {
                     process_shadow_rays(*q_shadow, out);
                     shadow_queue_pool_.return_queue(q_shadow, QUEUE_EMPTY);
@@ -205,7 +212,10 @@ public:
             auto q_primary = primary_queue_pool_.claim_queue_with_tag(QUEUE_READY_FOR_TRAVERSAL);
             if (q_primary) {
                 idle = false;
-                q_primary->traverse(scene_.traversal_data());
+                if (gpu_traversal)
+                    q_primary->traverse_gpu(scene_.traversal_data_gpu());
+                else
+                    q_primary->traverse_cpu(scene_.traversal_data_cpu());
             } else {
                 q_primary = primary_queue_pool_.claim_queue_with_tag(QUEUE_READY_FOR_SHADING);
             }

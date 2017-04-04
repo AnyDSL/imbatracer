@@ -59,7 +59,7 @@ public:
 
     virtual void preprocess() override {
         if (algo != ALGO_LT && algo != ALGO_PT)
-            light_vertices_.compute_cache_size(scene_);
+            light_vertices_.compute_cache_size(scene_, scheduler_.gpu_traversal);
     }
 
 private:

@@ -19,8 +19,9 @@ protected:
     typedef std::function<void (RayQueue<ShadowState>&, AtomicImage&)> ProcessShadowFn;
 
 public:
-    RayScheduler(Scene& scene)
+    RayScheduler(Scene& scene, bool gpu_traversal)
         : scene_(scene)
+        , gpu_traversal(gpu_traversal)
     {}
 
     virtual ~RayScheduler() {}
@@ -28,6 +29,8 @@ public:
     virtual void run_iteration(AtomicImage& out,
                        ProcessShadowFn process_shadow_rays, ProcessPrimaryFn process_primary_rays,
                        SamplePixelFn sample_fn) = 0;
+
+    const bool gpu_traversal;
 
 protected:
     Scene& scene_;

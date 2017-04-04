@@ -14,6 +14,12 @@ struct UserSettings {
     std::string input_file;
     std::string output_file;
 
+    enum TraversalPlatform {
+        gpu,
+        cpu,
+        hybrid
+    } traversal_platform;
+
     // If specified, BVH data will be written to this file.
     std::string accel_output;
 
@@ -53,7 +59,7 @@ struct UserSettings {
           width(512), height(512), max_samples(INT_MAX), max_time_sec(FLT_MAX),
           background(false), fov(60.0f), base_radius(0.03f),
           max_path_len(10), concurrent_spp(1), tile_size(256), thread_count(4),
-          intermediate_image_time(10.0f), intermediate_image_name(""), num_connections(1)
+          intermediate_image_time(10.0f), intermediate_image_name(""), num_connections(1), traversal_platform(gpu)
     {}
 };
 
@@ -69,6 +75,9 @@ inline void print_help() {
               << "    -f  Sets the horizontal field of view (default: 60)" << std::endl
               << "    -r  Sets the initial radius for photon mapping as a factor of the scene bounding sphere radius (default: 0.03)" << std::endl
               << "    -c  Sets the number of vertices form the light path that any vertex on a camera path is connected to (default: 1)" << std::endl
+              << "    --gpu     Enables GPU traversal (default)" << std::endl
+              << "    --cpu     Enables CPU traversal" << std::endl
+              << "    --hybrid  Enables hybrid traversal (not yet implemented)" << std::endl
               << "    --write-accel <filename>   Writes the acceleration structure to the specified file." << std::endl
               << "    --max-path-len <len>       Specifies the maximum number of vertices within any path. (default: 10)" << std::endl
               << "    --spp <nr>                 Specifies the number of samples per pixel within a single frame. (default: 1)" << std::endl
@@ -174,6 +183,12 @@ inline bool parse_cmd_line(int argc, char* argv[], UserSettings& settings) {
             parse_argument(++i, argc, argv, settings.intermediate_image_time);
         else if (arg == "--intermediate-path")
             parse_argument(++i, argc, argv, settings.intermediate_image_name);
+        else if (arg == "--gpu")
+            settings.traversal_platform = UserSettings::gpu;
+        else if (arg == "--cpu")
+            settings.traversal_platform = UserSettings::cpu;
+        else if (arg == "--hybrid")
+            settings.traversal_platform = UserSettings::hybrid;
         else if (arg[0] == '-')
             std::cout << "Unknown argument ignored: " << arg << std::endl;
         else
