@@ -99,9 +99,9 @@ public:
     }
 
     /// Fills the given container with all photons within the radius around the given point.
-    template<typename Container>
-    inline void get_merge(int sample_id, const float3& pos, Container& out) {
-        photon_grid_[sample_id].process(out, pos);
+    template <typename ResultFn>
+    inline void get_merge(int sample_id, const float3& pos, ResultFn result) {
+        photon_grid_[sample_id].process(pos, result);
     }
 
     void clear() {
