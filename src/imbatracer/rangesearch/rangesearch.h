@@ -37,8 +37,12 @@ public:
             cell_ends_ = std::vector<std::atomic<int>>(photon_count * inv_load_factor);
 
         // Compute the extents of the bounding box.
-        bbox_ = BBox::empty();
-        for (Iter it = photons_begin; it != photons_end; ++it) bbox_.extend(it->position());
+        bbox_ = tbb::parallel_reduce(tbb::blocked_range<Iter>(photons_begin, photons_end), BBox::empty(),
+            [] (const tbb::blocked_range<Iter>& range, BBox init) {
+                for (Iter it = range.begin(); it != range.end(); ++it) init.extend(it->position());
+                return init;
+            },
+            [] (BBox a, const BBox& b) { return a.extend(b); });
 
         // Distribute the photons to the HashGrid cells using Counting Sort.
         photons_.resize(photon_count);
