@@ -73,8 +73,8 @@ public:
         });
     }
 
-    template <typename ResultFn>
-    void process(const float3& query_pos, ResultFn result) {
+    template <typename Container>
+    void process(const float3& query_pos, Container& out) {
         // Check if the position is outside the bounding box.
         if (!bbox_.is_inside(query_pos)) return;
 
@@ -105,7 +105,7 @@ public:
                 const float dist_sqr = lensqr(query_pos - photon.position);
 
                 if (dist_sqr <= radius_sqr_)
-                    result(dist_sqr, photon);
+                    out.emplace_back(&photon);
             }
         }
     }

@@ -14,11 +14,18 @@ namespace imba {
 static const float offset = 0.0001f;
 
 // Thread-local storage for BSDF objects.
-using ThreadLocalMemArena = tbb::enumerable_thread_specific<MemoryArena, tbb::cache_aligned_allocator<MemoryArena>, tbb::ets_key_per_instance>;
+using ThreadLocalMemArena =
+    tbb::enumerable_thread_specific<MemoryArena,
+        tbb::cache_aligned_allocator<MemoryArena>, 
+        tbb::ets_key_per_instance>;
 static ThreadLocalMemArena bsdf_memory_arenas;
 
 // Thread-local storage for the results of a photon query.
-using ThreadLocalPhotonContainer = tbb::enumerable_thread_specific<std::vector<const VCMPhoton*>, tbb::cache_aligned_allocator<std::vector<const VCMPhoton*>>, tbb::ets_key_per_instance>;
+using ThreadLocalPhotonContainer =
+    tbb::enumerable_thread_specific<
+        std::vector<const VCMPhoton*>,
+        tbb::cache_aligned_allocator<std::vector<const VCMPhoton*>>,
+        tbb::ets_key_per_instance>;
 static ThreadLocalPhotonContainer photon_containers;
 
 // Reduce ugliness from the template parameters.
@@ -536,13 +543,19 @@ void VCM_INTEGRATOR::connect(VCMState& cam_state, const Intersection& isect, BSD
 
 VCM_TEMPLATE
 void VCM_INTEGRATOR::vertex_merging(const VCMState& state, const Intersection& isect, const BSDF* bsdf, AtomicImage& img) {
+    // Obtain the thread local photon buffer and reserve sufficient memory.
+    auto& photons = photon_containers.local();
+    photons.reserve(0.5f * light_path_count_);
+    photons.clear();
+    light_vertices_.get_merge(state.sample_id, isect.pos, photons);
+
     rgb contrib(0.0f);
     const float radius_sqr = pm_radius_ * pm_radius_;
 
-    light_vertices_.get_merge(state.sample_id, isect.pos, [&] (float d, const VCMPhoton& p) {
-        const auto photon_in_dir = p.out_dir;
+    for (const auto* p : photons) {
+        const auto& photon_in_dir = p->out_dir;
 
-        const auto bsdf_value = bsdf->eval(isect.out_dir, photon_in_dir);
+        const auto& bsdf_value = bsdf->eval(isect.out_dir, photon_in_dir);
         const float pdf_dir_w = bsdf->pdf(isect.out_dir, photon_in_dir);
         const float pdf_rev_w = bsdf->pdf(photon_in_dir, isect.out_dir);
 
@@ -550,16 +563,17 @@ void VCM_INTEGRATOR::vertex_merging(const VCMState& state, const Intersection& i
             return;
 
         // Compute MIS weight.
-        const float mis_weight_light = p.dVCM * mis_eta_vc_ + p.dVM * mis_pow(pdf_dir_w);
+        const float mis_weight_light = p->dVCM * mis_eta_vc_ + p->dVM * mis_pow(pdf_dir_w);
         const float mis_weight_camera = state.dVCM * mis_eta_vc_ + state.dVM * mis_pow(pdf_rev_w);
 
         const float mis_weight = algo == ALGO_PPM ? 1.0f : (1.0f / (mis_weight_light + 1.0f + mis_weight_camera));
 
         // Epanechnikov filter
+        const float d = lensqr(p->position - isect.pos);
         const float kernel = 1.0f - d / radius_sqr;
 
-        contrib += mis_weight * bsdf_value * kernel * p.throughput;
-    });
+        contrib += mis_weight * bsdf_value * kernel * p->throughput;
+    }
 
     add_contribution(img, state.pixel_id, state.throughput * contrib * vm_normalization_ * 2.0f); // Factor 2.0f is part of the Epanechnikov filter
 }

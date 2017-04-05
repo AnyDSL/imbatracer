@@ -104,10 +104,8 @@ private:
 
                 // TODO Add regeneration again (minor performance increase)
 
-                if (gpu_traversal)
-                    prim_q->traverse_gpu(scene_.traversal_data_gpu());
-                else
-                    prim_q->traverse_cpu(scene_.traversal_data_cpu());
+                if (gpu_traversal) prim_q->traverse_gpu(scene_.traversal_data_gpu());
+                else               prim_q->traverse_cpu(scene_.traversal_data_cpu());
 
                 process_primary_rays(*prim_q, *shadow_q, image);
 
