@@ -56,7 +56,7 @@ add_library(imba_render
             render/queue_scheduler.h
             render/tile_scheduler.h
             render/ray_scheduler.h
-            render/traversal_interface.h
+            core/traversal_interface.h
             rangesearch/rangesearch.h)
 
 add_executable(imbatracer
