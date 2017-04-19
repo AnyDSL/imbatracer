@@ -193,7 +193,7 @@ class DirectionalLight : public Light {
 public:
     // Keeps a reference to the bounding sphere of the scene, because the scene might change after the light is created.
     DirectionalLight(const float3& dir, const rgb& intensity, const BSphere& bsphere)
-        : dir_(dir), intensity_(intensity), bsphere_(bsphere)
+        : dir_(dir), intensity_(intensity), bsphere_(&bsphere)
     {
         local_coordinates(dir_, tangent_, binormal_);
     }
@@ -202,11 +202,11 @@ public:
         float2 disc_pos = sample_concentric_disc(rng.random_float(), rng.random_float());
 
         EmitSample sample;
-        sample.pos = bsphere_.center + bsphere_.radius * (-dir_ + binormal_ * disc_pos.x + tangent_ * disc_pos.y);
+        sample.pos = bsphere_->center + bsphere_->radius * (-dir_ + binormal_ * disc_pos.x + tangent_ * disc_pos.y);
         sample.dir = dir_;
 
         sample.pdf_direct_a = 1.0f;
-        sample.pdf_emit_w   = concentric_disc_pdf() * bsphere_.inv_radius_sqr;
+        sample.pdf_emit_w   = concentric_disc_pdf() * bsphere_->inv_radius_sqr;
         sample.cos_out      = 1.0f;
 
         sample.radiance = intensity_ / sample.pdf_emit_w;
@@ -222,7 +222,7 @@ public:
         sample.radiance = intensity_;
 
         sample.pdf_direct_w = 1.0f;
-        sample.pdf_emit_w   = concentric_disc_pdf() * bsphere_.inv_radius_sqr;
+        sample.pdf_emit_w   = concentric_disc_pdf() * bsphere_->inv_radius_sqr;
         sample.cos_out      = 1.0f;
 
         return sample;
@@ -235,8 +235,9 @@ private:
     rgb intensity_;
     float3 dir_;
     float3 tangent_, binormal_;
-    // The scene geometry is not yet known when the lights are created. Hence we store a reference to the bounding sphere which will be updated later on.
-    const BSphere& bsphere_;
+    // The scene geometry is not yet known when the lights are created.
+    // Hence we store a pointer to the bounding sphere which will be updated later on.
+    const BSphere* bsphere_;
 };
 
 class PointLight : public Light {

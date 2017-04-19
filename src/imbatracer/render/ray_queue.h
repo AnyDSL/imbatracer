@@ -12,7 +12,7 @@
 #include <tbb/parallel_sort.h>
 #include <anydsl_runtime.hpp>
 
-#include "traversal_interface.h"
+#include "../core/traversal_interface.h"
 #include "random.h"
 
 namespace imba {
