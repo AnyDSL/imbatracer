@@ -25,6 +25,11 @@ struct float3 {
         return *this;
     }
 
+    float3& operator -= (const float3& a) {
+        x -= a.x; y -= a.y; z -= a.z;
+        return *this;
+    }
+
     float3& operator *= (float a) {
         x *= a; y *= a; z *= a;
         return *this;

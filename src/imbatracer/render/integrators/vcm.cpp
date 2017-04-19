@@ -16,7 +16,7 @@ static const float offset = 0.0001f;
 // Thread-local storage for BSDF objects.
 using ThreadLocalMemArena =
     tbb::enumerable_thread_specific<MemoryArena,
-        tbb::cache_aligned_allocator<MemoryArena>, 
+        tbb::cache_aligned_allocator<MemoryArena>,
         tbb::ets_key_per_instance>;
 static ThreadLocalMemArena bsdf_memory_arenas;
 
@@ -560,7 +560,7 @@ void VCM_INTEGRATOR::vertex_merging(const VCMState& state, const Intersection& i
         const float pdf_rev_w = bsdf->pdf(photon_in_dir, isect.out_dir);
 
         if (pdf_dir_w == 0.0f || pdf_rev_w == 0.0f || is_black(bsdf_value))
-            return;
+            continue;
 
         // Compute MIS weight.
         const float mis_weight_light = p->dVCM * mis_eta_vc_ + p->dVM * mis_pow(pdf_dir_w);

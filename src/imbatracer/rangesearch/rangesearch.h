@@ -18,10 +18,9 @@ struct CellIdx {
     CellIdx() : x(0), y(0) {}
 };
 
-typedef unsigned int uint;
-
 template<typename Iter, typename Photon>
 class HashGrid {
+    typedef unsigned int uint;
 public:
     HashGrid() {}
 
@@ -43,6 +42,10 @@ public:
                 return init;
             },
             [] (BBox a, const BBox& b) { return a.extend(b); });
+
+        auto extents = bbox_.max - bbox_.min;
+        bbox_.max += extents * 0.001f;
+        bbox_.min -= extents * 0.001f;
 
         // Distribute the photons to the HashGrid cells using Counting Sort.
         photons_.resize(photon_count);
