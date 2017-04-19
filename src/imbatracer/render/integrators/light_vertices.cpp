@@ -22,8 +22,8 @@ void imba::LightVertices::compute_cache_size(const Scene& scene, bool use_gpu) {
 
     // Setup the queues. We need two: one for the current rays/hits and one for continuation rays.
     RayQueue<ProbePathState>* queues[2] = {
-        new RayQueue<ProbePathState>(LIGHT_PATH_LEN_PROBES),
-        new RayQueue<ProbePathState>(LIGHT_PATH_LEN_PROBES)
+        new RayQueue<ProbePathState>(LIGHT_PATH_LEN_PROBES, use_gpu),
+        new RayQueue<ProbePathState>(LIGHT_PATH_LEN_PROBES, use_gpu)
     };
 
     int in_q = 0;

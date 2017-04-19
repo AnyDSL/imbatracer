@@ -56,7 +56,7 @@ class RayQueue {
 public:
     RayQueue() { }
 
-    RayQueue(int capacity, bool gpu_buffers = true)
+    RayQueue(int capacity, bool gpu_buffers)
         : ray_buffer_     (align(capacity))
         , hit_buffer_     (align(capacity))
         , state_buffer_   (align(capacity))
