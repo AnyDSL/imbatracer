@@ -133,10 +133,8 @@ bool load_accel_gpu(const std::string& filename, std::vector<traversal_gpu::Node
     }
 
     if (tri_id_offset != 0) {
-        for (int i = tris_offset; i < tris_out.size(); ) {
-            i++;
-            tris_out[i++].w = int_as_float(float_as_int(tris_out[i-1].w) + tri_id_offset);
-            i++;
+        for (int i = tris_offset; i < tris_out.size(); i += 3) {
+            tris_out[i + 1].w = int_as_float(float_as_int(tris_out[i + 1].w) + tri_id_offset);
         }
     }
 
