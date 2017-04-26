@@ -88,7 +88,7 @@ bench_settings = [
 
 
 thread_counts = [4]
-sample_counts = [4]
+sample_counts = [1]
 tilesizes     = [256]
 connections   = [1]
 
@@ -104,11 +104,10 @@ for t in thread_counts:
                     'samples_per_frame': s
                     })
 
-times_in_seconds = [60]
+times_in_seconds = [10]
 algorithms = ['pt', 'vcm']
 convergence = False
 convergence_step_sec = 5
-
 
 def compute_rmse(file, ref):
     p = Popen(['compare', '-metric', 'RMSE', file, ref, '.compare.png'],
@@ -129,7 +128,7 @@ def compute_rmse(file, ref):
     return rmse
 
 
-def run_benchmark(app, setting, path, time_sec):
+def run_benchmark(app, setting, path, time_sec, cmd_args):
     results = ['', '']
 
     for alg in algorithms:
@@ -153,14 +152,29 @@ def run_benchmark(app, setting, path, time_sec):
                 args.extend(['--intermediate-path', path + setting['base_filename'] + '_' + alg + scheduling['abbr'] + '_conv_',
                              '--intermediate-time', str(convergence_step_sec)])
 
+            args += cmd_args
+
             p = Popen(args, stdin=PIPE, stdout=PIPE, stderr=PIPE)
 
             output, err = p.communicate()
 
             output_lines = output.splitlines()
-            # perf_result = output_lines[len(output_lines) - 2]
-            # ray_count = output_lines[len(output_lines) - 1]
-            perf_result = output_lines[len(output_lines) - 1]
+
+            if output_lines[len(output_lines) - 1][0] == "D":
+                perf_result = output_lines[len(output_lines) - 1]
+            elif output_lines[len(output_lines) - 1][0] == "N":
+                perf_result = output_lines[len(output_lines) - 2]
+                ray_count   = output_lines[len(output_lines) - 1]
+
+                m = re.match(r'Number primary rays: (\d+) Number shadow rays: (\d+)', ray_count)
+                if m is None:
+                    print 'imbatracer failed. Output: \n' + output + err
+                    continue
+
+                ray_count = int(m.group(1)) + int(m.group(2))
+            else:
+                print "ERROR: last line of output: " + output_lines[len(output_lines) - 1]
+                continue
 
             print '   > ' + perf_result
 
@@ -177,7 +191,11 @@ def run_benchmark(app, setting, path, time_sec):
             ms_per_frame = m.group(4)
 
             rmse = compute_rmse(out_filename, setting['reference'])
-            rays_per_sec = '0' #str(float(ray_count) / float(time));
+
+            if not ray_count:
+                rays_per_sec = '0'
+            else:
+                rays_per_sec = str(float(ray_count) / float(time));
 
             print '   > RMSE: ' + rmse
             print '   > Rays per second: ' + rays_per_sec
@@ -264,13 +282,13 @@ if __name__ == '__main__':
 
     app = sys.argv[1]
 
-    args = []
     if len(sys.argv) == 3:
-        if sys.argv[2] != '-c':
-            print 'Unknown argument: ' + sys.argv[2]
-        else:
+        if sys.argv[2] == '-c':
             run_convergence_tests(app)
             quit()
+
+    # All other arguments are forwarded to the renderer.
+    args = sys.argv[2:]
 
     # Run benchmarks
     timestamp = datetime.datetime.now().strftime('%Y_%m_%d_%H_%M_%S')
@@ -288,7 +306,7 @@ if __name__ == '__main__':
         i = 1
         for setting in bench_settings:
             print '== Running benchmark ' + str(i) + ' / ' + str(len(bench_settings)) + ' - ' + setting['name']
-            bench_res = run_benchmark(app, setting, foldername + '/', time_sec)
+            bench_res = run_benchmark(app, setting, foldername + '/', time_sec, args)
             res_file.write(bench_res[0])
 
             if convergence:

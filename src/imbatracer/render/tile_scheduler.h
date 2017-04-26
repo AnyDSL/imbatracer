@@ -6,6 +6,8 @@
 #include <thread>
 #include <atomic>
 
+#define RAY_STATISTICS
+
 namespace imba {
 
 /// Launches multiple threads, each running an entire traversal-shading pipeline.
@@ -44,6 +46,9 @@ public:
 
         for (auto& ptr : thread_local_ray_gen_)
             ptr = new uint8_t[tile_gen_.sizeof_ray_gen()];
+
+        total_prim_rays_   = 0;
+        total_shadow_rays_ = 0;
     }
 
     ~TileScheduler() {
@@ -51,6 +56,10 @@ public:
         for (auto q : thread_local_shadow_queues_) delete q;
 
         for (auto ptr : thread_local_ray_gen_) delete [] ptr;
+
+#ifdef RAY_STATISTICS
+        std::cout << "Number primary rays: " << total_prim_rays_ << " Number shadow rays: " << total_shadow_rays_ << std::endl;
+#endif
     }
 
     void run_iteration(AtomicImage& image,
@@ -87,6 +96,11 @@ private:
     // To prevent reallocation every time a new tile is needed, we use a memory pool.
     std::vector<uint8_t*> thread_local_ray_gen_;
 
+#ifdef RAY_STATISTICS
+    std::atomic<uint64_t> total_prim_rays_;
+    std::atomic<uint64_t> total_shadow_rays_;
+#endif
+
     void render_thread(int thread_idx, AtomicImage& image,
                        ProcessShadowFn process_shadow_rays,
                        ProcessPrimaryFn process_primary_rays,
@@ -104,12 +118,19 @@ private:
 
                 // TODO Add regeneration again (minor performance increase)
 
+#ifdef RAY_STATISTICS
+                total_prim_rays_ += prim_q->size();
+#endif
+
                 if (gpu_traversal) prim_q->traverse_gpu(scene_.traversal_data_gpu());
                 else               prim_q->traverse_cpu(scene_.traversal_data_cpu());
 
                 process_primary_rays(*prim_q, *shadow_q, image);
 
                 if (shadow_q->size() > MIN_QUEUE_SIZE) {
+#ifdef RAY_STATISTICS
+                total_shadow_rays_ += shadow_q->size();
+#endif
                     if (gpu_traversal)
                         shadow_q->traverse_occluded_gpu(scene_.traversal_data_gpu());
                     else
