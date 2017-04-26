@@ -31,7 +31,7 @@ Once the dependencies are installed, use CMake to configure the project and set 
     cd imbatracer
     mkdir build
     cd build
-    cmake-gui .. -DBACKEND=<traversal backend>
+    cmake-gui .. 
 
 ## Running
 
