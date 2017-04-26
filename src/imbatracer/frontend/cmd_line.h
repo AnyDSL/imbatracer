@@ -59,7 +59,7 @@ struct UserSettings {
           width(512), height(512), max_samples(INT_MAX), max_time_sec(FLT_MAX),
           background(false), fov(60.0f), base_radius(0.03f),
           max_path_len(10), concurrent_spp(1), tile_size(256), thread_count(4),
-          intermediate_image_time(10.0f), intermediate_image_name(""), num_connections(1), traversal_platform(gpu)
+          intermediate_image_time(10.0f), intermediate_image_name(""), num_connections(1), traversal_platform(cpu)
     {}
 };
 
