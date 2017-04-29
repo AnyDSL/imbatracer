@@ -1,2 +1,7 @@
 build*
 *.bvh
+*.sublime-project
+*.sublime-workspace
+nohup.out
+*.nvvm.bc
+test/results
