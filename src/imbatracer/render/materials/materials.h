@@ -17,6 +17,9 @@ public:
         , emit_(emit)
     {}
 
+    // Duplicates the material
+    virtual Material* duplicate() const = 0;
+
     virtual BSDF* get_bsdf(const Intersection& isect, MemoryArena& mem_arena, bool adjoint = false) const = 0;
 
     /// Associates the material with a light source.
@@ -51,7 +54,7 @@ public:
         isect.normal = cross(isect.u_tangent, isect.v_tangent);
     }
 
-private:
+protected:
     const TextureSampler* bump_;
     std::unique_ptr<const AreaEmitter> emit_;
 };
@@ -59,9 +62,16 @@ private:
 /// Very simple material with a lambertian BRDF.
 class DiffuseMaterial : public Material {
 public:
-    DiffuseMaterial(TextureSampler* bump = nullptr) : Material(bump), color_(1.0f), sampler_(nullptr) {}
+    DiffuseMaterial(const TextureSampler* bump = nullptr) : Material(bump), color_(1.0f), sampler_(nullptr) {}
     DiffuseMaterial(const rgb& color, const TextureSampler* bump = nullptr) : Material(bump), color_(color), sampler_(nullptr) {}
-    DiffuseMaterial(TextureSampler* sampler, const TextureSampler* bump = nullptr) : Material(bump), sampler_(sampler) {}
+    DiffuseMaterial(const TextureSampler* sampler, const TextureSampler* bump = nullptr) : Material(bump), sampler_(sampler) {}
+
+    virtual Material* duplicate() const override final {
+        if (sampler_)
+            return new DiffuseMaterial(sampler_, bump_);
+        else
+            return new DiffuseMaterial(color_, bump_);
+    };
 
     BSDF* get_bsdf(const Intersection& isect, MemoryArena& mem_arena, bool adjoint) const override {
         rgb color = color_;
@@ -83,6 +93,14 @@ public:
     MirrorMaterial(float eta, float kappa, const rgb& scale, TextureSampler* bump = nullptr)
         : Material(bump), fresnel_(eta, kappa), scale_(scale) {}
 
+    MirrorMaterial(const MirrorMaterial& rhs)
+        : Material(rhs.bump_), fresnel_(rhs.fresnel_), scale_(rhs.scale_)
+    {}
+
+    virtual Material* duplicate() const override final {
+        return new MirrorMaterial(*this);
+    };
+
     BSDF* get_bsdf(const Intersection& isect, MemoryArena& mem_arena, bool adjoint) const override {
         auto brdf = mem_arena.alloc<SpecularReflection>(scale_, fresnel_);
         return mem_arena.alloc<BSDF>(isect, brdf, nullptr);
@@ -100,6 +118,14 @@ class GlassMaterial : public Material {
 public:
     GlassMaterial(float eta, const rgb& transmittance, const rgb& reflectance, TextureSampler* bump = nullptr)
         : Material(bump), eta_(eta), transmittance_(transmittance), reflectance_(reflectance), fresnel_(1.0f, eta) {}
+
+    GlassMaterial(const GlassMaterial& rhs)
+        : Material(rhs.bump_), eta_(rhs.eta_), transmittance_(rhs.transmittance_), reflectance_(rhs.reflectance_), fresnel_(rhs.fresnel_)
+    {}
+
+    virtual Material* duplicate() const override final {
+        return new GlassMaterial(*this);
+    };
 
     BSDF* get_bsdf(const Intersection& isect, MemoryArena& mem_arena, bool adjoint) const override {
         auto brdf = mem_arena.alloc<SpecularReflection>(reflectance_, fresnel_);
@@ -131,6 +157,15 @@ public:
     GlossyMaterial(float exponent, const rgb& specular_color, const TextureSampler* diff_sampler, const TextureSampler* bump = nullptr)
         : Material(bump), exponent_(exponent), specular_color_(specular_color), diffuse_color_(0.0f), diff_sampler_(diff_sampler)
     {}
+
+    GlossyMaterial(const GlossyMaterial& rhs)
+        : Material(rhs.bump_), exponent_(rhs.exponent_), specular_color_(rhs.specular_color_)
+        , diffuse_color_(rhs.diffuse_color_), diff_sampler_(rhs.diff_sampler_)
+    {}
+
+    virtual Material* duplicate() const override final {
+        return new GlossyMaterial(*this);
+    };
 
     BSDF* get_bsdf(const Intersection& isect, MemoryArena& mem_arena, bool adjoint) const override {
         rgb diff_color = diffuse_color_;

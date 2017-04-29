@@ -52,7 +52,8 @@ struct CompareIndex {
 
 using MtlLightBuffer = std::unordered_map<int, rgb>;
 
-void convert_materials(const Path& path, const obj::File& obj_file, const obj::MaterialLib& mtl_lib, Scene& scene, MtlLightBuffer& mtl_to_light_intensity, MaskBuffer& masks) {
+void convert_materials(const Path& path, const obj::File& obj_file, const obj::MaterialLib& mtl_lib, Scene& scene,
+                       MtlLightBuffer& mtl_to_light_intensity, MaskBuffer& masks) {
     std::unordered_map<std::string, int> tex_map;
     auto load_texture = [&](const std::string& name) {
         auto tex = tex_map.find(name);
@@ -180,7 +181,8 @@ void convert_materials(const Path& path, const obj::File& obj_file, const obj::M
     }
 }
 
-void create_mesh(const obj::File& obj_file, Scene& scene, std::vector<TriangleLight>& tri_lights, MtlLightBuffer& mtl_to_light_intensity, int mtl_offset) {
+void create_mesh(const obj::File& obj_file, Scene& scene, std::vector<TriangleLight>& tri_lights, MtlLightBuffer& mtl_to_light_intensity,
+                 int mtl_offset, MaskBuffer& masks) {
     // This function creates a big mesh out of the whole scene.
     scene.meshes().emplace_back();
 
@@ -215,11 +217,19 @@ void create_mesh(const obj::File& obj_file, Scene& scene, std::vector<TriangleLi
                 for (int i = 1; i < face.index_count - 1; i++) {
                     const int next = mapping[face.indices[i + 1]];
                     int mtl_idx = face.material + mtl_offset;
-                    triangles.emplace_back(v0, prev, next, mtl_idx);
 
+                    // If this is a light, we need a separate material for every face
+                    // as the emitter might be different (different area)
                     auto iter = mtl_to_light_intensity.find(mtl_idx);
                     if (iter != mtl_to_light_intensity.end()) {
                         auto mat = scene.material(mtl_idx).get();
+                        scene.materials().emplace_back(mat->duplicate());
+                        mat = scene.materials().back().get();
+                        mtl_idx = scene.materials().size() - 1;
+
+                        // We created a new material, thus we have to add a corresponding alpha mask as well.
+                        // TODO: Change this if support for masked light sources is desired.
+                        masks.add_desc();
 
                         auto p0 = obj_file.vertices[face.indices[0].v];
                         auto p1 = obj_file.vertices[face.indices[i].v];
@@ -229,6 +239,9 @@ void create_mesh(const obj::File& obj_file, Scene& scene, std::vector<TriangleLi
                         tri_lights.emplace_back(iter->second, p0, p1, p2);
                         mat->set_emitter(new AreaEmitter(iter->second, Tri(p0, p1, p2).area()));
                     }
+
+                    // Now emplace the triangle with either the original or the new material
+                    triangles.emplace_back(v0, prev, next, mtl_idx);
 
                     prev = next;
                 }
@@ -572,7 +585,7 @@ bool build_scene(const Path& path, Scene& scene, float3& cam_pos, float3& cam_di
         convert_materials(obj_path, obj_file, mtl_lib, scene, mtl_to_light_intensity, masks);
 
         tri_lights.emplace_back();
-        create_mesh(obj_file, scene, tri_lights.back(), mtl_to_light_intensity, mtl_offset);
+        create_mesh(obj_file, scene, tri_lights.back(), mtl_to_light_intensity, mtl_offset, masks);
 
         std::cout << "  validating..." << std::flush;
 

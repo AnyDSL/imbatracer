@@ -10,7 +10,7 @@
 
 namespace imba {
 
-/// Utility class to describe a surface that emits light.
+/// Utility class to describe a triangular surface that emits light.
 struct AreaEmitter {
     AreaEmitter() {}
     AreaEmitter(const rgb& i, float a)
