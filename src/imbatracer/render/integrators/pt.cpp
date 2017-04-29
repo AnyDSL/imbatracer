@@ -134,7 +134,13 @@ void PathTracer::process_primary_rays(RayQueue<PTState>& ray_in, RayQueue<Shadow
                 float pdf_direct_a, pdf_emit_w;
                 const auto li = emit->radiance(isect.out_dir, isect.geom_normal, pdf_direct_a, pdf_emit_w);
 
-                const float pdf_di = pdf_direct_a / scene_.light_count();
+                float pdf_di = pdf_direct_a / scene_.light_count();
+
+                // convert pdf from area measure to solid angle measure
+                const float d_sqr = ray_in.hit(i).tmax * ray_in.hit(i).tmax;
+                const float cos_light = dot(isect.normal, isect.out_dir);
+                pdf_di *= d_sqr / cos_light;
+
                 const float mis_weight = (state.bounces == 0 || state.last_specular) ? 1.0f
                                          : state.last_pdf / (state.last_pdf + pdf_di);
 
