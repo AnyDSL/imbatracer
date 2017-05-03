@@ -107,10 +107,10 @@ int main(int argc, char* argv[]) {
     if (settings.algorithm == UserSettings::PT) {
 #ifdef QUEUE_SCHEDULER
         PixelRayGen<PTState> ray_gen(settings.width, settings.height, settings.concurrent_spp);
-        QueueScheduler<PTState> scheduler(ray_gen, scene, 1, gpu_traversal);
+        QueueScheduler<PTState, ShadowState> scheduler(ray_gen, scene, 1, gpu_traversal);
 #else
         DefaultTileGen<PTState> ray_gen(settings.width, settings.height, settings.concurrent_spp, settings.tile_size);
-        TileScheduler<PTState> scheduler(ray_gen, scene, 1, settings.thread_count, settings.tile_size * settings.tile_size * settings.concurrent_spp, gpu_traversal);
+        TileScheduler<PTState, ShadowState> scheduler(ray_gen, scene, 1, settings.thread_count, settings.tile_size * settings.tile_size * settings.concurrent_spp, gpu_traversal);
 #endif
         PathTracer integrator(scene, cam, scheduler, settings.max_path_len);
 
@@ -122,10 +122,10 @@ int main(int argc, char* argv[]) {
 
 #ifdef QUEUE_SCHEDULER
     PixelRayGen<VCMState> ray_gen(settings.width, settings.height, settings.concurrent_spp);
-    QueueScheduler<VCMState> scheduler(ray_gen, scene, settings.num_connections + 1, gpu_traversal);
+    QueueScheduler<VCMState, VCMShadowState> scheduler(ray_gen, scene, settings.num_connections + 1, gpu_traversal);
 #else
     DefaultTileGen<VCMState> ray_gen(settings.width, settings.height, settings.concurrent_spp, settings.tile_size);
-    TileScheduler<VCMState> scheduler(ray_gen, scene, settings.num_connections + 1, settings.thread_count, settings.tile_size * settings.tile_size * settings.concurrent_spp, gpu_traversal);
+    TileScheduler<VCMState, VCMShadowState> scheduler(ray_gen, scene, settings.num_connections + 1, settings.thread_count, settings.tile_size * settings.tile_size * settings.concurrent_spp, gpu_traversal);
 #endif
 
     Integrator* integrator;

@@ -12,12 +12,12 @@ namespace imba {
 
 /// Launches multiple threads, each running an entire traversal-shading pipeline.
 /// Thus, there can be multiple calls to traversal at the same time.
-template <typename StateType>
-class TileScheduler : public RayScheduler<StateType> {
-    using BaseType = RayScheduler<StateType>;
-    using SamplePixelFn = typename RayScheduler<StateType>::SamplePixelFn;
-    using ProcessPrimaryFn = typename RayScheduler<StateType>::ProcessPrimaryFn;
-    using ProcessShadowFn = typename RayScheduler<StateType>::ProcessShadowFn;
+template <typename StateType, typename ShadowStateType>
+class TileScheduler : public RayScheduler<StateType, ShadowStateType> {
+    using BaseType = RayScheduler<StateType, ShadowStateType>;
+    using SamplePixelFn = typename BaseType::SamplePixelFn;
+    using ProcessPrimaryFn = typename BaseType::ProcessPrimaryFn;
+    using ProcessShadowFn = typename BaseType::ProcessShadowFn;
 
     static constexpr int MIN_QUEUE_SIZE = 0;
 
@@ -42,7 +42,7 @@ public:
             q = new RayQueue<StateType>(q_size, gpu_traversal);
 
         for (auto& q : thread_local_shadow_queues_)
-            q = new RayQueue<ShadowState>(q_size * max_shadow_rays_per_hit, gpu_traversal);
+            q = new RayQueue<ShadowStateType>(q_size * max_shadow_rays_per_hit, gpu_traversal);
 
         for (auto& ptr : thread_local_ray_gen_)
             ptr = new uint8_t[tile_gen_.sizeof_ray_gen()];
@@ -90,7 +90,7 @@ private:
     std::vector<RayQueue<StateType>*> thread_local_prim_queues_;
 
     // Every thread has one shadow queue.
-    std::vector<RayQueue<ShadowState>*> thread_local_shadow_queues_;
+    std::vector<RayQueue<ShadowStateType>*> thread_local_shadow_queues_;
 
     // Every thread has a ray generator.
     // To prevent reallocation every time a new tile is needed, we use a memory pool.

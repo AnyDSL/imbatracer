@@ -1,5 +1,5 @@
-#ifndef IMBA_INTEGRATOR_DEBUGGING_H
-#define IMBA_INTEGRATOR_DEBUGGING_H
+#ifndef IMBA_PATH_DEBUG_H
+#define IMBA_PATH_DEBUG_H
 
 #include "../../core/float3.h"
 
@@ -10,7 +10,8 @@ namespace imba {
 
 /// Stores sampling informations on the light or camera paths for debugging.
 template <typename StateType, bool enabled>
-struct PathDebugger {
+class PathDebugger {
+public:
     /// Adds a new vertex along a path. Thread-safe between different paths.
     void add_vertex(const float3& pos, const float3& dir, const StateType& state) {
         if (!enabled) return;
@@ -69,4 +70,4 @@ private:
 
 } // namespace imba
 
-#endif // IMBA_INTEGRATOR_DEBUGGING_H
+#endif // IMBA_PATH_DEBUG_H

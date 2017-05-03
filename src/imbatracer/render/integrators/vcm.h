@@ -8,10 +8,14 @@
 #include "../../rangesearch/rangesearch.h"
 #include "light_vertices.h"
 
-#include "integrator_debugging.h"
+#include "../debug/path_debug.h"
+#include "../debug/mis_debug.h"
 
 // Enable this to write light path information to a file after each frame (SLOW!)
-//#define LIGHT_PATH_DEBUG
+#define LIGHT_PATH_DEBUG false
+
+// Enable this to write the individual contributions from the techniques to separate images
+#define TECHNIQUES_DEBUG false
 
 namespace imba {
 
@@ -35,10 +39,18 @@ enum VCMSubAlgorithm {
     ALGO_PT
 };
 
+struct VCMShadowState : ShadowState {
+#if TECHNIQUES_DEBUG
+    int sample_id;
+    float weight;
+    int technique;
+#endif
+};
+
 template <VCMSubAlgorithm algo>
 class VCMIntegrator : public Integrator {
 public:
-    VCMIntegrator(Scene& scene, PerspectiveCamera& cam, RayScheduler<VCMState>& scheduler,
+    VCMIntegrator(Scene& scene, PerspectiveCamera& cam, RayScheduler<VCMState, VCMShadowState>& scheduler,
         int max_path_len, int spp, int num_connections, float base_radius=0.03f, float radius_alpha=0.75f)
         : Integrator(scene, cam)
         , width_(cam.width())
@@ -87,16 +99,22 @@ private:
     float mis_eta_vc_;
     float mis_eta_vm_;
 
-    RayScheduler<VCMState>& scheduler_;
+    // Debugging tools
+    enum SamplingTechniques {
+        merging,
+        connecting,
+        next_event,
+        cam_connect,
+        light_hit,
+        technique_count
+    };
 
+    PathDebugger<VCMState, LIGHT_PATH_DEBUG> light_path_dbg_;
+    MISDebugger<technique_count, TECHNIQUES_DEBUG> techniques_dbg_;
+
+    // Scheduling
+    RayScheduler<VCMState, VCMShadowState>& scheduler_;
     LightVertices light_vertices_;
-
-    // Debugging information for visualizing light paths / photons
-#ifndef LIGHT_PATH_DEBUG
-    PathDebugger<VCMState, false> light_path_dbg;
-#else
-    PathDebugger<VCMState, true> light_path_dbg;
-#endif
 
     /// Computes the power for the power heuristic.
     inline float mis_pow(float a) {
@@ -112,19 +130,21 @@ private:
         return dot(out_dir, normal) * dot(in_dir, geom_normal) / dot(out_dir, geom_normal);
     }
 
-    void process_light_rays(RayQueue<VCMState>& rays_in, RayQueue<ShadowState>& rays_out_shadow, AtomicImage& img);
-    void process_camera_rays(RayQueue<VCMState>& rays_in, RayQueue<ShadowState>& shadow_rays, AtomicImage& img);
+    void process_light_rays(RayQueue<VCMState>& rays_in, RayQueue<VCMShadowState>& rays_out_shadow, AtomicImage& img);
+    void process_camera_rays(RayQueue<VCMState>& rays_in, RayQueue<VCMShadowState>& shadow_rays, AtomicImage& img);
 
     void trace_light_paths(AtomicImage& img);
     void trace_camera_paths(AtomicImage& img);
 
-    void connect_to_camera(const VCMState& light_state, const Intersection& isect, const BSDF* bsdf, RayQueue<ShadowState>& rays_out_shadow);
+    void connect_to_camera(const VCMState& light_state, const Intersection& isect, const BSDF* bsdf, RayQueue<VCMShadowState>& rays_out_shadow);
 
-    void direct_illum(VCMState& cam_state, const Intersection& isect, BSDF* bsdf, RayQueue<ShadowState>& rays_out_shadow);
-    void connect(VCMState& cam_state, const Intersection& isect, BSDF* bsdf, MemoryArena& bsdf_arena, RayQueue<ShadowState>& rays_out_shadow);
+    void direct_illum(VCMState& cam_state, const Intersection& isect, BSDF* bsdf, RayQueue<VCMShadowState>& rays_out_shadow);
+    void connect(VCMState& cam_state, const Intersection& isect, BSDF* bsdf, MemoryArena& bsdf_arena, RayQueue<VCMShadowState>& rays_out_shadow);
     void vertex_merging(const VCMState& state, const Intersection& isect, const BSDF* bsdf, AtomicImage& img);
 
     void bounce(VCMState& state, const Intersection& isect, BSDF* bsdf, Ray& rays_out, bool adjoint, float offset);
+
+    void process_shadow_rays_dbg(RayQueue<VCMShadowState>& ray_in, AtomicImage& out);
 };
 
 using VCM    = VCMIntegrator<ALGO_VCM>;

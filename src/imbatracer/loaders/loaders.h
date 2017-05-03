@@ -4,6 +4,7 @@
 #include "image.h"
 #include "path.h"
 #include "load_obj.h"
+#include "store_png.h"
 
 #include "ray_queue.h"
 

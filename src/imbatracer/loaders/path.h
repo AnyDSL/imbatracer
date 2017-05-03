@@ -11,10 +11,13 @@ public:
     Path(const std::string& path)
         : path_(path)
     {
-        std::replace(path_.begin(), path_.end(), '\\', '/');
-        auto pos = path_.rfind('/');
-        base_ = (pos != std::string::npos) ? path_.substr(0, pos)  : ".";
-        file_ = (pos != std::string::npos) ? path_.substr(pos + 1) : path_;
+        split();
+    }
+
+    Path(const char* path)
+        : path_(path)
+    {
+        split();
     }
 
     const std::string& path() const { return path_; }
@@ -39,6 +42,13 @@ private:
     std::string path_;
     std::string base_;
     std::string file_;
+
+    void split() {
+        std::replace(path_.begin(), path_.end(), '\\', '/');
+        auto pos = path_.rfind('/');
+        base_ = (pos != std::string::npos) ? path_.substr(0, pos)  : ".";
+        file_ = (pos != std::string::npos) ? path_.substr(pos + 1) : path_;
+    }
 };
 
 } // namespace imba

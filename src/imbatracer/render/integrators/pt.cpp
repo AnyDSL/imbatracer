@@ -34,7 +34,7 @@ void PathTracer::compute_direct_illum(const Intersection& isect, PTState& state,
     s.throughput = state.throughput * bsdf_value * fabsf(dot(isect.normal, sample.dir)) * sample.radiance * mis_weight / pdf_lightpick;
     s.pixel_id   = state.pixel_id;
 
-    const float offset = 1e-3f * sample.distance;
+    const float offset = 1e-3f * (sample.distance == FLT_MAX ? 1.0f : sample.distance);
     Ray ray {
         { isect.pos.x, isect.pos.y, isect.pos.z, offset },
         { sample.dir.x, sample.dir.y, sample.dir.z, sample.distance - offset }

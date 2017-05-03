@@ -11,12 +11,12 @@
 namespace imba {
 
 /// Base class for all types of schedulers.
-template <typename StateType>
+template <typename StateType, typename ShadowStateType>
 class RayScheduler {
 protected:
     using SamplePixelFn = typename RayGen<StateType>::SamplePixelFn;
-    typedef std::function<void (RayQueue<StateType>&, RayQueue<ShadowState>&, AtomicImage&)> ProcessPrimaryFn;
-    typedef std::function<void (RayQueue<ShadowState>&, AtomicImage&)> ProcessShadowFn;
+    typedef std::function<void (RayQueue<StateType>&, RayQueue<ShadowStateType>&, AtomicImage&)> ProcessPrimaryFn;
+    typedef std::function<void (RayQueue<ShadowStateType>&, AtomicImage&)> ProcessShadowFn;
 
 public:
     RayScheduler(Scene& scene, bool gpu_traversal)

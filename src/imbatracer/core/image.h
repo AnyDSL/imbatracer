@@ -48,6 +48,7 @@ private:
 
 using Image = ImageBase<rgba>;
 using AtomicImage = ImageBase<atomic_rgb>;
+using AtomicImageRGBA = ImageBase<atomic_rgba>;
 
 } // namespace imba
 

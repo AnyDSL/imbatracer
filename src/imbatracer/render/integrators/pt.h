@@ -17,7 +17,7 @@ struct PTState : RayState {
 /// Renders a scene using path tracing starting at the camera.
 class PathTracer : public Integrator {
 public:
-    PathTracer(Scene& scene, PerspectiveCamera& cam, RayScheduler<PTState>& scheduler, int max_path_len)
+    PathTracer(Scene& scene, PerspectiveCamera& cam, RayScheduler<PTState, ShadowState>& scheduler, int max_path_len)
         : Integrator(scene, cam)
         , scheduler_(scheduler)
         , max_path_len_(max_path_len)
@@ -26,7 +26,7 @@ public:
     virtual void render(AtomicImage& out) override;
 
 private:
-    RayScheduler<PTState>& scheduler_;
+    RayScheduler<PTState, ShadowState>& scheduler_;
 
     const int max_path_len_;
 

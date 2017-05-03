@@ -143,12 +143,12 @@ private:
 /// Uses a fixed number of queues, and multiple shading threads.
 /// Traversal runs in the main thread and some other optimizations have been made for the GPU traversal.
 /// Thus, the QueueScheduler should never be used with the CPU traversal.
-template <typename StateType>
-class QueueScheduler : public RayScheduler<StateType> {
-    using BaseType = RayScheduler<StateType>;
-    using SamplePixelFn = typename RayScheduler<StateType>::SamplePixelFn;
-    using ProcessPrimaryFn = typename RayScheduler<StateType>::ProcessPrimaryFn;
-    using ProcessShadowFn = typename RayScheduler<StateType>::ProcessShadowFn;
+template <typename StateType, typename ShadowStateType>
+class QueueScheduler : public RayScheduler<StateType, ShadowStateType> {
+    using BaseType = RayScheduler<StateType, ShadowStateType>;
+    using SamplePixelFn = typename BaseType::SamplePixelFn;
+    using ProcessPrimaryFn = typename BaseType::ProcessPrimaryFn;
+    using ProcessShadowFn = typename BaseType::ProcessShadowFn;
 
     static constexpr int DEFAULT_QUEUE_SIZE = 1 << 16;
     static constexpr int DEFAULT_QUEUE_COUNT = 12;
@@ -278,7 +278,7 @@ private:
     RayGen<StateType>& ray_gen_;
 
     RayQueuePool<StateType> primary_queue_pool_;
-    RayQueuePool<ShadowState> shadow_queue_pool_;
+    RayQueuePool<ShadowStateType> shadow_queue_pool_;
     tbb::task_group shading_tasks_;
 
     std::condition_variable cv_;

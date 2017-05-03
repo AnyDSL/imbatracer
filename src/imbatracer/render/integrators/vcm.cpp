@@ -33,7 +33,8 @@ static ThreadLocalPhotonContainer photon_containers;
 VCM_TEMPLATE
 void VCM_INTEGRATOR::render(AtomicImage& img) {
     int frame = cur_iteration_;
-    light_path_dbg.start_frame(frame, width_ * height_, spp_);
+    light_path_dbg_.start_frame(frame, width_ * height_, spp_);
+    techniques_dbg_.start_frame(width_, height_, spp_);
 
     light_vertices_.clear();
 
@@ -55,14 +56,15 @@ void VCM_INTEGRATOR::render(AtomicImage& img) {
     if (algo != ALGO_LT)
         trace_camera_paths(img);
 
-    light_path_dbg.end_frame(frame);
+    light_path_dbg_.end_frame(frame);
+    techniques_dbg_.end_frame(frame);
 }
 
 VCM_TEMPLATE
 void VCM_INTEGRATOR::trace_light_paths(AtomicImage& img) {
     scheduler_.run_iteration(img,
-        [this] (RayQueue<ShadowState>& ray_in, AtomicImage& out) { process_shadow_rays(ray_in, out); },
-        [this] (RayQueue<VCMState>& ray_in, RayQueue<ShadowState>& ray_out_shadow, AtomicImage& out) {
+        [this] (RayQueue<VCMShadowState>& ray_in, AtomicImage& out) { process_shadow_rays_dbg(ray_in, out); },
+        [this] (RayQueue<VCMState>& ray_in, RayQueue<VCMShadowState>& ray_out_shadow, AtomicImage& out) {
             process_light_rays(ray_in, ray_out_shadow, out);
         },
         [this] (int x, int y, ::Ray& ray_out, VCMState& state_out) {
@@ -96,7 +98,7 @@ void VCM_INTEGRATOR::trace_light_paths(AtomicImage& img) {
 
             state_out.finite_light = l->is_finite();
 
-            light_path_dbg.add_vertex(sample.pos, sample.dir, state_out);
+            light_path_dbg_.add_vertex(sample.pos, sample.dir, state_out);
         });
 
     if (algo != ALGO_LT) // Only build the hash grid when it is used.
@@ -106,8 +108,8 @@ void VCM_INTEGRATOR::trace_light_paths(AtomicImage& img) {
 VCM_TEMPLATE
 void VCM_INTEGRATOR::trace_camera_paths(AtomicImage& img) {
     scheduler_.run_iteration(img,
-        [this] (RayQueue<ShadowState>& ray_in, AtomicImage& out) { process_shadow_rays(ray_in, out); },
-        [this] (RayQueue<VCMState>& ray_in, RayQueue<ShadowState>& ray_out_shadow, AtomicImage& out) {
+        [this] (RayQueue<VCMShadowState>& ray_in, AtomicImage& out) { process_shadow_rays_dbg(ray_in, out); },
+        [this] (RayQueue<VCMState>& ray_in, RayQueue<VCMShadowState>& ray_out_shadow, AtomicImage& out) {
             process_camera_rays(ray_in, ray_out_shadow, out);
         },
         [this] (int x, int y, ::Ray& ray_out, VCMState& state_out) {
@@ -189,12 +191,12 @@ void VCM_INTEGRATOR::bounce(VCMState& state_out, const Intersection& isect, BSDF
     };
 
     if (adjoint) { // adjoint == light path tracing
-        light_path_dbg.add_vertex(isect.pos, sample_dir, state_out);
+        light_path_dbg_.add_vertex(isect.pos, sample_dir, state_out);
     }
 }
 
 VCM_TEMPLATE
-void VCM_INTEGRATOR::process_light_rays(RayQueue<VCMState>& rays_in, RayQueue<ShadowState>& ray_out_shadow, AtomicImage& img) {
+void VCM_INTEGRATOR::process_light_rays(RayQueue<VCMState>& rays_in, RayQueue<VCMShadowState>& ray_out_shadow, AtomicImage& img) {
     VCMState* states = rays_in.states();
     const Hit* hits = rays_in.hits();
     Ray* rays = rays_in.rays();
@@ -263,7 +265,7 @@ void VCM_INTEGRATOR::process_light_rays(RayQueue<VCMState>& rays_in, RayQueue<Sh
 
 VCM_TEMPLATE
 void VCM_INTEGRATOR::connect_to_camera(const VCMState& light_state, const Intersection& isect,
-                                       const BSDF* bsdf, RayQueue<ShadowState>& ray_out_shadow) {
+                                       const BSDF* bsdf, RayQueue<VCMShadowState>& ray_out_shadow) {
     float3 dir_to_cam = cam_.pos() - isect.pos;
 
     if (dot(-dir_to_cam, cam_.dir()) < 0.0f)
@@ -271,7 +273,7 @@ void VCM_INTEGRATOR::connect_to_camera(const VCMState& light_state, const Inters
 
     const float2 raster_pos = cam_.world_to_raster(isect.pos);
 
-    ShadowState state;
+    VCMShadowState state;
     state.throughput = light_state.throughput;
     state.pixel_id = cam_.raster_to_id(raster_pos);
 
@@ -308,6 +310,12 @@ void VCM_INTEGRATOR::connect_to_camera(const VCMState& light_state, const Inters
     // The cosine term is already included in the img_to_surf term.
     state.throughput *= mis_weight * bsdf_value * img_to_surf / light_path_count_;
 
+#if TECHNIQUES_DEBUG
+    state.sample_id = light_state.sample_id;
+    state.technique = cam_connect;
+    state.weight = mis_weight;
+#endif
+
     const float offset = dist_to_cam * 1e-3f;
     Ray ray {
         { isect.pos.x, isect.pos.y, isect.pos.z, offset },
@@ -318,7 +326,7 @@ void VCM_INTEGRATOR::connect_to_camera(const VCMState& light_state, const Inters
 }
 
 VCM_TEMPLATE
-void VCM_INTEGRATOR::process_camera_rays(RayQueue<VCMState>& rays_in, RayQueue<ShadowState>& ray_out_shadow, AtomicImage& img) {
+void VCM_INTEGRATOR::process_camera_rays(RayQueue<VCMState>& rays_in, RayQueue<VCMShadowState>& ray_out_shadow, AtomicImage& img) {
     VCMState* states = rays_in.states();
     const Hit* hits = rays_in.hits();
     Ray* rays = rays_in.rays();
@@ -354,9 +362,10 @@ void VCM_INTEGRATOR::process_camera_rays(RayQueue<VCMState>& rays_in, RayQueue<S
                 const float pdf_e = pdf_emit_w * pdf_lightpick;
 
                 const float mis_weight_camera = mis_pow(pdf_di) * state.dVCM + mis_pow(pdf_e) * state.dVC;
-                const float mis_weight = 1.0f / (mis_weight_camera + 1.0f);
+                const float mis_weight = algo == ALGO_PPM ? 1.0f : (1.0f / (mis_weight_camera + 1.0f));
 
-                add_contribution(img, state.pixel_id, state.throughput * li * (algo == ALGO_PPM ? 1.0f : mis_weight));
+                add_contribution(img, state.pixel_id, state.throughput * li * mis_weight);
+                techniques_dbg_.record(light_hit, mis_weight, state.throughput * li, state.pixel_id, state.sample_id);
             }
         });
     }
@@ -398,15 +407,11 @@ void VCM_INTEGRATOR::process_camera_rays(RayQueue<VCMState>& rays_in, RayQueue<S
                 const float pdf_e = pdf_emit_w * pdf_lightpick;
 
                 const float mis_weight_camera = mis_pow(pdf_di) * state.dVCM + mis_pow(pdf_e) * state.dVC;
-                const float mis_weight = 1.0f / (mis_weight_camera + 1.0f);
+                const float mis_weight = (algo == ALGO_PPM || state.path_length == 1) ? 1.0f : (1.0f / (mis_weight_camera + 1.0f));
 
-                if (state.path_length > 1) {
-                    rgb color = state.throughput * radiance * (algo == ALGO_PPM ? 1.0f : mis_weight);
-
-                    if (algo != ALGO_PT)
-                        add_contribution(img, state.pixel_id, color);
-                } else
-                    add_contribution(img, state.pixel_id, radiance); // Light directly visible, no weighting required.
+                rgb color = state.throughput * radiance * mis_weight;
+                add_contribution(img, state.pixel_id, color);
+                techniques_dbg_.record(light_hit, mis_weight, state.throughput * radiance, state.pixel_id, state.sample_id);
 
                 terminate_path(state);
                 continue;
@@ -440,7 +445,7 @@ void VCM_INTEGRATOR::process_camera_rays(RayQueue<VCMState>& rays_in, RayQueue<S
 }
 
 VCM_TEMPLATE
-void VCM_INTEGRATOR::direct_illum(VCMState& cam_state, const Intersection& isect, BSDF* bsdf, RayQueue<ShadowState>& rays_out_shadow) {
+void VCM_INTEGRATOR::direct_illum(VCMState& cam_state, const Intersection& isect, BSDF* bsdf, RayQueue<VCMShadowState>& rays_out_shadow) {
     // Generate the shadow ray (sample one point on one lightsource)
     const auto& ls = scene_.light(cam_state.rng.random_int(0, scene_.light_count()));
     const float pdf_lightpick_inv = scene_.light_count();
@@ -448,7 +453,7 @@ void VCM_INTEGRATOR::direct_illum(VCMState& cam_state, const Intersection& isect
     const float cos_theta_o = sample.cos_out;
     assert_normalized(sample.dir);
 
-    const float offset = 1e-3f * sample.distance;
+    const float offset = 1e-3f * (sample.distance == FLT_MAX ? 1.0f : sample.distance);
 
     Ray ray {
         { isect.pos.x, isect.pos.y, isect.pos.z, offset },
@@ -473,15 +478,21 @@ void VCM_INTEGRATOR::direct_illum(VCMState& cam_state, const Intersection& isect
 
     const float mis_weight = algo == ALGO_PT ? 1.0f : (1.0f / (mis_weight_camera + 1.0f + mis_weight_light));
 
-    ShadowState s;
+    VCMShadowState s;
     s.pixel_id = cam_state.pixel_id;
     s.throughput = cam_state.throughput * mis_weight * bsdf_value * cos_theta_i * sample.radiance * pdf_lightpick_inv;
+
+#if TECHNIQUES_DEBUG
+    s.sample_id = cam_state.sample_id;
+    s.technique = next_event;
+    s.weight = mis_weight;
+#endif
 
     rays_out_shadow.push(ray, s);
 }
 
 VCM_TEMPLATE
-void VCM_INTEGRATOR::connect(VCMState& cam_state, const Intersection& isect, BSDF* bsdf_cam, MemoryArena& bsdf_arena, RayQueue<ShadowState>& rays_out_shadow) {
+void VCM_INTEGRATOR::connect(VCMState& cam_state, const Intersection& isect, BSDF* bsdf_cam, MemoryArena& bsdf_arena, RayQueue<VCMShadowState>& rays_out_shadow) {
     // PDF conversion factor from using the vertex cache.
     // Vertex Cache is equivalent to randomly sampling a path with pdf ~ path length and uniformly sampling a vertex on this path.
     const float vc_weight = (light_vertices_.count(cam_state.sample_id) / light_path_count_) / num_connections_;
@@ -542,9 +553,15 @@ void VCM_INTEGRATOR::connect(VCMState& cam_state, const Intersection& isect, BSD
 
         const float mis_weight = 1.0f / (mis_weight_camera + 1.0f + mis_weight_light);
 
-        ShadowState s;
+        VCMShadowState s;
         s.pixel_id = cam_state.pixel_id;
         s.throughput = cam_state.throughput * vc_weight * mis_weight * geom_term * bsdf_value_cam * bsdf_value_light * light_vertex.throughput;
+
+#if TECHNIQUES_DEBUG
+        s.sample_id = cam_state.sample_id;
+        s.technique = connecting;
+        s.weight = mis_weight;
+#endif
 
         const float offset = 1e-3f * connect_dist;
 
@@ -589,9 +606,34 @@ void VCM_INTEGRATOR::vertex_merging(const VCMState& state, const Intersection& i
         const float kernel = 1.0f - d / radius_sqr;
 
         contrib += mis_weight * bsdf_value * kernel * p->throughput;
+
+        techniques_dbg_.record(merging, mis_weight,
+                               state.throughput * bsdf_value * kernel * p->throughput * vm_normalization_ * 2.0f,
+                               state.pixel_id, state.sample_id);
     }
 
     add_contribution(img, state.pixel_id, state.throughput * contrib * vm_normalization_ * 2.0f); // Factor 2.0f is part of the Epanechnikov filter
+}
+
+VCM_TEMPLATE
+void VCM_INTEGRATOR::process_shadow_rays_dbg(RayQueue<VCMShadowState>& ray_in, AtomicImage& out) {
+    VCMShadowState* states = ray_in.states();
+    Hit* hits = ray_in.hits();
+
+    tbb::parallel_for(tbb::blocked_range<int>(0, ray_in.size()),
+        [&] (const tbb::blocked_range<int>& range)
+    {
+        for (auto i = range.begin(); i != range.end(); ++i) {
+            if (hits[i].tri_id < 0) {
+                // Nothing was hit, the light source is visible.
+                add_contribution(out, states[i].pixel_id, states[i].throughput);
+
+#if TECHNIQUES_DEBUG
+                techniques_dbg_.record(states[i].technique, states[i].weight, states[i].throughput / states[i].weight, states[i].pixel_id, states[i].sample_id);
+#endif
+            }
+        }
+    });
 }
 
 // Explicit instantiations
