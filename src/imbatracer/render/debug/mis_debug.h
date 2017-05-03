@@ -18,8 +18,10 @@ public:
 
         frames_.resize(num_samples);
         for (auto& f : frames_) {
-            for (int i = 0; i < tech_count; ++i)
+            for (int i = 0; i < tech_count; ++i) {
                 f.techniques_[i].resize(width, height);
+                f.techniques_[i].clear();
+            }
         }
     }
 
