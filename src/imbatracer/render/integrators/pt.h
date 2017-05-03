@@ -32,7 +32,7 @@ private:
 
     void process_primary_rays(RayQueue<PTState>& ray_in, RayQueue<ShadowState>& ray_out_shadow, AtomicImage& out);
 
-    void compute_direct_illum(const Intersection& isect, PTState& state, RayQueue<ShadowState>& ray_out_shadow, BSDF* bsdf, float offset);
+    void compute_direct_illum(const Intersection& isect, PTState& state, RayQueue<ShadowState>& ray_out_shadow, BSDF* bsdf);
     void bounce(const Intersection& isect, PTState& state_out, Ray& ray_out, BSDF* bsdf, float offset);
 };
 

@@ -10,9 +10,6 @@
 
 namespace imba {
 
-// Offset to prevent self intersection.
-static const float offset = 0.0001f;
-
 // Thread-local storage for BSDF objects.
 using ThreadLocalMemArena =
     tbb::enumerable_thread_specific<MemoryArena,
@@ -78,7 +75,7 @@ void VCM_INTEGRATOR::trace_light_paths(AtomicImage& img) {
             ray_out.org.x = sample.pos.x;
             ray_out.org.y = sample.pos.y;
             ray_out.org.z = sample.pos.z;
-            ray_out.org.w = offset;
+            ray_out.org.w = 1e-3f;
 
             ray_out.dir.x = sample.dir.x;
             ray_out.dir.y = sample.dir.y;
@@ -137,7 +134,7 @@ void VCM_INTEGRATOR::trace_camera_paths(AtomicImage& img) {
 }
 
 VCM_TEMPLATE
-void VCM_INTEGRATOR::bounce(VCMState& state_out, const Intersection& isect, BSDF* bsdf, Ray& ray_out, bool adjoint) {
+void VCM_INTEGRATOR::bounce(VCMState& state_out, const Intersection& isect, BSDF* bsdf, Ray& ray_out, bool adjoint, float offset) {
     RNG& rng = state_out.rng;
 
     float rr_pdf;
@@ -256,7 +253,8 @@ void VCM_INTEGRATOR::process_light_rays(RayQueue<VCMState>& rays_in, RayQueue<Sh
                     connect_to_camera(state, isect, bsdf, ray_out_shadow);
             }
 
-            bounce(state, isect, bsdf, rays_in.ray(i), true);
+            const float offset = rays_in.hit(i).tmax * 1e-3f;
+            bounce(state, isect, bsdf, rays_in.ray(i), true, offset);
         }
     });
 
@@ -281,8 +279,8 @@ void VCM_INTEGRATOR::connect_to_camera(const VCMState& light_state, const Inters
         return; // The point is outside the image plane.
 
     // Compute ray direction and distance.
-    float dist_to_cam_sqr = lensqr(dir_to_cam);
-    float dist_to_cam = sqrt(dist_to_cam_sqr);
+    const float dist_to_cam_sqr = lensqr(dir_to_cam);
+    const float dist_to_cam = sqrt(dist_to_cam_sqr);
     dir_to_cam = dir_to_cam / dist_to_cam;
 
     const float cos_theta_cam = fabsf(dot(cam_.dir(), -dir_to_cam));
@@ -310,6 +308,7 @@ void VCM_INTEGRATOR::connect_to_camera(const VCMState& light_state, const Inters
     // The cosine term is already included in the img_to_surf term.
     state.throughput *= mis_weight * bsdf_value * img_to_surf / light_path_count_;
 
+    const float offset = dist_to_cam * 1e-3f;
     Ray ray {
         { isect.pos.x, isect.pos.y, isect.pos.z, offset },
         { dir_to_cam.x, dir_to_cam.y, dir_to_cam.z, dist_to_cam - offset }
@@ -432,7 +431,8 @@ void VCM_INTEGRATOR::process_camera_rays(RayQueue<VCMState>& rays_in, RayQueue<S
             }
 
             // Continue the path using russian roulette.
-            bounce(state, isect, bsdf, rays_in.ray(i), false);
+            const float offset = rays_in.hit(i).tmax * 1e-3f;
+            bounce(state, isect, bsdf, rays_in.ray(i), false, offset);
         }
     });
 
@@ -447,6 +447,8 @@ void VCM_INTEGRATOR::direct_illum(VCMState& cam_state, const Intersection& isect
     const auto sample = ls->sample_direct(isect.pos, cam_state.rng);
     const float cos_theta_o = sample.cos_out;
     assert_normalized(sample.dir);
+
+    const float offset = 1e-3f * sample.distance;
 
     Ray ray {
         { isect.pos.x, isect.pos.y, isect.pos.z, offset },
@@ -543,6 +545,8 @@ void VCM_INTEGRATOR::connect(VCMState& cam_state, const Intersection& isect, BSD
         ShadowState s;
         s.pixel_id = cam_state.pixel_id;
         s.throughput = cam_state.throughput * vc_weight * mis_weight * geom_term * bsdf_value_cam * bsdf_value_light * light_vertex.throughput;
+
+        const float offset = 1e-3f * connect_dist;
 
         Ray ray {
             { isect.pos.x, isect.pos.y, isect.pos.z, offset },
