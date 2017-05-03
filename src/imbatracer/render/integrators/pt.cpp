@@ -11,12 +11,12 @@
 
 namespace imba {
 
-constexpr float offset = 0.0001f;
+//constexpr float offset = 0.0001f;
 
 using ThreadLocalMemArena = tbb::enumerable_thread_specific<MemoryArena, tbb::cache_aligned_allocator<MemoryArena>, tbb::ets_key_per_instance>;
 static ThreadLocalMemArena bsdf_memory_arenas;
 
-void PathTracer::compute_direct_illum(const Intersection& isect, PTState& state, RayQueue<ShadowState>& ray_out_shadow, BSDF* bsdf) {
+void PathTracer::compute_direct_illum(const Intersection& isect, PTState& state, RayQueue<ShadowState>& ray_out_shadow, BSDF* bsdf, float offset) {
     // Generate the shadow ray (sample one point on one lightsource)
     const auto& ls = scene_.light(state.rng.random_int(0, scene_.light_count()));
     const float pdf_lightpick = 1.0f / scene_.light_count();
@@ -44,7 +44,7 @@ void PathTracer::compute_direct_illum(const Intersection& isect, PTState& state,
     ray_out_shadow.push(ray, s);
 }
 
-void PathTracer::bounce(const Intersection& isect, PTState& state_out, Ray& ray_out, BSDF* bsdf) {
+void PathTracer::bounce(const Intersection& isect, PTState& state_out, Ray& ray_out, BSDF* bsdf, float offset) {
     // Terminate the path if it is too long or with russian roulette.
     if (state_out.bounces + 1 >= max_path_len_) {// Path length includes the vertices on the camera and the light.
         terminate_path(state_out);
@@ -129,6 +129,7 @@ void PathTracer::process_primary_rays(RayQueue<PTState>& ray_in, RayQueue<Shadow
             bsdf_mem_arena.free_all();
             PTState& state = ray_in.state(i);
             const auto isect = calculate_intersection(scene_, ray_in.hit(i), ray_in.ray(i));
+            const float offset = 1e-3f * ray_in.hit(i).tmax;
 
             if (auto emit = isect.mat->emitter()) {
                 float pdf_direct_a, pdf_emit_w;
@@ -151,8 +152,8 @@ void PathTracer::process_primary_rays(RayQueue<PTState>& ray_in, RayQueue<Shadow
             }
 
             const auto bsdf = isect.mat->get_bsdf(isect, bsdf_mem_arena);
-            compute_direct_illum(isect, state, ray_out_shadow, bsdf);
-            bounce(isect, state, ray_in.ray(i), bsdf);
+            compute_direct_illum(isect, state, ray_out_shadow, bsdf, offset);
+            bounce(isect, state, ray_in.ray(i), bsdf, offset);
         }
     });
 
