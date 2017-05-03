@@ -30,10 +30,14 @@ static ThreadLocalPhotonContainer photon_containers;
 
 // Reduce ugliness from the template parameters.
 #define VCM_TEMPLATE template <VCMSubAlgorithm algo>
+
 #define VCM_INTEGRATOR VCMIntegrator<algo>
 
 VCM_TEMPLATE
 void VCM_INTEGRATOR::render(AtomicImage& img) {
+    int frame = cur_iteration_;
+    light_path_dbg.start_frame(frame, width_ * height_, spp_);
+
     light_vertices_.clear();
 
     // Shrink the photon mapping radius for the next iteration. Every frame is an iteration of Progressive Photon Mapping.
@@ -53,6 +57,8 @@ void VCM_INTEGRATOR::render(AtomicImage& img) {
 
     if (algo != ALGO_LT)
         trace_camera_paths(img);
+
+    light_path_dbg.end_frame(frame);
 }
 
 VCM_TEMPLATE
@@ -92,6 +98,8 @@ void VCM_INTEGRATOR::trace_light_paths(AtomicImage& img) {
             state_out.dVM = state_out.dVC * mis_eta_vc_;
 
             state_out.finite_light = l->is_finite();
+
+            light_path_dbg.add_vertex(sample.pos, sample.dir, state_out);
         });
 
     if (algo != ALGO_LT) // Only build the hash grid when it is used.
@@ -182,6 +190,10 @@ void VCM_INTEGRATOR::bounce(VCMState& state_out, const Intersection& isect, BSDF
         { isect.pos.x, isect.pos.y, isect.pos.z, offset },
         { sample_dir.x, sample_dir.y, sample_dir.z, FLT_MAX }
     };
+
+    if (adjoint) { // adjoint == light path tracing
+        light_path_dbg.add_vertex(isect.pos, sample_dir, state_out);
+    }
 }
 
 VCM_TEMPLATE
@@ -201,7 +213,7 @@ void VCM_INTEGRATOR::process_light_rays(RayQueue<VCMState>& rays_in, RayQueue<Sh
         scene_.material_count(), hit_count
     );
 
-    // During light tracing, we ignore rays that do not intersect anything (no point in considering the environment map here)/
+    // During light tracing, we ignore rays that do not intersect anything (no point in considering the environment map here)
     rays_in.shrink(hit_count);
 
     tbb::parallel_for(tbb::blocked_range<int>(0, rays_in.size()), [&] (const tbb::blocked_range<int>& range) {

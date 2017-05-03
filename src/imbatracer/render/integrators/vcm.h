@@ -8,6 +8,11 @@
 #include "../../rangesearch/rangesearch.h"
 #include "light_vertices.h"
 
+#include "integrator_debugging.h"
+
+// Enable this to write light path information to a file after each frame (SLOW!)
+//#define LIGHT_PATH_DEBUG
+
 namespace imba {
 
 /// Stores the current state of a ray during VCM or any sub-algorithm of VCM.
@@ -85,6 +90,13 @@ private:
     RayScheduler<VCMState>& scheduler_;
 
     LightVertices light_vertices_;
+
+    // Debugging information for visualizing light paths / photons
+#ifndef LIGHT_PATH_DEBUG
+    PathDebugger<VCMState, false> light_path_dbg;
+#else
+    PathDebugger<VCMState, true> light_path_dbg;
+#endif
 
     /// Computes the power for the power heuristic.
     inline float mis_pow(float a) {
