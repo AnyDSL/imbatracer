@@ -39,6 +39,8 @@ private:
     Integrator& integrator_;
     InputController& ctrl_;
 
+    float gamma_;
+
     float mouse_speed_;
 
     int frames_;

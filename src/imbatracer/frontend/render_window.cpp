@@ -15,8 +15,6 @@
 
 namespace imba {
 
-constexpr float gamma = 1.0f / 2.0f;
-
 struct InitOnce {
     InitOnce() { SDL_Init(SDL_INIT_VIDEO); };
     ~InitOnce() { SDL_Quit(); }
@@ -36,6 +34,7 @@ RenderWindow::RenderWindow(const UserSettings& settings, Integrator& r, InputCon
     , spp_(spp)
     , conv_interval_sec_(settings.intermediate_image_time)
     , conv_file_base_(settings.intermediate_image_name)
+    , gamma_(settings.gamma)
 {
     if (!settings.background) {
         window_ = SDL_CreateWindow("Imbatracer", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, settings.width, settings.height, 0);
@@ -111,9 +110,9 @@ void RenderWindow::render() {
             const auto* accum_row = accum_buffer_.row(y);
 
             for (int x = 0; x < surface->w; x++) {
-                row[x * 4 + r] = 255.0f * clamp(powf(accum_row[x][0] * weight, gamma), 0.0f, 1.0f);
-                row[x * 4 + g] = 255.0f * clamp(powf(accum_row[x][1] * weight, gamma), 0.0f, 1.0f);
-                row[x * 4 + b] = 255.0f * clamp(powf(accum_row[x][2] * weight, gamma), 0.0f, 1.0f);
+                row[x * 4 + r] = 255.0f * clamp(powf(accum_row[x][0] * weight, gamma_), 0.0f, 1.0f);
+                row[x * 4 + g] = 255.0f * clamp(powf(accum_row[x][1] * weight, gamma_), 0.0f, 1.0f);
+                row[x * 4 + b] = 255.0f * clamp(powf(accum_row[x][2] * weight, gamma_), 0.0f, 1.0f);
             }
         }
     });
@@ -177,7 +176,7 @@ void RenderWindow::clear() {
 
 bool RenderWindow::write_image(const char* file_name) {
     const float weight = 1.0f / (frames_ * spp_);
-    store_png(file_name, accum_buffer_, weight, gamma, false);
+    store_png(file_name, accum_buffer_, weight, gamma_, false);
 }
 
 } // namespace imba
