@@ -1,6 +1,6 @@
 #include "light_vertices.h"
 
-#include "../ray_queue.h"
+#include "scheduling/ray_queue.h"
 
 #include <tbb/enumerable_thread_specific.h>
 

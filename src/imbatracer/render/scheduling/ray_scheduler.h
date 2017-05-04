@@ -1,7 +1,7 @@
 #ifndef IMBA_RAY_SCHEDULER_H
 #define IMBA_RAY_SCHEDULER_H
 
-#include "ray_gen.h"
+#include "ray_gen/ray_gen.h"
 
 #include <array>
 #include <atomic>
@@ -27,8 +27,9 @@ public:
     virtual ~RayScheduler() {}
 
     virtual void run_iteration(AtomicImage& out,
-                       ProcessShadowFn process_shadow_rays, ProcessPrimaryFn process_primary_rays,
-                       SamplePixelFn sample_fn) = 0;
+                               ProcessShadowFn process_shadow_rays,
+                               ProcessPrimaryFn process_primary_rays,
+                               SamplePixelFn sample_fn) = 0;
 
     const bool gpu_traversal;
 

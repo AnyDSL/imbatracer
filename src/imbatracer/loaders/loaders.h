@@ -6,7 +6,7 @@
 #include "load_obj.h"
 #include "store_png.h"
 
-#include "ray_queue.h"
+#include "scheduling/ray_queue.h"
 
 namespace imba {
 

@@ -2,17 +2,16 @@
 #define IMBA_TILE_SCHEDULER_H
 
 #include "ray_scheduler.h"
+#include "ray_gen/tile_gen.h"
 
 #include <thread>
 #include <atomic>
-
-#define RAY_STATISTICS
 
 namespace imba {
 
 /// Launches multiple threads, each running an entire traversal-shading pipeline.
 /// Thus, there can be multiple calls to traversal at the same time.
-template <typename StateType, typename ShadowStateType>
+template <typename StateType, typename ShadowStateType, bool enable_stats = true>
 class TileScheduler : public RayScheduler<StateType, ShadowStateType> {
     using BaseType = RayScheduler<StateType, ShadowStateType>;
     using SamplePixelFn = typename BaseType::SamplePixelFn;
@@ -30,7 +29,7 @@ public:
                   Scene& scene,
                   int max_shadow_rays_per_hit,
                   int num_threads, int q_size,
-                  bool gpu_traversal = true)
+                  bool gpu_traversal)
         : BaseType(scene, gpu_traversal)
         , tile_gen_(tile_gen)
         , num_threads_(num_threads), q_size_(q_size)
@@ -57,9 +56,8 @@ public:
 
         for (auto ptr : thread_local_ray_gen_) delete [] ptr;
 
-#ifdef RAY_STATISTICS
-        std::cout << "Number primary rays: " << total_prim_rays_ << " Number shadow rays: " << total_shadow_rays_ << std::endl;
-#endif
+        if (enable_stats)
+            std::cout << "Number primary rays: " << total_prim_rays_ << " Number shadow rays: " << total_shadow_rays_ << std::endl;
     }
 
     void run_iteration(AtomicImage& image,
@@ -96,10 +94,8 @@ private:
     // To prevent reallocation every time a new tile is needed, we use a memory pool.
     std::vector<uint8_t*> thread_local_ray_gen_;
 
-#ifdef RAY_STATISTICS
     std::atomic<uint64_t> total_prim_rays_;
     std::atomic<uint64_t> total_shadow_rays_;
-#endif
 
     void render_thread(int thread_idx, AtomicImage& image,
                        ProcessShadowFn process_shadow_rays,
@@ -118,9 +114,8 @@ private:
 
                 // TODO Add regeneration again (minor performance increase)
 
-#ifdef RAY_STATISTICS
-                total_prim_rays_ += prim_q->size();
-#endif
+                if (enable_stats)
+                    total_prim_rays_ += prim_q->size();
 
                 if (gpu_traversal) prim_q->traverse_gpu(scene_.traversal_data_gpu());
                 else               prim_q->traverse_cpu(scene_.traversal_data_cpu());
@@ -128,9 +123,9 @@ private:
                 process_primary_rays(*prim_q, *shadow_q, image);
 
                 if (shadow_q->size() > MIN_QUEUE_SIZE) {
-#ifdef RAY_STATISTICS
-                total_shadow_rays_ += shadow_q->size();
-#endif
+                    if (enable_stats)
+                        total_shadow_rays_ += shadow_q->size();
+
                     if (gpu_traversal)
                         shadow_q->traverse_occluded_gpu(scene_.traversal_data_gpu());
                     else

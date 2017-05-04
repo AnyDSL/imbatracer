@@ -12,15 +12,22 @@
 #include <tbb/parallel_sort.h>
 #include <anydsl_runtime.hpp>
 
-#include "../core/traversal_interface.h"
+#include "core/traversal_interface.h"
 #include "random.h"
 
 namespace imba {
 
 /// State associated with a ray.
 struct RayState {
-    int pixel_id;
-    int sample_id;
+    union {
+        int pixel_id;
+        int ray_id;
+    };
+
+    union {
+        int sample_id;
+        int light_id;
+    };
 
     RNG rng;
 };

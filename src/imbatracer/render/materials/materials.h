@@ -4,8 +4,8 @@
 #include "brdfs.h"
 #include "btdfs.h"
 
-#include "../light.h"
-#include "../texture_sampler.h"
+#include "render/light.h"
+#include "render/texture_sampler.h"
 
 namespace imba {
 

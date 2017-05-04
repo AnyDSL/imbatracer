@@ -2,10 +2,10 @@
 #define IMBA_CAMERA_H
 
 #include "ray_gen.h"
-#include "ray_queue.h"
-#include "random.h"
+#include "scheduling/ray_queue.h"
+#include "render/random.h"
 
-#include "../core/float4x4.h"
+#include "core/float4x4.h"
 
 namespace imba {
 

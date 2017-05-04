@@ -32,21 +32,24 @@ static ThreadLocalPhotonContainer photon_containers;
 
 VCM_TEMPLATE
 void VCM_INTEGRATOR::render(AtomicImage& img) {
+    // TODO: add command line option for this!
+    const float radius_alpha = 0.75f;
+
     int frame = cur_iteration_;
-    light_path_dbg_.start_frame(frame, width_ * height_, spp_);
-    techniques_dbg_.start_frame(width_, height_, spp_);
+    light_path_dbg_.start_frame(frame, settings_.width * settings_.height, settings_.concurrent_spp);
+    techniques_dbg_.start_frame(settings_.width, settings_.height, settings_.concurrent_spp);
 
     light_vertices_.clear();
 
     // Shrink the photon mapping radius for the next iteration. Every frame is an iteration of Progressive Photon Mapping.
     cur_iteration_++;
-    pm_radius_ = base_radius_ / powf(static_cast<float>(cur_iteration_), 0.5f * (1.0f - radius_alpha_));
+    pm_radius_ = settings_.base_radius / powf(static_cast<float>(cur_iteration_), 0.5f * (1.0f - radius_alpha));
     pm_radius_ = std::max(pm_radius_, 1e-7f); // ensure numerical stability
-    vm_normalization_ = 1.0f / (sqr(pm_radius_) * pi * light_path_count_);
+    vm_normalization_ = 1.0f / (sqr(pm_radius_) * pi * settings_.light_path_count);
 
     // Compute the partial MIS weights for vetex connection and vertex merging.
     // See technical report "Implementing Vertex Connection and Merging".
-    const float eta_vcm = pi * sqr(pm_radius_) * light_path_count_;
+    const float eta_vcm = pi * sqr(pm_radius_) * settings_.light_path_count;
     mis_eta_vc_ = mis_pow(1.0f / eta_vcm);
     mis_eta_vm_ = algo == ALGO_BPT ? 0.0f : mis_pow(eta_vcm);
 
@@ -62,15 +65,17 @@ void VCM_INTEGRATOR::render(AtomicImage& img) {
 
 VCM_TEMPLATE
 void VCM_INTEGRATOR::trace_light_paths(AtomicImage& img) {
-    scheduler_.run_iteration(img,
+    light_scheduler_.run_iteration(img,
         [this] (RayQueue<VCMShadowState>& ray_in, AtomicImage& out) { process_shadow_rays_dbg(ray_in, out); },
         [this] (RayQueue<VCMState>& ray_in, RayQueue<VCMShadowState>& ray_out_shadow, AtomicImage& out) {
             process_light_rays(ray_in, ray_out_shadow, out);
         },
-        [this] (int x, int y, ::Ray& ray_out, VCMState& state_out) {
+        [this] (int ray_id, int light_id, ::Ray& ray_out, VCMState& state_out) {
             // randomly choose one light source to sample
             int i = state_out.rng.random_int(0, scene_.light_count());
-            auto& l = scene_.light(i);
+            auto& l = scene_.light(light_id);
+
+            // TODO: this pdf depends on the LightTileGen used!
             float pdf_lightpick = 1.0f / scene_.light_count();
 
             Light::EmitSample sample = l->sample_emit(state_out.rng);
@@ -131,7 +136,7 @@ void VCM_INTEGRATOR::trace_camera_paths(AtomicImage& img) {
 
             state_out.dVC = 0.0f;
             state_out.dVM = 0.0f;
-            state_out.dVCM = mis_pow(light_path_count_ / pdf_cam_w);
+            state_out.dVCM = mis_pow(settings_.light_path_count / pdf_cam_w);
         });
 }
 
@@ -277,7 +282,7 @@ void VCM_INTEGRATOR::connect_to_camera(const VCMState& light_state, const Inters
     state.throughput = light_state.throughput;
     state.pixel_id = cam_.raster_to_id(raster_pos);
 
-    if (state.pixel_id < 0 || state.pixel_id >= width_ * height_)
+    if (state.pixel_id < 0 || state.pixel_id >= settings_.width * settings_.height)
         return; // The point is outside the image plane.
 
     // Compute ray direction and distance.
@@ -302,13 +307,13 @@ void VCM_INTEGRATOR::connect_to_camera(const VCMState& light_state, const Inters
 
     // Compute the MIS weight.
     const float pdf_cam = img_to_surf; // Pixel sampling pdf is one as pixel area is one by convention.
-    const float mis_weight_light = mis_pow(pdf_cam / light_path_count_) * (mis_eta_vm_ + light_state.dVCM + light_state.dVC * mis_pow(pdf_rev_w));
+    const float mis_weight_light = mis_pow(pdf_cam / settings_.light_path_count) * (mis_eta_vm_ + light_state.dVCM + light_state.dVC * mis_pow(pdf_rev_w));
 
     const float mis_weight = algo == ALGO_LT ? 1.0f : (1.0f / (mis_weight_light + 1.0f));
 
-    // Contribution is divided by the number of samples (light_path_count_) and the factor that converts the (divided) pdf from surface area to image plane area.
+    // Contribution is divided by the number of samples (settings_.light_path_count) and the factor that converts the (divided) pdf from surface area to image plane area.
     // The cosine term is already included in the img_to_surf term.
-    state.throughput *= mis_weight * bsdf_value * img_to_surf / light_path_count_;
+    state.throughput *= mis_weight * bsdf_value * img_to_surf / settings_.light_path_count;
 
 #if TECHNIQUES_DEBUG
     state.sample_id = light_state.sample_id;
@@ -418,7 +423,7 @@ void VCM_INTEGRATOR::process_camera_rays(RayQueue<VCMState>& rays_in, RayQueue<V
             }
 
             // Compute direct illumination.
-            if (state.path_length < max_path_len_) {
+            if (state.path_length < settings_.max_path_len) {
                 if (algo != ALGO_PPM)
                     direct_illum(state, isect, bsdf, ray_out_shadow);
             } else {
@@ -495,14 +500,14 @@ VCM_TEMPLATE
 void VCM_INTEGRATOR::connect(VCMState& cam_state, const Intersection& isect, BSDF* bsdf_cam, MemoryArena& bsdf_arena, RayQueue<VCMShadowState>& rays_out_shadow) {
     // PDF conversion factor from using the vertex cache.
     // Vertex Cache is equivalent to randomly sampling a path with pdf ~ path length and uniformly sampling a vertex on this path.
-    const float vc_weight = light_vertices_.count() / (light_path_count_ * num_connections_);
+    const float vc_weight = light_vertices_.count() / (settings_.light_path_count * settings_.num_connections);
 
-    // Connect to num_connections_ randomly chosen vertices from the cache.
-    for (int i = 0; i < num_connections_; ++i) {
+    // Connect to num_connections randomly chosen vertices from the cache.
+    for (int i = 0; i < settings_.num_connections; ++i) {
         const auto& light_vertex = light_vertices_.get_connect(cam_state.rng);
 
         // Ignore paths that are longer than the specified maximum length.
-        if (light_vertex.path_length + cam_state.path_length > max_path_len_)
+        if (light_vertex.path_length + cam_state.path_length > settings_.max_path_len)
             continue;
 
         const auto light_bsdf = light_vertex.isect.mat->get_bsdf(light_vertex.isect, bsdf_arena, true);
@@ -513,7 +518,7 @@ void VCM_INTEGRATOR::connect(VCMState& cam_state, const Intersection& isect, BSD
         const float connect_dist = std::sqrt(connect_dist_sq);
         connect_dir *= 1.0f / connect_dist;
 
-        if (connect_dist < base_radius_) {
+        if (connect_dist < settings_.base_radius) {
             // If two points are too close to each other, they are either occluded or have cosine terms
             // that are close to zero. Numerical inaccuracies might yield an overly bright pixel.
             // The correct result is usually black or close to black so we just ignore those connections.
@@ -578,7 +583,7 @@ VCM_TEMPLATE
 void VCM_INTEGRATOR::vertex_merging(const VCMState& state, const Intersection& isect, const BSDF* bsdf, AtomicImage& img) {
     // Obtain the thread local photon buffer and reserve sufficient memory.
     auto& photons = photon_containers.local();
-    photons.reserve(0.5f * light_path_count_);
+    photons.reserve(0.5f * settings_.light_path_count);
     photons.clear();
     light_vertices_.get_merge(isect.pos, photons);
 

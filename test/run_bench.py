@@ -15,35 +15,35 @@ bench_settings = [
         'args': ['-r', '0.003']
     },
 
-    {
-        'name': 'Cornell specular balls',
-        'scene': 'scenes/cornell/cornell_specular_front.scene',
-        'reference': 'references/ref_cornell_specular_front.png',
-        'width': 1024,
-        'height': 1024,
-        'base_filename': 'cornell_specular_front',
-        'args': ['-r', '0.003']
-    },
+    # {
+    #     'name': 'Cornell specular balls',
+    #     'scene': 'scenes/cornell/cornell_specular_front.scene',
+    #     'reference': 'references/ref_cornell_specular_front.png',
+    #     'width': 1024,
+    #     'height': 1024,
+    #     'base_filename': 'cornell_specular_front',
+    #     'args': ['-r', '0.003']
+    # },
 
-    {
-        'name': 'Cornell specular balls close',
-        'scene': 'scenes/cornell/cornell_specular.scene',
-        'reference': 'references/ref_cornell_specular.png',
-        'width': 1024,
-        'height': 1024,
-        'base_filename': 'cornell_specular',
-        'args': ['-r', '0.003']
-    },
+    # {
+    #     'name': 'Cornell specular balls close',
+    #     'scene': 'scenes/cornell/cornell_specular.scene',
+    #     'reference': 'references/ref_cornell_specular.png',
+    #     'width': 1024,
+    #     'height': 1024,
+    #     'base_filename': 'cornell_specular',
+    #     'args': ['-r', '0.003']
+    # },
 
-    {
-        'name': 'Cornell indirect',
-        'scene': 'scenes/cornell/cornell_indirect.scene',
-        'reference': 'references/ref_cornell_indirect.png',
-        'width': 1024,
-        'height': 1024,
-        'base_filename': 'cornell_indirect',
-        'args': ['-r', '0.003']
-    },
+    # {
+    #     'name': 'Cornell indirect',
+    #     'scene': 'scenes/cornell/cornell_indirect.scene',
+    #     'reference': 'references/ref_cornell_indirect.png',
+    #     'width': 1024,
+    #     'height': 1024,
+    #     'base_filename': 'cornell_indirect',
+    #     'args': ['-r', '0.003']
+    # },
 
     {
         'name': 'Cornell water',
@@ -75,22 +75,22 @@ bench_settings = [
         'args': ['-r', '0.02', '--max-path-len', '22']
     },
 
-    {
-        'name': 'Car',
-        'scene': 'scenes/car/car.scene',
-        'reference': 'references/ref_car.png',
-        'width': 1280,
-        'height': 720,
-        'base_filename': 'car',
-        'args': ['--max-path-len', '22']
-    },
+    # {
+    #     'name': 'Car',
+    #     'scene': 'scenes/car/car.scene',
+    #     'reference': 'references/ref_car.png',
+    #     'width': 1280,
+    #     'height': 720,
+    #     'base_filename': 'car',
+    #     'args': ['--max-path-len', '22']
+    # },
 ]
 
 
-thread_counts = [4]
-sample_counts = [1]
-tilesizes     = [256]
-connections   = [1]
+thread_counts   = [4]
+sample_counts   = [1]
+tilesizes       = [256]
+connections     = [1]
 
 scheduler_args = []
 for t in thread_counts:
@@ -104,10 +104,11 @@ for t in thread_counts:
                     'samples_per_frame': s
                     })
 
-times_in_seconds = [10]
-algorithms = ['pt', 'vcm']
+times_in_seconds = [30]
+algorithms = ['vcm']
 convergence = False
 convergence_step_sec = 5
+light_path_frac = 0.1
 
 def compute_rmse(file, ref):
     p = Popen(['compare', '-metric', 'RMSE', file, ref, '.compare.png'],
@@ -140,10 +141,14 @@ def run_benchmark(app, setting, path, time_sec, cmd_args):
             # Determine arguments and run imbatracer
             out_filename = path + setting['base_filename'] + '_' + alg + scheduling['abbr'] + '_' + str(time_sec) + 'sec' + '.png'
 
+            light_path_count = light_path_frac * setting['width'] * setting['height']
+            print '   > ' + str(light_path_count) + ' light paths per frame'
+
             args = [app, setting['scene'],
                     '-w', str(setting['width']),
                     '-h', str(setting['height']),
                     '-q', '-t', str(time_sec), '-a', alg,
+                    '--light-path-count', str(light_path_count),
                     out_filename]
             args.extend(setting['args'])
             args.extend(scheduling['args'])
@@ -162,7 +167,7 @@ def run_benchmark(app, setting, path, time_sec, cmd_args):
 
             if output_lines[len(output_lines) - 1][0] == "D":
                 perf_result = output_lines[len(output_lines) - 1]
-            elif output_lines[len(output_lines) - 1][0] == "N":
+            elif output_lines[len(output_lines) - 1][0] == "N" and output_lines[len(output_lines) - 2][0] == "D":
                 perf_result = output_lines[len(output_lines) - 2]
                 ray_count   = output_lines[len(output_lines) - 1]
 
@@ -172,6 +177,26 @@ def run_benchmark(app, setting, path, time_sec, cmd_args):
                     continue
 
                 ray_count = int(m.group(1)) + int(m.group(2))
+            elif output_lines[len(output_lines) - 1][0] == "N" and output_lines[len(output_lines) - 2][0] == "N":
+                perf_result = output_lines[len(output_lines) - 3]
+                ray_count   = output_lines[len(output_lines) - 2]
+                ray_count2  = output_lines[len(output_lines) - 1]
+
+                m = re.match(r'Number primary rays: (\d+) Number shadow rays: (\d+)', ray_count)
+                if m is None:
+                    print 'imbatracer failed. Output: \n' + output + err
+                    continue
+
+                ray_count = int(m.group(1)) + int(m.group(2))
+
+                m = re.match(r'Number primary rays: (\d+) Number shadow rays: (\d+)', ray_count2)
+                if m is None:
+                    print 'imbatracer failed. Output: \n' + output + err
+                    continue
+
+                ray_count2 = int(m.group(1)) + int(m.group(2))
+
+                ray_count += ray_count2
             else:
                 print "ERROR: last line of output: " + output_lines[len(output_lines) - 1]
                 continue
@@ -311,7 +336,7 @@ def generate_mis_images(app, setting, path, time_sec, cmd_args):
 
 
 if __name__ == '__main__':
-    if len(sys.argv) < 2 or len(sys.argv) > 3:
+    if len(sys.argv) < 2:
         print 'Invalid command line arguments. Expected path to imbatracer executable.'
         quit()
 
@@ -321,7 +346,7 @@ if __name__ == '__main__':
 
     args = []
 
-    if len(sys.argv) == 3:
+    if len(sys.argv) >= 3:
         if sys.argv[2] == '-C':
             run_convergence_tests(app)
             quit()
@@ -333,7 +358,7 @@ if __name__ == '__main__':
             # All other arguments are forwarded to the renderer.
             args = [sys.argv[2]]
 
-    args += sys.argv[3:]
+        args += sys.argv[3:]
 
     # Run benchmarks
     timestamp = datetime.datetime.now().strftime('%Y_%m_%d_%H_%M_%S')

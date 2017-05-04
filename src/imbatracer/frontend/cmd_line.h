@@ -49,6 +49,7 @@ struct UserSettings {
 
     float base_radius;
     unsigned int max_path_len;
+    unsigned int light_path_count;
 
     // Scheduler
     unsigned int concurrent_spp;
@@ -67,6 +68,7 @@ struct UserSettings {
         , fov(60.0f)
         , base_radius(0.03f)
         , max_path_len(10)
+        , light_path_count(512 * 512 / 2)
         , concurrent_spp(1), tile_size(256), thread_count(4)
         , intermediate_image_time(10.0f), intermediate_image_name("")
         , num_connections(1)
@@ -93,6 +95,7 @@ inline void print_help() {
               << "    --hybrid  Enables hybrid traversal (not yet implemented)" << std::endl
               << "    --write-accel <filename>   Writes the acceleration structure to the specified file." << std::endl
               << "    --max-path-len <len>       Specifies the maximum number of vertices within any path. (default: 10)" << std::endl
+              << "    --light-path-count <nr>    Specifies the number of light paths to be traced per frame. (default: width * height * 0.5)" << std::endl
               << "    --spp <nr>                 Specifies the number of samples per pixel within a single frame. (default: 1)" << std::endl
               << "    --tile-size <size>         Specifies the size of the rectangular tiles. (default: 256)" << std::endl
               << "    --thread-count <nr>        Specifies the number of threads for processing tiles. (default: 4)" << std::endl
@@ -141,6 +144,8 @@ inline bool parse_cmd_line(int argc, char* argv[], UserSettings& settings) {
         {"ppm", UserSettings::PPM},
         {"vcm_pt", UserSettings::VCM_PT}
     };
+
+    bool lp_count_given = false;
 
     for (int i = 2; i < argc; ++i) {
         std::string arg = argv[i];
@@ -204,6 +209,10 @@ inline bool parse_cmd_line(int argc, char* argv[], UserSettings& settings) {
             settings.traversal_platform = UserSettings::hybrid;
         else if (arg == "--gamma")
             parse_argument(++i, argc, argv, settings.gamma);
+        else if (arg == "--light-path-count") {
+            parse_argument(++i, argc, argv, settings.light_path_count);
+            lp_count_given = true;
+        }
         else if (arg[0] == '-')
             std::cout << "Unknown argument ignored: " << arg << std::endl;
         else
@@ -218,6 +227,10 @@ inline bool parse_cmd_line(int argc, char* argv[], UserSettings& settings) {
     if (settings.num_connections < 1 || settings.num_connections > 8) {
         std::cout << "Number of connections has to be in [1,8]. Using default value one." << std::endl;
         settings.num_connections = 1;
+    }
+
+    if (!lp_count_given) {
+        settings.light_path_count = (settings.width * settings.height) >> 1;
     }
 
     return settings.input_file != "" && settings.output_file != "";

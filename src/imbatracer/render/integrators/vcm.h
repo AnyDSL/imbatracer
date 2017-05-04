@@ -2,14 +2,17 @@
 #define IMBA_VCM_H
 
 #include "integrator.h"
-#include "../ray_scheduler.h"
-#include "../ray_gen.h"
+#include "scheduling/tile_scheduler.h"
+#include "ray_gen/tile_gen.h"
+#include "ray_gen/ray_gen.h"
 
-#include "../../rangesearch/rangesearch.h"
+#include "rangesearch/rangesearch.h"
 #include "light_vertices.h"
 
-#include "../debug/path_debug.h"
-#include "../debug/mis_debug.h"
+#include "debug/path_debug.h"
+#include "debug/mis_debug.h"
+
+#include "frontend/cmd_line.h"
 
 // Enable this to write light path information to a file after each frame (SLOW!)
 #define LIGHT_PATH_DEBUG false
@@ -50,27 +53,21 @@ struct VCMShadowState : ShadowState {
 template <VCMSubAlgorithm algo>
 class VCMIntegrator : public Integrator {
 public:
-    VCMIntegrator(Scene& scene, PerspectiveCamera& cam, RayScheduler<VCMState, VCMShadowState>& scheduler,
-        int max_path_len, int spp, int num_connections, float base_radius=0.03f, float radius_alpha=0.75f)
+    VCMIntegrator(Scene& scene, PerspectiveCamera& cam, RayScheduler<VCMState, VCMShadowState>& scheduler, const UserSettings& settings)
         : Integrator(scene, cam)
-        , width_(cam.width())
-        , height_(cam.height())
-        , light_path_count_(cam.width() * cam.height())
-        , pm_radius_(base_radius)
-        , base_radius_(base_radius)
-        , radius_alpha_(radius_alpha)
+        , settings_(settings)
         , cur_iteration_(0)
         , scheduler_(scheduler)
-        , max_path_len_(max_path_len)
-        , spp_(spp)
-        , num_connections_(num_connections)
-        , light_vertices_(cam.width() * cam.height() * spp)
+        , light_vertices_(settings.light_path_count)
+        , light_tile_gen_(scene.light_count(), settings.light_path_count, settings.tile_size * settings.tile_size)
+        , light_scheduler_(light_tile_gen_, scene, 1, settings.thread_count, settings.tile_size * settings.tile_size * 1.75f,
+                           settings.traversal_platform == UserSettings::gpu) // TODO: make threshold explicit in TileGen
     {
     }
 
     virtual void render(AtomicImage& out) override;
     virtual void reset() override {
-        pm_radius_ = base_radius_ * scene_.bounding_sphere().radius;
+        pm_radius_ = settings_.base_radius * scene_.bounding_sphere().radius;
         cur_iteration_ = 0;
     }
 
@@ -80,17 +77,7 @@ public:
     }
 
 private:
-    // Maximum path length and number of connections. Can be used to tweak performance.
-    const int max_path_len_;
-    const int num_connections_;
-
-    // Information on the current image.
-    int width_, height_;
-    int spp_;
-
-    float light_path_count_;
-    float base_radius_;
-    float radius_alpha_;
+    const UserSettings settings_;
 
     // Data for the current iteration
     int cur_iteration_;
@@ -113,7 +100,9 @@ private:
     MISDebugger<technique_count, TECHNIQUES_DEBUG> techniques_dbg_;
 
     // Scheduling
+    UniformLightTileGen<VCMState> light_tile_gen_;
     RayScheduler<VCMState, VCMShadowState>& scheduler_;
+    TileScheduler<VCMState, VCMShadowState> light_scheduler_;
     LightVertices light_vertices_;
 
     /// Computes the power for the power heuristic.

@@ -2,15 +2,15 @@
 #include "build_scene.h"
 #include "render_window.h"
 
-#include "../loaders/loaders.h"
+#include "loaders/loaders.h"
 
-#include "../render/scene.h"
-#include "../render/ray_gen.h"
-#include "../render/tile_scheduler.h"
-#include "../render/queue_scheduler.h"
+#include "render/scene.h"
+#include "render/ray_gen/ray_gen.h"
+#include "render/scheduling/tile_scheduler.h"
+#include "render/scheduling/queue_scheduler.h"
 
-#include "../render/integrators/pt.h"
-#include "../render/integrators/vcm.h"
+#include "render/integrators/pt.h"
+#include "render/integrators/vcm.h"
 
 //#define QUEUE_SCHEDULER
 
@@ -132,23 +132,23 @@ int main(int argc, char* argv[]) {
 
     switch (settings.algorithm) {
     case UserSettings::BPT:
-        integrator = new BPT(scene, cam, scheduler, settings.max_path_len, settings.concurrent_spp, settings.num_connections);
+        integrator = new BPT(scene, cam, scheduler, settings);
         break;
 
     case UserSettings::PPM:
-        integrator = new PPM(scene, cam, scheduler, settings.max_path_len, settings.concurrent_spp, settings.num_connections, settings.base_radius);
+        integrator = new PPM(scene, cam, scheduler, settings);
         break;
 
     case UserSettings::LT:
-        integrator = new LT(scene, cam, scheduler, settings.max_path_len, settings.concurrent_spp, settings.num_connections);
+        integrator = new LT(scene, cam, scheduler, settings);
         break;
 
     case UserSettings::VCM_PT:
-        integrator = new VCM_PT(scene, cam, scheduler, settings.max_path_len, settings.concurrent_spp, settings.num_connections);
+        integrator = new VCM_PT(scene, cam, scheduler, settings);
         break;
 
     default:
-        integrator = new VCM(scene, cam, scheduler, settings.max_path_len, settings.concurrent_spp, settings.num_connections, settings.base_radius);
+        integrator = new VCM(scene, cam, scheduler, settings);
         break;
     }
 

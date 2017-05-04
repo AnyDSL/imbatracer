@@ -1,4 +1,4 @@
-include_directories(core loaders render)
+include_directories(. core loaders render)
 
 add_library(imba_core
             core/adapter.h
@@ -36,8 +36,14 @@ add_library(imba_loaders
             loaders/load_hdr.cpp)
 
 add_library(imba_render
-            render/camera.h
             render/light.h
+            render/random.h
+            render/intersection.h
+            render/mem_arena.h
+            render/scene.h
+            render/scene.cpp
+            render/texture_sampler.h
+
             render/integrators/integrator.h
             render/integrators/pt.h
             render/integrators/pt.cpp
@@ -45,19 +51,19 @@ add_library(imba_render
             render/integrators/vcm.cpp
             render/integrators/light_vertices.h
             render/integrators/light_vertices.cpp
+
             render/debug/path_debug.h
             render/debug/mis_debug.h
-            render/ray_queue.h
-            render/ray_gen.h
-            render/random.h
-            render/intersection.h
-            render/mem_arena.h
-            render/scene.h
-            render/scene.cpp
-            render/texture_sampler.h
-            render/queue_scheduler.h
-            render/tile_scheduler.h
-            render/ray_scheduler.h
+
+            render/scheduling/ray_queue.h
+            render/scheduling/queue_scheduler.h
+            render/scheduling/tile_scheduler.h
+            render/scheduling/ray_scheduler.h
+
+            render/ray_gen/ray_gen.h
+            render/ray_gen/tile_gen.h
+            render/ray_gen/camera.h
+
             core/traversal_interface.h
             rangesearch/rangesearch.h)
 

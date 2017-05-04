@@ -1,8 +1,9 @@
 #ifndef IMBA_RAY_GEN_H
 #define IMBA_RAY_GEN_H
 
-#include "ray_queue.h"
+#include "scheduling/ray_queue.h"
 #include "random.h"
+
 #include <cfloat>
 #include <random>
 #include <functional>
@@ -20,27 +21,6 @@ public:
     virtual bool is_empty() const = 0;
 };
 
-/// Interface for tile generators, i.e. classes that generate RayGen objects for subsets of an image.
-template<typename StateType>
-class TileGen {
-protected:
-    struct RayGenDeleter {
-        void operator () (RayGen<StateType>* ptr) const {
-            if (ptr) ptr->~RayGen<StateType>();
-        }
-    };
-
-public:
-    typedef std::unique_ptr<RayGen<StateType>, RayGenDeleter> TilePtr;
-
-    /// Obtains a tile and creates a RayGen object for it. Uses the given pointer instead of allocating memory.
-    virtual TilePtr next_tile(uint8_t*) = 0;
-    /// Returns the size of the storage required to store a RayGen object.
-    virtual size_t sizeof_ray_gen() const = 0;
-    /// Restarts the frame.
-    virtual void start_frame() = 0;
-};
-
 /// Generates n primary rays per pixel in range [0,0] to [w,h]
 template <typename StateType>
 class PixelRayGen : public RayGen<StateType> {
@@ -48,8 +28,6 @@ public:
     PixelRayGen(int w, int h, int spp)
         : width_(w), height_(h), n_samples_(spp), next_pixel_(0)
     {}
-
-    int max_rays() const { return width_ * height_ * n_samples_; }
 
     void start_frame() override { next_pixel_ = 0; }
 
@@ -106,6 +84,8 @@ protected:
     const int width_;
     const int height_;
     const int n_samples_;
+
+    int max_rays() const { return width_ * height_ * n_samples_; }
 };
 
 /// Generates primary rays for the pixels within a tile. Simply adds an offset to the pixel coordinates from the
@@ -131,66 +111,58 @@ private:
     const int full_width_, full_height_;
 };
 
-/// Generates quadratic tiles of a fixed size.
+/// Generates rays starting from the light sources in the scene.
 template<typename StateType>
-class DefaultTileGen : public TileGen<StateType> {
-    using typename TileGen<StateType>::TilePtr;
-
+class LightRayGen : public RayGen<StateType> {
 public:
-    DefaultTileGen(int w, int h, int spp, int tilesize)
-        : tile_size_(tilesize), spp_(spp), width_(w), height_(h)
-    {
-        // Compute the number of tiles required to cover the entire image.
-        tiles_per_row_ = width_ / tile_size_ + (width_ % tile_size_ == 0 ? 0 : 1);
-        tiles_per_col_ = height_ / tile_size_ + (height_ % tile_size_ == 0 ? 0 : 1);
-        tile_count_ = tiles_per_row_ * tiles_per_col_;
-    }
+    LightRayGen(int light, int ray_count)
+        : light_(light), ray_count_(ray_count)
+    {}
 
-    TilePtr next_tile(uint8_t* mem) override final {
-        int tile_id;
+    virtual void fill_queue(RayQueue<StateType>& out, typename RayGen<StateType>::SamplePixelFn sample_light) override {
+        // calculate how many rays are needed to fill the queue
+        int count = out.capacity() - out.size();
+        count = std::min(count, ray_count_ - generated_);
+        if (count <= 0) return;
 
-        while ((tile_id = cur_tile_++) < tile_count_) {
-            // Get the next tile and compute its extents
-            int tile_pos_x  = (tile_id % tiles_per_row_) * tile_size_;
-            int tile_pos_y  = (tile_id / tiles_per_row_) * tile_size_;
-            int tile_width  = std::min(width_ - tile_pos_x, tile_size_);
-            int tile_height = std::min(height_ - tile_pos_y, tile_size_);
+        static std::random_device rd;
+        uint64_t seed_base = rd();
+        for (int i = generated_; i < generated_ + count; ++i) {
+            // Create the ray and its state.
+            StateType state;
+            ::Ray ray;
 
-            // If the next tile is smaller than half the size, acquire it as well.
-            // If this tile is smaller than half the size, skip it (was acquired by one of its neighbours)
-            if (tile_width < tile_size_ / 2 ||
-                tile_height < tile_size_ / 2)
-                continue;
+            state.ray_id = i;
+            state.light_id = light_;
 
-            if (width_ - (tile_pos_x + tile_width) < tile_size_ / 2)
-                tile_width += width_ - (tile_pos_x + tile_width);
+            // Use Bernstein's hash function to scramble the seed base value
+            int seed = seed_base;
+            seed = 33 * seed ^ i;
+            seed = 33 * seed ^ i;
+            seed = 33 * seed ^ i;
+            seed = 33 * seed ^ i;
+            state.rng = RNG(seed);
+            state.rng.discard((seed % 5) + 16 + i % 5);
+            sample_light(i, light_, ray, state);
 
-            if (height_ - (tile_pos_y + tile_height) < tile_size_ / 2)
-                tile_height += height_ - (tile_pos_y + tile_height);
-
-            return TilePtr(new (mem) TiledRayGen<StateType>(tile_pos_x, tile_pos_y, tile_width, tile_height, spp_, width_, height_));
+            out.push(ray, state);
         }
 
-        return nullptr;
+        generated_ += count;
     }
 
-    size_t sizeof_ray_gen() const override final {
-        return sizeof(TiledRayGen<StateType>);
+    virtual void start_frame() override {
+        generated_ = 0;
     }
 
-    void start_frame() override final {
-        cur_tile_ = 0;
+    virtual bool is_empty() const override {
+        return generated_ >= ray_count_;
     }
 
 private:
-    int tile_size_;
-    int spp_, width_, height_;
-
-    int tiles_per_row_;
-    int tiles_per_col_;
-    int tile_count_;
-
-    std::atomic<int> cur_tile_;
+    int light_;
+    int ray_count_;
+    int generated_;
 };
 
 } // namespace imba

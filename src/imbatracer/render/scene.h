@@ -3,10 +3,10 @@
 
 #include "materials/materials.h"
 #include "light.h"
-#include "ray_queue.h"
+#include "scheduling/ray_queue.h"
 
-#include "../core/mesh.h"
-#include "../core/mask.h"
+#include "core/mesh.h"
+#include "core/mask.h"
 
 namespace imba {
 
