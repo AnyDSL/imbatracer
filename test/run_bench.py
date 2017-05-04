@@ -1,5 +1,5 @@
-from subprocess import Popen, PIPE
-import sys, os
+from subprocess import Popen, PIPE, call
+import sys, os, shutil
 import re
 import datetime
 
@@ -271,8 +271,43 @@ def run_convergence_tests(app):
     print ''
 
 
-def run_scaling_bench(app, setting, path, time_sec):
-    pass
+def generate_mis_images(app, setting, path, time_sec, cmd_args):
+    results = ['', '']
+
+    alg = 'vcm'
+    print '   > running ' + alg + ' ... '
+
+    for scheduling in scheduler_args:
+        print '   > ' + scheduling['name']
+
+        # Determine arguments and run imbatracer
+        out_filename = path + setting['base_filename'] + '_' + alg + scheduling['abbr'] + '_' + str(time_sec) + 'sec' + '.png'
+
+        args = [app, setting['scene'],
+                '-w', str(setting['width']),
+                '-h', str(setting['height']),
+                '-q', '-t', str(time_sec), '-a', alg,
+                out_filename]
+        args.extend(setting['args'])
+        args.extend(scheduling['args'])
+        args += cmd_args
+
+        p = Popen(args, stdin=PIPE, stdout=PIPE, stderr=PIPE)
+        output, err = p.communicate()
+
+        # Post-process the images
+        call(["./convert_mis_images.sh"])
+
+        # Move all images to the correct folder
+        for f in os.listdir('.'):
+            if f.endswith('.png'):
+                shutil.move(f, path + setting['base_filename'] + '_' + alg + scheduling['abbr'] + '_' + str(time_sec) + 'sec' + f)
+
+
+    print '   > finished ' + alg
+    print '   > ==================================='
+
+    return results
 
 
 if __name__ == '__main__':
@@ -280,15 +315,25 @@ if __name__ == '__main__':
         print 'Invalid command line arguments. Expected path to imbatracer executable.'
         quit()
 
+    benchmarker = run_benchmark
+
     app = sys.argv[1]
 
+    args = []
+
     if len(sys.argv) == 3:
-        if sys.argv[2] == '-c':
+        if sys.argv[2] == '-C':
             run_convergence_tests(app)
             quit()
+        elif sys.argv[2] == '-c':
+            run_convergence_tests(app)
+        elif sys.argv[2] == '-w':
+            benchmarker = generate_mis_images
+        else:
+            # All other arguments are forwarded to the renderer.
+            args = [sys.argv[2]]
 
-    # All other arguments are forwarded to the renderer.
-    args = sys.argv[2:]
+    args += sys.argv[3:]
 
     # Run benchmarks
     timestamp = datetime.datetime.now().strftime('%Y_%m_%d_%H_%M_%S')
@@ -306,7 +351,7 @@ if __name__ == '__main__':
         i = 1
         for setting in bench_settings:
             print '== Running benchmark ' + str(i) + ' / ' + str(len(bench_settings)) + ' - ' + setting['name']
-            bench_res = run_benchmark(app, setting, foldername + '/', time_sec, args)
+            bench_res = benchmarker(app, setting, foldername + '/', time_sec, args)
             res_file.write(bench_res[0])
 
             if convergence:
