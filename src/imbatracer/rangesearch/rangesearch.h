@@ -77,7 +77,7 @@ public:
     }
 
     template <typename Container>
-    void process(const float3& query_pos, Container& out) {
+    void query(const float3& query_pos, Container& out) const {
         // Check if the position is outside the bounding box.
         if (!bbox_.is_inside(query_pos)) return;
 

@@ -64,7 +64,7 @@ public:
         , max_path_len_(max_path_len)
         , spp_(spp)
         , num_connections_(num_connections)
-        , light_vertices_(cam.width() * cam.height(), spp)
+        , light_vertices_(cam.width() * cam.height() * spp)
     {
     }
 

@@ -60,64 +60,63 @@ class LightVertices {
     // Number of light paths to be traced when computing the average length and thus vertex cache size.
     static const int LIGHT_PATH_LEN_PROBES = 10000;
 public:
-    LightVertices(int path_count, int spp)
-        : vertex_caches_(spp)
-        , vertex_cache_last_(spp)
-        , light_vertices_count_(spp)
-        , photon_grid_(spp)
-        , path_count_(path_count)
-        , spp_(spp)
+    LightVertices(int path_count)
+        : path_count_(path_count)
     {}
 
-    void compute_cache_size(const Scene& scene, bool use_gpu = true);
+    void compute_cache_size(const Scene& scene, bool use_gpu);
 
+    /// Builds the acceleration structure etc to prepare the cache for usage during rendering
     void build(float radius, bool use_merging) {
-        tbb::parallel_for(tbb::blocked_range<int>(0, spp_), [&] (const tbb::blocked_range<int>& range) {
-            for (auto i = range.begin(); i != range.end(); ++i) {
-                light_vertices_count_[i] = std::min(static_cast<int>(vertex_caches_[i].size()), static_cast<int>(vertex_cache_last_[i]));
-                if (use_merging) {
-                    photon_grid_[i].build(vertex_caches_[i].begin(), vertex_caches_[i].begin() + light_vertices_count_[i], radius);
-                }
-            }
-        });
+        count_ = std::min<int>(cache_.size(), last_.load());
+        if (use_merging) {
+            accel_.build(cache_.begin(), cache_.begin() + count_, radius);
+        }
     }
 
-    inline void add_vertex_to_cache(const LightPathVertex& v, int sample_id) {
-        int i = vertex_cache_last_[sample_id]++;
-        if (i > vertex_caches_[sample_id].size())
+    inline void add_vertex_to_cache(const LightPathVertex& v) {
+        int i = last_++;
+        if (i > cache_.size())
             return; // Discard vertices that do not fit. This is very unlikely to happen.
-        vertex_caches_[sample_id][i] = v;
+        cache_[i] = v;
     }
 
-    inline int count(int sample_id) {
-        return light_vertices_count_[sample_id];
+    inline int count() const {
+        return count_;
     }
 
     /// Returns a random vertex that can be used to connect to (BPT)
-    inline LightPathVertex& get_connect(int sample_id, RNG& rng) {
-        return vertex_caches_[sample_id][rng.random_int(0, light_vertices_count_[sample_id])];
+    inline const LightPathVertex& get_connect(RNG& rng) const {
+        return cache_[rng.random_int(0, count_)];
     }
 
     /// Fills the given container with all photons within the radius around the given point.
     template <typename Container>
-    inline void get_merge(int sample_id, const float3& pos, Container& out) {
-        photon_grid_[sample_id].process(pos, out);
+    inline void get_merge(const float3& pos, Container& out) const {
+        accel_.query(pos, out);
     }
 
+    /// Removes all vertices currently inside the cache
     void clear() {
-        for(auto& i : vertex_cache_last_)
-            i = 0;
+        last_.store(0);
     }
 
 private:
-    // Light path vertices and associated data are stored separately per sample / iteration.
-    std::vector<std::vector<LightPathVertex> > vertex_caches_;
-    std::vector<std::atomic<int> > vertex_cache_last_;
-    std::vector<int> light_vertices_count_;
-    std::vector<HashGrid<PhotonIterator, VCMPhoton> > photon_grid_;
+    /// Stores all light vertices, without any path structure
+    std::vector<LightPathVertex> cache_;
 
+    /// Index of the last free element in the vertex cache
+    std::atomic<int> last_;
+
+    /// Number of light vertices currently in the cache,
+    /// separated from last_ because overflow is ignored
+    int count_;
+
+    /// Acceleration structure for photon range queries
+    HashGrid<PhotonIterator, VCMPhoton> accel_;
+
+    /// Number of light paths that will be traced and stored in this cache
     int path_count_;
-    int spp_;
 };
 
 } // namespace imba

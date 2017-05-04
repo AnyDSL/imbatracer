@@ -248,7 +248,7 @@ void VCM_INTEGRATOR::process_light_rays(RayQueue<VCMState>& rays_in, RayQueue<VC
                         state.dVC,
                         state.dVCM,
                         state.dVM,
-                        state.path_length + 1), state.sample_id);
+                        state.path_length + 1));
                 }
 
                 if (algo != ALGO_PPM)
@@ -495,11 +495,11 @@ VCM_TEMPLATE
 void VCM_INTEGRATOR::connect(VCMState& cam_state, const Intersection& isect, BSDF* bsdf_cam, MemoryArena& bsdf_arena, RayQueue<VCMShadowState>& rays_out_shadow) {
     // PDF conversion factor from using the vertex cache.
     // Vertex Cache is equivalent to randomly sampling a path with pdf ~ path length and uniformly sampling a vertex on this path.
-    const float vc_weight = (light_vertices_.count(cam_state.sample_id) / light_path_count_) / num_connections_;
+    const float vc_weight = light_vertices_.count() / (light_path_count_ * num_connections_);
 
     // Connect to num_connections_ randomly chosen vertices from the cache.
     for (int i = 0; i < num_connections_; ++i) {
-        const auto& light_vertex = light_vertices_.get_connect(cam_state.sample_id, cam_state.rng);
+        const auto& light_vertex = light_vertices_.get_connect(cam_state.rng);
 
         // Ignore paths that are longer than the specified maximum length.
         if (light_vertex.path_length + cam_state.path_length > max_path_len_)
@@ -580,7 +580,7 @@ void VCM_INTEGRATOR::vertex_merging(const VCMState& state, const Intersection& i
     auto& photons = photon_containers.local();
     photons.reserve(0.5f * light_path_count_);
     photons.clear();
-    light_vertices_.get_merge(state.sample_id, isect.pos, photons);
+    light_vertices_.get_merge(isect.pos, photons);
 
     rgb contrib(0.0f);
     const float radius_sqr = pm_radius_ * pm_radius_;

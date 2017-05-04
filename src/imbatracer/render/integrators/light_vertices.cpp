@@ -125,8 +125,7 @@ void imba::LightVertices::compute_cache_size(const Scene& scene, bool use_gpu) {
     const float avg_len = static_cast<float>(vertex_count) / static_cast<float>(LIGHT_PATH_LEN_PROBES);
     const int vc_size = 1.1f * std::ceil(avg_len) * path_count_;
 
-    for (auto& vc : vertex_caches_)
-        vc.resize(vc_size);
+    cache_.resize(vc_size);
 }
 
 } // namespace imba
