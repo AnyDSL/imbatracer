@@ -9,8 +9,8 @@
 #include <math.h>
 
 #include "build_scene.h"
-#include "../loaders/loaders.h"
-#include "../core/adapter.h"
+#include "loaders/loaders.h"
+#include "core/adapter.h"
 
 namespace imba {
 

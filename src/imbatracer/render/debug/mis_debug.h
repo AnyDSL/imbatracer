@@ -1,8 +1,8 @@
 #ifndef IMBA_MIS_DEBUG_H
 #define IMBA_MIS_DEBUG_H
 
-#include "../../core/image.h"
-#include "../../loaders/loaders.h"
+#include "core/image.h"
+#include "loaders/loaders.h"
 
 #include <functional>
 #include <type_traits>

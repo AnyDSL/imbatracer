@@ -3,7 +3,7 @@
 #include "scene.h"
 #include "adapter.h"
 
-#include "../loaders/loaders.h"
+#include "loaders/loaders.h"
 
 namespace imba {
 

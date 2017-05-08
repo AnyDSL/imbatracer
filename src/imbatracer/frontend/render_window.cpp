@@ -11,7 +11,7 @@
 #include <tbb/tbb.h>
 
 #include "render_window.h"
-#include "../loaders/loaders.h"
+#include "loaders/loaders.h"
 
 namespace imba {
 

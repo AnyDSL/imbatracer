@@ -3,11 +3,11 @@
 
 #include "integrator.h"
 
-#include "../../rangesearch/rangesearch.h"
-#include "../../core/float4.h"
-#include "../../core/common.h"
+#include "rangesearch/rangesearch.h"
+#include "core/float4.h"
+#include "core/common.h"
 
-#include "../random.h"
+#include "render/random.h"
 
 #define NOMINMAX
 #include <tbb/tbb.h>
@@ -76,8 +76,10 @@ public:
 
     inline void add_vertex_to_cache(const LightPathVertex& v) {
         int i = last_++;
-        if (i > cache_.size())
+        if (i > cache_.size()) {
+            std::cout << "A vertex did not fit into the cache!" << std::endl;
             return; // Discard vertices that do not fit. This is very unlikely to happen.
+        }
         cache_[i] = v;
     }
 

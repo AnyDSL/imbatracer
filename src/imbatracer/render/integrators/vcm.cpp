@@ -1,7 +1,7 @@
 #include "vcm.h"
-#include "../../core/rgb.h"
-#include "../../core/common.h"
-#include "../random.h"
+#include "core/rgb.h"
+#include "core/common.h"
+#include "render/random.h"
 
 #include <cfloat>
 #include <cassert>

@@ -1,7 +1,7 @@
 #ifndef IMBA_PATH_DEBUG_H
 #define IMBA_PATH_DEBUG_H
 
-#include "../../core/float3.h"
+#include "core/float3.h"
 
 #include <fstream>
 #include <string>

@@ -5,7 +5,7 @@
 #include <chrono>
 
 #include "cmd_line.h"
-#include "../render/integrators/integrator.h"
+#include "render/integrators/integrator.h"
 
 namespace imba {
 

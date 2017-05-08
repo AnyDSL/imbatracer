@@ -1,7 +1,7 @@
 #ifndef IMBA_RANGESEARCH_H
 #define IMBA_RANGESEARCH_H
 
-#include "../core/float4.h"
+#include "core/float4.h"
 
 #include <vector>
 

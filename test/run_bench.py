@@ -90,7 +90,7 @@ bench_settings = [
 thread_counts   = [4]
 sample_counts   = [1]
 tilesizes       = [256]
-connections     = [1]
+connections     = [1, 4, 10]
 
 scheduler_args = []
 for t in thread_counts:
@@ -105,7 +105,7 @@ for t in thread_counts:
                     })
 
 times_in_seconds = [30]
-algorithms = ['vcm']
+algorithms = ['bpt']
 convergence = False
 convergence_step_sec = 5
 light_path_frac = 0.1

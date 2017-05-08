@@ -1,9 +1,9 @@
 #ifndef IMBA_RANDOM_H
 #define IMBA_RANDOM_H
 
-#include "../core/float4.h"
-#include "../core/rgb.h"
-#include "../core/common.h"
+#include "core/float4.h"
+#include "core/rgb.h"
+#include "core/common.h"
 
 #include <random>
 #include <algorithm>

@@ -1,11 +1,11 @@
 #ifndef IMBA_BSDF_H
 #define IMBA_BSDF_H
 
-#include "../../core/rgb.h"
+#include "core/rgb.h"
 
-#include "../mem_arena.h"
-#include "../random.h"
-#include "../intersection.h"
+#include "render/mem_arena.h"
+#include "render/random.h"
+#include "render/intersection.h"
 
 #include "fresnel.h"
 

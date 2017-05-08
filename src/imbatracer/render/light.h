@@ -2,8 +2,8 @@
 #define IMBA_LIGHT_H
 
 #include "random.h"
-#include "../core/bsphere.h"
-#include "../core/image.h"
+#include "core/bsphere.h"
+#include "core/image.h"
 
 #include <cfloat>
 #include <memory>
