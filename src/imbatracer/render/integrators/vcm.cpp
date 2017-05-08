@@ -71,8 +71,6 @@ void VCM_INTEGRATOR::trace_light_paths(AtomicImage& img) {
             process_light_rays(ray_in, ray_out_shadow, out);
         },
         [this] (int ray_id, int light_id, ::Ray& ray_out, VCMState& state_out) {
-            // randomly choose one light source to sample
-            int i = state_out.rng.random_int(0, scene_.light_count());
             auto& l = scene_.light(light_id);
 
             // TODO: this pdf depends on the LightTileGen used!
@@ -500,7 +498,7 @@ VCM_TEMPLATE
 void VCM_INTEGRATOR::connect(VCMState& cam_state, const Intersection& isect, BSDF* bsdf_cam, MemoryArena& bsdf_arena, RayQueue<VCMShadowState>& rays_out_shadow) {
     // PDF conversion factor from using the vertex cache.
     // Vertex Cache is equivalent to randomly sampling a path with pdf ~ path length and uniformly sampling a vertex on this path.
-    const float vc_weight = light_vertices_.count() / (settings_.light_path_count * settings_.num_connections);
+    const float vc_weight = light_vertices_.count() / (float(settings_.light_path_count) * float(settings_.num_connections));
 
     // Connect to num_connections randomly chosen vertices from the cache.
     for (int i = 0; i < settings_.num_connections; ++i) {
