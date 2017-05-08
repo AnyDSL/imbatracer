@@ -5,15 +5,15 @@ import datetime
 
 # contains a dictionary of settings for every benchmark test
 bench_settings = [
-    {
-        'name': 'Cornell box',
-        'scene': 'scenes/cornell/cornell_org.scene',
-        'reference': 'references/ref_cornell_org.png',
-        'width': 1024,
-        'height': 1024,
-        'base_filename': 'cornell',
-        'args': ['-r', '0.003']
-    },
+    # {
+    #     'name': 'Cornell box',
+    #     'scene': 'scenes/cornell/cornell_org.scene',
+    #     'reference': 'references/ref_cornell_org.png',
+    #     'width': 1024,
+    #     'height': 1024,
+    #     'base_filename': 'cornell',
+    #     'args': ['-r', '0.003']
+    # },
 
     # {
     #     'name': 'Cornell specular balls',
@@ -45,15 +45,15 @@ bench_settings = [
     #     'args': ['-r', '0.003']
     # },
 
-    {
-        'name': 'Cornell water',
-        'scene': 'scenes/cornell/cornell_water.scene',
-        'reference': 'references/ref_cornell_water.png',
-        'width': 1024,
-        'height': 1024,
-        'base_filename': 'cornell_water',
-        'args': ['-r', '0.003']
-    },
+    # {
+    #     'name': 'Cornell water',
+    #     'scene': 'scenes/cornell/cornell_water.scene',
+    #     'reference': 'references/ref_cornell_water.png',
+    #     'width': 1024,
+    #     'height': 1024,
+    #     'base_filename': 'cornell_water',
+    #     'args': ['-r', '0.003']
+    # },
 
     {
         'name': 'Sponza behind curtain',
@@ -90,7 +90,7 @@ bench_settings = [
 thread_counts   = [4]
 sample_counts   = [1]
 tilesizes       = [256]
-connections     = [1, 4, 10]
+connections     = [1]
 
 scheduler_args = []
 for t in thread_counts:
@@ -104,11 +104,11 @@ for t in thread_counts:
                     'samples_per_frame': s
                     })
 
-times_in_seconds = [30]
-algorithms = ['bpt']
+times_in_seconds = [300]
+algorithms = ['vcm']
 convergence = False
 convergence_step_sec = 5
-light_path_frac = 0.1
+light_path_frac = 0.5
 
 def compute_rmse(file, ref):
     p = Popen(['compare', '-metric', 'RMSE', file, ref, '.compare.png'],
