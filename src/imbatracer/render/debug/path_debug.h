@@ -16,8 +16,16 @@ public:
     void add_vertex(const float3& pos, const float3& dir, const StateType& state) {
         if (!enabled) return;
 
-        int path_id = state.sample_id * num_pixels_ + state.pixel_id;
+        int path_id = state.sample_id * num_pixels_ + state.ray_id;
         paths_[path_id].emplace_back(pos, dir, state.throughput);
+    }
+
+    /// Links the LightPathVertex that was stored for PM / VPLs
+    /// Thread-safe in-between paths
+    void store_vertex(LightPathVertex* vert, const StateType& state) {
+        int path_id = state.sample_id * num_pixels_ + state.ray_id;
+        int vert_id = state.path_length;
+        paths_[path_id][vert_id].vert = vert;
     }
 
     /// Starts a new frame, resetting all paths.
@@ -42,9 +50,10 @@ private:
         float3 pos;
         float3 dir;
         float3 contrib;
+        LightPathVertex* vert;
 
         DebugVertex(const float3& p, const float3& d, const float3& c)
-            : pos(p), dir(d), contrib(c)
+            : pos(p), dir(d), contrib(c), vert(nullptr)
         {}
     };
 
@@ -63,6 +72,8 @@ private:
                 out << v.pos.x << v.pos.y << v.pos.z;
                 out << v.dir.x << v.dir.y << v.dir.z;
                 out << v.contrib.x << v.contrib.y << v.contrib.z;
+                out << v.vert->total_contrib_pm[0] << v.vert->total_contrib_pm[1] << v.vert->total_contrib_pm[2];
+                out << v.vert->total_contrib_vc[0] << v.vert->total_contrib_vc[1] << v.vert->total_contrib_vc[2];
             }
         }
     }

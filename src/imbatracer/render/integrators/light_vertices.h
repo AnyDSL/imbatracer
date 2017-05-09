@@ -26,14 +26,45 @@ struct LightPathVertex {
     float dVCM;
     float dVM;
 
+    atomic_rgb total_contrib_pm;
+    atomic_rgb total_contrib_vc;
+
     LightPathVertex(Intersection isect, rgb tp, float dVC, float dVCM, float dVM, int path_length)
         : isect(isect), throughput(tp), dVC(dVC), dVCM(dVCM), dVM(dVM), path_length(path_length)
-    {}
+    {
+        total_contrib_pm = rgb(0.0f);
+    }
 
     LightPathVertex() {}
 
     float3& position() { return isect.pos; }
     const float3& position() const { return isect.pos; }
+
+    LightPathVertex& operator= (const LightPathVertex& r) {
+        isect       = r.isect;
+        throughput  = r.throughput;
+        path_length = r.path_length;
+        dVC         = r.dVC;
+        dVCM        = r.dVCM;
+        dVM         = r.dVM;
+
+        total_contrib_pm = rgb(0.0f);
+        total_contrib_vc = rgb(0.0f);
+
+        return *this;
+    }
+
+    LightPathVertex(const LightPathVertex& r) {
+        isect       = r.isect;
+        throughput  = r.throughput;
+        path_length = r.path_length;
+        dVC         = r.dVC;
+        dVCM        = r.dVCM;
+        dVM         = r.dVM;
+
+        total_contrib_pm = rgb(0.0f);
+        total_contrib_vc = rgb(0.0f);
+    }
 };
 
 using PhotonIterator = std::vector<LightPathVertex>::iterator;
@@ -45,13 +76,17 @@ struct VCMPhoton {
     float dVM;
     rgb throughput;
 
+    LightPathVertex* vert;
+
     VCMPhoton() {}
-    VCMPhoton(const LightPathVertex& r) {
+    VCMPhoton(LightPathVertex& r) {
         position   = r.isect.pos;
         out_dir    = r.isect.out_dir;
         dVCM       = r.dVCM;
         dVM        = r.dVM;
         throughput = r.throughput;
+
+        vert = &r;
     }
 };
 
@@ -74,13 +109,13 @@ public:
         }
     }
 
-    inline void add_vertex_to_cache(const LightPathVertex& v) {
+    inline LightPathVertex* add_vertex_to_cache(LightPathVertex&& v) {
         int i = last_++;
         if (i >= cache_.size()) {
             std::cout << "A vertex did not fit into the cache!" << std::endl;
-            return; // Discard vertices that do not fit. This is very unlikely to happen.
+            return nullptr; // Discard vertices that do not fit. This is very unlikely to happen.
         }
-        cache_[i] = v;
+        return &(cache_[i] = v);
     }
 
     inline int count() const {
@@ -88,14 +123,14 @@ public:
     }
 
     /// Returns a random vertex that can be used to connect to (BPT)
-    inline const LightPathVertex& get_connect(RNG& rng) const {
+    inline LightPathVertex& get_connect(RNG& rng) {
         return cache_[rng.random_int(0, count_)];
     }
 
     /// Fills the given container with all photons within the radius around the given point.
     /// \returns The number of photons found
     template <typename Container>
-    inline int get_merge(const float3& pos, Container& out, int k) const {
+    inline int get_merge(const float3& pos, Container& out, int k) {
         return accel_.query(pos, out, k);
     }
 

@@ -24,7 +24,6 @@ static ThreadLocalMemArena bsdf_memory_arenas;
 
 VCM_TEMPLATE
 void VCM_INTEGRATOR::render(AtomicImage& img) {
-    // TODO: add command line option for this!
     const float radius_alpha = 0.75f;
 
     int frame = cur_iteration_;
@@ -236,13 +235,15 @@ void VCM_INTEGRATOR::process_light_rays(RayQueue<VCMState>& rays_in, RayQueue<VC
 
             if (!isect.mat->is_specular()){ // Do not store vertices on materials described by a delta distribution.
                 if (algo != ALGO_LT) {
-                    light_vertices_.add_vertex_to_cache(LightPathVertex(
+                    auto v = light_vertices_.add_vertex_to_cache(LightPathVertex(
                         isect,
                         state.throughput,
                         state.dVC,
                         state.dVCM,
                         state.dVM,
                         state.path_length + 1));
+
+                    light_path_dbg_.store_vertex(v, state);
                 }
 
                 if (algo != ALGO_PPM)
@@ -493,7 +494,7 @@ void VCM_INTEGRATOR::connect(VCMState& cam_state, const Intersection& isect, BSD
 
     // Connect to num_connections randomly chosen vertices from the cache.
     for (int i = 0; i < settings_.num_connections; ++i) {
-        const auto& light_vertex = light_vertices_.get_connect(cam_state.rng);
+        auto& light_vertex = light_vertices_.get_connect(cam_state.rng);
 
         // Ignore paths that are longer than the specified maximum length.
         if (light_vertex.path_length + cam_state.path_length > settings_.max_path_len)
@@ -550,6 +551,7 @@ void VCM_INTEGRATOR::connect(VCMState& cam_state, const Intersection& isect, BSD
         VCMShadowState s;
         s.pixel_id = cam_state.pixel_id;
         s.throughput = cam_state.throughput * vc_weight * mis_weight * geom_term * bsdf_value_cam * bsdf_value_light * light_vertex.throughput;
+        s.vert = &light_vertex;
 
 #if TECHNIQUES_DEBUG
         s.sample_id = cam_state.sample_id;
@@ -599,6 +601,8 @@ void VCM_INTEGRATOR::vertex_merging(const VCMState& state, const Intersection& i
 
         contrib += mis_weight * bsdf_value * kernel * p->throughput;
 
+        p->vert->total_contrib_pm.apply<std::plus<float>>(contrib);
+
         techniques_dbg_.record(merging, mis_weight,
                                state.throughput * bsdf_value * kernel * p->throughput * 2.0f / (pi * radius_sqr * settings_.light_path_count),
                                state.pixel_id, state.sample_id);
@@ -622,6 +626,10 @@ void VCM_INTEGRATOR::process_shadow_rays_dbg(RayQueue<VCMShadowState>& ray_in, A
             if (hits[i].tri_id < 0) {
                 // Nothing was hit, the light source is visible.
                 add_contribution(out, states[i].pixel_id, states[i].throughput);
+
+                // If this was a connection to a VPL, add its contribution
+                if (states[i].vert)
+                    states[i].vert->total_contrib_vc.apply<std::plus<float>>(states[i].throughput);
 
 #if TECHNIQUES_DEBUG
                 techniques_dbg_.record(states[i].technique, states[i].weight, states[i].throughput / states[i].weight, states[i].pixel_id, states[i].sample_id);

@@ -43,11 +43,15 @@ enum VCMSubAlgorithm {
 };
 
 struct VCMShadowState : ShadowState {
+    LightPathVertex* vert;
+
 #if TECHNIQUES_DEBUG
     int sample_id;
     float weight;
     int technique;
 #endif
+
+    VCMShadowState() : vert(nullptr) { }
 };
 
 template <VCMSubAlgorithm algo>
