@@ -41,5 +41,6 @@ find_package(TBB REQUIRED)
 include_directories(${TBB_INCLUDE_DIRS})
 
 # Add the project files
+include_directories(src)
 add_subdirectory(src)
 

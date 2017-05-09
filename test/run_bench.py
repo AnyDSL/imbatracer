@@ -5,15 +5,15 @@ import datetime
 
 # contains a dictionary of settings for every benchmark test
 bench_settings = [
-    {
-        'name': 'Cornell box',
-        'scene': 'scenes/cornell/cornell_org.scene',
-        'reference': 'references/ref_cornell_org.png',
-        'width': 1024,
-        'height': 1024,
-        'base_filename': 'cornell',
-        'args': ['-r', '0.003']
-    },
+    # {
+    #     'name': 'Cornell box',
+    #     'scene': 'scenes/cornell/cornell_org.scene',
+    #     'reference': 'references/ref_cornell_org.png',
+    #     'width': 1024,
+    #     'height': 1024,
+    #     'base_filename': 'cornell',
+    #     'args': []
+    # },
 
     # {
     #     'name': 'Cornell specular balls',
@@ -22,7 +22,7 @@ bench_settings = [
     #     'width': 1024,
     #     'height': 1024,
     #     'base_filename': 'cornell_specular_front',
-    #     'args': ['-r', '0.003']
+    #     'args': []
     # },
 
     # {
@@ -32,7 +32,7 @@ bench_settings = [
     #     'width': 1024,
     #     'height': 1024,
     #     'base_filename': 'cornell_specular',
-    #     'args': ['-r', '0.003']
+    #     'args': []
     # },
 
     # {
@@ -42,18 +42,18 @@ bench_settings = [
     #     'width': 1024,
     #     'height': 1024,
     #     'base_filename': 'cornell_indirect',
-    #     'args': ['-r', '0.003']
+    #     'args': []
     # },
 
-    {
-        'name': 'Cornell water',
-        'scene': 'scenes/cornell/cornell_water.scene',
-        'reference': 'references/ref_cornell_water.png',
-        'width': 1024,
-        'height': 1024,
-        'base_filename': 'cornell_water',
-        'args': ['-r', '0.003']
-    },
+    # {
+    #     'name': 'Cornell water',
+    #     'scene': 'scenes/cornell/cornell_water.scene',
+    #     'reference': 'references/ref_cornell_water.png',
+    #     'width': 1024,
+    #     'height': 1024,
+    #     'base_filename': 'cornell_water',
+    #     'args': []
+    # },
 
     {
         'name': 'Sponza behind curtain',
@@ -62,7 +62,7 @@ bench_settings = [
         'width': 1024,
         'height': 1024,
         'base_filename': 'sponza_curtain',
-        'args': ['-r', '0.006']
+        'args': []
     },
 
     {
@@ -72,7 +72,7 @@ bench_settings = [
         'width': 1280,
         'height': 720,
         'base_filename': 'still_life',
-        'args': ['-r', '0.02', '--max-path-len', '22']
+        'args': ['--max-path-len', '22']
     },
 
     # {
@@ -108,7 +108,7 @@ times_in_seconds = [30]
 algorithms = ['vcm']
 convergence = False
 convergence_step_sec = 5
-light_path_frac = 0.1
+light_path_frac = 0.5
 
 def compute_rmse(file, ref):
     p = Popen(['compare', '-metric', 'RMSE', file, ref, '.compare.png'],

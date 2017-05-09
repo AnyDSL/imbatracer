@@ -31,7 +31,12 @@ public:
     virtual void reset() {}
 
     /// Called once per scene at the beginning, before the other methods.
-    virtual void preprocess() {}
+    virtual void preprocess() { estimate_pixel_size(); }
+
+    /// Estimate of the average distance between hit points of rays from the same pixel.
+    /// The value is computed during the preprocessing phase.
+    /// The result of calling this function before preprocess() is undefined.
+    float pixel_size() const { return pixel_size_; }
 
 protected:
     const Scene& scene_;
@@ -56,6 +61,11 @@ protected:
             }
         });
     }
+
+private:
+    float pixel_size_;
+
+    void estimate_pixel_size();
 };
 
 inline Intersection calculate_intersection(const Scene& scene, const Hit& hit, const Ray& ray) {

@@ -43,7 +43,7 @@ void VCM_INTEGRATOR::render(AtomicImage& img) {
 
     // Shrink the photon mapping radius for the next iteration. Every frame is an iteration of Progressive Photon Mapping.
     cur_iteration_++;
-    pm_radius_ = settings_.base_radius / powf(static_cast<float>(cur_iteration_), 0.5f * (1.0f - radius_alpha));
+    pm_radius_ = base_radius_ / powf(static_cast<float>(cur_iteration_), 0.5f * (1.0f - radius_alpha));
     pm_radius_ = std::max(pm_radius_, 1e-7f); // ensure numerical stability
     vm_normalization_ = 1.0f / (sqr(pm_radius_) * pi * settings_.light_path_count);
 
@@ -71,8 +71,6 @@ void VCM_INTEGRATOR::trace_light_paths(AtomicImage& img) {
             process_light_rays(ray_in, ray_out_shadow, out);
         },
         [this] (int ray_id, int light_id, ::Ray& ray_out, VCMState& state_out) {
-            // randomly choose one light source to sample
-            int i = state_out.rng.random_int(0, scene_.light_count());
             auto& l = scene_.light(light_id);
 
             // TODO: this pdf depends on the LightTileGen used!
@@ -500,7 +498,7 @@ VCM_TEMPLATE
 void VCM_INTEGRATOR::connect(VCMState& cam_state, const Intersection& isect, BSDF* bsdf_cam, MemoryArena& bsdf_arena, RayQueue<VCMShadowState>& rays_out_shadow) {
     // PDF conversion factor from using the vertex cache.
     // Vertex Cache is equivalent to randomly sampling a path with pdf ~ path length and uniformly sampling a vertex on this path.
-    const float vc_weight = light_vertices_.count() / (settings_.light_path_count * settings_.num_connections);
+    const float vc_weight = light_vertices_.count() / (float(settings_.light_path_count) * float(settings_.num_connections));
 
     // Connect to num_connections randomly chosen vertices from the cache.
     for (int i = 0; i < settings_.num_connections; ++i) {
@@ -518,7 +516,7 @@ void VCM_INTEGRATOR::connect(VCMState& cam_state, const Intersection& isect, BSD
         const float connect_dist = std::sqrt(connect_dist_sq);
         connect_dir *= 1.0f / connect_dist;
 
-        if (connect_dist < settings_.base_radius) {
+        if (connect_dist < base_radius_) {
             // If two points are too close to each other, they are either occluded or have cosine terms
             // that are close to zero. Numerical inaccuracies might yield an overly bright pixel.
             // The correct result is usually black or close to black so we just ignore those connections.

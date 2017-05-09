@@ -43,6 +43,7 @@ add_library(imba_render
             render/texture_sampler.h
 
             render/integrators/integrator.h
+            render/integrators/integrator.cpp
             render/integrators/pt.h
             render/integrators/pt.cpp
             render/integrators/vcm.h

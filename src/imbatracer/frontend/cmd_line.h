@@ -47,7 +47,7 @@ struct UserSettings {
         LT
     } algorithm;
 
-    float base_radius;
+    float radius_factor;
     unsigned int max_path_len;
     unsigned int light_path_count;
 
@@ -66,7 +66,7 @@ struct UserSettings {
         , max_samples(INT_MAX), max_time_sec(FLT_MAX)
         , background(false)
         , fov(60.0f)
-        , base_radius(0.03f)
+        , radius_factor(2.0f)
         , max_path_len(10)
         , light_path_count(512 * 512 / 2)
         , concurrent_spp(1), tile_size(256), thread_count(4)
@@ -87,7 +87,7 @@ inline void print_help() {
               << "    -w  Sets the horizontal resolution in pixels (default: 512)" << std::endl
               << "    -h  Sets the vertical resolution in pixels (default: 512)" << std::endl
               << "    -f  Sets the horizontal field of view (default: 60)" << std::endl
-              << "    -r  Sets the initial radius for photon mapping as a factor of the scene bounding sphere radius (default: 0.03)" << std::endl
+              << "    -r  Sets the initial radius for photon mapping as a factor of the approx. pixel size (default: 2)" << std::endl
               << "    -c  Sets the number of vertices form the light path that any vertex on a camera path is connected to (default: 1)" << std::endl
               << "    --gamma   Sets the gamma correction value (default: 0.5)"
               << "    --gpu     Enables GPU traversal (default)" << std::endl
@@ -194,7 +194,7 @@ inline bool parse_cmd_line(int argc, char* argv[], UserSettings& settings) {
         else if (arg == "-f")
             parse_argument(++i, argc, argv, settings.fov);
         else if (arg == "-r")
-            parse_argument(++i, argc, argv, settings.base_radius);
+            parse_argument(++i, argc, argv, settings.radius_factor);
         else if (arg == "-c")
             parse_argument(++i, argc, argv, settings.num_connections);
         else if (arg == "--intermediate-time")

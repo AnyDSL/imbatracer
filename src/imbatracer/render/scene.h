@@ -73,6 +73,9 @@ public:
     const TraversalData<traversal_gpu::Node>& traversal_data_gpu() const { assert(gpu_buffers_); return traversal_gpu_; }
     const TraversalData<traversal_cpu::Node>& traversal_data_cpu() const { assert(cpu_buffers_); return traversal_cpu_; }
 
+    bool has_gpu_buffers() const { return gpu_buffers_; }
+    bool has_cpu_buffers() const { return cpu_buffers_; }
+
     const BSphere& bounding_sphere() const { return sphere_; }
 
     int local_tri_id(int tri_id, int mesh_id) const {
