@@ -12,8 +12,7 @@ namespace imba {
 struct EmptyState { };
 
 void Integrator::estimate_pixel_size() {
-    // TODO: allow to do this on the GPU as well!
-    const bool use_gpu = false;
+    const bool use_gpu = scene_.has_gpu_buffers();
 
     // Compute rays from the corners of every 8th pixel
     const int ray_count = cam_.width() * cam_.height() / 16;
