@@ -72,6 +72,8 @@ inline void check_normalized(const T& n, const char* file, int line) {
 #endif
 }
 
+#define V_ARRAY(T, N) static_cast<T*>(alloca((N) * sizeof(T)));
+
 } // namespace imba
 
 #endif // IMBA_COMMON_H

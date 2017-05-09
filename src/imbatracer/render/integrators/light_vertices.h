@@ -93,9 +93,10 @@ public:
     }
 
     /// Fills the given container with all photons within the radius around the given point.
+    /// \returns The number of photons found
     template <typename Container>
-    inline void get_merge(const float3& pos, Container& out) const {
-        accel_.query(pos, out);
+    inline int get_merge(const float3& pos, Container& out, int k) const {
+        return accel_.query(pos, out, k);
     }
 
     /// Removes all vertices currently inside the cache

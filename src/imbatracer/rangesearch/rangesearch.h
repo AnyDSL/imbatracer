@@ -22,8 +22,6 @@ template<typename Iter, typename Photon>
 class HashGrid {
     typedef unsigned int uint;
 public:
-    HashGrid() {}
-
     void build(const Iter& photons_begin, const Iter& photons_end, float radius) {
         constexpr int inv_load_factor = 2;
         radius_        = radius;
@@ -77,9 +75,9 @@ public:
     }
 
     template <typename Container>
-    void query(const float3& query_pos, Container& out) const {
+    int query(const float3& query_pos, Container& out, int k) const {
         // Check if the position is outside the bounding box.
-        if (!bbox_.is_inside(query_pos)) return;
+        if (!bbox_.is_inside(query_pos)) return 0;
 
         const float3 cell = inv_cell_size_ * (query_pos - bbox_.min);
         const float3 coord(
@@ -97,6 +95,8 @@ public:
         const int pyo = py + (fract_coord.y < 0.5f ? -1 : 1);
         const int pzo = pz + (fract_coord.z < 0.5f ? -1 : 1);
 
+        auto distances = V_ARRAY(float, k);
+        int count = 0;
         for (int j = 0; j < 8; j++) {
             const int x = j & 4 ? pxo : px;
             const int y = j & 2 ? pyo : py;
@@ -107,10 +107,25 @@ public:
                 const auto& photon = photons_[active_range.x];
                 const float dist_sqr = lensqr(query_pos - photon.position);
 
-                if (dist_sqr <= radius_sqr_)
-                    out.emplace_back(&photon);
+                if (dist_sqr <= radius_sqr_) {
+                    if (count == k) {
+                        if (distances[count - 1] < dist_sqr) continue;
+                    } else count++;
+
+                    // Insertion sort
+                    distances[count - 1] = dist_sqr;
+                    out[count - 1] = &photon;
+                    for (int l = count - 2; l >= 0; --l) {
+                        if (distances[l] > dist_sqr) {
+                            std::swap(distances[l], distances[l + 1]);
+                            std::swap(out[l], out[l + 1]);
+                        } else break;
+                    }
+                }
             }
         }
+
+        return count;
     }
 
 private:

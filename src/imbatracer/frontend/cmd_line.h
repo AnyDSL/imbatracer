@@ -48,6 +48,7 @@ struct UserSettings {
     } algorithm;
 
     float radius_factor;
+    unsigned int num_knn;
     unsigned int max_path_len;
     unsigned int light_path_count;
 
@@ -74,6 +75,7 @@ struct UserSettings {
         , num_connections(1)
         , traversal_platform(cpu)
         , gamma(0.5f)
+        , num_knn(10)
     {}
 };
 
@@ -89,6 +91,7 @@ inline void print_help() {
               << "    -f  Sets the horizontal field of view (default: 60)" << std::endl
               << "    -r  Sets the initial radius for photon mapping as a factor of the approx. pixel size (default: 2)" << std::endl
               << "    -c  Sets the number of vertices form the light path that any vertex on a camera path is connected to (default: 1)" << std::endl
+              << "    -k  Sets the number of photons to use for density estimation (default: 10)" << std::endl
               << "    --gamma   Sets the gamma correction value (default: 0.5)"
               << "    --gpu     Enables GPU traversal (default)" << std::endl
               << "    --cpu     Enables CPU traversal" << std::endl
@@ -197,6 +200,8 @@ inline bool parse_cmd_line(int argc, char* argv[], UserSettings& settings) {
             parse_argument(++i, argc, argv, settings.radius_factor);
         else if (arg == "-c")
             parse_argument(++i, argc, argv, settings.num_connections);
+        else if (arg == "-k")
+            parse_argument(++i, argc, argv, settings.num_knn);
         else if (arg == "--intermediate-time")
             parse_argument(++i, argc, argv, settings.intermediate_image_time);
         else if (arg == "--intermediate-path")

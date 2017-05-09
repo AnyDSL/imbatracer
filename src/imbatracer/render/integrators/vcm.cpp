@@ -17,14 +17,6 @@ using ThreadLocalMemArena =
         tbb::ets_key_per_instance>;
 static ThreadLocalMemArena bsdf_memory_arenas;
 
-// Thread-local storage for the results of a photon query.
-using ThreadLocalPhotonContainer =
-    tbb::enumerable_thread_specific<
-        std::vector<const VCMPhoton*>,
-        tbb::cache_aligned_allocator<std::vector<const VCMPhoton*>>,
-        tbb::ets_key_per_instance>;
-static ThreadLocalPhotonContainer photon_containers;
-
 // Reduce ugliness from the template parameters.
 #define VCM_TEMPLATE template <VCMSubAlgorithm algo>
 
@@ -45,7 +37,6 @@ void VCM_INTEGRATOR::render(AtomicImage& img) {
     cur_iteration_++;
     pm_radius_ = base_radius_ / powf(static_cast<float>(cur_iteration_), 0.5f * (1.0f - radius_alpha));
     pm_radius_ = std::max(pm_radius_, 1e-7f); // ensure numerical stability
-    vm_normalization_ = 1.0f / (sqr(pm_radius_) * pi * settings_.light_path_count);
 
     // Compute the partial MIS weights for vetex connection and vertex merging.
     // See technical report "Implementing Vertex Connection and Merging".
@@ -579,16 +570,14 @@ void VCM_INTEGRATOR::connect(VCMState& cam_state, const Intersection& isect, BSD
 
 VCM_TEMPLATE
 void VCM_INTEGRATOR::vertex_merging(const VCMState& state, const Intersection& isect, const BSDF* bsdf, AtomicImage& img) {
-    // Obtain the thread local photon buffer and reserve sufficient memory.
-    auto& photons = photon_containers.local();
-    photons.reserve(0.5f * settings_.light_path_count);
-    photons.clear();
-    light_vertices_.get_merge(isect.pos, photons);
+    const int k = settings_.num_knn;
+    auto photons = V_ARRAY(const VCMPhoton*, k);
+    int count = light_vertices_.get_merge(isect.pos, photons, k);
+    const float radius_sqr = (count == k) ? lensqr(photons[k - 1]->position - isect.pos) : (pm_radius_ * pm_radius_);
 
     rgb contrib(0.0f);
-    const float radius_sqr = pm_radius_ * pm_radius_;
-
-    for (const auto* p : photons) {
+    for (int i = 0; i < count; ++i) {
+        auto p = photons[i];
         const auto& photon_in_dir = p->out_dir;
 
         const auto& bsdf_value = bsdf->eval(isect.out_dir, photon_in_dir);
@@ -611,11 +600,14 @@ void VCM_INTEGRATOR::vertex_merging(const VCMState& state, const Intersection& i
         contrib += mis_weight * bsdf_value * kernel * p->throughput;
 
         techniques_dbg_.record(merging, mis_weight,
-                               state.throughput * bsdf_value * kernel * p->throughput * vm_normalization_ * 2.0f,
+                               state.throughput * bsdf_value * kernel * p->throughput * 2.0f / (pi * radius_sqr * settings_.light_path_count),
                                state.pixel_id, state.sample_id);
     }
 
-    add_contribution(img, state.pixel_id, state.throughput * contrib * vm_normalization_ * 2.0f); // Factor 2.0f is part of the Epanechnikov filter
+    // Complete the Epanechnikov kernel
+    contrib *= 2.0f / (pi * radius_sqr * settings_.light_path_count);
+
+    add_contribution(img, state.pixel_id, state.throughput * contrib);
 }
 
 VCM_TEMPLATE
