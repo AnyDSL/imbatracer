@@ -6,9 +6,6 @@
 
 namespace imba {
 
-// Offset to prevent self intersection.
-static const float offset = 0.0001f;
-
 using ThreadLocalMemArena = tbb::enumerable_thread_specific<MemoryArena, tbb::cache_aligned_allocator<MemoryArena>, tbb::ets_key_per_instance>;
 static ThreadLocalMemArena bsdf_memory_arenas;
 
@@ -46,7 +43,7 @@ void imba::LightVertices::compute_cache_size(const Scene& scene, bool use_gpu) {
         ray_out.org.x = sample.pos.x;
         ray_out.org.y = sample.pos.y;
         ray_out.org.z = sample.pos.z;
-        ray_out.org.w = offset;
+        ray_out.org.w = 1e-3f;
 
         ray_out.dir.x = sample.dir.x;
         ray_out.dir.y = sample.dir.y;
@@ -103,6 +100,8 @@ void imba::LightVertices::compute_cache_size(const Scene& scene, bool use_gpu) {
 
                 ProbePathState s = states[i];
                 s.throughput *= bsdf_value * cos_theta_i / (rr_pdf * pdf_dir_w);
+
+                const float offset = hits[i].tmax * 1e-3f;
 
                 Ray ray {
                     { isect.pos.x, isect.pos.y, isect.pos.z, offset },

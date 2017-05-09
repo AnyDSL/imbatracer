@@ -57,6 +57,8 @@ public:
         return false;
     }
 
+    void set_speed(float s) { speed_ = s; }
+
 private:
     void setup(const float3& eye, const float3& dir, const float3& up) {
         eye_ = eye;
@@ -113,6 +115,8 @@ int main(int argc, char* argv[]) {
         TileScheduler<PTState, ShadowState> scheduler(ray_gen, scene, 1, settings.thread_count, settings.tile_size * settings.tile_size * settings.concurrent_spp, gpu_traversal);
 #endif
         PathTracer integrator(scene, cam, scheduler, settings.max_path_len);
+        integrator.preprocess();
+        ctrl.set_speed(integrator.pixel_size() * 10.0f);
 
         RenderWindow wnd(settings, integrator, ctrl, settings.concurrent_spp);
         wnd.render_loop();
@@ -153,6 +157,7 @@ int main(int argc, char* argv[]) {
     }
 
     integrator->preprocess();
+    ctrl.set_speed(integrator->pixel_size() * 10.0f);
 
     RenderWindow wnd(settings, *integrator, ctrl, settings.concurrent_spp);
     wnd.render_loop();

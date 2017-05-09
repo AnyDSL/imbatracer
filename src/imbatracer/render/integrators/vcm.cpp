@@ -43,7 +43,7 @@ void VCM_INTEGRATOR::render(AtomicImage& img) {
 
     // Shrink the photon mapping radius for the next iteration. Every frame is an iteration of Progressive Photon Mapping.
     cur_iteration_++;
-    pm_radius_ = settings_.base_radius / powf(static_cast<float>(cur_iteration_), 0.5f * (1.0f - radius_alpha));
+    pm_radius_ = base_radius_ / powf(static_cast<float>(cur_iteration_), 0.5f * (1.0f - radius_alpha));
     pm_radius_ = std::max(pm_radius_, 1e-7f); // ensure numerical stability
     vm_normalization_ = 1.0f / (sqr(pm_radius_) * pi * settings_.light_path_count);
 
@@ -516,7 +516,7 @@ void VCM_INTEGRATOR::connect(VCMState& cam_state, const Intersection& isect, BSD
         const float connect_dist = std::sqrt(connect_dist_sq);
         connect_dir *= 1.0f / connect_dist;
 
-        if (connect_dist < settings_.base_radius) {
+        if (connect_dist < base_radius_) {
             // If two points are too close to each other, they are either occluded or have cosine terms
             // that are close to zero. Numerical inaccuracies might yield an overly bright pixel.
             // The correct result is usually black or close to black so we just ignore those connections.

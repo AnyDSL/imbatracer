@@ -12,7 +12,7 @@ bench_settings = [
     #     'width': 1024,
     #     'height': 1024,
     #     'base_filename': 'cornell',
-    #     'args': ['-r', '0.003']
+    #     'args': []
     # },
 
     # {
@@ -22,7 +22,7 @@ bench_settings = [
     #     'width': 1024,
     #     'height': 1024,
     #     'base_filename': 'cornell_specular_front',
-    #     'args': ['-r', '0.003']
+    #     'args': []
     # },
 
     # {
@@ -32,7 +32,7 @@ bench_settings = [
     #     'width': 1024,
     #     'height': 1024,
     #     'base_filename': 'cornell_specular',
-    #     'args': ['-r', '0.003']
+    #     'args': []
     # },
 
     # {
@@ -42,7 +42,7 @@ bench_settings = [
     #     'width': 1024,
     #     'height': 1024,
     #     'base_filename': 'cornell_indirect',
-    #     'args': ['-r', '0.003']
+    #     'args': []
     # },
 
     # {
@@ -52,7 +52,7 @@ bench_settings = [
     #     'width': 1024,
     #     'height': 1024,
     #     'base_filename': 'cornell_water',
-    #     'args': ['-r', '0.003']
+    #     'args': []
     # },
 
     {
@@ -62,7 +62,7 @@ bench_settings = [
         'width': 1024,
         'height': 1024,
         'base_filename': 'sponza_curtain',
-        'args': ['-r', '0.006']
+        'args': []
     },
 
     {
@@ -72,7 +72,7 @@ bench_settings = [
         'width': 1280,
         'height': 720,
         'base_filename': 'still_life',
-        'args': ['-r', '0.02', '--max-path-len', '22']
+        'args': ['--max-path-len', '22']
     },
 
     # {
@@ -104,7 +104,7 @@ for t in thread_counts:
                     'samples_per_frame': s
                     })
 
-times_in_seconds = [300]
+times_in_seconds = [30]
 algorithms = ['vcm']
 convergence = False
 convergence_step_sec = 5

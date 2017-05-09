@@ -67,11 +67,15 @@ public:
 
     virtual void render(AtomicImage& out) override;
     virtual void reset() override {
-        pm_radius_ = settings_.base_radius * scene_.bounding_sphere().radius;
+        pm_radius_ = base_radius_;
         cur_iteration_ = 0;
     }
 
     virtual void preprocess() override {
+        Integrator::preprocess();
+
+        base_radius_ = pixel_size() * settings_.radius_factor;
+
         if (algo != ALGO_LT && algo != ALGO_PT)
             light_vertices_.compute_cache_size(scene_, scheduler_.gpu_traversal);
     }
@@ -82,6 +86,7 @@ private:
     // Data for the current iteration
     int cur_iteration_;
     float pm_radius_;
+    float base_radius_;
     float vm_normalization_;
     float mis_eta_vc_;
     float mis_eta_vm_;
