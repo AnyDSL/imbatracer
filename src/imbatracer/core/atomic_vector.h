@@ -1,8 +1,9 @@
 #ifndef IMBA_ATOMIC_VECTOR_H
 #define IMBA_ATOMIC_VECTOR_H
 
-#include "float4.h"
 #include <atomic>
+
+#include "imbatracer/core/float4.h"
 
 namespace imba {
 

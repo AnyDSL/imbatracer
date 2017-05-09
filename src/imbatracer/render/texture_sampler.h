@@ -1,7 +1,7 @@
 #ifndef IMBA_TEXTURE_SAMPLER
 #define IMBA_TEXTURE_SAMPLER
 
-#include "../core/image.h"
+#include "imbatracer/core/image.h"
 
 #include <memory>
 #include <vector>

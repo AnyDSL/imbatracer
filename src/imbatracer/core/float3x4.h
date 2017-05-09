@@ -1,9 +1,9 @@
 #ifndef IMBA_FLOAT3X4_H
 #define IMBA_FLOAT3X4_H
 
-#include "float4.h"
-#include "bbox.h"
-#include "bsphere.h"
+#include "imbatracer/core/float4.h"
+#include "imbatracer/core/bbox.h"
+#include "imbatracer/core/bsphere.h"
 
 namespace imba {
 

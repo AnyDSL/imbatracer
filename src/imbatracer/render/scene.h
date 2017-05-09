@@ -1,12 +1,12 @@
 #ifndef IMBA_SCENE_H
 #define IMBA_SCENE_H
 
-#include "materials/materials.h"
-#include "light.h"
-#include "scheduling/ray_queue.h"
+#include "imbatracer/render/materials/materials.h"
+#include "imbatracer/render/light.h"
+#include "imbatracer/render/scheduling/ray_queue.h"
 
-#include "core/mesh.h"
-#include "core/mask.h"
+#include "imbatracer/core/mesh.h"
+#include "imbatracer/core/mask.h"
 
 namespace imba {
 

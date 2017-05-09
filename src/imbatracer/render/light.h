@@ -1,9 +1,9 @@
 #ifndef IMBA_LIGHT_H
 #define IMBA_LIGHT_H
 
-#include "random.h"
-#include "../core/bsphere.h"
-#include "../core/image.h"
+#include "imbatracer/render/random.h"
+#include "imbatracer/core/bsphere.h"
+#include "imbatracer/core/image.h"
 
 #include <cfloat>
 #include <memory>

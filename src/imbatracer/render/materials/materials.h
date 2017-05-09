@@ -1,11 +1,11 @@
 #ifndef IMBA_MATERIALS_H
 #define IMBA_MATERIALS_H
 
-#include "brdfs.h"
-#include "btdfs.h"
+#include "imbatracer/render/materials/brdfs.h"
+#include "imbatracer/render/materials/btdfs.h"
 
-#include "render/light.h"
-#include "render/texture_sampler.h"
+#include "imbatracer/render/light.h"
+#include "imbatracer/render/texture_sampler.h"
 
 namespace imba {
 

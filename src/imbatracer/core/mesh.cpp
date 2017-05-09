@@ -1,6 +1,6 @@
 #include <cstring>
 
-#include "mesh.h"
+#include "imbatracer/core/mesh.h"
 
 namespace imba {
 

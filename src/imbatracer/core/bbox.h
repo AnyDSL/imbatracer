@@ -3,7 +3,8 @@
 
 #include <cfloat>
 #include <algorithm>
-#include "float4.h"
+
+#include "imbatracer/core/float4.h"
 
 namespace imba {
 

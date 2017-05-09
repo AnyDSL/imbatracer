@@ -8,9 +8,9 @@
 // For isnan
 #include <math.h>
 
-#include "build_scene.h"
-#include "../loaders/loaders.h"
-#include "../core/adapter.h"
+#include "imbatracer/frontend/build_scene.h"
+#include "imbatracer/loaders/loaders.h"
+#include "imbatracer/core/adapter.h"
 
 namespace imba {
 

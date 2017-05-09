@@ -1,7 +1,7 @@
 #ifndef IMBA_BSPHERE_H
 #define IMBA_BSPHERE_H
 
-#include "float3.h"
+#include "imbatracer/core/float3.h"
 
 namespace imba {
 

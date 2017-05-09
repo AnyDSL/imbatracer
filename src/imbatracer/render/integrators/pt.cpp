@@ -1,7 +1,7 @@
-#include "pt.h"
-#include "../../core/rgb.h"
-#include "../../core/common.h"
-#include "../random.h"
+#include "imbatracer/render/integrators/pt.h"
+#include "imbatracer/core/rgb.h"
+#include "imbatracer/core/common.h"
+#include "imbatracer/render/random.h"
 
 #include <tbb/enumerable_thread_specific.h>
 #include <tbb/parallel_for.h>

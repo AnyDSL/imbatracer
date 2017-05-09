@@ -1,7 +1,7 @@
 #ifndef IMBA_TILE_GEN_H
 #define IMBA_TILE_GEN_H
 
-#include "ray_gen.h"
+#include "imbatracer/render/ray_gen/ray_gen.h"
 
 #include <numeric>
 

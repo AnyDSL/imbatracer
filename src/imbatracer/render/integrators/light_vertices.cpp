@@ -1,6 +1,5 @@
-#include "light_vertices.h"
-
-#include "scheduling/ray_queue.h"
+#include "imbatracer/render/integrators/light_vertices.h"
+#include "imbatracer/render/scheduling/ray_queue.h"
 
 #include <tbb/enumerable_thread_specific.h>
 

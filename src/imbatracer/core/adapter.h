@@ -4,8 +4,8 @@
 #include <vector>
 #include <memory>
 
-#include "traversal_interface.h"
-#include "mesh.h"
+#include "imbatracer/core/traversal_interface.h"
+#include "imbatracer/core/mesh.h"
 
 namespace imba {
 

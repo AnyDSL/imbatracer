@@ -4,10 +4,10 @@
 #include <cstdint>
 #include <vector>
 
-#include "float4.h"
-#include "float4x4.h"
-#include "float3x4.h"
-#include "tri.h"
+#include "imbatracer/core/float4.h"
+#include "imbatracer/core/float4x4.h"
+#include "imbatracer/core/float3x4.h"
+#include "imbatracer/core/tri.h"
 
 namespace imba {
 

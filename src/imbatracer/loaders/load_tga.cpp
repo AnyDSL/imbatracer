@@ -1,7 +1,8 @@
 #include <fstream>
 #include <cstring>
 #include <cassert>
-#include "loaders.h"
+
+#include "imbatracer/loaders/loaders.h"
 
 namespace imba {
 

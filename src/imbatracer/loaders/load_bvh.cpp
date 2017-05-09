@@ -3,9 +3,9 @@
 #include <fstream>
 #include <anydsl_runtime.hpp>
 
-#include "loaders.h"
-#include "common.h"
-#include "traversal_interface.h"
+#include "imbatracer/loaders/loaders.h"
+#include "imbatracer/core/common.h"
+#include "imbatracer/core/traversal_interface.h"
 
 namespace imba {
 

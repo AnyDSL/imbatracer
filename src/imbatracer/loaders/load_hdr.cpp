@@ -3,7 +3,8 @@
 #include <string>
 #include <sstream>
 #include <vector>
-#include "loaders.h"
+
+#include "imbatracer/loaders/loaders.h"
 
 namespace imba {
 

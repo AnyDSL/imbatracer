@@ -1,9 +1,8 @@
 #include <cassert>
 
-#include "scene.h"
-#include "adapter.h"
-
-#include "../loaders/loaders.h"
+#include "imbatracer/render/scene.h"
+#include "imbatracer/core/adapter.h"
+#include "imbatracer/loaders/loaders.h"
 
 namespace imba {
 

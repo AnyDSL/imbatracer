@@ -1,18 +1,18 @@
 #ifndef IMBA_VCM_H
 #define IMBA_VCM_H
 
-#include "integrator.h"
-#include "scheduling/tile_scheduler.h"
-#include "ray_gen/tile_gen.h"
-#include "ray_gen/ray_gen.h"
+#include "imbatracer/render/integrators/integrator.h"
+#include "imbatracer/render/scheduling/tile_scheduler.h"
+#include "imbatracer/render/ray_gen/tile_gen.h"
+#include "imbatracer/render/ray_gen/ray_gen.h"
 
-#include "rangesearch/rangesearch.h"
-#include "light_vertices.h"
+#include "imbatracer/rangesearch/rangesearch.h"
+#include "imbatracer/render/integrators/light_vertices.h"
 
-#include "debug/path_debug.h"
-#include "debug/mis_debug.h"
+#include "imbatracer/render/debug/path_debug.h"
+#include "imbatracer/render/debug/mis_debug.h"
 
-#include "frontend/cmd_line.h"
+#include "imbatracer/frontend/cmd_line.h"
 
 // Enable this to write light path information to a file after each frame (SLOW!)
 #define LIGHT_PATH_DEBUG false

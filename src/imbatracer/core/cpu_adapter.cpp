@@ -1,11 +1,11 @@
 #include <cstring>
 
-#include "adapter.h"
-#include "sbvh_builder.h"
-#include "fast_bvh_builder.h"
-#include "mesh.h"
-#include "stack.h"
-#include "common.h"
+#include "imbatracer/core/adapter.h"
+#include "imbatracer/core/sbvh_builder.h"
+#include "imbatracer/core/fast_bvh_builder.h"
+#include "imbatracer/core/mesh.h"
+#include "imbatracer/core/stack.h"
+#include "imbatracer/core/common.h"
 
 namespace imba {
 

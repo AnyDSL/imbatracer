@@ -4,7 +4,7 @@
 #include <cfloat>
 #include <algorithm>
 
-#include "bbox.h"
+#include "imbatracer/core/bbox.h"
 
 namespace imba {
 

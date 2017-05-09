@@ -5,8 +5,8 @@
 #include <string>
 #include <unordered_map>
 
-#include "../core/float4.h"
-#include "path.h"
+#include "imbatracer/core/float4.h"
+#include "imbatracer/loaders/path.h"
 
 namespace imba {
 

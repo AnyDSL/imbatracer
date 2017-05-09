@@ -1,9 +1,9 @@
 #ifndef IMBA_PT_H
 #define IMBA_PT_H
 
-#include "integrator.h"
-#include "scheduling/ray_scheduler.h"
-#include "ray_gen/ray_gen.h"
+#include "imbatracer/render/integrators/integrator.h"
+#include "imbatracer/render/scheduling/ray_scheduler.h"
+#include "imbatracer/render/ray_gen/ray_gen.h"
 
 namespace imba {
 

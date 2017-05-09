@@ -1,11 +1,10 @@
 #ifndef IMBA_MIS_DEBUG_H
 #define IMBA_MIS_DEBUG_H
 
-#include "../../core/image.h"
-#include "../../loaders/loaders.h"
+#include "imbatracer/core/image.h"
+#include "imbatracer/loaders/loaders.h"
 
 #include <functional>
-#include <type_traits>
 
 namespace imba {
 

@@ -1,15 +1,15 @@
 #ifndef IMBA_INTEGRATOR_H
 #define IMBA_INTEGRATOR_H
 
-#include "scheduling/ray_queue.h"
-#include "ray_gen/camera.h"
-#include "light.h"
-#include "random.h"
-#include "scene.h"
+#include "imbatracer/render/scheduling/ray_queue.h"
+#include "imbatracer/render/ray_gen/camera.h"
+#include "imbatracer/render/light.h"
+#include "imbatracer/render/random.h"
+#include "imbatracer/render/scene.h"
 
-#include "core/mesh.h"
-#include "core/image.h"
-#include "core/rgb.h"
+#include "imbatracer/core/mesh.h"
+#include "imbatracer/core/image.h"
+#include "imbatracer/core/rgb.h"
 
 #include <functional>
 

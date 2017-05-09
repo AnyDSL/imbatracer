@@ -1,7 +1,7 @@
-#include "vcm.h"
-#include "../../core/rgb.h"
-#include "../../core/common.h"
-#include "../random.h"
+#include "imbatracer/render/integrators/vcm.h"
+#include "imbatracer/core/rgb.h"
+#include "imbatracer/core/common.h"
+#include "imbatracer/render/random.h"
 
 #include <cfloat>
 #include <cassert>

@@ -1,8 +1,8 @@
 #ifndef IMBA_RGB_H
 #define IMBA_RGB_H
 
-#include "float4.h"
-#include "atomic_vector.h"
+#include "imbatracer/core/float4.h"
+#include "imbatracer/core/atomic_vector.h"
 
 namespace imba {
 

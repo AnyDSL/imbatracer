@@ -4,7 +4,7 @@
 #include <cstdlib>
 #include <cctype>
 
-#include "load_obj.h"
+#include "imbatracer/loaders/load_obj.h"
 
 inline void error() {
     std::cerr << std::endl;

@@ -4,8 +4,8 @@
 #include <SDL2/SDL.h>
 #include <chrono>
 
-#include "cmd_line.h"
-#include "../render/integrators/integrator.h"
+#include "imbatracer/frontend/cmd_line.h"
+#include "imbatracer/render/integrators/integrator.h"
 
 namespace imba {
 

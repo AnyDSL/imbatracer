@@ -1,5 +1,3 @@
-include_directories(. core loaders render)
-
 add_library(imba_core
             core/adapter.h
             core/atomic_vector.h

@@ -1,7 +1,7 @@
 #ifndef IMBA_BRDFS_H
 #define IMBA_BRDFS_H
 
-#include "bsdf.h"
+#include "imbatracer/render/materials/bsdf.h"
 
 namespace imba {
 

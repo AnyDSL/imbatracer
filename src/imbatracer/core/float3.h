@@ -2,7 +2,7 @@
 #define IMBA_FLOAT3_H
 
 #include <cmath>
-#include "float2.h"
+#include "imbatracer/core/float2.h"
 
 namespace imba {
 

@@ -12,8 +12,8 @@
 #include <tbb/parallel_sort.h>
 #include <anydsl_runtime.hpp>
 
-#include "core/traversal_interface.h"
-#include "random.h"
+#include "imbatracer/core/traversal_interface.h"
+#include "imbatracer/render/random.h"
 
 namespace imba {
 

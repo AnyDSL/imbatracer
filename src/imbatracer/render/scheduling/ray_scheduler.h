@@ -1,7 +1,7 @@
 #ifndef IMBA_RAY_SCHEDULER_H
 #define IMBA_RAY_SCHEDULER_H
 
-#include "ray_gen/ray_gen.h"
+#include "imbatracer/render/ray_gen/ray_gen.h"
 
 #include <array>
 #include <atomic>

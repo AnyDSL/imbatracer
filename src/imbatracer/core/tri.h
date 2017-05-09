@@ -1,8 +1,8 @@
 #ifndef IMBA_TRI_H
 #define IMBA_TRI_H
 
-#include "float4.h"
-#include "bbox.h"
+#include "imbatracer/core/float4.h"
+#include "imbatracer/core/bbox.h"
 
 namespace imba {
 

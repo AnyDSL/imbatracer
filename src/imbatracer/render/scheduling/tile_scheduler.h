@@ -1,8 +1,8 @@
 #ifndef IMBA_TILE_SCHEDULER_H
 #define IMBA_TILE_SCHEDULER_H
 
-#include "ray_scheduler.h"
-#include "ray_gen/tile_gen.h"
+#include "imbatracer/render/scheduling/ray_scheduler.h"
+#include "imbatracer/render/ray_gen/tile_gen.h"
 
 #include <thread>
 #include <atomic>

@@ -1,8 +1,8 @@
 #ifndef IMBA_RAY_GEN_H
 #define IMBA_RAY_GEN_H
 
-#include "scheduling/ray_queue.h"
-#include "random.h"
+#include "imbatracer/render/scheduling/ray_queue.h"
+#include "imbatracer/render/random.h"
 
 #include <cfloat>
 #include <random>

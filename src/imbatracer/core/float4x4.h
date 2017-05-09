@@ -1,7 +1,7 @@
 #ifndef IMBA_FLOAT4X4_H
 #define IMBA_FLOAT4X4_H
 
-#include "float4.h"
+#include "imbatracer/core/float4.h"
 
 namespace imba {
 

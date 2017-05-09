@@ -1,11 +1,11 @@
 #ifndef BUILD_SCENE_H
 #define BUILD_SCENE_H
 
-#include "../core/mesh.h"
-#include "../render/scene.h"
-#include "../render/light.h"
-#include "../render/texture_sampler.h"
-#include "../loaders/path.h"
+#include "imbatracer/core/mesh.h"
+#include "imbatracer/render/scene.h"
+#include "imbatracer/render/light.h"
+#include "imbatracer/render/texture_sampler.h"
+#include "imbatracer/loaders/path.h"
 
 #include <string>
 #include <vector>

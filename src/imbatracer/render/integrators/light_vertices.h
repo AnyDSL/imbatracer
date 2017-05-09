@@ -1,13 +1,13 @@
 #ifndef IMBA_LIGHT_VERTICES_H
 #define IMBA_LIGHT_VERTICES_H
 
-#include "integrator.h"
+#include "imbatracer/render/integrators/integrator.h"
 
-#include "../../rangesearch/rangesearch.h"
-#include "../../core/float4.h"
-#include "../../core/common.h"
+#include "imbatracer/rangesearch/rangesearch.h"
+#include "imbatracer/core/float4.h"
+#include "imbatracer/core/common.h"
 
-#include "../random.h"
+#include "imbatracer/render/random.h"
 
 #define NOMINMAX
 #include <tbb/tbb.h>

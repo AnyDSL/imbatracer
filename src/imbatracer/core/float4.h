@@ -2,9 +2,9 @@
 #define IMBA_FLOAT4_H
 
 #include <cmath>
-#include "common.h"
-#include "float3.h"
-#include "float2.h"
+#include "imbatracer/core/common.h"
+#include "imbatracer/core/float3.h"
+#include "imbatracer/core/float2.h"
 
 namespace imba {
 

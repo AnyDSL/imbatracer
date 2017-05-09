@@ -1,12 +1,12 @@
 #ifndef IMBA_LOADERS_H
 #define IMBA_LOADERS_H
 
-#include "image.h"
-#include "path.h"
-#include "load_obj.h"
-#include "store_png.h"
+#include "imbatracer/core/image.h"
+#include "imbatracer/loaders/path.h"
+#include "imbatracer/loaders/load_obj.h"
+#include "imbatracer/loaders/store_png.h"
 
-#include "scheduling/ray_queue.h"
+#include "imbatracer/render/scheduling/ray_queue.h"
 
 namespace imba {
 

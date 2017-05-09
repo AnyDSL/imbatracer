@@ -1,7 +1,7 @@
 #ifndef IMBA_QUEUE_SCHEDULER_H
 #define IMBA_QUEUE_SCHEDULER_H
 
-#include "ray_scheduler.h"
+#include "imbatracer/render/scheduling/ray_scheduler.h"
 
 #define NOMINMAX
 #include <tbb/tbb.h>

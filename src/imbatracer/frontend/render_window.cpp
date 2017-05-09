@@ -10,8 +10,8 @@
 #define NOMINMAX
 #include <tbb/tbb.h>
 
-#include "render_window.h"
-#include "../loaders/loaders.h"
+#include "imbatracer/frontend/render_window.h"
+#include "imbatracer/loaders/loaders.h"
 
 namespace imba {
 

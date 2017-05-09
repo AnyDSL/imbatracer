@@ -7,14 +7,14 @@
 #include <iostream>
 #include <chrono>
 
-#include "common.h"
-#include "mem_pool.h"
-#include "bvh_helper.h"
-#include "float4.h"
-#include "stack.h"
-#include "mesh.h"
-#include "bbox.h"
-#include "tri.h"
+#include "imbatracer/core/common.h"
+#include "imbatracer/core/mem_pool.h"
+#include "imbatracer/core/bvh_helper.h"
+#include "imbatracer/core/float4.h"
+#include "imbatracer/core/stack.h"
+#include "imbatracer/core/mesh.h"
+#include "imbatracer/core/bbox.h"
+#include "imbatracer/core/tri.h"
 
 namespace imba {
 

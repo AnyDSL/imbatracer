@@ -1,11 +1,11 @@
 #ifndef IMBA_CAMERA_H
 #define IMBA_CAMERA_H
 
-#include "ray_gen.h"
-#include "scheduling/ray_queue.h"
-#include "render/random.h"
+#include "imbatracer/render/ray_gen/ray_gen.h"
+#include "imbatracer/render/scheduling/ray_queue.h"
+#include "imbatracer/render/random.h"
 
-#include "core/float4x4.h"
+#include "imbatracer/core/float4x4.h"
 
 namespace imba {
 

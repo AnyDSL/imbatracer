@@ -1,16 +1,16 @@
-#include "cmd_line.h"
-#include "build_scene.h"
-#include "render_window.h"
+#include "imbatracer/frontend/cmd_line.h"
+#include "imbatracer/frontend/build_scene.h"
+#include "imbatracer/frontend/render_window.h"
 
-#include "loaders/loaders.h"
+#include "imbatracer/loaders/loaders.h"
 
-#include "render/scene.h"
-#include "render/ray_gen/ray_gen.h"
-#include "render/scheduling/tile_scheduler.h"
-#include "render/scheduling/queue_scheduler.h"
+#include "imbatracer/render/scene.h"
+#include "imbatracer/render/ray_gen/ray_gen.h"
+#include "imbatracer/render/scheduling/tile_scheduler.h"
+#include "imbatracer/render/scheduling/queue_scheduler.h"
 
-#include "render/integrators/pt.h"
-#include "render/integrators/vcm.h"
+#include "imbatracer/render/integrators/pt.h"
+#include "imbatracer/render/integrators/vcm.h"
 
 //#define QUEUE_SCHEDULER
 

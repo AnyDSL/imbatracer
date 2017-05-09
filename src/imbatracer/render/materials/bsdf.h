@@ -1,13 +1,13 @@
 #ifndef IMBA_BSDF_H
 #define IMBA_BSDF_H
 
-#include "../../core/rgb.h"
+#include "imbatracer/core/rgb.h"
 
-#include "../mem_arena.h"
-#include "../random.h"
-#include "../intersection.h"
+#include "imbatracer/render/mem_arena.h"
+#include "imbatracer/render/random.h"
+#include "imbatracer/render/intersection.h"
 
-#include "fresnel.h"
+#include "imbatracer/render/materials/fresnel.h"
 
 #include <cassert>
 

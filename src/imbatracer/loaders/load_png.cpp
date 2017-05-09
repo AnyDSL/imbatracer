@@ -2,7 +2,7 @@
 #include <cstring>
 #include <png.h>
 
-#include "loaders.h"
+#include "imbatracer/loaders/loaders.h"
 
 namespace imba {
 

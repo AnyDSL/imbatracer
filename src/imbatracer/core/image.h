@@ -5,7 +5,7 @@
 #include <cstring>
 #include <atomic>
 
-#include "rgb.h"
+#include "imbatracer/core/rgb.h"
 
 namespace imba {
 
