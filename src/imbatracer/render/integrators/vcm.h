@@ -15,7 +15,7 @@
 #include "imbatracer/frontend/cmd_line.h"
 
 // Enable this to write light path information to a file after each frame (SLOW!)
-#define LIGHT_PATH_DEBUG false
+#define LIGHT_PATH_DEBUG true
 
 // Enable this to write the individual contributions from the techniques to separate images
 #define TECHNIQUES_DEBUG false

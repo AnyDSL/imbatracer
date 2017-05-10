@@ -139,15 +139,8 @@ bool hdr_adaptive_rle_decode(std::istream& str, rgba* out, int len) {
     }
 
     // Convert all HDRPixels to rgba.
-    for (auto& p : pixels) {
-        // auto x = rgba(p);
-        // printf("%f %f %f    ", x.x, x.y, x.z);
-        // printf("%d %d %d %d  ", p.r, p.g, p.b, p.e);
-        // printf("\n");
-        // break;
-
+    for (auto& p : pixels)
         *(out++) = rgba(p);
-    }
 
     return true;
 }

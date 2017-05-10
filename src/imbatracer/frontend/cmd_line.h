@@ -44,7 +44,8 @@ struct UserSettings {
         VCM,
         PPM,
         VCM_PT,
-        LT
+        LT,
+        PHOTON_VIS
     } algorithm;
 
     float radius_factor;
@@ -85,7 +86,7 @@ inline void print_help() {
               << "    -q  Quiet mode, render in background without SDL preview." << std::endl
               << "    -s  Number of samples per pixel to render (default: unlimited)" << std::endl
               << "    -t  Number of seconds to run the render algorithm (default: unlimited)" << std::endl
-              << "    -a  Selects which algorithm to use, 'pt', 'bpt', 'ppm', 'lt', 'vcm_pt', or 'vcm' (default: pt)" << std::endl
+              << "    -a  Selects which algorithm to use, 'pt', 'bpt', 'ppm', 'lt', 'vcm_pt', 'vcm', or 'photon_vis' (default: pt)" << std::endl
               << "    -w  Sets the horizontal resolution in pixels (default: 512)" << std::endl
               << "    -h  Sets the vertical resolution in pixels (default: 512)" << std::endl
               << "    -f  Sets the horizontal field of view (default: 60)" << std::endl
@@ -140,12 +141,13 @@ inline bool parse_cmd_line(int argc, char* argv[], UserSettings& settings) {
     settings.input_file = argv[1];
 
     std::unordered_map<std::string, UserSettings::Algorithm> supported_algs = {
-        {"pt", UserSettings::PT},
-        {"bpt", UserSettings::BPT},
-        {"vcm", UserSettings::VCM},
-        {"lt", UserSettings::LT},
-        {"ppm", UserSettings::PPM},
-        {"vcm_pt", UserSettings::VCM_PT}
+        {"pt",         UserSettings::PT},
+        {"bpt",        UserSettings::BPT},
+        {"vcm",        UserSettings::VCM},
+        {"lt",         UserSettings::LT},
+        {"ppm",        UserSettings::PPM},
+        {"vcm_pt",     UserSettings::VCM_PT},
+        {"photon_vis", UserSettings::PHOTON_VIS}
     };
 
     bool lp_count_given = false;

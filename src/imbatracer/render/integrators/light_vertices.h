@@ -70,7 +70,7 @@ struct LightPathVertex {
 using PhotonIterator = std::vector<LightPathVertex>::iterator;
 
 struct VCMPhoton {
-    float3 position;
+    float3 pos;
     float3 out_dir;
     float dVCM;
     float dVM;
@@ -80,7 +80,7 @@ struct VCMPhoton {
 
     VCMPhoton() {}
     VCMPhoton(LightPathVertex& r) {
-        position   = r.isect.pos;
+        pos        = r.isect.pos;
         out_dir    = r.isect.out_dir;
         dVCM       = r.dVCM;
         dVM        = r.dVM;

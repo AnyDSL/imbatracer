@@ -27,7 +27,7 @@ void VCM_INTEGRATOR::render(AtomicImage& img) {
     const float radius_alpha = 0.75f;
 
     int frame = cur_iteration_;
-    light_path_dbg_.start_frame(frame, settings_.width * settings_.height, settings_.concurrent_spp);
+    light_path_dbg_.start_frame(frame, settings_.light_path_count, scene_.light_count());
     techniques_dbg_.start_frame(settings_.width, settings_.height, settings_.concurrent_spp);
 
     light_vertices_.clear();
@@ -91,7 +91,7 @@ void VCM_INTEGRATOR::trace_light_paths(AtomicImage& img) {
 
             state_out.finite_light = l->is_finite();
 
-            light_path_dbg_.add_vertex(sample.pos, sample.dir, state_out);
+            light_path_dbg_.add_vertex(sample.pos, state_out);
         });
 
     if (algo != ALGO_LT) // Only build the hash grid when it is used.
@@ -182,10 +182,6 @@ void VCM_INTEGRATOR::bounce(VCMState& state_out, const Intersection& isect, BSDF
         { isect.pos.x, isect.pos.y, isect.pos.z, offset },
         { sample_dir.x, sample_dir.y, sample_dir.z, FLT_MAX }
     };
-
-    if (adjoint) { // adjoint == light path tracing
-        light_path_dbg_.add_vertex(isect.pos, sample_dir, state_out);
-    }
 }
 
 VCM_TEMPLATE
@@ -232,6 +228,8 @@ void VCM_INTEGRATOR::process_light_rays(RayQueue<VCMState>& rays_in, RayQueue<VC
             state.dVM  *= 1.0f / mis_pow(cos_theta_o);
 
             auto bsdf = isect.mat->get_bsdf(isect, bsdf_mem_arena, true);
+
+            light_path_dbg_.add_vertex(isect.pos, state);
 
             if (!isect.mat->is_specular()){ // Do not store vertices on materials described by a delta distribution.
                 if (algo != ALGO_LT) {
@@ -575,7 +573,7 @@ void VCM_INTEGRATOR::vertex_merging(const VCMState& state, const Intersection& i
     const int k = settings_.num_knn;
     auto photons = V_ARRAY(const VCMPhoton*, k);
     int count = light_vertices_.get_merge(isect.pos, photons, k);
-    const float radius_sqr = (count == k) ? lensqr(photons[k - 1]->position - isect.pos) : (pm_radius_ * pm_radius_);
+    const float radius_sqr = (count == k) ? lensqr(photons[k - 1]->pos - isect.pos) : (pm_radius_ * pm_radius_);
 
     rgb contrib(0.0f);
     for (int i = 0; i < count; ++i) {
@@ -596,7 +594,7 @@ void VCM_INTEGRATOR::vertex_merging(const VCMState& state, const Intersection& i
         const float mis_weight = algo == ALGO_PPM ? 1.0f : (1.0f / (mis_weight_light + 1.0f + mis_weight_camera));
 
         // Epanechnikov filter
-        const float d = lensqr(p->position - isect.pos);
+        const float d = lensqr(p->pos - isect.pos);
         const float kernel = 1.0f - d / radius_sqr;
 
         contrib += mis_weight * bsdf_value * kernel * p->throughput;
