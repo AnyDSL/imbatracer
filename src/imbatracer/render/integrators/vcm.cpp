@@ -260,7 +260,7 @@ void VCM_INTEGRATOR::process_light_rays(RayQueue<VCMState>& rays_in, RayQueue<VC
                     connect_to_camera(state, isect, bsdf, ray_out_shadow);
             }
 
-            const float offset = rays_in.hit(i).tmax * 1e-3f;
+            const float offset = rays_in.hit(i).tmax * 1e-4f;
             bounce(state, isect, bsdf, rays_in.ray(i), true, offset);
         }
     });
@@ -443,7 +443,7 @@ void VCM_INTEGRATOR::process_camera_rays(RayQueue<VCMState>& rays_in, RayQueue<V
             }
 
             // Continue the path using russian roulette.
-            const float offset = rays_in.hit(i).tmax * 1e-3f;
+            const float offset = rays_in.hit(i).tmax * 1e-4f;
             bounce(state, isect, bsdf, rays_in.ray(i), false, offset);
         }
     });
