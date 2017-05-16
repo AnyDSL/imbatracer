@@ -176,7 +176,7 @@ void RenderWindow::clear() {
 
 bool RenderWindow::write_image(const char* file_name) {
     const float weight = 1.0f / (frames_ * spp_);
-    store_png(file_name, accum_buffer_, weight, gamma_, false);
+    return store_png(file_name, accum_buffer_, weight, gamma_, false);
 }
 
 } // namespace imba

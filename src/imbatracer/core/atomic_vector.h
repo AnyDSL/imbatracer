@@ -56,8 +56,8 @@ private:
     template <typename Op>
     static T atomic_apply(std::atomic<T>& a, T b) {
         T old_val = a.load();
-        T desired_val = old_val + b;
         Op op;
+        T desired_val = op(old_val, b);
         while(!a.compare_exchange_weak(old_val, desired_val))
             desired_val = op(old_val, b);
         return desired_val;
