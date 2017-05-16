@@ -241,7 +241,8 @@ void VCM_INTEGRATOR::process_light_rays(RayQueue<VCMState>& rays_in, RayQueue<VC
 
             if (!isect.mat->is_specular()){ // Do not store vertices on materials described by a delta distribution.
                 float p = contrib_grid_[last_grid_](isect.pos);
-                p = std::max(0.1f, p);
+                p += 0.3f;
+                p = std::max(0.1f, std::min(1.0f, p));
 
                 if (algo != ALGO_LT && state.rng.random_float() < p) {
                     auto v = light_vertices_.add_vertex_to_cache(LightPathVertex(
