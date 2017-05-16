@@ -189,15 +189,15 @@ void Scene::upload_top_level_accel() {
 
 void Scene::compute_bounding_sphere() {
     // We use a box as an approximation
-    BBox scene_bb = BBox::empty();
+    scene_bb_ = BBox::empty();
     for (auto& inst : instances()) {
         auto bb = transform(inst.mat, mesh(inst.id).bounding_box());
-        scene_bb.extend(bb);
+        scene_bb_.extend(bb);
     }
-    const float radius = length(scene_bb.max - scene_bb.min) * 0.5f;
+    const float radius = length(scene_bb_.max - scene_bb_.min) * 0.5f;
     sphere_.inv_radius_sqr = 1.0f / sqr(radius);
     sphere_.radius = radius;
-    sphere_.center = (scene_bb.max + scene_bb.min) * 0.5f;
+    sphere_.center = (scene_bb_.max + scene_bb_.min) * 0.5f;
 }
 
 } // namespace imba

@@ -52,6 +52,7 @@ add_library(imba_render
             render/integrators/light_vertices.cpp
             render/integrators/photon_vis.h
             render/integrators/photon_vis.cpp
+            render/integrators/contrib_grid.h
 
             render/debug/path_debug.h
             render/debug/mis_debug.h

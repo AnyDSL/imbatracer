@@ -28,6 +28,7 @@ void VCM_INTEGRATOR::render(AtomicImage& img) {
 
     int frame = cur_iteration_;
     light_path_dbg_.start_frame(frame, settings_.light_path_count, scene_.light_count());
+    cam_path_dbg_.start_frame(frame, settings_.width * settings_.height * settings_.concurrent_spp, settings_.width * settings_.height);
     techniques_dbg_.start_frame(settings_.width, settings_.height, settings_.concurrent_spp);
 
     light_vertices_.clear();
@@ -50,6 +51,7 @@ void VCM_INTEGRATOR::render(AtomicImage& img) {
         trace_camera_paths(img);
 
     light_path_dbg_.end_frame(frame);
+    cam_path_dbg_.end_frame(frame);
     techniques_dbg_.end_frame(frame);
 }
 
@@ -388,6 +390,8 @@ void VCM_INTEGRATOR::process_camera_rays(RayQueue<VCMState>& rays_in, RayQueue<V
                 terminate_path(state);
                 continue;
             }
+
+            cam_path_dbg_.add_vertex(isect.pos, state);
 
             if (auto emit = isect.mat->emitter()) {
                 // A light source was hit directly. Add the weighted contribution.

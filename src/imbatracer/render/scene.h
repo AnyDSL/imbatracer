@@ -77,6 +77,7 @@ public:
     bool has_cpu_buffers() const { return cpu_buffers_; }
 
     const BSphere& bounding_sphere() const { return sphere_; }
+    const BBox& bounds() const { return scene_bb_; }
 
     int local_tri_id(int tri_id, int mesh_id) const {
         return tri_id - tri_layout_[mesh_id];
@@ -136,6 +137,7 @@ private:
     std::vector<InstanceNode> instance_nodes_;
 
     BSphere sphere_;
+    BBox scene_bb_;
 
     std::unique_ptr<EnvMap> env_map_;
 };

@@ -9,13 +9,63 @@ void PhotonVis::render(AtomicImage& img) {
             process_camera_rays(ray_in, ray_out_shadow, out);
         },
         [this] (int x, int y, ::Ray& ray_out, PhotonVisState& state_out) {
+            int subwnd = 0;
+            if (x > cam_.width() / 2) {
+                x -= cam_.width() / 2;
+                subwnd += 1;
+            }
+            if (y > cam_.height() / 2) {
+                y -= cam_.height() / 2;
+                subwnd += 2;
+            }
+
+            x *= 2;
+            y *= 2;
+
             // Sample a ray from the camera.
             const float sample_x = static_cast<float>(x) + state_out.rng.random_float();
             const float sample_y = static_cast<float>(y) + state_out.rng.random_float();
             ray_out = cam_.generate_ray(sample_x, sample_y);
 
             state_out.throughput = rgb(1.0f);
+            state_out.wnd = subwnd;
         });
+}
+
+struct GradientStep {
+    float value;
+    rgb color;
+};
+
+inline rgb colorize(float v) {
+    static GradientStep steps[] {
+        { 0.0f , { 0.0f, 0.0f, 0.0f} },
+        { 0.25f, { 0.0f, 0.0f, 1.0f} },
+        { 0.5f , { 0.0f, 1.0f, 0.0f} },
+        { 0.75f, { 1.0f, 1.0f, 0.0f} },
+        { 1.0f , { 1.0f, 0.0f, 0.0f} },
+    };
+
+    static int count = sizeof(steps) / sizeof(GradientStep);
+
+    v = std::min(0.99f, std::max(0.0f, v));
+
+    rgb lo;
+    rgb hi;
+    float t;
+    for (int i = 0; i < count; ++i) {
+        if (v < steps[i].value) {
+            hi = steps[i].color;
+            lo = steps[i - 1].color;
+
+            t = v - steps[i - 1].value;
+            t /= steps[i].value - steps[i - 1].value;
+
+            break;
+        }
+    }
+
+    return lerp(lo, hi, t);
 }
 
 void PhotonVis::process_camera_rays(RayQueue<PhotonVisState>& prim_rays, RayQueue<ShadowState>& shadow_rays, AtomicImage& out) {
@@ -37,51 +87,19 @@ void PhotonVis::process_camera_rays(RayQueue<PhotonVisState>& prim_rays, RayQueu
             // Add eye light shading
             rgb eye_light(cos_theta_o, cos_theta_o, cos_theta_o);
 
-            // Compute the contribution of nearby photons via density estimation.
-            const int k = settings_.num_knn;
-            auto photons = V_ARRAY(const PathLoader::DebugPhoton*, k);
-            int count = accel_.query(isect.pos, photons, k);
-            const float radius_sqr = (count == k) ? lensqr(photons[k - 1]->pos - isect.pos) : (radius_ * radius_);
+            auto connect_contrib = colorize(grid_light_(isect.pos, 1));
+            auto light_contrib   = colorize(grid_light_(isect.pos, 0));
+            auto light_density   = colorize(grid_light_(isect.pos, 2));
+            auto joint_contrib   = colorize(grid_light_(isect.pos, 0) + grid_light_(isect.pos, 1));
+            if (states[i].wnd == 0)
+                add_contribution(out, states[i].pixel_id, joint_contrib);
+            else if (states[i].wnd == 1)
+                add_contribution(out, states[i].pixel_id, rgb(connect_contrib));
+            else if (states[i].wnd == 2)
+                add_contribution(out, states[i].pixel_id, rgb(light_contrib));
+            else
+                add_contribution(out, states[i].pixel_id, rgb(light_density));
 
-            rgb contrib_pm(0.0f);
-            rgb contrib_vc(0.0f);
-            for (int i = 0; i < count; ++i) {
-                auto p = photons[i];
-
-                // Epanechnikov filter
-                const float d = lensqr(p->pos - isect.pos);
-                const float kernel = 1.0f - d / radius_sqr;
-
-                contrib_pm += kernel * p->contrib_pm;
-                contrib_vc += kernel * p->contrib_vc;
-            }
-
-            if (count == 0) {
-                //add_contribution(out, states[i].pixel_id, eye_light * 0.2f);
-                terminate_path(state);
-                continue;
-            }
-
-            // Complete the Epanechnikov kernel
-            contrib_pm *= 2.0f / (pi * radius_sqr * pl_.num_paths());
-            contrib_vc *= 2.0f / (pi * radius_sqr * pl_.num_paths());
-
-            // Colorize the contributions
-            float pm_lum = (luminance(contrib_pm)) / (pl_.max_luminance_pm());
-            float vc_lum = (luminance(contrib_vc)) / (pl_.max_luminance_vc());
-
-            if (is_black(contrib_pm)) pm_lum = 0.0f;
-            if (is_black(contrib_vc)) vc_lum = 0.0f;
-
-            pm_lum = std::max(0.0f, pm_lum);
-            pm_lum *= count;
-            vc_lum = std::max(0.0f, vc_lum);
-            vc_lum *= count;
-
-            auto pm_col = rgb(0,0.5,0) * (pm_lum) + (1.0f - (pm_lum)) * rgb(0.5,0,0);
-            auto vc_col = rgb(0,0.5,0) * (vc_lum) + (1.0f - (vc_lum)) * rgb(0.5,0,0);
-
-            add_contribution(out, states[i].pixel_id, pm_col * 0.98f + eye_light * 0.02f);
             terminate_path(state);
         }
     });

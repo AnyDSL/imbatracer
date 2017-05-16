@@ -15,7 +15,8 @@
 #include "imbatracer/frontend/cmd_line.h"
 
 // Enable this to write light path information to a file after each frame (SLOW!)
-#define LIGHT_PATH_DEBUG true
+#define LIGHT_PATH_DEBUG  true
+#define CAMERA_PATH_DEBUG true
 
 // Enable this to write the individual contributions from the techniques to separate images
 #define TECHNIQUES_DEBUG false
@@ -105,7 +106,8 @@ private:
         technique_count
     };
 
-    PathDebugger<VCMState, LIGHT_PATH_DEBUG> light_path_dbg_;
+    PathDebugger<VCMState,  true,  LIGHT_PATH_DEBUG> light_path_dbg_;
+    PathDebugger<VCMState, false, CAMERA_PATH_DEBUG> cam_path_dbg_;
     MISDebugger<technique_count, TECHNIQUES_DEBUG> techniques_dbg_;
 
     // Scheduling
@@ -154,3 +156,4 @@ using VCM_PT = VCMIntegrator<ALGO_PT >;
 } // namespace imba
 
 #endif // IMBA_VCM_H
+

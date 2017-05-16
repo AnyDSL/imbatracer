@@ -10,7 +10,7 @@
 namespace imba {
 
 /// Stores sampling informations on the light or camera paths for debugging.
-template <typename StateType, bool enabled>
+template <typename StateType, bool light_paths, bool enabled>
 class PathDebugger {
 public:
     /// Adds a new vertex along a path. Thread-safe between different paths.
@@ -66,7 +66,7 @@ private:
 
     /// Writes the path data to a file in a simple binary format (no. paths / vertices followed by data)
     void write_file(int frame_id) {
-        std::string filename = "path_debug_" + std::to_string(frame_id) + ".path";
+        std::string filename = "path_debug_" + std::to_string(frame_id) + (light_paths ? ".path" : "cam.path");
         std::ofstream out(filename, std::ios_base::binary);
 
         auto write_sz = [&out](uint32_t sz) {out.write(reinterpret_cast<const char*>(&sz), sizeof(sz));};
@@ -106,8 +106,10 @@ private:
 /// Loads the paths and vertices stored by a \see{PathDebugger} for visualization.
 class PathLoader {
 public:
-    void read_file(int frame_id) {
-        std::string filename = "path_debug_" + std::to_string(frame_id) + ".path";
+    void read_file(int frame_id, bool light_paths) {
+        max_lum_pm_ = max_lum_vc_ = 0.0f;
+
+        std::string filename = "path_debug_" + std::to_string(frame_id) + (light_paths ? ".path" : "cam.path");
         std::ifstream in(filename, std::ios_base::binary);
 
         auto read_sz = [&in]() -> uint32_t {
@@ -136,10 +138,14 @@ public:
                 v.used = v.contrib_pm.x != -1.0f || v.contrib_pm.y != -1.0f || v.contrib_pm.z != -1.0f ||
                          v.contrib_vc.x != -1.0f || v.contrib_vc.y != -1.0f || v.contrib_vc.z != -1.0f;
 
-                if (v.used) {
+                if (v.used && k > 0) { // do not consider photons on the light source!
                     photons_.emplace_back(v);
                     max_lum_pm_ = std::max(max_lum_pm_, luminance(v.contrib_pm));
                     max_lum_vc_ = std::max(max_lum_vc_, luminance(v.contrib_vc));
+                } else if (!light_paths) {
+                    v.contrib_pm = rgb(0.0f);
+                    v.contrib_vc = rgb(0.0f);
+                    photons_.emplace_back(v);
                 }
             }
         }

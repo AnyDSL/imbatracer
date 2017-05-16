@@ -21,12 +21,12 @@ namespace imba {
 struct RayState {
     union {
         int pixel_id;
-        int ray_id;
+        int light_id;
     };
 
     union {
         int sample_id;
-        int light_id;
+        int ray_id;
     };
 
     RNG rng;
