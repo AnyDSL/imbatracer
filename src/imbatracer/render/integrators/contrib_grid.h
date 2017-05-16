@@ -35,67 +35,92 @@ public:
     typedef std::function<void (VertexT&, float[N])> ContribFn;
     typedef std::function<float3(VertexT&)> PosFn;
 
-    /// Builds the grid from the given vertices.
-    /// \param begin    Forward iterator, first vertex
-    /// \param end      Forward iterator, behind last vertex
-    /// \param contrib  Function that computes the contribution of a vertex
-    /// \param pos      Function that computes the position of a vertex
-    template <typename ForIter>
-    void build(ForIter begin, ForIter end, ContribFn contrib, PosFn pos, int nx, int ny, int nz, const BBox& bounds) {
+    ContribGrid() {}
+
+    ContribGrid(int nx, int ny, int nz, const BBox& bounds, float v = 0.0f) {
+        init(nx, ny, nz, bounds, v);
+    }
+
+    void init(int nx, int ny, int nz, const BBox& bounds, float v) {
         nx_ = nx; ny_ = ny; nz_ = nz;
         grid_ = GridContainer(nx * ny * nz);
-
-        for (int i = 0; i < grid_.size(); ++i)
-            for (int k = 0; k < N; ++k) grid_[i][k] = 0.0f;
+        reset(v);
 
         // Add a safety margin to the bounding box.
         bbox_ = bounds;
         auto extents = bbox_.max - bbox_.min;
         bbox_.max += extents * 0.01f;
         bbox_.min -= extents * 0.01f;
-        extents = bbox_.max - bbox_.min;
 
+        extents = bbox_.max - bbox_.min;
         inv_cell_size_ = float3(nx / extents.x,
                                 ny / extents.y,
                                 nz / extents.z);
+    }
 
-        // Compute the total contributions
-        std::array<std::atomic<float>, N> max_val;
-        for (int k = 0; k < N; ++k) max_val[k] = 0.0f;
+    void reset(float v = 0.0f) {
+        for (int i = 0; i < grid_.size(); ++i)
+            for (int k = 0; k < N; ++k) grid_[i][k] = v;
+        for (int k = 0; k < N; ++k) max_val_[k] = v;
+    }
+
+    /// Builds the grid from the given vertices and normalizes the contribution to [0,1].
+    /// \param begin    Forward iterator, first vertex
+    /// \param end      Forward iterator, behind last vertex
+    /// \param contrib  Function that computes the contribution of a vertex
+    /// \param pos      Function that computes the position of a vertex
+    template <typename ForIter>
+    void build(ForIter begin, ForIter end, ContribFn contrib, PosFn pos) {
+        // Sum up the contributions from all vertices
         tbb::parallel_for(tbb::blocked_range<ForIter>(begin, end),
-            [this, &max_val, &pos, &contrib] (const tbb::blocked_range<ForIter>& range){
+            [this, &pos, &contrib] (const tbb::blocked_range<ForIter>& range){
             for (ForIter i = range.begin(); i != range.end(); ++i) {
-                int idx = cell_index(pos(*i));
-                assert(idx < grid_.size());
-
                 float c[N];
                 contrib(*i, c);
-                for (int k = 0; k < N; ++k) {
-                    atomic_add(grid_[idx][k], c[k]);
-
-                    // Compute the maximum value in a grid cell on-the-fly.
-                    // Assumes that all contributions are greater than zero!
-                    float v = grid_[idx][k];
-                    atomic_max(max_val[k], v);
-
-                    assert(c[k] > 0.0f);
-                }
+                auto p = pos(*i);
+                add(c, p);
             }
         });
 
-        // Normalize
+        normalize();
+    }
+
+    /// Adds the contribution of a vertex to the grid. Thread-safe.
+    void add(const float c[N], const float3& pos) {
+        for (int k = 0; k < N; ++k) add(c[k], pos, k);
+    }
+
+    /// Adds to one component of the contribution of a vertex in the grid. Thread-safe.
+    void add(float c, const float3& pos, int i = 0) {
+        assert(c > 0.0f);
+
+        int idx = cell_index(pos);
+        assert(idx < grid_.size());
+        atomic_add(grid_[idx][i], c);
+
+        // Update the maximum value in a grid cell on-the-fly.
+        // Assumes that all contributions are greater than zero!
+        float v = grid_[idx][i];
+        atomic_max(max_val_[i], v);
+    }
+
+    /// Normalizes all the contributions to the range [0,1]. NOT thread-safe!
+    void normalize() {
         tbb::parallel_for(tbb::blocked_range<int>(0, grid_.size()),
-            [this, &max_val, &pos, &contrib] (const tbb::blocked_range<int>& range){
+            [this] (const tbb::blocked_range<int>& range){
             for (int i = range.begin(); i != range.end(); ++i) {
                 for (int k = 0; k < N; ++k) {
                     float v = grid_[i][k];
-                    grid_[i][k] = v / max_val[k];
+                    grid_[i][k] = v / max_val_[k];
                 }
             }
         });
     }
 
-    float operator()(const float3& p, int i) {
+    /// Returns the normalized contribution of the grid cell containing a given point.
+    /// \param p The point
+    /// \param i Index of the desired component from the contribution vector.
+    float operator()(const float3& p, int i = 0) {
         return grid_[cell_index(p)][i];
     }
 
@@ -104,6 +129,7 @@ private:
     int nx_, ny_, nz_;
     BBox bbox_;
     float3 inv_cell_size_;
+    std::array<std::atomic<float>, N> max_val_;
 
     int cell_index(uint x, uint y, uint z) const {
         return x + y * nx_ + z * nx_ * ny_;

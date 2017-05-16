@@ -55,15 +55,15 @@ bench_settings = [
     #     'args': []
     # },
 
-    {
-        'name': 'Sponza behind curtain',
-        'scene': 'scenes/sponza/sponza.scene',
-        'reference': 'references/ref_sponza_curtain.png',
-        'width': 1024,
-        'height': 1024,
-        'base_filename': 'sponza_curtain',
-        'args': []
-    },
+    # {
+    #     'name': 'Sponza behind curtain',
+    #     'scene': 'scenes/sponza/sponza.scene',
+    #     'reference': 'references/ref_sponza_curtain.png',
+    #     'width': 1024,
+    #     'height': 1024,
+    #     'base_filename': 'sponza_curtain',
+    #     'args': []
+    # },
 
     {
         'name': 'Still Life',
@@ -105,6 +105,7 @@ for t in thread_counts:
                     })
 
 times_in_seconds = [30]
+same_time = True
 algorithms = ['vcm']
 convergence = False
 convergence_step_sec = 5
@@ -147,11 +148,16 @@ def run_benchmark(app, setting, path, time_sec, cmd_args):
             args = [app, setting['scene'],
                     '-w', str(setting['width']),
                     '-h', str(setting['height']),
-                    '-q', '-t', str(time_sec), '-a', alg,
+                    '-q', '-a', alg,
                     '--light-path-count', str(light_path_count),
                     out_filename]
             args.extend(setting['args'])
             args.extend(scheduling['args'])
+
+            if same_time:
+                args.extend(['-t', str(time_sec)])
+            else:
+                args.extend(['-s', str(time_sec)])
 
             if convergence:
                 args.extend(['--intermediate-path', path + setting['base_filename'] + '_' + alg + scheduling['abbr'] + '_conv_',

@@ -91,14 +91,15 @@ void PhotonVis::process_camera_rays(RayQueue<PhotonVisState>& prim_rays, RayQueu
             auto light_contrib   = colorize(grid_light_(isect.pos, 0));
             auto light_density   = colorize(grid_light_(isect.pos, 2));
             auto joint_contrib   = colorize(grid_light_(isect.pos, 0) + grid_light_(isect.pos, 1));
+            auto prod_power      = colorize(grid_light_(isect.pos, 3) * grid_cam_(isect.pos, 0));
             if (states[i].wnd == 0)
                 add_contribution(out, states[i].pixel_id, joint_contrib);
             else if (states[i].wnd == 1)
-                add_contribution(out, states[i].pixel_id, rgb(connect_contrib));
+                add_contribution(out, states[i].pixel_id, connect_contrib);
             else if (states[i].wnd == 2)
-                add_contribution(out, states[i].pixel_id, rgb(light_contrib));
+                add_contribution(out, states[i].pixel_id, light_contrib);
             else
-                add_contribution(out, states[i].pixel_id, rgb(light_density));
+                add_contribution(out, states[i].pixel_id, light_density);
 
             terminate_path(state);
         }

@@ -2,6 +2,7 @@
 #define IMBA_VCM_H
 
 #include "imbatracer/render/integrators/integrator.h"
+#include "imbatracer/render/integrators/contrib_grid.h"
 #include "imbatracer/render/scheduling/tile_scheduler.h"
 #include "imbatracer/render/ray_gen/tile_gen.h"
 #include "imbatracer/render/ray_gen/ray_gen.h"
@@ -15,8 +16,8 @@
 #include "imbatracer/frontend/cmd_line.h"
 
 // Enable this to write light path information to a file after each frame (SLOW!)
-#define LIGHT_PATH_DEBUG  true
-#define CAMERA_PATH_DEBUG true
+#define LIGHT_PATH_DEBUG  false
+#define CAMERA_PATH_DEBUG false
 
 // Enable this to write the individual contributions from the techniques to separate images
 #define TECHNIQUES_DEBUG false
@@ -57,6 +58,7 @@ struct VCMShadowState : ShadowState {
 
 template <VCMSubAlgorithm algo>
 class VCMIntegrator : public Integrator {
+    static constexpr int GRID_RES = 10;
 public:
     VCMIntegrator(Scene& scene, PerspectiveCamera& cam, RayScheduler<VCMState, VCMShadowState>& scheduler, const UserSettings& settings)
         : Integrator(scene, cam)
@@ -67,13 +69,21 @@ public:
         , light_tile_gen_(scene.light_count(), settings.light_path_count, settings.tile_size * settings.tile_size)
         , light_scheduler_(light_tile_gen_, scene, 1, settings.thread_count, settings.tile_size * settings.tile_size * 1.75f,
                            settings.traversal_platform == UserSettings::gpu) // TODO: make threshold explicit in TileGen
+        , last_grid_(0)
     {
+        contrib_grid_[0].init(GRID_RES, GRID_RES, GRID_RES, scene_.bounds(), 1.0f);
+        contrib_grid_[1].init(GRID_RES, GRID_RES, GRID_RES, scene_.bounds(), 0.0f);
     }
 
     virtual void render(AtomicImage& out) override;
     virtual void reset() override {
         pm_radius_ = base_radius_;
         cur_iteration_ = 0;
+
+        // The next frame will be the first from the new POV.
+        // Reset the grids.
+        contrib_grid_[0].reset(1.0f); // Last frame does not exist -> uniform
+        last_grid_ = 0;
     }
 
     virtual void preprocess() override {
@@ -114,7 +124,11 @@ private:
     UniformLightTileGen<VCMState> light_tile_gen_;
     RayScheduler<VCMState, VCMShadowState>& scheduler_;
     TileScheduler<VCMState, VCMShadowState> light_scheduler_;
+
+    // Light path information, photons, and VPLs
     LightVertices light_vertices_;
+    ContribGrid<LightPathVertex, 1> contrib_grid_[2];
+    int last_grid_; ///< The grid built in the last frame
 
     /// Computes the power for the power heuristic.
     inline float mis_pow(float a) {

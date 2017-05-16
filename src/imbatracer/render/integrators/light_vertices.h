@@ -95,6 +95,8 @@ class LightVertices {
     // Number of light paths to be traced when computing the average length and thus vertex cache size.
     static const int LIGHT_PATH_LEN_PROBES = 10000;
 public:
+    using VertIter = std::vector<LightPathVertex>::const_iterator;
+
     LightVertices(int path_count)
         : path_count_(path_count)
     {}
@@ -137,6 +139,14 @@ public:
     /// Removes all vertices currently inside the cache
     void clear() {
         last_.store(0);
+    }
+
+    VertIter begin() const {
+        return cache_.begin();
+    }
+
+    VertIter end() const {
+        return cache_.begin() + count_;
     }
 
 private:

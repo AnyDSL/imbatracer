@@ -69,7 +69,7 @@ struct UserSettings {
         , background(false)
         , fov(60.0f)
         , radius_factor(2.0f)
-        , max_path_len(10)
+        , max_path_len(25)
         , light_path_count(512 * 512 / 2)
         , concurrent_spp(1), tile_size(256), thread_count(4)
         , intermediate_image_time(10.0f), intermediate_image_name("")
@@ -98,7 +98,7 @@ inline void print_help() {
               << "    --cpu     Enables CPU traversal" << std::endl
               << "    --hybrid  Enables hybrid traversal (not yet implemented)" << std::endl
               << "    --write-accel <filename>   Writes the acceleration structure to the specified file." << std::endl
-              << "    --max-path-len <len>       Specifies the maximum number of vertices within any path. (default: 10)" << std::endl
+              << "    --max-path-len <len>       Specifies the maximum number of vertices within any path. (default: 25)" << std::endl
               << "    --light-path-count <nr>    Specifies the number of light paths to be traced per frame. (default: width * height * 0.5)" << std::endl
               << "    --spp <nr>                 Specifies the number of samples per pixel within a single frame. (default: 1)" << std::endl
               << "    --tile-size <size>         Specifies the size of the rectangular tiles. (default: 256)" << std::endl
