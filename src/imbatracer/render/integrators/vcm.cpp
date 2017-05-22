@@ -7,6 +7,7 @@
 #include <cassert>
 #include <cmath>
 #include <chrono>
+#include <functional>
 
 namespace imba {
 
@@ -33,9 +34,6 @@ void VCM_INTEGRATOR::render(AtomicImage& img) {
 
     light_vertices_.clear();
 
-    int cur_grid = (last_grid_ + 1) % 2;
-    contrib_grid_[cur_grid].reset(0.0f); // Current frame starts empty
-
     // Shrink the photon mapping radius for the next iteration. Every frame is an iteration of Progressive Photon Mapping.
     cur_iteration_++;
     pm_radius_ = base_radius_ / powf(static_cast<float>(cur_iteration_), 0.5f * (1.0f - radius_alpha));
@@ -57,8 +55,10 @@ void VCM_INTEGRATOR::render(AtomicImage& img) {
     cam_path_dbg_.end_frame(frame);
     techniques_dbg_.end_frame(frame);
 
-    last_grid_ = cur_grid;
-    contrib_grid_[cur_grid].normalize();
+    // divide all values (entry 2) by the number of photons in that cell (entry 1)
+    contrib_grid_.apply<std::divides<float>>(0, 2, 1);
+
+    contrib_grid_.normalize(0);
 }
 
 VCM_TEMPLATE
@@ -78,7 +78,7 @@ void VCM_INTEGRATOR::trace_light_paths(AtomicImage& img) {
             ray_out.org.x = sample.pos.x;
             ray_out.org.y = sample.pos.y;
             ray_out.org.z = sample.pos.z;
-            ray_out.org.w = 1e-3f;
+            ray_out.org.w = 1e-4f;
 
             ray_out.dir.x = sample.dir.x;
             ray_out.dir.y = sample.dir.y;
@@ -240,7 +240,7 @@ void VCM_INTEGRATOR::process_light_rays(RayQueue<VCMState>& rays_in, RayQueue<VC
             light_path_dbg_.add_vertex(isect.pos, state);
 
             if (!isect.mat->is_specular()){ // Do not store vertices on materials described by a delta distribution.
-                float p = contrib_grid_[last_grid_](isect.pos);
+                float p = contrib_grid_(isect.pos);
                 p += 0.3f;
                 p = std::max(0.1f, std::min(1.0f, p));
 
@@ -254,6 +254,7 @@ void VCM_INTEGRATOR::process_light_rays(RayQueue<VCMState>& rays_in, RayQueue<VC
                         state.path_length + 1));
 
                     light_path_dbg_.store_vertex(v, state);
+                    contrib_grid_.add(1.0f, isect.pos, 1);
                 }
 
                 if (algo != ALGO_PPM)
@@ -321,7 +322,7 @@ void VCM_INTEGRATOR::connect_to_camera(const VCMState& light_state, const Inters
     state.weight = mis_weight;
 #endif
 
-    const float offset = dist_to_cam * 1e-3f;
+    const float offset = dist_to_cam * 1e-4f;
     Ray ray {
         { isect.pos.x, isect.pos.y, isect.pos.z, offset },
         { dir_to_cam.x, dir_to_cam.y, dir_to_cam.z, dist_to_cam - offset }
@@ -460,7 +461,7 @@ void VCM_INTEGRATOR::direct_illum(VCMState& cam_state, const Intersection& isect
     const float cos_theta_o = sample.cos_out;
     assert_normalized(sample.dir);
 
-    const float offset = 1e-3f * (sample.distance == FLT_MAX ? 1.0f : sample.distance);
+    const float offset = 1e-4f * (sample.distance == FLT_MAX ? 1.0f : sample.distance);
 
     Ray ray {
         { isect.pos.x, isect.pos.y, isect.pos.z, offset },
@@ -571,7 +572,7 @@ void VCM_INTEGRATOR::connect(VCMState& cam_state, const Intersection& isect, BSD
         s.weight = mis_weight;
 #endif
 
-        const float offset = 1e-3f * connect_dist;
+        const float offset = 1e-4f * connect_dist;
 
         Ray ray {
             { isect.pos.x, isect.pos.y, isect.pos.z, offset },
@@ -588,8 +589,6 @@ void VCM_INTEGRATOR::vertex_merging(const VCMState& state, const Intersection& i
     auto photons = V_ARRAY(const VCMPhoton*, k);
     int count = light_vertices_.get_merge(isect.pos, photons, k);
     const float radius_sqr = (count == k) ? lensqr(photons[k - 1]->pos - isect.pos) : (pm_radius_ * pm_radius_);
-
-    auto& cur_grid = contrib_grid_[(last_grid_ + 1) % 2];
 
     rgb contrib(0.0f);
     for (int i = 0; i < count; ++i) {
@@ -616,7 +615,7 @@ void VCM_INTEGRATOR::vertex_merging(const VCMState& state, const Intersection& i
         contrib += mis_weight * bsdf_value * kernel * p->throughput;
 
         p->vert->total_contrib_pm.apply<std::plus<float>>(contrib);
-        cur_grid.add(luminance(contrib), p->pos);
+        contrib_grid_.add(luminance(contrib), p->pos, 2);
 
         techniques_dbg_.record(merging, mis_weight,
                                state.throughput * bsdf_value * kernel * p->throughput * 2.0f / (pi * radius_sqr * settings_.light_path_count),
@@ -644,9 +643,8 @@ void VCM_INTEGRATOR::process_shadow_rays_dbg(RayQueue<VCMShadowState>& ray_in, A
 
                 // If this was a connection to a VPL, add its contribution
                 if (states[i].vert) {
-                    auto& cur_grid = contrib_grid_[(last_grid_ + 1) % 2];
                     states[i].vert->total_contrib_vc.apply<std::plus<float>>(states[i].throughput);
-                    cur_grid.add(luminance(states[i].throughput), states[i].vert->isect.pos);
+                    contrib_grid_.add(luminance(states[i].throughput), states[i].vert->isect.pos, 2);
                 }
 
 #if TECHNIQUES_DEBUG

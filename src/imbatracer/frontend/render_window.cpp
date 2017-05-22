@@ -38,6 +38,7 @@ RenderWindow::RenderWindow(const UserSettings& settings, Integrator& r, InputCon
 {
     if (!settings.background) {
         window_ = SDL_CreateWindow("Imbatracer", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, settings.width, settings.height, 0);
+        window_id_ = SDL_GetWindowID(window_);
         SDL_GetWindowSurface(window_); // Creates a surface for the window
     }
     clear();
@@ -128,6 +129,11 @@ bool RenderWindow::handle_events() {
     while (SDL_PollEvent(&event)) {
         switch (event.type) {
             case SDL_KEYDOWN:
+                if (event.key.windowID != window_id_) break;
+
+                // Notify the integrator.
+                update |= integrator_.key_press(event.key.keysym.sym);
+
                 switch (event.key.keysym.sym) {
                     case SDLK_UP:        update |= ctrl_.key_press(Key::UP);        break;
                     case SDLK_DOWN:      update |= ctrl_.key_press(Key::DOWN);      break;
@@ -143,6 +149,7 @@ bool RenderWindow::handle_events() {
                 break;
 
             case SDL_MOUSEMOTION:
+                if (event.motion.windowID != window_id_) break;
                 update |= ctrl_.mouse_move(SDL_GetMouseState(nullptr, nullptr) & SDL_BUTTON(SDL_BUTTON_LEFT),
                                            -event.motion.yrel * mouse_speed_, -event.motion.xrel * mouse_speed_);
                 break;

@@ -171,5 +171,6 @@ int main(int argc, char* argv[]) {
     wnd.render_loop();
 
     delete integrator;
+
     return 0;
 }

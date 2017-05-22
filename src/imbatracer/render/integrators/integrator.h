@@ -38,6 +38,10 @@ public:
     /// The result of calling this function before preprocess() is undefined.
     float pixel_size() const { return pixel_size_; }
 
+    /// Allows integrators to react on user input (e.g. for debugging)
+    /// \returns true if the image should be reset.
+    virtual bool key_press(int32_t k) {}
+
 protected:
     const Scene& scene_;
     const PerspectiveCamera& cam_;

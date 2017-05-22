@@ -20,7 +20,8 @@ struct PhotonVisState : RayState {
 /// Visualizes a photon / VPL distribution that was computed and stored by
 /// a VCM, BPT, or PPM iteration
 class PhotonVis : public Integrator {
-    static constexpr int RES = 10;
+    static constexpr int RES = 40;
+
 public:
     PhotonVis(Scene& scene, PerspectiveCamera& cam, const UserSettings& settings)
         : Integrator(scene, cam)
@@ -40,8 +41,18 @@ public:
 
     virtual void preprocess() override {
         Integrator::preprocess();
+        load(0);
+    }
 
-        pl_light_.read_file(0, true);
+    void load(int frame) {
+        if (!pl_light_.read_file(frame, true)) {
+            std::cout << "Frame " << frame << " not found." << std::endl;
+            return;
+        }
+
+        grid_light_.reset();
+        grid_cam_.reset();
+
         grid_light_.build(pl_light_.photons_begin(), pl_light_.photons_end(),
                           [](const PathLoader::DebugPhoton& p, float c[]){
                               c[0] = luminance(p.contrib_pm);
@@ -58,6 +69,23 @@ public:
                             c[1] = 1.0f;
                         },
                         [](const PathLoader::DebugPhoton& p){ return p.pos; });
+    }
+
+    virtual bool key_press(int32_t k) override {
+        if (k >= '0' && k <= '9') {
+            int frame = k - '0';
+
+            // convert from 1,..,9,0 to 0,1,...,9,10
+            if (frame == 0) frame = 10;
+            frame--;
+
+            load(frame);
+
+            printf("frame %d\n", frame);
+            return true;
+        }
+
+        return false;
     }
 
 private:

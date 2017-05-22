@@ -17,7 +17,9 @@ public:
     void add_vertex(const float3& pos, const StateType& state) {
         if (!enabled) return;
 
-        int path_id = state.light_id + num_lights_ * state.ray_id;
+        int path_id = light_paths ? state.light_id + num_lights_ * state.ray_id
+                                  : state.pixel_id + num_pixels_ * state.sample_id;
+        assert(path_id < paths_.size());
         paths_[path_id].push_back(DebugVertex(pos, state.throughput));
     }
 
@@ -26,8 +28,11 @@ public:
     void store_vertex(LightPathVertex* vert, const StateType& state) {
         if (!enabled) return;
 
-        int path_id = state.light_id + num_lights_ * state.ray_id;
+        int path_id = light_paths ? (state.light_id + num_lights_ * state.ray_id)
+                                  : (state.pixel_id + num_pixels_ * state.sample_id);
+        assert(path_id < paths_.size());
         int vert_id = state.path_length;
+        assert(vert_id < paths_[path_id].size());
         paths_[path_id][vert_id].vert = vert;
     }
 
@@ -35,7 +40,10 @@ public:
     void start_frame(int frame_id, int num_paths, int num_lights) {
         if (!enabled) return;
 
-        paths_.resize(num_paths);
+        if (light_paths)
+            paths_.resize(num_paths * num_lights);
+        else
+            paths_.resize(num_paths);
         num_lights_ = num_lights;
     }
 
@@ -62,7 +70,11 @@ private:
 
 
     std::vector<std::vector<DebugVertex>> paths_;
-    int num_lights_;
+
+    union {
+        int num_lights_;
+        int num_pixels_;
+    };
 
     /// Writes the path data to a file in a simple binary format (no. paths / vertices followed by data)
     void write_file(int frame_id) {
@@ -106,11 +118,15 @@ private:
 /// Loads the paths and vertices stored by a \see{PathDebugger} for visualization.
 class PathLoader {
 public:
-    void read_file(int frame_id, bool light_paths) {
-        max_lum_pm_ = max_lum_vc_ = 0.0f;
-
+    bool read_file(int frame_id, bool light_paths) {
         std::string filename = "path_debug_" + std::to_string(frame_id) + (light_paths ? ".path" : "cam.path");
         std::ifstream in(filename, std::ios_base::binary);
+
+        if (!in) return false;
+
+        max_lum_pm_ = max_lum_vc_ = 0.0f;
+        paths_.clear();
+        photons_.clear();
 
         auto read_sz = [&in]() -> uint32_t {
             uint32_t sz;
@@ -149,6 +165,8 @@ public:
                 }
             }
         }
+
+        return true;
     }
 
     struct DebugVertex {

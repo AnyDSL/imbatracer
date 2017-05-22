@@ -58,7 +58,7 @@ struct VCMShadowState : ShadowState {
 
 template <VCMSubAlgorithm algo>
 class VCMIntegrator : public Integrator {
-    static constexpr int GRID_RES = 10;
+    static constexpr int GRID_RES = 40;
 public:
     VCMIntegrator(Scene& scene, PerspectiveCamera& cam, RayScheduler<VCMState, VCMShadowState>& scheduler, const UserSettings& settings)
         : Integrator(scene, cam)
@@ -71,8 +71,7 @@ public:
                            settings.traversal_platform == UserSettings::gpu) // TODO: make threshold explicit in TileGen
         , last_grid_(0)
     {
-        contrib_grid_[0].init(GRID_RES, GRID_RES, GRID_RES, scene_.bounds(), 1.0f);
-        contrib_grid_[1].init(GRID_RES, GRID_RES, GRID_RES, scene_.bounds(), 0.0f);
+        contrib_grid_.init(GRID_RES, GRID_RES, GRID_RES, scene_.bounds(), 0.0f);
     }
 
     virtual void render(AtomicImage& out) override;
@@ -82,8 +81,9 @@ public:
 
         // The next frame will be the first from the new POV.
         // Reset the grids.
-        contrib_grid_[0].reset(1.0f); // Last frame does not exist -> uniform
-        last_grid_ = 0;
+        contrib_grid_.reset(0, 1.0f); // Last frame does not exist -> uniform
+        contrib_grid_.reset(1, 0.0f);
+        contrib_grid_.reset(2, 0.0f);
     }
 
     virtual void preprocess() override {
@@ -127,7 +127,7 @@ private:
 
     // Light path information, photons, and VPLs
     LightVertices light_vertices_;
-    ContribGrid<LightPathVertex, 1> contrib_grid_[2];
+    ContribGrid<LightPathVertex, 3> contrib_grid_;
     int last_grid_; ///< The grid built in the last frame
 
     /// Computes the power for the power heuristic.

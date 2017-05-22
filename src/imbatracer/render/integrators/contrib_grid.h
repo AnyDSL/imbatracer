@@ -64,6 +64,12 @@ public:
         for (int k = 0; k < N; ++k) max_val_[k] = v;
     }
 
+    void reset(int k, float v = 0.0f) {
+        for (int i = 0; i < grid_.size(); ++i)
+            grid_[i][k] = v;
+        max_val_[k] = v;
+    }
+
     /// Builds the grid from the given vertices and normalizes the contribution to [0,1].
     /// \param begin    Forward iterator, first vertex
     /// \param end      Forward iterator, behind last vertex
@@ -91,17 +97,17 @@ public:
     }
 
     /// Adds to one component of the contribution of a vertex in the grid. Thread-safe.
-    void add(float c, const float3& pos, int i = 0) {
-        assert(c > 0.0f);
+    void add(float c, const float3& pos, int k = 0) {
+        assert(c >= 0.0f);
 
         int idx = cell_index(pos);
         assert(idx < grid_.size());
-        atomic_add(grid_[idx][i], c);
+        atomic_add(grid_[idx][k], c);
 
         // Update the maximum value in a grid cell on-the-fly.
         // Assumes that all contributions are greater than zero!
-        float v = grid_[idx][i];
-        atomic_max(max_val_[i], v);
+        float v = grid_[idx][k];
+        atomic_max(max_val_[k], v);
     }
 
     /// Normalizes all the contributions to the range [0,1]. NOT thread-safe!
@@ -117,11 +123,37 @@ public:
         });
     }
 
+    /// Normalizes the given contribution to the range [0,1]. NOT thread-safe!
+    void normalize(int k) {
+        tbb::parallel_for(tbb::blocked_range<int>(0, grid_.size()),
+            [this, k] (const tbb::blocked_range<int>& range){
+            for (int i = range.begin(); i != range.end(); ++i) {
+                float v = grid_[i][k];
+                grid_[i][k] = v / max_val_[k];
+            }
+        });
+    }
+
     /// Returns the normalized contribution of the grid cell containing a given point.
     /// \param p The point
     /// \param i Index of the desired component from the contribution vector.
     float operator()(const float3& p, int i = 0) {
         return grid_[cell_index(p)][i];
+    }
+
+    /// Applys an operation to every pair of value (index a and b), stores the result in the index res.
+    /// Parallelized, not thread-safe.
+    template <typename Op>
+    void apply(int res, int a, int b) {
+        tbb::parallel_for(tbb::blocked_range<int>(0, grid_.size()),
+            [this, res, a, b] (const tbb::blocked_range<int>& range){
+            Op op;
+            for (int i = range.begin(); i != range.end(); ++i) {
+                float v1 = grid_[i][a];
+                float v2 = grid_[i][b];
+                grid_[i][res] = op(v1, v2);
+            }
+        });
     }
 
 private:

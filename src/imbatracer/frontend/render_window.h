@@ -36,6 +36,7 @@ private:
 
     AtomicImage accum_buffer_;
     SDL_Window* window_;
+    int window_id_;
     Integrator& integrator_;
     InputController& ctrl_;
 
