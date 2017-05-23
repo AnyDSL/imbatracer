@@ -1,8 +1,0 @@
-mesh car_tweaked.obj
-accel car_tweaked.bvh
-
-pos  1.39812  1.09323  2.90469
-dir  -0.501679  -0.219764  -0.836673
-up   -0.118478  0.975533  -0.185196
-
-env 004_Half.hdr 1
