@@ -55,15 +55,15 @@ bench_settings = [
     #     'args': []
     # },
 
-    # {
-    #     'name': 'Sponza behind curtain',
-    #     'scene': 'scenes/sponza/sponza.scene',
-    #     'reference': 'references/ref_sponza_curtain.png',
-    #     'width': 1024,
-    #     'height': 1024,
-    #     'base_filename': 'sponza_curtain',
-    #     'args': []
-    # },
+    {
+        'name': 'Sponza behind curtain',
+        'scene': 'scenes/sponza/sponza.scene',
+        'reference': 'references/ref_sponza_curtain.png',
+        'width': 1024,
+        'height': 1024,
+        'base_filename': 'sponza_curtain',
+        'args': []
+    },
 
     {
         'name': 'Still Life',
@@ -106,7 +106,7 @@ for t in thread_counts:
 
 times_in_seconds = [30]
 same_time = True
-algorithms = ['vcm']
+algorithms = ['ppm']
 convergence = False
 convergence_step_sec = 5
 light_path_frac = 0.5
