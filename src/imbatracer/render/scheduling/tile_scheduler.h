@@ -14,7 +14,7 @@ namespace imba {
 template <typename StateType, typename ShadowStateType, bool enable_stats = true>
 class TileScheduler : public RayScheduler<StateType, ShadowStateType> {
     using BaseType = RayScheduler<StateType, ShadowStateType>;
-    using SamplePixelFn = typename BaseType::SamplePixelFn;
+    using SampleFn = typename BaseType::SampleFn;
     using ProcessPrimaryFn = typename BaseType::ProcessPrimaryFn;
     using ProcessShadowFn = typename BaseType::ProcessShadowFn;
 
@@ -63,7 +63,7 @@ public:
     void run_iteration(AtomicImage& image,
                        ProcessShadowFn process_shadow_rays,
                        ProcessPrimaryFn process_primary_rays,
-                       SamplePixelFn sample_fn) override final {
+                       SampleFn sample_fn) override final {
         tile_gen_.start_frame();
 
         std::vector<std::thread> threads;
@@ -84,14 +84,10 @@ private:
 
     TileGen<StateType>& tile_gen_;
 
-    // Every thread has two primary queues. Thread i owns queue[i * 2] and queue[i * 2 + 1].
     std::vector<RayQueue<StateType>*> thread_local_prim_queues_;
-
-    // Every thread has one shadow queue.
     std::vector<RayQueue<ShadowStateType>*> thread_local_shadow_queues_;
 
-    // Every thread has a ray generator.
-    // To prevent reallocation every time a new tile is needed, we use a memory pool.
+    /// Thread local memory pool for the ray generation.
     std::vector<uint8_t*> thread_local_ray_gen_;
 
     std::atomic<uint64_t> total_prim_rays_;
@@ -100,7 +96,7 @@ private:
     void render_thread(int thread_idx, AtomicImage& image,
                        ProcessShadowFn process_shadow_rays,
                        ProcessPrimaryFn process_primary_rays,
-                       SamplePixelFn sample_fn) {
+                       SampleFn sample_fn) {
         auto cur_tile = tile_gen_.next_tile(thread_local_ray_gen_[thread_idx]);
         while (cur_tile != nullptr) {
             // Get the ray queues for this thread.
@@ -111,8 +107,6 @@ private:
             cur_tile->start_frame();
             while(!cur_tile->is_empty() || prim_q->size() > MIN_QUEUE_SIZE) {
                 cur_tile->fill_queue(*prim_q, sample_fn);
-
-                // TODO Add regeneration again (minor performance increase)
 
                 if (enable_stats)
                     total_prim_rays_ += prim_q->size();

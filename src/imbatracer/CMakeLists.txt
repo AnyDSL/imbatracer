@@ -53,6 +53,8 @@ add_library(imba_render
             render/integrators/photon_vis.h
             render/integrators/photon_vis.cpp
             render/integrators/contrib_grid.h
+            render/integrators/deferred_vcm.h
+            render/integrators/deferred_vcm.cpp
 
             render/debug/path_debug.h
             render/debug/mis_debug.h
@@ -61,6 +63,7 @@ add_library(imba_render
             render/scheduling/queue_scheduler.h
             render/scheduling/tile_scheduler.h
             render/scheduling/ray_scheduler.h
+            render/scheduling/deferred_scheduler.h
 
             render/ray_gen/ray_gen.h
             render/ray_gen/tile_gen.h

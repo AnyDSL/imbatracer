@@ -56,9 +56,9 @@ void VCM_INTEGRATOR::render(AtomicImage& img) {
     techniques_dbg_.end_frame(frame);
 
     // divide all values (entry 2) by the number of photons in that cell (entry 1)
-    contrib_grid_.apply<std::divides<float>>(0, 2, 1);
+    //contrib_grid_.apply<std::divides<float>>(0, 2, 1);
 
-    contrib_grid_.normalize(0);
+    //contrib_grid_.normalize(0);
 }
 
 VCM_TEMPLATE

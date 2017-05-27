@@ -58,6 +58,7 @@ struct UserSettings {
     unsigned int tile_size;
     unsigned int thread_count;
     unsigned int num_connections;
+    unsigned int q_size;
 
     UserSettings()
         : input_file("")
@@ -77,6 +78,7 @@ struct UserSettings {
         , traversal_platform(cpu)
         , gamma(0.5f)
         , num_knn(10)
+        , q_size(256 * 256)
     {}
 };
 
@@ -97,6 +99,7 @@ inline void print_help() {
               << "    --gpu     Enables GPU traversal (default)" << std::endl
               << "    --cpu     Enables CPU traversal" << std::endl
               << "    --hybrid  Enables hybrid traversal (not yet implemented)" << std::endl
+              << "    --queue-size <size>        Specifies the maximum number of rays per queue. (default: 256 * 256)" << std::endl
               << "    --write-accel <filename>   Writes the acceleration structure to the specified file." << std::endl
               << "    --max-path-len <len>       Specifies the maximum number of vertices within any path. (default: 25)" << std::endl
               << "    --light-path-count <nr>    Specifies the number of light paths to be traced per frame. (default: width * height * 0.5)" << std::endl
@@ -216,6 +219,8 @@ inline bool parse_cmd_line(int argc, char* argv[], UserSettings& settings) {
             settings.traversal_platform = UserSettings::hybrid;
         else if (arg == "--gamma")
             parse_argument(++i, argc, argv, settings.gamma);
+        else if (arg == "--queue-size")
+            parse_argument(++i, argc, argv, settings.q_size);
         else if (arg == "--light-path-count") {
             parse_argument(++i, argc, argv, settings.light_path_count);
             lp_count_given = true;

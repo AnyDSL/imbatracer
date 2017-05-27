@@ -15,8 +15,8 @@ class RayGen {
 public:
     virtual ~RayGen() {}
 
-    typedef std::function<void (int, int, ::Ray&, StateType&)> SamplePixelFn;
-    virtual void fill_queue(RayQueue<StateType>&, SamplePixelFn) = 0;
+    typedef std::function<void (int, int, ::Ray&, StateType&)> SampleFn;
+    virtual void fill_queue(RayQueue<StateType>&, SampleFn) = 0;
     virtual void start_frame() = 0;
     virtual bool is_empty() const = 0;
 };
@@ -33,7 +33,7 @@ public:
 
     bool is_empty() const override { return next_pixel_ >= max_rays(); }
 
-    void fill_queue(RayQueue<StateType>& out, typename RayGen<StateType>::SamplePixelFn sample_pixel) override {
+    void fill_queue(RayQueue<StateType>& out, typename RayGen<StateType>::SampleFn sample_pixel) override {
         // only generate at most n samples per pixel
         if (next_pixel_ >= max_rays()) return;
 
@@ -98,7 +98,7 @@ public:
         , full_height_(full_height), full_width_(full_width)
     {}
 
-    void fill_queue(RayQueue<StateType>& out, typename RayGen<StateType>::SamplePixelFn sample_pixel) override {
+    void fill_queue(RayQueue<StateType>& out, typename RayGen<StateType>::SampleFn sample_pixel) override {
         PixelRayGen<StateType>::fill_queue(out,
             [sample_pixel, this](int x, int y, ::Ray& r, StateType& s) {
                 s.pixel_id = (y + top_) * full_width_ + (x + left_);
@@ -119,7 +119,7 @@ public:
         : light_(light), ray_count_(ray_count)
     {}
 
-    virtual void fill_queue(RayQueue<StateType>& out, typename RayGen<StateType>::SamplePixelFn sample_light) override {
+    virtual void fill_queue(RayQueue<StateType>& out, typename RayGen<StateType>::SampleFn sample_light) override {
         // calculate how many rays are needed to fill the queue
         int count = out.capacity() - out.size();
         count = std::min(count, ray_count_ - generated_);

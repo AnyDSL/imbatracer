@@ -14,7 +14,7 @@ namespace imba {
 template <typename StateType, typename ShadowStateType>
 class RayScheduler {
 protected:
-    using SamplePixelFn = typename RayGen<StateType>::SamplePixelFn;
+    using SampleFn = typename RayGen<StateType>::SampleFn;
     typedef std::function<void (RayQueue<StateType>&, RayQueue<ShadowStateType>&, AtomicImage&)> ProcessPrimaryFn;
     typedef std::function<void (RayQueue<ShadowStateType>&, AtomicImage&)> ProcessShadowFn;
 
@@ -29,7 +29,7 @@ public:
     virtual void run_iteration(AtomicImage& out,
                                ProcessShadowFn process_shadow_rays,
                                ProcessPrimaryFn process_primary_rays,
-                               SamplePixelFn sample_fn) = 0;
+                               SampleFn sample_fn) = 0;
 
     const bool gpu_traversal;
 

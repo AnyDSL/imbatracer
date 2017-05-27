@@ -146,7 +146,7 @@ private:
 template <typename StateType, typename ShadowStateType>
 class QueueScheduler : public RayScheduler<StateType, ShadowStateType> {
     using BaseType = RayScheduler<StateType, ShadowStateType>;
-    using SamplePixelFn = typename BaseType::SamplePixelFn;
+    using SampleFn = typename BaseType::SampleFn;
     using ProcessPrimaryFn = typename BaseType::ProcessPrimaryFn;
     using ProcessShadowFn = typename BaseType::ProcessShadowFn;
 
@@ -176,7 +176,7 @@ public:
 
     void run_iteration(AtomicImage& out,
                        ProcessShadowFn process_shadow_rays, ProcessPrimaryFn process_primary_rays,
-                       SamplePixelFn sample_fn) override final {
+                       SampleFn sample_fn) override final {
         ray_gen_.start_frame();
 
         done_processing_ = 0;
