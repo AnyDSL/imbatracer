@@ -12,6 +12,7 @@
 #include "imbatracer/render/integrators/pt.h"
 #include "imbatracer/render/integrators/vcm.h"
 #include "imbatracer/render/integrators/photon_vis.h"
+#include "imbatracer/render/integrators/deferred_vcm.h"
 
 //#define QUEUE_SCHEDULER
 
@@ -107,7 +108,14 @@ int main(int argc, char* argv[]) {
 
     const bool gpu_traversal = settings.traversal_platform == UserSettings::gpu;
 
-    if (settings.algorithm == UserSettings::PT) {
+    if (settings.algorithm == UserSettings::DEF_VCM) {
+        DeferredVCM integrator(scene, cam, settings);
+        integrator.preprocess();
+        ctrl.set_speed(integrator.pixel_size() * 10.0f);
+        RenderWindow wnd(settings, integrator, ctrl, settings.concurrent_spp);
+        wnd.render_loop();
+        return 0;
+    } else if (settings.algorithm == UserSettings::PT) {
 #ifdef QUEUE_SCHEDULER
         PixelRayGen<PTState> ray_gen(settings.width, settings.height, settings.concurrent_spp);
         QueueScheduler<PTState, ShadowState> scheduler(ray_gen, scene, 1, gpu_traversal);

@@ -83,6 +83,15 @@ public:
         return tri_id - tri_layout_[mesh_id];
     }
 
+    /// Determines the material id of the triangle hit
+    int mat_id(const Hit& hit) const {
+        const auto& inst = instance(hit.inst_id);
+        const auto& m = mesh(inst.id);
+        const int tri = local_tri_id(hit.tri_id, inst.id);
+        const int mat = m.indices()[tri * 4 + 3];
+        return mat;
+    }
+
     void set_env_map(EnvMap* map) {
         env_map_.reset(map);
     }

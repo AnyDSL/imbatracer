@@ -13,12 +13,13 @@ namespace imba {
 /// An adapted version of the \see{TileScheduler} to work best with the DeferredVCM Integrator.
 template <typename StateType>
 class DeferredScheduler {
-    using SampleFn = typename RayGen<StateType>::SampleFn;
-    using ShadeFn  = typename std::function<void (RayQueue<StateType>&, AtomicImage&)>;
-
     const bool gpu_traversal;
 
 public:
+    using SampleFn      = typename RayGen<StateType>::SampleFn;
+    using ShadeFn       = typename std::function<void (Ray&, Hit&, StateType&, AtomicImage&)>;
+    using ShadeEmptyFn  = typename std::function<void (Ray&, StateType&, AtomicImage&)>;
+
     DeferredScheduler(const Scene* scene,
                       int num_threads,
                       int q_size,
@@ -44,15 +45,16 @@ public:
 
     void run_iteration(TileGen<StateType>* tile_gen,
                        AtomicImage& image,
+                       ShadeEmptyFn shade_empties,
                        ShadeFn shade_hits,
                        SampleFn sample_fn) {
         tile_gen->start_frame();
 
         std::vector<std::thread> threads;
         for (int i = 0; i < num_threads_; ++i) {
-            threads.emplace_back([this, i, &image, shade_hits, sample_fn, tile_gen]()
+            threads.emplace_back([this, i, &image, shade_empties, shade_hits, sample_fn, tile_gen]()
                 {
-                    render_thread(i, image, shade_hits, sample_fn, tile_gen);
+                    render_thread(i, image, shade_empties, shade_hits, sample_fn, tile_gen);
                 });
         }
 
@@ -70,7 +72,7 @@ private:
     /// Thread local memory pool for the ray generation.
     std::vector<uint8_t*> thread_local_ray_gen_;
 
-    void render_thread(int thread_idx, AtomicImage& image, ShadeFn shade_hits, SampleFn sample_fn, TileGen<StateType>* tile_gen) {
+    void render_thread(int thread_idx, AtomicImage& image, ShadeEmptyFn shade_empties, ShadeFn shade_hits, SampleFn sample_fn, TileGen<StateType>* tile_gen) {
         auto cur_tile = tile_gen->next_tile(thread_local_ray_gen_[thread_idx]);
         while (cur_tile != nullptr) {
             // Get the ray queues for this thread.
@@ -84,7 +86,36 @@ private:
                 if (gpu_traversal) q->traverse_gpu(scene_->traversal_data_gpu());
                 else               q->traverse_cpu(scene_->traversal_data_cpu());
 
-                shade_hits(*q, image);
+                const int hit_count = q->compact_hits();
+                q->sort_by_material([this](const Hit& hit){ return scene_->mat_id(hit); },
+                                    scene_->material_count(), hit_count);
+
+                if (shade_empties) {
+                    tbb::parallel_for(tbb::blocked_range<int>(hit_count, q->size()),
+                    [&] (const tbb::blocked_range<int>& range)
+                    {
+                        for (auto i = range.begin(); i != range.end(); ++i) {
+                            shade_empties(q->ray(i), q->state(i), image);
+                        }
+                    });
+                }
+
+                if (shade_hits) {
+                    q->shrink(hit_count);
+
+                    tbb::parallel_for(tbb::blocked_range<int>(0, q->size()),
+                    [&] (const tbb::blocked_range<int>& range)
+                    {
+                        for (auto i = range.begin(); i != range.end(); ++i) {
+                            shade_hits(q->ray(i), q->hit(i), q->state(i), image);
+                        }
+                    });
+
+                    q->compact_rays();
+                } else {
+                    // If hits are not shaded: Delete all rays in the queue.
+                    q->clear();
+                }
             }
 
             // We are using the same memory for the new ray generation, so we
