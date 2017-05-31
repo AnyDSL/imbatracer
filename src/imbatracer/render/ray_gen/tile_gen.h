@@ -176,6 +176,19 @@ private:
     std::atomic<int> cur_tile_;
 };
 
+/// Generates tiles that represent coherent subsets of an array.
+template <typename StateType>
+class ArrayTileGen : public TileGen<StateType> {
+    using typename TileGen<StateType>::TilePtr;
+
+public:
+    TilePtr next_tile(uint8_t*) override final {}
+
+    size_t sizeof_ray_gen() const override final { return sizeof(ArrayRayGen<StateType>); }
+
+    void start_frame() override final {}
+};
+
 } // namespace imba
 
 #endif // IMBA_TILE_GEN_H

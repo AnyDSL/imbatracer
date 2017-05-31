@@ -97,6 +97,14 @@ public:
 
     const float image_plane_dist() const { return img_plane_dist_; }
 
+    /// Returns the pdf for sampling the given direction form this camera.
+    float pdf(const float3& d) const {
+        // TODO, check that the direction lies within the frustum.
+
+        const float cos_theta_o = dot(d, forward_);
+        return sqr(img_plane_dist_ / cos_theta_o) / cos_theta_o;
+    }
+
 private:
     float width_;
     float height_;

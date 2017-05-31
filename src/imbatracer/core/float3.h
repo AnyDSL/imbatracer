@@ -4,6 +4,8 @@
 #include <cmath>
 #include "imbatracer/core/float2.h"
 
+#include "imbatracer/core/traversal_interface.h"
+
 namespace imba {
 
 struct float4;
@@ -16,6 +18,8 @@ struct float3 {
     float3(float x, float y, float z) : x(x), y(y), z(z) {}
     float3(const float2& f, float z) : x(f.x), y(f.y), z(z) {}
     float3(float x, const float2& f) : x(x), y(f.x), z(f.y) {}
+
+    float3(const Vec4& v) : x(v.x), y(v.y), z(v.z) {}
 
     float operator [] (int axis) const { return *(&x + axis); }
     float& operator [] (int axis) { return *(&x + axis); }

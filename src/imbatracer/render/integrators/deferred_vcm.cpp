@@ -12,8 +12,10 @@ using ThreadLocalMemArena =
 static ThreadLocalMemArena bsdf_memory_arenas;
 
 void DeferredVCM::render(AtomicImage& img) {
-    trace_camera_paths(img);
-    trace_light_paths(img);
+    PartialMIS::setup_iteration(pm_radius_, settings_.light_path_count, MIS_ALL);
+
+    trace_camera_paths();
+    trace_light_paths();
 
     direct_illum(img);
     connect_to_camera(img);
@@ -21,18 +23,20 @@ void DeferredVCM::render(AtomicImage& img) {
     merge(img);
 }
 
-void DeferredVCM::trace_camera_paths(AtomicImage& img) {
-    DeferredScheduler<State>::ShadeEmptyFn empty;
+void DeferredVCM::trace_camera_paths() {
+    // TODO: refactor the AtomicImage out of here (by removing it / adding a special case in the scheduler)
+
+    DeferredScheduler<State>::ShadeEmptyFn env_hit;
     if (scene_.env_map()) {
-        empty = [this] (Ray& r, State& s, AtomicImage& img) {
-            process_camera_empties(r, s, img);
+        env_hit = [this] (Ray& r, State& s) {
+            process_envmap_hits(r, s);
         };
     }
 
-    scheduler_.run_iteration(&camera_tile_gen_, img,
-        empty,
-        [this] (Ray& r, Hit& h, State& s, AtomicImage& img) {
-            process_camera_hits(r, h, s, img);
+    scheduler_.run_iteration(&camera_tile_gen_,
+        env_hit,
+        [this] (Ray& r, Hit& h, State& s) {
+            process_hits(r, h, s, cam_verts_.get());
         },
         [this] (int x, int y, Ray& ray, State& state) {
             // Sample a ray from the camera.
@@ -44,15 +48,17 @@ void DeferredVCM::trace_camera_paths(AtomicImage& img) {
             state.throughput = rgb(1.0f);
             state.path_length = 1;
 
-            init_camera_mis(ray, state);
+            float pdf = cam_.pdf(ray.dir);
+
+            state.mis.init_camera(pdf);
         });
 }
 
-void DeferredVCM::trace_light_paths(AtomicImage& img) {
-    scheduler_.run_iteration(&light_tile_gen_, img,
+void DeferredVCM::trace_light_paths() {
+    scheduler_.run_iteration(&light_tile_gen_,
         nullptr,
-        [this] (Ray& r, Hit& h, State& s, AtomicImage& img) {
-            process_light_hits(r, h, s, img);
+        [this] (Ray& r, Hit& h, State& s) {
+            process_hits(r, h, s, light_verts_.get());
         },
         [this] (int ray_id, int light_id, ::Ray& ray, State& state) {
             auto& l = scene_.light(light_id);
@@ -73,15 +79,20 @@ void DeferredVCM::trace_light_paths(AtomicImage& img) {
             state.throughput = sample.radiance / pdf_lightpick;
             state.path_length = 1;
 
-            init_light_mis(ray, state);
+            state.mis.init_light(sample.pdf_emit_w, sample.pdf_direct_a, pdf_lightpick, sample.cos_out, l->is_finite(), l->is_delta());
+
+            light_verts_->add(Vertex(state.mis, state.throughput, -1));
         });
 }
 
 void DeferredVCM::bounce(State& state, const Intersection& isect, BSDF* bsdf, Ray& ray, bool adjoint, float offset) {
-    RNG& rng = state.rng;
+    if (state.path_length >= settings_.max_path_len) {
+        terminate_path(state);
+        return;
+    }
 
     float rr_pdf;
-    if (!russian_roulette(state.throughput, rng.random_float(), rr_pdf)) {
+    if (!russian_roulette(state.throughput, state.rng.random_float(), rr_pdf)) {
         terminate_path(state);
         return;
     }
@@ -89,7 +100,7 @@ void DeferredVCM::bounce(State& state, const Intersection& isect, BSDF* bsdf, Ra
     float pdf_dir_w;
     float3 sample_dir;
     BxDFFlags sampled_flags;
-    auto bsdf_value = bsdf->sample(isect.out_dir, sample_dir, rng, BSDF_ALL, sampled_flags, pdf_dir_w);
+    auto bsdf_value = bsdf->sample(isect.out_dir, sample_dir, state.rng, BSDF_ALL, sampled_flags, pdf_dir_w);
 
     bool is_specular = sampled_flags & BSDF_SPECULAR;
 
@@ -105,13 +116,9 @@ void DeferredVCM::bounce(State& state, const Intersection& isect, BSDF* bsdf, Ra
     const float cos_theta_i = adjoint ? fabsf(shading_normal_adjoint(isect.normal, isect.geom_normal, isect.out_dir, sample_dir))
                                       : fabsf(dot(sample_dir, isect.normal));
 
-    if (adjoint)
-        update_light_mis(state);
-    else
-        update_camera_mis(state);
-
     state.throughput *= bsdf_value * cos_theta_i / (rr_pdf * pdf_dir_w);
     state.path_length++;
+    state.mis.update_bounce(pdf_dir_w, pdf_rev_w, cos_theta_i, is_specular);
 
     ray = Ray {
         { isect.pos.x, isect.pos.y, isect.pos.z, offset },
@@ -119,11 +126,15 @@ void DeferredVCM::bounce(State& state, const Intersection& isect, BSDF* bsdf, Ra
     };
 }
 
-void DeferredVCM::process_camera_empties(Ray& r, State& state, AtomicImage& img) {
+void DeferredVCM::process_envmap_hits(Ray& r, State& state) {
     // TODO
+    // The environment map was "hit"
+    // I should record this hit somehow, to
+    //   a) help guiding environment map sampling
+    //   b) do the environment map hit evaluation in a deferred way as well, consistent with the rest of the algorithm
 }
 
-void DeferredVCM::process_camera_hits(Ray& r, Hit& h, State& state, AtomicImage& img) {
+void DeferredVCM::process_hits(Ray& r, Hit& h, State& state, VertCache* cache) {
     auto& bsdf_mem_arena = bsdf_memory_arenas.local();
     bsdf_mem_arena.free_all();
 
@@ -138,51 +149,12 @@ void DeferredVCM::process_camera_hits(Ray& r, Hit& h, State& state, AtomicImage&
 
     auto bsdf = isect.mat->get_bsdf(isect, bsdf_mem_arena);
 
-    if (auto emit = isect.mat->emitter()) {
-        // A light source was hit directly. Add the weighted contribution.
-        float pdf_lightpick = 1.0f / scene_.light_count();
-        float pdf_direct_a, pdf_emit_w;
+    state.mis.update_hit(cos_theta_o, h.tmax * h.tmax);
 
-        rgb radiance = emit->radiance(isect.out_dir, isect.geom_normal, pdf_direct_a, pdf_emit_w);
-
-        const float mis_weight = 1.0f; // TODO
-
-        rgb color = state.throughput * radiance * mis_weight;
-        add_contribution(img, state.pixel_id, color);
-
-        terminate_path(state);
-        return;
-    }
-
-    if (state.path_length >= settings_.max_path_len) {
-        terminate_path(state);
-        return;
-    }
-
-    // Continue the path using russian roulette.
-    const float offset = h.tmax * 1e-4f;
-    bounce(state, isect, bsdf, r, false, offset);
-}
-
-void DeferredVCM::process_light_hits(Ray& r, Hit& h, State& state, AtomicImage& img) {
-    auto& bsdf_mem_arena = bsdf_memory_arenas.local();
-    bsdf_mem_arena.free_all();
-
-    RNG& rng = state.rng;
-    const auto isect = calculate_intersection(scene_, h, r);
-    const float cos_theta_o = fabsf(dot(isect.out_dir, isect.normal));
-
-    if (cos_theta_o == 0.0f) { // Prevent NaNs
-        terminate_path(state);
-        return;
-    }
-
-    auto bsdf = isect.mat->get_bsdf(isect, bsdf_mem_arena);
-
-    if (state.path_length >= settings_.max_path_len) {
-        terminate_path(state);
-        return;
-    }
+    if (!isect.mat->is_specular())
+        state.ancestor = cache->add(Vertex(state.mis, state.throughput, state.ancestor));
+    else
+        state.ancestor = -1;
 
     // Continue the path using russian roulette.
     const float offset = h.tmax * 1e-4f;

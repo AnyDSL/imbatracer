@@ -304,7 +304,6 @@ void VCM_INTEGRATOR::connect_to_camera(const VCMState& light_state, const Inters
     // Compute conversion factor from surface area to image plane and vice versa.
     const float img_to_surf = (sqr(cam_.image_plane_dist()) * cos_theta_surf) /
                               (dist_to_cam_sqr * cos_theta_cam * sqr(cos_theta_cam));
-    const float surf_to_img = 1.0f / img_to_surf;
 
     // Compute the MIS weight.
     const float pdf_cam = img_to_surf; // Pixel sampling pdf is one as pixel area is one by convention.

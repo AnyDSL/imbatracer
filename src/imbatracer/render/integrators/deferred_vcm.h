@@ -4,6 +4,8 @@
 #include "imbatracer/render/scheduling/deferred_scheduler.h"
 
 #include "imbatracer/render/integrators/integrator.h"
+#include "imbatracer/render/integrators/deferred_vertices.h"
+#include "imbatracer/render/integrators/deferred_mis.h"
 
 #include "imbatracer/render/ray_gen/tile_gen.h"
 #include "imbatracer/render/ray_gen/ray_gen.h"
@@ -20,13 +22,11 @@ class DeferredVCM : public Integrator {
         /// Number of vertices along this path until now (includes vertex at camera / light)
         int path_length;
 
-        // partial MIS weights
-        float partial_unidir;
-        float partial_connect;
-        float partial_merge;
+        /// Index within the vertex cache where the previous vertex along this path was stored
+        /// -1 if the ancestor was not stored (e.g. is on a specular surface, first vertex, cache too small, ...)
+        int ancestor;
 
-        /// pdf for sampling the current ray direction at the last intersection
-        float last_pdf;
+        PartialMIS mis;
     };
 
     struct ShadowState : public RayState {
@@ -34,38 +34,16 @@ class DeferredVCM : public Integrator {
         rgb contrib;
     };
 
-    class ConnectTileGen : public TileGen<ShadowState> {
-    public:
-        using typename TileGen<ShadowState>::TilePtr;
+    struct Vertex {
+        PartialMIS mis;
+        rgb contrib; ///< The power or importance of the path leading to this vertex
+        int ancestor;
 
-        TilePtr next_tile(uint8_t*) override final {}
-
-        size_t sizeof_ray_gen() const override final {}
-
-        void start_frame() override final {}
+        Vertex() {}
+        Vertex(const PartialMIS& mis, const rgb& c, int a) : mis(mis), contrib(c), ancestor(a) {}
     };
 
-    class NextEventTileGen : public TileGen<ShadowState> {
-    public:
-        using typename TileGen<ShadowState>::TilePtr;
-
-        TilePtr next_tile(uint8_t*) override final {}
-
-        size_t sizeof_ray_gen() const override final {}
-
-        void start_frame() override final {}
-    };
-
-    class CamConnectTileGen : public TileGen<ShadowState> {
-    public:
-        using typename TileGen<ShadowState>::TilePtr;
-
-        TilePtr next_tile(uint8_t*) override final {}
-
-        size_t sizeof_ray_gen() const override final {}
-
-        void start_frame() override final {}
-    };
+    using VertCache = DeferredVertices<Vertex>;
 
 public:
     DeferredVCM(Scene& scene, PerspectiveCamera& cam, const UserSettings& settings)
@@ -79,9 +57,18 @@ public:
                      std::max(camera_tile_gen_.sizeof_ray_gen(), light_tile_gen_.sizeof_ray_gen()))
         //, shadow_scheduler_() TODO
     {
+        // Compute the required cache size for storing the light and camera vertices.
+        bool use_gpu = settings.traversal_platform == UserSettings::gpu;
+        int avg_light_v = estimate_light_path_len(scene, use_gpu, 10000);
+        int avg_cam_v = estimate_cam_path_len(scene, cam, use_gpu, 1);
+        int num_cam_v   = 1.1f * avg_cam_v * settings.width * settings.height * settings.concurrent_spp;
+        int num_light_v = 1.1f * avg_light_v * settings.light_path_count;
+
+        cam_verts_.reset(new VertCache(num_cam_v));
+        light_verts_.reset(new VertCache(num_light_v));
     }
 
-    void render(AtomicImage& out) override final;
+    void render(AtomicImage& img) override final;
 
     void reset() override final {
         pm_radius_ = base_radius_;
@@ -106,11 +93,13 @@ private:
     DeferredScheduler<State> scheduler_;
     //DeferredScheduler<ShadowState> shadow_scheduler_;
 
-    void trace_camera_paths(AtomicImage& out);
-    void process_camera_hits(Ray& r, Hit& h, State& s, AtomicImage& img);
-    void process_light_hits(Ray& r, Hit& h, State& s, AtomicImage& img);
-    void process_camera_empties(Ray& r, State& s, AtomicImage& img);
-    void trace_light_paths(AtomicImage& img);
+    std::unique_ptr<VertCache> cam_verts_;
+    std::unique_ptr<VertCache> light_verts_;
+
+    void trace_camera_paths();
+    void trace_light_paths();
+    void process_hits(Ray& r, Hit& h, State& s, VertCache* cache);
+    void process_envmap_hits(Ray& r, State& s);
 
     void bounce(State& state_out, const Intersection& isect, BSDF* bsdf, Ray& ray_out, bool adjoint, float offset);
 
@@ -123,37 +112,10 @@ private:
     }
 
     // Sampling techniques (additional to camera rays hitting the light)
-    void direct_illum(AtomicImage& out);
-    void connect_to_camera(AtomicImage& out);
-    void connect(AtomicImage& out);
-    void merge(AtomicImage& out);
-
-    // MIS weight computations
-    inline void init_camera_mis(const Ray& r, State& s) {
-        const float3 dir(r.dir.x, r.dir.y, r.dir.z);
-        const float cos_theta_o = dot(dir, cam_.dir());
-
-        // PDF on image plane is 1. We need to convert this from image plane area to solid angle.
-
-        assert(cos_theta_o > 0.0f);
-        const float pdf_cam_w = sqr(cam_.image_plane_dist() / cos_theta_o) / cos_theta_o;
-
-        s.partial_connect = 1.0f;
-        s.partial_merge   = 0.0f;
-        s.partial_unidir  = 1.0f;
-    }
-
-    inline void update_camera_mis(State& s) {
-
-    }
-
-    inline void update_light_mis(State& s) {
-
-    }
-
-    inline void init_light_mis(const Ray& r, State& s) {
-
-    }
+    void direct_illum(AtomicImage& img);
+    void connect_to_camera(AtomicImage& img);
+    void connect(AtomicImage& img);
+    void merge(AtomicImage& img);
 };
 
 } // namespace imba
