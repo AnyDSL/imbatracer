@@ -182,11 +182,40 @@ class ArrayTileGen : public TileGen<StateType> {
     using typename TileGen<StateType>::TilePtr;
 
 public:
-    TilePtr next_tile(uint8_t*) override final {}
+    ArrayTileGen() {}
+
+    ArrayTileGen(int tile_size, int size) {
+        reset(tile_size, size);
+    }
+
+    void reset(int tile_size, int size) {
+        tile_sz_ = tile_size;
+        sz_ = size;
+        tile_count_ = size / tile_size + (size % tile_size ? 1 : 0);
+        cur_tile_ = 0;
+    }
+
+    TilePtr next_tile(uint8_t* mem) override final {
+        int t = cur_tile_++;
+        if (t >= tile_count_)
+            return nullptr;
+
+        int offset = tile_sz_ * t;
+        int len = std::min(tile_sz_ * (t + 1), sz_) - offset;
+        return TilePtr(new (mem) ArrayRayGen<StateType>(offset, len));
+    }
 
     size_t sizeof_ray_gen() const override final { return sizeof(ArrayRayGen<StateType>); }
 
-    void start_frame() override final {}
+    void start_frame() override final {
+        cur_tile_ = 0;
+    }
+
+private:
+    int sz_;
+    int tile_sz_;
+    int tile_count_;
+    std::atomic<int> cur_tile_;
 };
 
 } // namespace imba

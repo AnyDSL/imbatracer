@@ -12,13 +12,16 @@ using ThreadLocalMemArena =
 static ThreadLocalMemArena bsdf_memory_arenas;
 
 void DeferredVCM::render(AtomicImage& img) {
-    PartialMIS::setup_iteration(pm_radius_, settings_.light_path_count, MIS_ALL);
+    PartialMIS::setup_iteration(pm_radius_, settings_.light_path_count, MIS_NEXTEVT_CAM);
+
+    cam_verts_->clear();
+    light_verts_->clear();
 
     trace_camera_paths();
-    trace_light_paths();
+    //trace_light_paths();
 
-    direct_illum(img);
-    connect_to_camera(img);
+    path_tracing(img);
+    light_tracing(img);
     connect(img);
     merge(img);
 }
@@ -66,22 +69,15 @@ void DeferredVCM::trace_light_paths() {
             float pdf_lightpick = 1.0f / scene_.light_count();
 
             Light::EmitSample sample = l->sample_emit(state.rng);
-            ray.org.x = sample.pos.x;
-            ray.org.y = sample.pos.y;
-            ray.org.z = sample.pos.z;
-            ray.org.w = 1e-4f;
-
-            ray.dir.x = sample.dir.x;
-            ray.dir.y = sample.dir.y;
-            ray.dir.z = sample.dir.z;
-            ray.dir.w = FLT_MAX;
+            ray.org = make_vec4(sample.pos, 1e-4f);
+            ray.dir = make_vec4(sample.dir, FLT_MAX);
 
             state.throughput = sample.radiance / pdf_lightpick;
             state.path_length = 1;
 
             state.mis.init_light(sample.pdf_emit_w, sample.pdf_direct_a, pdf_lightpick, sample.cos_out, l->is_finite(), l->is_delta());
 
-            light_verts_->add(Vertex(state.mis, state.throughput, -1));
+            light_verts_->add(Vertex(state.mis, state.throughput, -1, light_id, 1, sample.pos));
         });
 }
 
@@ -152,7 +148,7 @@ void DeferredVCM::process_hits(Ray& r, Hit& h, State& state, VertCache* cache) {
     state.mis.update_hit(cos_theta_o, h.tmax * h.tmax);
 
     if (!isect.mat->is_specular())
-        state.ancestor = cache->add(Vertex(state.mis, state.throughput, state.ancestor));
+        state.ancestor = cache->add(Vertex(state.mis, state.throughput, state.ancestor, state.pixel_id, state.path_length, isect));
     else
         state.ancestor = -1;
 
@@ -161,11 +157,53 @@ void DeferredVCM::process_hits(Ray& r, Hit& h, State& state, VertCache* cache) {
     bounce(state, isect, bsdf, r, false, offset);
 }
 
-void DeferredVCM::direct_illum(AtomicImage& out) {
+void DeferredVCM::path_tracing(AtomicImage& out) {
+    ArrayTileGen<ShadowState> tile_gen(settings_.tile_size, cam_verts_->size());
+    shadow_scheduler_.run_iteration(&tile_gen,
+        [this, &out] (Ray& r, ShadowState& s) {
+            add_contribution(out, s.pixel_id, s.contrib);
+        },
+        nullptr, // hits --> occluded
+        [this] (int vert_id, int unused, ::Ray& ray, ShadowState& state) {
+            const auto& cam_v   = *cam_verts_;
+            const auto& light_v = *light_verts_;
+            const auto& v = cam_v[vert_id];
 
+            // TODO: special case if the hit is on a light source
+
+            // Sample a point on a light
+            const auto& ls = scene_.light(state.rng.random_int(0, scene_.light_count()));
+            const float pdf_lightpick_inv = scene_.light_count();
+            const auto sample = ls->sample_direct(v.isect.pos, state.rng);
+            const float cos_theta_i = fabsf(dot(v.isect.normal, sample.dir));
+
+            // Evaluate the BSDF and compute the pdf values
+            auto& bsdf_mem_arena = bsdf_memory_arenas.local();
+            bsdf_mem_arena.free_all();
+            auto bsdf = v.isect.mat->get_bsdf(v.isect, bsdf_mem_arena);
+
+            auto bsdf_value = bsdf->eval(v.isect.out_dir, sample.dir, BSDF_ALL);
+            float pdf_dir_w = bsdf->pdf(v.isect.out_dir, sample.dir);
+            float pdf_rev_w = bsdf->pdf(sample.dir, v.isect.out_dir);
+
+            if (pdf_dir_w == 0.0f || pdf_rev_w == 0.0f)
+                return;
+
+            const float mis_weight = mis_weight_di(v.mis, pdf_dir_w, pdf_rev_w,
+                                                   sample.pdf_direct_w, sample.pdf_emit_w, pdf_lightpick_inv,
+                                                   cos_theta_i, sample.cos_out, ls->is_delta());
+
+            const float offset = 1e-3f * (sample.distance == FLT_MAX ? 1.0f : sample.distance);
+
+            ray.org = make_vec4(v.isect.pos, offset);
+            ray.dir = make_vec4(sample.dir, sample.distance - offset);
+
+            state.contrib  = v.throughput * bsdf_value * cos_theta_i * sample.radiance * mis_weight * pdf_lightpick_inv;
+            state.pixel_id = v.pixel_id;
+        });
 }
 
-void DeferredVCM::connect_to_camera(AtomicImage& out) {
+void DeferredVCM::light_tracing(AtomicImage& out) {
 
 }
 

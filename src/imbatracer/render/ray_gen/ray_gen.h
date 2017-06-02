@@ -167,17 +167,17 @@ private:
 
 /// Generates rays for every element in an array.
 template<typename StateType>
-class ArrayRayGen : public PixelRayGen<StateType> {
+class ArrayRayGen : public RayGen<StateType> {
 public:
-    ArrayRayGen(int n)
-        : n_(n)
+    ArrayRayGen(int offset, int len)
+        : offset_(offset), len_(len), generated_(0)
     {}
 
     void fill_queue(RayQueue<StateType>& out, typename RayGen<StateType>::SampleFn sample) override {
         // calculate how many rays are needed to fill the queue
         // TODO this is shared by all ray gens -> factor this out
         int count = out.capacity() - out.size();
-        count = std::min(count, n_ - generated_);
+        count = std::min(count, len_ - generated_);
         if (count <= 0) return;
 
         static std::random_device rd; // TODO: all fill_queue functions can be called in parallel, this should be thread_local everywhere!!
@@ -188,7 +188,7 @@ public:
             StateType state;
             ::Ray ray;
 
-            state.ray_id = i;
+            state.ray_id = i + offset_;
             state.light_id = 0;
 
             // Use Bernstein's hash function to scramble the seed base value
@@ -198,8 +198,8 @@ public:
             seed = 33 * seed ^ i;
             seed = 33 * seed ^ i;
             state.rng = RNG(seed);
-            state.rng.discard((seed % 5) + 16 + i % 5);
-            sample(i, 0, ray, state);
+            state.rng.discard((seed % 5) + 16 + state.ray_id % 5);
+            sample(state.ray_id, 0, ray, state);
 
             out.push(ray, state);
         }
@@ -207,9 +207,18 @@ public:
         generated_ += count;
     }
 
+    virtual void start_frame() override {
+        generated_ = 0;
+    }
+
+    virtual bool is_empty() const override {
+        return generated_ >= len_;
+    }
+
 private:
-    const int n_;
-    const int generated_;
+    const int offset_;
+    const int len_;
+    int generated_;
 };
 
 } // namespace imba

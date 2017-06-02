@@ -35,12 +35,29 @@ class DeferredVCM : public Integrator {
     };
 
     struct Vertex {
+        // TODO refactor and compress this, consider storing BSDF inside (instead of Intersection)
+
         PartialMIS mis;
-        rgb contrib; ///< The power or importance of the path leading to this vertex
+        rgb throughput; ///< The power or importance of the path leading to this vertex
+
+        Intersection isect;
+        union {
+            int pixel_id; ///< Id of the pixel from which this path was sampled (only for camera paths)
+            int light_id; ///< Id of the light source from which this path was sampled (only for light paths)
+        };
         int ancestor;
+        int path_len;
 
         Vertex() {}
-        Vertex(const PartialMIS& mis, const rgb& c, int a) : mis(mis), contrib(c), ancestor(a) {}
+        Vertex(const PartialMIS& mis, const rgb& c, int a, int pixel, int len, const Intersection& i)
+            : mis(mis), throughput(c), ancestor(a), isect(i), pixel_id(pixel), path_len(len)
+        {}
+
+        Vertex(const PartialMIS& mis, const rgb& c, int a, int pixel, int len, const float3& pos)
+            : mis(mis), throughput(c), ancestor(a), pixel_id(pixel), path_len(len)
+        {
+            isect.pos = pos;
+        }
     };
 
     using VertCache = DeferredVertices<Vertex>;
@@ -55,7 +72,9 @@ public:
         , scheduler_(&scene_, settings.thread_count, settings.q_size,
                      settings.traversal_platform == UserSettings::gpu,
                      std::max(camera_tile_gen_.sizeof_ray_gen(), light_tile_gen_.sizeof_ray_gen()))
-        //, shadow_scheduler_() TODO
+        , shadow_scheduler_(&scene_, settings.thread_count, settings.q_size,
+                            settings.traversal_platform == UserSettings::gpu,
+                            sizeof(ArrayRayGen<ShadowState>))
     {
         // Compute the required cache size for storing the light and camera vertices.
         bool use_gpu = settings.traversal_platform == UserSettings::gpu;
@@ -91,7 +110,7 @@ private:
     DefaultTileGen<State> camera_tile_gen_;
 
     DeferredScheduler<State> scheduler_;
-    //DeferredScheduler<ShadowState> shadow_scheduler_;
+    DeferredScheduler<ShadowState, true> shadow_scheduler_;
 
     std::unique_ptr<VertCache> cam_verts_;
     std::unique_ptr<VertCache> light_verts_;
@@ -112,8 +131,8 @@ private:
     }
 
     // Sampling techniques (additional to camera rays hitting the light)
-    void direct_illum(AtomicImage& img);
-    void connect_to_camera(AtomicImage& img);
+    void path_tracing(AtomicImage& img);
+    void light_tracing(AtomicImage& img);
     void connect(AtomicImage& img);
     void merge(AtomicImage& img);
 };

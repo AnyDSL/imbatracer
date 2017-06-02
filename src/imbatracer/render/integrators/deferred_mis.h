@@ -22,6 +22,7 @@ static inline float mis_heuristic(float p) {
 
 struct PartialMIS {
     static void setup_iteration(float radius, float lp_count, int techniques) {
+        PartialMIS::techniques = techniques;
         light_path_count = lp_count;
         vcm_weight = pi * sqr(radius) * light_path_count;
         vc_weight = mis_heuristic(1.0f / vcm_weight);
@@ -96,7 +97,7 @@ inline float mis_weight_connect(PartialMIS cam, PartialMIS light,
     const float mis_weight_light = mis_heuristic(pdf_cam_a) * (PartialMIS::vm_weight + light.unidir + light.connect * mis_heuristic(pdf_rev_light_w));
     const float mis_weight_camera = mis_heuristic(pdf_light_a) * (PartialMIS::vm_weight + cam.unidir + cam.connect * mis_heuristic(pdf_rev_cam_w));
 
-    if (cam.techniques == MIS_CONNECT)
+    if (PartialMIS::techniques == MIS_CONNECT)
         return 1.0f;
     else
         return 1.0f / (mis_weight_camera + 1.0f + mis_weight_light);
@@ -106,7 +107,7 @@ inline float mis_weight_merge(PartialMIS cam, PartialMIS light, float pdf_dir_w,
     const float mis_weight_light = light.unidir * PartialMIS::vc_weight + light.merge * mis_heuristic(pdf_dir_w);
     const float mis_weight_camera = cam.unidir * PartialMIS::vc_weight + cam.merge * mis_heuristic(pdf_rev_w);
 
-    if (cam.techniques == MIS_MERGE)
+    if (PartialMIS::techniques == MIS_MERGE)
         return 1.0f;
     else
         return 1.0f / (mis_weight_light + 1.0f + mis_weight_camera);
@@ -118,7 +119,7 @@ inline float mis_weight_hit(PartialMIS cam, float pdf_direct_a, float pdf_emit_w
 
     const float mis_weight_camera = mis_heuristic(pdf_di) * cam.unidir + mis_heuristic(pdf_e) * cam.connect;
 
-    if (cam.techniques == MIS_HIT)
+    if (PartialMIS::techniques == MIS_HIT)
         return 1.0f;
     else
         return 1.0f / (mis_weight_camera + 1.0f);
@@ -130,19 +131,19 @@ inline float mis_weight_cam_connect(PartialMIS light, float pdf_cam, float cos_t
     const float mis_weight_light = mis_heuristic(pdf_cam / PartialMIS::light_path_count) *
                                    (PartialMIS::vm_weight + light.unidir + light.connect * mis_heuristic(pdf_light));
 
-    if (light.techniques == MIS_NEXTEVT_LIGHT)
+    if (PartialMIS::techniques == MIS_NEXTEVT_LIGHT)
         return 1.0f;
     else
         return 1.0f / (mis_weight_light + 1.0f);
 }
 
-inline float mis_weight_di(PartialMIS cam, float pdf_cam_w, float pdf_di_w, float pdf_emit_w, float pdf_lightpick_inv,
-                           float pdf_rev_w, float cos_theta_i, float cos_theta_o) {
-    const float mis_weight_light = mis_heuristic(pdf_cam_w * pdf_lightpick_inv / pdf_di_w);
+inline float mis_weight_di(PartialMIS cam, float pdf_dir_w, float pdf_rev_w, float pdf_di_w, float pdf_emit_w, float pdf_lightpick_inv,
+                           float cos_theta_i, float cos_theta_o, bool delta_light) {
+    const float mis_weight_light = mis_heuristic(pdf_dir_w * pdf_lightpick_inv / pdf_di_w);
     const float mis_weight_camera = mis_heuristic(pdf_emit_w * cos_theta_i / (pdf_di_w * cos_theta_o)) *
                                     (PartialMIS::vm_weight + cam.unidir + cam.connect * mis_heuristic(pdf_rev_w));
 
-    if (cam.techniques == MIS_NEXTEVT_CAM)
+    if (PartialMIS::techniques == MIS_NEXTEVT_CAM || delta_light)
         return 1.0f;
     else
         return 1.0f / (mis_weight_camera + 1.0f + mis_weight_light);

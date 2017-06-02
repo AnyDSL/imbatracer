@@ -11,7 +11,7 @@
 namespace imba {
 
 /// An adapted version of the \see{TileScheduler} to work best with the DeferredVCM Integrator.
-template <typename StateType>
+template <typename StateType, bool occluded = false>
 class DeferredScheduler {
     const bool gpu_traversal;
 
@@ -82,8 +82,13 @@ private:
             while(!cur_tile->is_empty() || q->size() > 0) {
                 cur_tile->fill_queue(*q, sample_fn);
 
-                if (gpu_traversal) q->traverse_gpu(scene_->traversal_data_gpu());
-                else               q->traverse_cpu(scene_->traversal_data_cpu());
+                if (occluded) {
+                    if (gpu_traversal) q->traverse_occluded_gpu(scene_->traversal_data_gpu());
+                    else               q->traverse_occluded_cpu(scene_->traversal_data_cpu());
+                } else {
+                    if (gpu_traversal) q->traverse_gpu(scene_->traversal_data_gpu());
+                    else               q->traverse_cpu(scene_->traversal_data_cpu());
+                }
 
                 const int hit_count = q->compact_hits();
                 q->sort_by_material([this](const Hit& hit){ return scene_->mat_id(hit); },

@@ -45,6 +45,10 @@ struct float3 {
     }
 };
 
+inline Vec4 make_vec4(const float3& f, float w = 0.0f) {
+    return Vec4 { f.x, f.y, f.z, w };
+}
+
 inline float2::float2(const float3& f) : x(f.x), y(f.y) {}
 
 inline float3 operator * (float a, const float3& b) {

@@ -33,7 +33,7 @@ public:
         return i;
     }
 
-    int size() const { return std::min(verts_.size(), next_.load()); }
+    int size() const { return std::min(static_cast<int>(verts_.size()), next_.load()); }
     const Vertex& operator[] (int i) const { assert(i < size()); return verts_[i]; }
 
     void clear() { next_.store(0); }
