@@ -15,7 +15,7 @@ class RayGen {
 public:
     virtual ~RayGen() {}
 
-    typedef std::function<void (int, int, ::Ray&, StateType&)> SampleFn;
+    typedef std::function<bool (int, int, ::Ray&, StateType&)> SampleFn;
     virtual void fill_queue(RayQueue<StateType>&, SampleFn) = 0;
     virtual void start_frame() = 0;
     virtual bool is_empty() const = 0;
@@ -70,7 +70,8 @@ public:
             seed = 33 * seed ^ i;
             state.rng = RNG(seed);
             state.rng.discard((seed % 5) + 16 + pixel_idx % 5);
-            sample_pixel(x, y, ray, state);
+
+            if (!sample_pixel(x, y, ray, state)) continue;
 
             out.push(ray, state);
         }
@@ -100,9 +101,9 @@ public:
 
     void fill_queue(RayQueue<StateType>& out, typename RayGen<StateType>::SampleFn sample_pixel) override {
         PixelRayGen<StateType>::fill_queue(out,
-            [sample_pixel, this](int x, int y, ::Ray& r, StateType& s) {
+            [sample_pixel, this](int x, int y, ::Ray& r, StateType& s) -> bool {
                 s.pixel_id = (y + top_) * full_width_ + (x + left_);
-                sample_pixel(x + left_, y + top_, r, s);
+                return sample_pixel(x + left_, y + top_, r, s);
             });
     }
 
@@ -143,7 +144,8 @@ public:
             seed = 33 * seed ^ i;
             state.rng = RNG(seed);
             state.rng.discard((seed % 5) + 16 + i % 5);
-            sample_light(i, light_, ray, state);
+
+            if (!sample_light(i, light_, ray, state)) continue;
 
             out.push(ray, state);
         }
@@ -169,8 +171,8 @@ private:
 template<typename StateType>
 class ArrayRayGen : public RayGen<StateType> {
 public:
-    ArrayRayGen(int offset, int len)
-        : offset_(offset), len_(len), generated_(0)
+    ArrayRayGen(int offset, int len, int samples)
+        : offset_(offset), len_(len * samples), generated_(0), samples_(samples)
     {}
 
     void fill_queue(RayQueue<StateType>& out, typename RayGen<StateType>::SampleFn sample) override {
@@ -188,8 +190,8 @@ public:
             StateType state;
             ::Ray ray;
 
-            state.ray_id = i + offset_;
-            state.light_id = 0;
+            state.ray_id   = i / samples_ + offset_;
+            state.light_id = i % samples_ + offset_;
 
             // Use Bernstein's hash function to scramble the seed base value
             int seed = seed_base;
@@ -199,7 +201,8 @@ public:
             seed = 33 * seed ^ i;
             state.rng = RNG(seed);
             state.rng.discard((seed % 5) + 16 + state.ray_id % 5);
-            sample(state.ray_id, 0, ray, state);
+
+            if (!sample(state.ray_id, 0, ray, state)) continue;
 
             out.push(ray, state);
         }
@@ -219,6 +222,7 @@ private:
     const int offset_;
     const int len_;
     int generated_;
+    int samples_;
 };
 
 } // namespace imba

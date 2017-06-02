@@ -68,7 +68,7 @@ void VCM_INTEGRATOR::trace_light_paths(AtomicImage& img) {
         [this] (RayQueue<VCMState>& ray_in, RayQueue<VCMShadowState>& ray_out_shadow, AtomicImage& out) {
             process_light_rays(ray_in, ray_out_shadow, out);
         },
-        [this] (int ray_id, int light_id, ::Ray& ray_out, VCMState& state_out) {
+        [this] (int ray_id, int light_id, ::Ray& ray_out, VCMState& state_out) -> bool {
             auto& l = scene_.light(light_id);
 
             // TODO: this pdf depends on the LightTileGen used!
@@ -100,6 +100,8 @@ void VCM_INTEGRATOR::trace_light_paths(AtomicImage& img) {
             state_out.finite_light = l->is_finite();
 
             light_path_dbg_.add_vertex(sample.pos, state_out);
+
+            return true;
         });
 
     if (algo != ALGO_LT) // Only build the hash grid when it is used.
@@ -113,7 +115,7 @@ void VCM_INTEGRATOR::trace_camera_paths(AtomicImage& img) {
         [this] (RayQueue<VCMState>& ray_in, RayQueue<VCMShadowState>& ray_out_shadow, AtomicImage& out) {
             process_camera_rays(ray_in, ray_out_shadow, out);
         },
-        [this] (int x, int y, ::Ray& ray_out, VCMState& state_out) {
+        [this] (int x, int y, ::Ray& ray_out, VCMState& state_out) -> bool {
             // Sample a ray from the camera.
             const float sample_x = static_cast<float>(x) + state_out.rng.random_float();
             const float sample_y = static_cast<float>(y) + state_out.rng.random_float();
@@ -133,6 +135,8 @@ void VCM_INTEGRATOR::trace_camera_paths(AtomicImage& img) {
             state_out.dVC = 0.0f;
             state_out.dVM = 0.0f;
             state_out.dVCM = mis_pow(settings_.light_path_count / pdf_cam_w);
+
+            return true;
         });
 }
 

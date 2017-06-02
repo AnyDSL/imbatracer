@@ -38,6 +38,10 @@ public:
 
     void clear() { next_.store(0); }
 
+    using iterator = typename std::vector<Vertex>::iterator;
+    iterator begin() { return verts_.begin(); }
+    iterator end()   { return verts_.end();   }
+
 private:
     std::vector<Vertex> verts_;
     std::atomic<int> next_;

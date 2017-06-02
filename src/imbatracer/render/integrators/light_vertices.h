@@ -78,6 +78,8 @@ struct VCMPhoton {
 
     LightPathVertex* vert;
 
+    const float3& position() const { return pos; }
+
     VCMPhoton() {}
     VCMPhoton(LightPathVertex& r) {
         pos        = r.isect.pos;

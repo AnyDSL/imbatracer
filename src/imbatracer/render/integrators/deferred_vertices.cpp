@@ -65,7 +65,7 @@ int estimate_light_path_len(const Scene& scene, bool use_gpu, int probes) {
         [&vertex_count, &scene] (Ray& r, Hit& h, ProbeState& s) {
             bounce(scene, r, h, s, vertex_count);
         },
-        [&vertex_count, &scene] (int ray_id, int light_id, ::Ray& ray, ProbeState& state) {
+        [&vertex_count, &scene] (int ray_id, int light_id, ::Ray& ray, ProbeState& state) -> bool {
             auto& l = scene.light(light_id);
             // TODO: this pdf depends on the LightTileGen used!
             float pdf_lightpick = 1.0f / scene.light_count();
@@ -84,6 +84,8 @@ int estimate_light_path_len(const Scene& scene, bool use_gpu, int probes) {
             state.throughput = sample.radiance / pdf_lightpick;
 
             vertex_count++;
+
+            return true;
         });
 
     const float avg_len = static_cast<float>(vertex_count) / static_cast<float>(probes);
@@ -100,13 +102,15 @@ int estimate_cam_path_len(const Scene& scene, const PerspectiveCamera& cam, bool
         [&vertex_count, &scene] (Ray& r, Hit& h, ProbeState& s) {
             bounce(scene, r, h, s, vertex_count);
         },
-        [&vertex_count, &cam] (int x, int y, ::Ray& ray, ProbeState& state) {
+        [&vertex_count, &cam] (int x, int y, ::Ray& ray, ProbeState& state) -> bool {
             const float sample_x = static_cast<float>(x) + state.rng.random_float();
             const float sample_y = static_cast<float>(y) + state.rng.random_float();
 
             ray = cam.generate_ray(sample_x, sample_y);
 
             state.throughput = rgb(1.0f);
+
+            return true;
         });
 
     const float avg_len = static_cast<float>(vertex_count) / static_cast<float>(cam.width() * cam.height() * probes);

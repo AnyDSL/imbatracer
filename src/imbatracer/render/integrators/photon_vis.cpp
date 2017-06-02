@@ -8,7 +8,7 @@ void PhotonVis::render(AtomicImage& img) {
         [this] (RayQueue<PhotonVisState>& ray_in, RayQueue<ShadowState>& ray_out_shadow, AtomicImage& out) {
             process_camera_rays(ray_in, ray_out_shadow, out);
         },
-        [this] (int x, int y, ::Ray& ray_out, PhotonVisState& state_out) {
+        [this] (int x, int y, ::Ray& ray_out, PhotonVisState& state_out) -> bool {
             int subwnd = 0;
             if (x > cam_.width() / 2) {
                 x -= cam_.width() / 2;
@@ -29,6 +29,8 @@ void PhotonVis::render(AtomicImage& img) {
 
             state_out.throughput = rgb(1.0f);
             state_out.wnd = subwnd;
+
+            return true;
         });
 }
 

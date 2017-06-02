@@ -10,6 +10,8 @@
 #include "imbatracer/render/ray_gen/tile_gen.h"
 #include "imbatracer/render/ray_gen/ray_gen.h"
 
+#include "imbatracer/rangesearch/rangesearch.h"
+
 #include "imbatracer/frontend/cmd_line.h"
 
 namespace imba {
@@ -47,6 +49,8 @@ class DeferredVCM : public Integrator {
         };
         int ancestor;
         int path_len;
+
+        const float3& position() const { return isect.pos; }
 
         Vertex() {}
         Vertex(const PartialMIS& mis, const rgb& c, int a, int pixel, int len, const Intersection& i)
@@ -114,6 +118,8 @@ private:
 
     std::unique_ptr<VertCache> cam_verts_;
     std::unique_ptr<VertCache> light_verts_;
+
+    HashGrid<VertCache::iterator, Vertex> photon_grid_;
 
     void trace_camera_paths();
     void trace_light_paths();

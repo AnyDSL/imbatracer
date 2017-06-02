@@ -165,7 +165,7 @@ void PathTracer::render(AtomicImage& out) {
         [this] (RayQueue<PTState>& ray_in, RayQueue<ShadowState>& ray_out_shadow, AtomicImage& out) {
             process_primary_rays(ray_in, ray_out_shadow, out);
         },
-        [this] (int x, int y, ::Ray& ray_out, PTState& state_out) {
+        [this] (int x, int y, ::Ray& ray_out, PTState& state_out) -> bool {
             const float sample_x = static_cast<float>(x) + state_out.rng.random_float();
             const float sample_y = static_cast<float>(y) + state_out.rng.random_float();
 
@@ -174,6 +174,8 @@ void PathTracer::render(AtomicImage& out) {
             state_out.throughput = rgb(1.0f);
             state_out.bounces = 0;
             state_out.last_specular = false;
+
+            return true;
         });
 }
 

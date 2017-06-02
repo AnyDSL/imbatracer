@@ -105,7 +105,7 @@ public:
 
             for (; active_range.x < active_range.y; active_range.x++) {
                 const auto& photon = photons_[active_range.x];
-                const float dist_sqr = lensqr(query_pos - photon.pos);
+                const float dist_sqr = lensqr(query_pos - photon.position());
 
                 if (dist_sqr <= radius_sqr_) {
                     if (count == k) {

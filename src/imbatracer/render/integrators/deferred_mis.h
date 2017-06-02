@@ -26,7 +26,7 @@ struct PartialMIS {
         light_path_count = lp_count;
         vcm_weight = pi * sqr(radius) * light_path_count;
         vc_weight = mis_heuristic(1.0f / vcm_weight);
-        vm_weight = techniques & MIS_MERGE ? 0.0f : mis_heuristic(vcm_weight);
+        vm_weight = techniques & MIS_MERGE ? mis_heuristic(vcm_weight) : 0.0f;
     }
 
     inline void init_camera(float pdf) {
@@ -86,7 +86,7 @@ struct PartialMIS {
     bool reversible;
 };
 
-// TODO: implement special cases for all possible combinations of techniques (e.g. connections only)
+// TODO: implement special cases for all possible combinations of techniques (e.g. connections only, connections and merging only, ...)
 
 inline float mis_weight_connect(PartialMIS cam, PartialMIS light,
                                 float pdf_cam_w, float pdf_rev_cam_w, float pdf_light_w, float pdf_rev_light_w,
@@ -113,21 +113,19 @@ inline float mis_weight_merge(PartialMIS cam, PartialMIS light, float pdf_dir_w,
         return 1.0f / (mis_weight_light + 1.0f + mis_weight_camera);
 }
 
-inline float mis_weight_hit(PartialMIS cam, float pdf_direct_a, float pdf_emit_w, float pdf_lightpick) {
+inline float mis_weight_hit(PartialMIS cam, float pdf_direct_a, float pdf_emit_w, float pdf_lightpick, int path_len) {
     const float pdf_di = pdf_direct_a * pdf_lightpick;
     const float pdf_e = pdf_emit_w * pdf_lightpick;
 
     const float mis_weight_camera = mis_heuristic(pdf_di) * cam.unidir + mis_heuristic(pdf_e) * cam.connect;
 
-    if (PartialMIS::techniques == MIS_HIT)
+    if (PartialMIS::techniques == MIS_HIT || path_len == 2)
         return 1.0f;
     else
         return 1.0f / (mis_weight_camera + 1.0f);
 }
 
 inline float mis_weight_cam_connect(PartialMIS light, float pdf_cam, float cos_theta_surf, float d2, float pdf_light) {
-    pdf_cam *= cos_theta_surf / d2;
-
     const float mis_weight_light = mis_heuristic(pdf_cam / PartialMIS::light_path_count) *
                                    (PartialMIS::vm_weight + light.unidir + light.connect * mis_heuristic(pdf_light));
 

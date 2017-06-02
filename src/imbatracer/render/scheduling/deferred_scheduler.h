@@ -81,6 +81,7 @@ private:
             cur_tile->start_frame();
             while(!cur_tile->is_empty() || q->size() > 0) {
                 cur_tile->fill_queue(*q, sample_fn);
+                if (q->size() == 0) break;
 
                 if (occluded) {
                     if (gpu_traversal) q->traverse_occluded_gpu(scene_->traversal_data_gpu());

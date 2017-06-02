@@ -184,11 +184,12 @@ class ArrayTileGen : public TileGen<StateType> {
 public:
     ArrayTileGen() {}
 
-    ArrayTileGen(int tile_size, int size) {
-        reset(tile_size, size);
+    ArrayTileGen(int tile_size, int size, int samples = 1) {
+        reset(tile_size, size, samples);
     }
 
-    void reset(int tile_size, int size) {
+    void reset(int tile_size, int size, int samples = 1) {
+        samples_ = samples;
         tile_sz_ = tile_size;
         sz_ = size;
         tile_count_ = size / tile_size + (size % tile_size ? 1 : 0);
@@ -202,7 +203,7 @@ public:
 
         int offset = tile_sz_ * t;
         int len = std::min(tile_sz_ * (t + 1), sz_) - offset;
-        return TilePtr(new (mem) ArrayRayGen<StateType>(offset, len));
+        return TilePtr(new (mem) ArrayRayGen<StateType>(offset, len, samples_));
     }
 
     size_t sizeof_ray_gen() const override final { return sizeof(ArrayRayGen<StateType>); }
@@ -215,6 +216,7 @@ private:
     int sz_;
     int tile_sz_;
     int tile_count_;
+    int samples_;
     std::atomic<int> cur_tile_;
 };
 
