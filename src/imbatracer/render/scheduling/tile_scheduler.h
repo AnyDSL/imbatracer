@@ -48,6 +48,8 @@ public:
 
         total_prim_rays_   = 0;
         total_shadow_rays_ = 0;
+
+        prim_traversals_ = 0;
     }
 
     ~TileScheduler() {
@@ -56,8 +58,10 @@ public:
 
         for (auto ptr : thread_local_ray_gen_) delete [] ptr;
 
-        if (enable_stats)
+        if (enable_stats) {
             std::cout << "Number primary rays: " << total_prim_rays_ << " Number shadow rays: " << total_shadow_rays_ << std::endl;
+            std::cout << "Avg rays per call: " << total_prim_rays_ / prim_traversals_ << std::endl;
+        }
     }
 
     void run_iteration(AtomicImage& image,
@@ -92,6 +96,8 @@ private:
 
     std::atomic<uint64_t> total_prim_rays_;
     std::atomic<uint64_t> total_shadow_rays_;
+    std::atomic<uint64_t> prim_traversals_;
+    std::atomic<uint64_t> iters_;
 
     void render_thread(int thread_idx, AtomicImage& image,
                        ProcessShadowFn process_shadow_rays,
@@ -113,6 +119,7 @@ private:
 
                 if (gpu_traversal) prim_q->traverse_gpu(scene_.traversal_data_gpu());
                 else               prim_q->traverse_cpu(scene_.traversal_data_cpu());
+                prim_traversals_++;
 
                 process_primary_rays(*prim_q, *shadow_q, image);
 

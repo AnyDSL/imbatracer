@@ -182,7 +182,7 @@ inline float uniform_cone_pdf(float cos_angle, float cos) {
 
 inline bool russian_roulette(const rgb& throughput, float rnd_num, float& pdf) {
     const float kill_prob = luminance(throughput) * 2.0f;
-    pdf = std::min(1.0f, kill_prob);
+    pdf = std::min(0.8f, kill_prob);
 
     return rnd_num < pdf;
 }

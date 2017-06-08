@@ -11,32 +11,52 @@ using ThreadLocalMemArena =
         tbb::ets_key_per_instance>;
 static ThreadLocalMemArena bsdf_memory_arenas;
 
+#define STATISTICS
+#ifdef STATISTICS
+#define PROFILE(cmd, name)  {auto time_start = std::chrono::high_resolution_clock::now(); \
+                            cmd; \
+                            auto time_end = std::chrono::high_resolution_clock::now(); \
+                            auto delta = std::chrono::duration_cast<std::chrono::milliseconds>(time_end - time_start).count(); \
+                            std::cout << name << "\t-\t" << delta << "ms" << std::endl;}
+#else
+#define PROFILE(cmd, name) {cmd;}
+#endif
+
 void DeferredVCM::render(AtomicImage& img) {
     const float radius_alpha = 0.75f;
     cur_iteration_++;
     pm_radius_ = base_radius_ / powf(static_cast<float>(cur_iteration_), 0.5f * (1.0f - radius_alpha));
     pm_radius_ = std::max(pm_radius_, 1e-7f); // ensure numerical stability
 
-    PartialMIS::setup_iteration(pm_radius_, settings_.light_path_count, 0
+    auto techniques = 0
         | MIS_CONNECT
         | MIS_MERGE
         | MIS_HIT
         | MIS_NEXTEVT_LIGHT
         | MIS_NEXTEVT_CAM
-        );
+        ;
+
+    PartialMIS::setup_iteration(pm_radius_, settings_.light_path_count, techniques);
 
     cam_verts_->clear();
     light_verts_->clear();
 
-    trace_camera_paths();
-    trace_light_paths();
+    PROFILE(trace_camera_paths(), "Tracing camera paths");
+    PROFILE(trace_light_paths(), "Tracing light paths");
 
-    photon_grid_.build(light_verts_->begin(), light_verts_->end(), pm_radius_);
+    PROFILE(photon_grid_.build(light_verts_->begin(), light_verts_->end(), pm_radius_), "Building hash grid");
 
-    path_tracing(img);
-    light_tracing(img);
-    connect(img);
-    merge(img);
+    if (techniques & MIS_NEXTEVT_CAM || techniques & MIS_HIT)
+        PROFILE(path_tracing(img, techniques & MIS_NEXTEVT_CAM), "PT");
+
+    if (techniques & MIS_NEXTEVT_LIGHT)
+        PROFILE(light_tracing(img), "LT");
+
+    if (techniques & MIS_CONNECT)
+        PROFILE(connect(img), "Connect");
+
+    if (techniques & MIS_MERGE)
+        PROFILE(merge(img), "Merge");
 }
 
 void DeferredVCM::trace_camera_paths() {
@@ -174,14 +194,14 @@ void DeferredVCM::process_hits(Ray& r, Hit& h, State& state, VertCache* cache) {
     bounce(state, isect, bsdf, r, false, offset);
 }
 
-void DeferredVCM::path_tracing(AtomicImage& img) {
-    ArrayTileGen<ShadowState> tile_gen(settings_.tile_size, cam_verts_->size());
+void DeferredVCM::path_tracing(AtomicImage& img, bool next_evt) {
+    ArrayTileGen<ShadowState> tile_gen(settings_.tile_size * settings_.tile_size, cam_verts_->size());
     shadow_scheduler_.run_iteration(&tile_gen,
         [this, &img] (Ray& r, ShadowState& s) {
             add_contribution(img, s.pixel_id, s.contrib);
         },
         nullptr, // hits --> occluded
-        [this, &img] (int vert_id, int unused, ::Ray& ray, ShadowState& state) -> bool {
+        [this, &img, next_evt] (int vert_id, int unused, ::Ray& ray, ShadowState& state) -> bool {
             const auto& cam_v   = *cam_verts_;
             const auto& light_v = *light_verts_;
             const auto& v = cam_v[vert_id];
@@ -197,7 +217,8 @@ void DeferredVCM::path_tracing(AtomicImage& img) {
                 add_contribution(img, v.pixel_id, color);
 
                 return false;
-            }
+            } else if (!next_evt)
+                return false;
 
             // Sample a point on a light
             const auto& ls = scene_.light(state.rng.random_int(0, scene_.light_count()));
@@ -234,7 +255,7 @@ void DeferredVCM::path_tracing(AtomicImage& img) {
 }
 
 void DeferredVCM::light_tracing(AtomicImage& img) {
-    ArrayTileGen<ShadowState> tile_gen(settings_.tile_size, light_verts_->size());
+    ArrayTileGen<ShadowState> tile_gen(settings_.tile_size * settings_.tile_size, light_verts_->size());
     shadow_scheduler_.run_iteration(&tile_gen,
         [this, &img] (Ray& r, ShadowState& s) {
             add_contribution(img, s.pixel_id, s.contrib);
@@ -292,7 +313,7 @@ void DeferredVCM::light_tracing(AtomicImage& img) {
 }
 
 void DeferredVCM::connect(AtomicImage& img) {
-    ArrayTileGen<ShadowState> tile_gen(settings_.tile_size, cam_verts_->size(), settings_.num_connections);
+    ArrayTileGen<ShadowState> tile_gen(settings_.tile_size * settings_.tile_size, cam_verts_->size(), settings_.num_connections);
     shadow_scheduler_.run_iteration(&tile_gen,
         [this, &img] (Ray& r, ShadowState& s) {
             add_contribution(img, s.pixel_id, s.contrib);

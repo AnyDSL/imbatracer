@@ -137,11 +137,11 @@ inline float mis_weight_cam_connect(PartialMIS light, float pdf_cam, float cos_t
 
 inline float mis_weight_di(PartialMIS cam, float pdf_dir_w, float pdf_rev_w, float pdf_di_w, float pdf_emit_w, float pdf_lightpick_inv,
                            float cos_theta_i, float cos_theta_o, bool delta_light) {
-    const float mis_weight_light = mis_heuristic(pdf_dir_w * pdf_lightpick_inv / pdf_di_w);
+    const float mis_weight_light  = delta_light ? 0.0f : mis_heuristic(pdf_dir_w * pdf_lightpick_inv / pdf_di_w);
     const float mis_weight_camera = mis_heuristic(pdf_emit_w * cos_theta_i / (pdf_di_w * cos_theta_o)) *
                                     (PartialMIS::vm_weight + cam.unidir + cam.connect * mis_heuristic(pdf_rev_w));
 
-    if (PartialMIS::techniques == MIS_NEXTEVT_CAM || delta_light)
+    if (PartialMIS::techniques == MIS_NEXTEVT_CAM)
         return 1.0f;
     else
         return 1.0f / (mis_weight_camera + 1.0f + mis_weight_light);

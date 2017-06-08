@@ -137,7 +137,7 @@ private:
     }
 
     // Sampling techniques (additional to camera rays hitting the light)
-    void path_tracing(AtomicImage& img);
+    void path_tracing(AtomicImage& img, bool next_evt);
     void light_tracing(AtomicImage& img);
     void connect(AtomicImage& img);
     void merge(AtomicImage& img);

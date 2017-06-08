@@ -67,7 +67,7 @@ public:
         , scheduler_(scheduler)
         , light_vertices_(settings.light_path_count)
         , light_tile_gen_(scene.light_count(), settings.light_path_count, settings.tile_size * settings.tile_size)
-        , light_scheduler_(light_tile_gen_, scene, 1, settings.thread_count, settings.tile_size * settings.tile_size * 1.75f,
+        , light_scheduler_(light_tile_gen_, scene, 1, settings.thread_count, settings.q_size,
                            settings.traversal_platform == UserSettings::gpu) // TODO: make threshold explicit in TileGen
         , last_grid_(0)
     {

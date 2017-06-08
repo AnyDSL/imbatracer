@@ -9,6 +9,17 @@
 #include <chrono>
 #include <functional>
 
+// #define STATISTICS
+#ifdef STATISTICS
+#define PROFILE(cmd, name)  {auto time_start = std::chrono::high_resolution_clock::now(); \
+                            cmd; \
+                            auto time_end = std::chrono::high_resolution_clock::now(); \
+                            auto delta = std::chrono::duration_cast<std::chrono::milliseconds>(time_end - time_start).count(); \
+                            std::cout << name << " - " << delta << "ms" << std::endl;}
+#else
+#define PROFILE(cmd, name) {cmd;}
+#endif
+
 namespace imba {
 
 // Thread-local storage for BSDF objects.
@@ -46,10 +57,10 @@ void VCM_INTEGRATOR::render(AtomicImage& img) {
     mis_eta_vm_ = algo == ALGO_BPT ? 0.0f : mis_pow(eta_vcm);
 
     if (algo != ALGO_PT)
-        trace_light_paths(img);
+        PROFILE(trace_light_paths(img), "light paths");
 
     if (algo != ALGO_LT)
-        trace_camera_paths(img);
+        PROFILE(trace_camera_paths(img), "camera paths");
 
     light_path_dbg_.end_frame(frame);
     cam_path_dbg_.end_frame(frame);
@@ -105,7 +116,7 @@ void VCM_INTEGRATOR::trace_light_paths(AtomicImage& img) {
         });
 
     if (algo != ALGO_LT) // Only build the hash grid when it is used.
-        light_vertices_.build(pm_radius_, algo != ALGO_BPT);
+        PROFILE(light_vertices_.build(pm_radius_, algo != ALGO_BPT), "hash grid (incl in LP!)");
 }
 
 VCM_TEMPLATE
