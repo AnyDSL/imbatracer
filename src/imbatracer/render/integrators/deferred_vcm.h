@@ -81,9 +81,17 @@ public:
                             sizeof(ArrayRayGen<ShadowState>))
     {
         // Compute the required cache size for storing the light and camera vertices.
-        bool use_gpu = settings.traversal_platform == UserSettings::gpu;
+        bool use_gpu = false;//settings.traversal_platform == UserSettings::gpu;
+
+        auto time_start = std::chrono::high_resolution_clock::now();
+
         int avg_light_v = estimate_light_path_len(scene, use_gpu, 10000);
         int avg_cam_v = estimate_cam_path_len(scene, cam, use_gpu, 1);
+
+        auto time_end = std::chrono::high_resolution_clock::now();
+        auto delta = std::chrono::duration_cast<std::chrono::milliseconds>(time_end - time_start).count();
+        std::cout << "Estimated path length after " << " - " << delta << "ms" << std::endl;
+
         int num_cam_v   = 1.1f * avg_cam_v * settings.width * settings.height * settings.concurrent_spp;
         int num_light_v = 1.1f * avg_light_v * settings.light_path_count;
 

@@ -59,8 +59,8 @@ public:
         for (auto ptr : thread_local_ray_gen_) delete [] ptr;
 
         if (enable_stats) {
-            std::cout << "Number primary rays: " << total_prim_rays_ << " Number shadow rays: " << total_shadow_rays_ << std::endl;
-            std::cout << "Avg rays per call: " << total_prim_rays_ / prim_traversals_ << std::endl;
+            std::cout << "Number primary rays: " << total_prim_rays_ << " Number shadow rays: " << total_shadow_rays_
+                      << " Avg rays per call: " << total_prim_rays_ / prim_traversals_ << std::endl;
         }
     }
 

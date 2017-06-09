@@ -11,7 +11,7 @@ using ThreadLocalMemArena =
         tbb::ets_key_per_instance>;
 static ThreadLocalMemArena bsdf_memory_arenas;
 
-#define STATISTICS
+// #define STATISTICS
 #ifdef STATISTICS
 #define PROFILE(cmd, name)  {auto time_start = std::chrono::high_resolution_clock::now(); \
                             cmd; \
@@ -44,7 +44,8 @@ void DeferredVCM::render(AtomicImage& img) {
     PROFILE(trace_camera_paths(), "Tracing camera paths");
     PROFILE(trace_light_paths(), "Tracing light paths");
 
-    PROFILE(photon_grid_.build(light_verts_->begin(), light_verts_->end(), pm_radius_), "Building hash grid");
+    if (techniques & MIS_MERGE)
+        PROFILE(photon_grid_.build(light_verts_->begin(), light_verts_->end(), pm_radius_), "Building hash grid");
 
     if (techniques & MIS_NEXTEVT_CAM || techniques & MIS_HIT)
         PROFILE(path_tracing(img, techniques & MIS_NEXTEVT_CAM), "PT");
@@ -412,6 +413,8 @@ void DeferredVCM::merge(AtomicImage& img) {
             rgb contrib(0.0f);
             for (int i = 0; i < count; ++i) {
                 auto p = photons[i];
+                if (p->path_len <= 1) continue;
+
                 const auto& photon_in_dir = p->isect.out_dir;
 
                 const auto& bsdf_value = bsdf->eval(v.isect.out_dir, photon_in_dir);

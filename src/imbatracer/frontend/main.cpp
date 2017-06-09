@@ -93,8 +93,7 @@ int main(int argc, char* argv[]) {
     if (!parse_cmd_line(argc, argv, settings))
         return 0;
 
-    Scene scene(settings.traversal_platform == UserSettings::cpu || settings.traversal_platform == UserSettings::hybrid,
-                settings.traversal_platform == UserSettings::gpu || settings.traversal_platform == UserSettings::hybrid);
+    Scene scene(true, settings.traversal_platform == UserSettings::gpu || settings.traversal_platform == UserSettings::hybrid);
     float3 cam_pos, cam_dir, cam_up;
     if (!build_scene(Path(settings.input_file), scene, cam_pos, cam_dir, cam_up)) {
         std::cerr << "ERROR: Scene could not be built" << std::endl;

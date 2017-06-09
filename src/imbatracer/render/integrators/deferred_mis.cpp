@@ -2,9 +2,7 @@
 
 namespace imba {
 
-float PartialMIS::vcm_weight;
-float PartialMIS::vc_weight;
-float PartialMIS::vm_weight;
+float PartialMIS::pdf_merge;
 int PartialMIS::light_path_count;
 int PartialMIS::techniques;
 
