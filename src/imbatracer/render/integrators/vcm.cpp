@@ -209,10 +209,6 @@ void VCM_INTEGRATOR::bounce(VCMState& state_out, const Intersection& isect, BSDF
 
 VCM_TEMPLATE
 void VCM_INTEGRATOR::process_light_rays(RayQueue<VCMState>& rays_in, RayQueue<VCMShadowState>& ray_out_shadow, AtomicImage& img) {
-    VCMState* states = rays_in.states();
-    const Hit* hits = rays_in.hits();
-    Ray* rays = rays_in.rays();
-
     const int hit_count = rays_in.compact_hits();
     rays_in.sort_by_material([this](const Hit& hit){
             const Mesh::Instance& inst = scene_.instance(hit.inst_id);
@@ -347,10 +343,6 @@ void VCM_INTEGRATOR::connect_to_camera(const VCMState& light_state, const Inters
 
 VCM_TEMPLATE
 void VCM_INTEGRATOR::process_camera_rays(RayQueue<VCMState>& rays_in, RayQueue<VCMShadowState>& ray_out_shadow, AtomicImage& img) {
-    VCMState* states = rays_in.states();
-    const Hit* hits = rays_in.hits();
-    Ray* rays = rays_in.rays();
-
     const int hit_count = rays_in.compact_hits();
     rays_in.sort_by_material([this](const Hit& hit){
             const Mesh::Instance& inst = scene_.instance(hit.inst_id);
@@ -400,7 +392,6 @@ void VCM_INTEGRATOR::process_camera_rays(RayQueue<VCMState>& rays_in, RayQueue<V
             bsdf_mem_arena.free_all();
 
             VCMState& state = rays_in.state(i);
-            RNG& rng = state.rng;
             const auto isect = calculate_intersection(scene_, rays_in.hit(i), rays_in.ray(i));
             const float cos_theta_o = fabsf(dot(isect.out_dir, isect.normal));
 

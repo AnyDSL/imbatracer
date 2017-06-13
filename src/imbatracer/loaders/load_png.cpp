@@ -47,7 +47,6 @@ bool load_png(const Path& path, Image& image) {
 
     png_uint_32 color_type = png_get_color_type(png_ptr, info_ptr);
     png_uint_32 bit_depth  = png_get_bit_depth(png_ptr, info_ptr);
-    png_uint_32 channels   = png_get_channels(png_ptr, info_ptr);
 
     // Expand paletted and grayscale images to RGB
     if (color_type == PNG_COLOR_TYPE_PALETTE) {

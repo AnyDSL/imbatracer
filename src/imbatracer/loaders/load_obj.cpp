@@ -98,7 +98,6 @@ static bool parse_obj(std::istream& stream, obj::File& file) {
     while (stream.getline(line, max_line)) {
         // Strip spaces
         char* ptr = strip_spaces(line);
-        const char* err_line = ptr;
 
         // Skip comments and empty lines
         if (*ptr == '\0' || *ptr == '#')
@@ -233,7 +232,6 @@ static bool parse_obj(std::istream& stream, obj::File& file) {
 static bool parse_mtl(std::istream& stream, obj::MaterialLib& mtl_lib) {
     const int max_line = 1024;
     char line[max_line];
-    char* err_line = line;
     int err_count = 0;
 
     std::string mtl_name;
@@ -244,7 +242,6 @@ static bool parse_mtl(std::istream& stream, obj::MaterialLib& mtl_lib) {
     while (stream.getline(line, max_line)) {
         // Strip spaces
         char* ptr = strip_spaces(line);
-        err_line = ptr;
 
         // Skip comments and empty lines
         if (*ptr == '\0' || *ptr == '#')

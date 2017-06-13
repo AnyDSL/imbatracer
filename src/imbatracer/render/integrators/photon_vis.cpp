@@ -71,10 +71,6 @@ inline rgb colorize(float v) {
 }
 
 void PhotonVis::process_camera_rays(RayQueue<PhotonVisState>& prim_rays, RayQueue<ShadowState>& shadow_rays, AtomicImage& out) {
-    auto states = prim_rays.states();
-    const Hit* hits = prim_rays.hits();
-    Ray* rays = prim_rays.rays();
-
     // Shrink the queue to only contain valid hits.
     const int hit_count = prim_rays.compact_hits();
     prim_rays.shrink(hit_count);
@@ -82,7 +78,6 @@ void PhotonVis::process_camera_rays(RayQueue<PhotonVisState>& prim_rays, RayQueu
     tbb::parallel_for(tbb::blocked_range<int>(0, prim_rays.size()), [&] (const tbb::blocked_range<int>& range) {
         for (auto i = range.begin(); i != range.end(); ++i) {
             auto& state = prim_rays.state(i);
-            RNG& rng = state.rng;
             const auto isect = calculate_intersection(scene_, prim_rays.hit(i), prim_rays.ray(i));
             const float cos_theta_o = fabsf(dot(isect.out_dir, isect.normal));
 
@@ -93,15 +88,15 @@ void PhotonVis::process_camera_rays(RayQueue<PhotonVisState>& prim_rays, RayQueu
             auto light_contrib   = colorize(grid_light_(isect.pos, 0));
             auto light_density   = colorize(grid_light_(isect.pos, 2));
             auto joint_contrib   = colorize(grid_light_(isect.pos, 0) + grid_light_(isect.pos, 1));
-            auto prod_power      = colorize(grid_light_(isect.pos, 3) * grid_cam_(isect.pos, 0));
-            if (states[i].wnd == 0)
-                add_contribution(out, states[i].pixel_id, joint_contrib);
-            else if (states[i].wnd == 1)
-                add_contribution(out, states[i].pixel_id, connect_contrib);
-            else if (states[i].wnd == 2)
-                add_contribution(out, states[i].pixel_id, light_contrib);
+            //auto prod_power      = colorize(grid_light_(isect.pos, 3) * grid_cam_(isect.pos, 0));
+            if (state.wnd == 0)
+                add_contribution(out, state.pixel_id, joint_contrib);
+            else if (state.wnd == 1)
+                add_contribution(out, state.pixel_id, connect_contrib);
+            else if (state.wnd == 2)
+                add_contribution(out, state.pixel_id, light_contrib);
             else
-                add_contribution(out, states[i].pixel_id, light_density);
+                add_contribution(out, state.pixel_id, light_density);
 
             terminate_path(state);
         }

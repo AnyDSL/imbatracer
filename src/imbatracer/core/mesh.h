@@ -1,13 +1,14 @@
 #ifndef IMBA_MESH_H
 #define IMBA_MESH_H
 
-#include <cstdint>
-#include <vector>
-
 #include "imbatracer/core/float4.h"
 #include "imbatracer/core/float4x4.h"
 #include "imbatracer/core/float3x4.h"
 #include "imbatracer/core/tri.h"
+
+#include <cstdint>
+#include <vector>
+#include <cassert>
 
 namespace imba {
 
@@ -130,6 +131,8 @@ private:
             case AttributeType::INT3:     return 4 * 4;
             case AttributeType::INT4:     return 4 * 4;
         }
+        assert(0);
+        return 0;
     }
 
     struct Attribute {

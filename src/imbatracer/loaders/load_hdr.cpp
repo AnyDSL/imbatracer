@@ -46,7 +46,7 @@ std::istream& operator >> (std::istream& str, HDRPixel& out) {
 }
 
 bool hdr_check_signature(std::ifstream& file) {
-    auto sig = "#?RADIANCE";
+    //auto sig = "#?RADIANCE";
 
     std::string buf;
     if (!std::getline(file, buf))
@@ -146,9 +146,6 @@ bool hdr_adaptive_rle_decode(std::istream& str, rgba* out, int len) {
 }
 
 bool hdr_parse_scanline(std::istream& str, const HDRInfo& info, Image& image, int y) {
-    const int min_scanline_len = 8;
-    const int max_scanline_len = 0x7fff;
-
     HDRPixel pix;
     str >> pix;
 
