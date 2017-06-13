@@ -16,8 +16,6 @@
 
 namespace imba {
 
-using namespace mis;
-
 template <typename MisType>
 class DeferredVCM : public Integrator {
     struct State : public RayState {

@@ -23,12 +23,12 @@ static ThreadLocalMemArena bsdf_memory_arenas;
 #endif
 
 template <>
-void DeferredVCM<MisVCM>::render(AtomicImage& img) {
+void DeferredVCM<mis::MisVCM>::render(AtomicImage& img) {
     const float radius_alpha = 0.75f;
     cur_iteration_++;
     pm_radius_ = base_radius_ / powf(static_cast<float>(cur_iteration_), 0.5f * (1.0f - radius_alpha));
     pm_radius_ = std::max(pm_radius_, 1e-7f); // ensure numerical stability
-    merge_pdf_ = merge_accept_weight(settings_.light_path_count, pm_radius_);
+    merge_pdf_ = mis::merge_accept_weight(settings_.light_path_count, pm_radius_);
 
     cam_verts_->clear();
     light_verts_->clear();
@@ -44,7 +44,7 @@ void DeferredVCM<MisVCM>::render(AtomicImage& img) {
 }
 
 template <>
-void DeferredVCM<MisBPT>::render(AtomicImage& img) {
+void DeferredVCM<mis::MisBPT>::render(AtomicImage& img) {
     cam_verts_->clear();
     light_verts_->clear();
 
@@ -57,7 +57,7 @@ void DeferredVCM<MisBPT>::render(AtomicImage& img) {
 }
 
 template <>
-void DeferredVCM<MisPT>::render(AtomicImage& img) {
+void DeferredVCM<mis::MisPT>::render(AtomicImage& img) {
     cam_verts_->clear();
     light_verts_->clear();
 
@@ -68,7 +68,7 @@ void DeferredVCM<MisPT>::render(AtomicImage& img) {
 }
 
 template <>
-void DeferredVCM<MisLT>::render(AtomicImage& img) {
+void DeferredVCM<mis::MisLT>::render(AtomicImage& img) {
     cam_verts_->clear();
     light_verts_->clear();
 
@@ -79,7 +79,7 @@ void DeferredVCM<MisLT>::render(AtomicImage& img) {
 }
 
 template <>
-void DeferredVCM<MisTWPT>::render(AtomicImage& img) {
+void DeferredVCM<mis::MisTWPT>::render(AtomicImage& img) {
     cam_verts_->clear();
     light_verts_->clear();
 
@@ -91,12 +91,12 @@ void DeferredVCM<MisTWPT>::render(AtomicImage& img) {
 }
 
 template <>
-void DeferredVCM<MisPPM>::render(AtomicImage& img) {
+void DeferredVCM<mis::MisPPM>::render(AtomicImage& img) {
     const float radius_alpha = 0.75f;
     cur_iteration_++;
     pm_radius_ = base_radius_ / powf(static_cast<float>(cur_iteration_), 0.5f * (1.0f - radius_alpha));
     pm_radius_ = std::max(pm_radius_, 1e-7f); // ensure numerical stability
-    merge_pdf_ = merge_accept_weight(settings_.light_path_count, pm_radius_);
+    merge_pdf_ = mis::merge_accept_weight(settings_.light_path_count, pm_radius_);
 
     cam_verts_->clear();
     light_verts_->clear();
@@ -493,11 +493,11 @@ void DeferredVCM<MisType>::merge(AtomicImage& img) {
     });
 }
 
-template class DeferredVCM<MisVCM>;
-template class DeferredVCM<MisBPT>;
-template class DeferredVCM<MisPT>;
-template class DeferredVCM<MisLT>;
-template class DeferredVCM<MisTWPT>;
-template class DeferredVCM<MisPPM>;
+template class DeferredVCM<mis::MisVCM>;
+template class DeferredVCM<mis::MisBPT>;
+template class DeferredVCM<mis::MisPT>;
+template class DeferredVCM<mis::MisLT>;
+template class DeferredVCM<mis::MisTWPT>;
+template class DeferredVCM<mis::MisPPM>;
 
 } // namespace imba

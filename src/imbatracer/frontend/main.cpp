@@ -110,7 +110,7 @@ int main(int argc, char* argv[]) {
     // TODO generate with macros
 
     if (settings.algorithm == UserSettings::DEF_VCM) {
-        DeferredVCM<MisPPM> integrator(scene, cam, settings);
+        DeferredVCM<mis::MisVCM> integrator(scene, cam, settings);
         integrator.preprocess();
         ctrl.set_speed(integrator.pixel_size() * 10.0f);
         RenderWindow wnd(settings, integrator, ctrl, settings.concurrent_spp);
