@@ -40,7 +40,7 @@ public:
 
     /// Allows integrators to react on user input (e.g. for debugging)
     /// \returns true if the image should be reset.
-    virtual bool key_press(int32_t k) {}
+    virtual bool key_press(int32_t k) { return false; }
 
 protected:
     const Scene& scene_;

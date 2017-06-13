@@ -22,21 +22,13 @@ static ThreadLocalMemArena bsdf_memory_arenas;
 #define PROFILE(cmd, name) {cmd;}
 #endif
 
-void DeferredVCM::render(AtomicImage& img) {
+template <>
+void DeferredVCM<MisVCM>::render(AtomicImage& img) {
     const float radius_alpha = 0.75f;
     cur_iteration_++;
     pm_radius_ = base_radius_ / powf(static_cast<float>(cur_iteration_), 0.5f * (1.0f - radius_alpha));
     pm_radius_ = std::max(pm_radius_, 1e-7f); // ensure numerical stability
-
-    auto techniques = 0
-        | MIS_CONNECT
-        | MIS_MERGE
-        | MIS_HIT
-        | MIS_NEXTEVT_LIGHT
-        | MIS_NEXTEVT_CAM
-        ;
-
-    PartialMIS::setup_iteration(pm_radius_, settings_.light_path_count, techniques);
+    merge_pdf_ = merge_accept_weight(settings_.light_path_count, pm_radius_);
 
     cam_verts_->clear();
     light_verts_->clear();
@@ -44,26 +36,82 @@ void DeferredVCM::render(AtomicImage& img) {
     PROFILE(trace_camera_paths(), "Tracing camera paths");
     PROFILE(trace_light_paths(), "Tracing light paths");
 
-    if (techniques & MIS_MERGE)
-        PROFILE(photon_grid_.build(light_verts_->begin(), light_verts_->end(), pm_radius_), "Building hash grid");
-
-    if (techniques & MIS_NEXTEVT_CAM || techniques & MIS_HIT)
-        PROFILE(path_tracing(img, techniques & MIS_NEXTEVT_CAM), "PT");
-
-    if (techniques & MIS_NEXTEVT_LIGHT)
-        PROFILE(light_tracing(img), "LT");
-
-    if (techniques & MIS_CONNECT)
-        PROFILE(connect(img), "Connect");
-
-    if (techniques & MIS_MERGE)
-        PROFILE(merge(img), "Merge");
+    PROFILE(photon_grid_.build(light_verts_->begin(), light_verts_->end(), pm_radius_), "Building hash grid");
+    PROFILE(path_tracing(img, true), "PT");
+    PROFILE(light_tracing(img), "LT");
+    PROFILE(connect(img), "Connect");
+    PROFILE(merge(img), "Merge");
 }
 
-void DeferredVCM::trace_camera_paths() {
-    // TODO: refactor the AtomicImage out of here (by removing it / adding a special case in the scheduler)
+template <>
+void DeferredVCM<MisBPT>::render(AtomicImage& img) {
+    cam_verts_->clear();
+    light_verts_->clear();
 
-    DeferredScheduler<State>::ShadeEmptyFn env_hit;
+    PROFILE(trace_camera_paths(), "Tracing camera paths");
+    PROFILE(trace_light_paths(), "Tracing light paths");
+
+    PROFILE(path_tracing(img, true), "PT");
+    PROFILE(light_tracing(img), "LT");
+    PROFILE(connect(img), "Connect");
+}
+
+template <>
+void DeferredVCM<MisPT>::render(AtomicImage& img) {
+    cam_verts_->clear();
+    light_verts_->clear();
+
+    PROFILE(trace_camera_paths(), "Tracing camera paths");
+    PROFILE(trace_light_paths(), "Tracing light paths");
+
+    PROFILE(path_tracing(img, true), "PT");
+}
+
+template <>
+void DeferredVCM<MisLT>::render(AtomicImage& img) {
+    cam_verts_->clear();
+    light_verts_->clear();
+
+    PROFILE(trace_camera_paths(), "Tracing camera paths");
+    PROFILE(trace_light_paths(), "Tracing light paths");
+
+    PROFILE(light_tracing(img), "LT");
+}
+
+template <>
+void DeferredVCM<MisTWPT>::render(AtomicImage& img) {
+    cam_verts_->clear();
+    light_verts_->clear();
+
+    PROFILE(trace_camera_paths(), "Tracing camera paths");
+    PROFILE(trace_light_paths(), "Tracing light paths");
+
+    PROFILE(path_tracing(img, true), "PT");
+    PROFILE(light_tracing(img), "LT");
+}
+
+template <>
+void DeferredVCM<MisPPM>::render(AtomicImage& img) {
+    const float radius_alpha = 0.75f;
+    cur_iteration_++;
+    pm_radius_ = base_radius_ / powf(static_cast<float>(cur_iteration_), 0.5f * (1.0f - radius_alpha));
+    pm_radius_ = std::max(pm_radius_, 1e-7f); // ensure numerical stability
+    merge_pdf_ = merge_accept_weight(settings_.light_path_count, pm_radius_);
+
+    cam_verts_->clear();
+    light_verts_->clear();
+
+    PROFILE(trace_camera_paths(), "Tracing camera paths");
+    PROFILE(trace_light_paths(), "Tracing light paths");
+
+    PROFILE(photon_grid_.build(light_verts_->begin(), light_verts_->end(), pm_radius_), "Building hash grid");
+    PROFILE(path_tracing(img, true), "PT");
+    PROFILE(merge(img), "Merge");
+}
+
+template <typename MisType>
+void DeferredVCM<MisType>::trace_camera_paths() {
+    typename DeferredScheduler<State>::ShadeEmptyFn env_hit;
     if (scene_.env_map()) {
         env_hit = [this] (Ray& r, State& s) {
             process_envmap_hits(r, s);
@@ -87,13 +135,14 @@ void DeferredVCM::trace_camera_paths() {
 
             float pdf = cam_.pdf(ray.dir);
 
-            state.mis.init_camera(pdf);
+            state.mis.init_camera(settings_.light_path_count, pdf);
 
             return true;
         });
 }
 
-void DeferredVCM::trace_light_paths() {
+template <typename MisType>
+void DeferredVCM<MisType>::trace_light_paths() {
     scheduler_.run_iteration(&light_tile_gen_,
         nullptr,
         [this] (Ray& r, Hit& h, State& s) {
@@ -119,7 +168,8 @@ void DeferredVCM::trace_light_paths() {
         });
 }
 
-void DeferredVCM::bounce(State& state, const Intersection& isect, BSDF* bsdf, Ray& ray, bool adjoint, float offset) {
+template <typename MisType>
+void DeferredVCM<MisType>::bounce(State& state, const Intersection& isect, BSDF* bsdf, Ray& ray, bool adjoint, float offset) {
     if (state.path_length >= settings_.max_path_len) {
         terminate_path(state);
         return;
@@ -151,8 +201,7 @@ void DeferredVCM::bounce(State& state, const Intersection& isect, BSDF* bsdf, Ra
                                       : fabsf(dot(sample_dir, isect.normal));
 
     state.throughput *= bsdf_value * cos_theta_i / (rr_pdf * pdf_dir_w);
-    state.path_length++;
-    state.mis.update_bounce(pdf_dir_w, pdf_rev_w, cos_theta_i, is_specular);
+    state.mis.update_bounce(pdf_dir_w, pdf_rev_w, cos_theta_i, is_specular, merge_pdf_, state.path_length, !adjoint);
 
     ray = Ray {
         { isect.pos.x, isect.pos.y, isect.pos.z, offset },
@@ -160,7 +209,8 @@ void DeferredVCM::bounce(State& state, const Intersection& isect, BSDF* bsdf, Ra
     };
 }
 
-void DeferredVCM::process_envmap_hits(Ray& r, State& state) {
+template <typename MisType>
+void DeferredVCM<MisType>::process_envmap_hits(Ray& r, State& state) {
     // TODO
     // The environment map was "hit"
     // I should record this hit somehow, to
@@ -168,11 +218,11 @@ void DeferredVCM::process_envmap_hits(Ray& r, State& state) {
     //   b) do the environment map hit evaluation in a deferred way as well, consistent with the rest of the algorithm
 }
 
-void DeferredVCM::process_hits(Ray& r, Hit& h, State& state, VertCache* cache) {
+template <typename MisType>
+void DeferredVCM<MisType>::process_hits(Ray& r, Hit& h, State& state, VertCache* cache) {
     auto& bsdf_mem_arena = bsdf_memory_arenas.local();
     bsdf_mem_arena.free_all();
 
-    RNG& rng = state.rng;
     const auto isect = calculate_intersection(scene_, h, r);
     const float cos_theta_o = fabsf(dot(isect.out_dir, isect.normal));
 
@@ -185,8 +235,9 @@ void DeferredVCM::process_hits(Ray& r, Hit& h, State& state, VertCache* cache) {
 
     state.mis.update_hit(cos_theta_o, h.tmax * h.tmax);
 
+    state.path_length++;
     if (!isect.mat->is_specular())
-        state.ancestor = cache->add(Vertex(state.mis, state.throughput, state.ancestor, state.pixel_id, state.path_length + 1, isect));
+        state.ancestor = cache->add(Vertex(state.mis, state.throughput, state.ancestor, state.pixel_id, state.path_length, isect));
     else
         state.ancestor = -1;
 
@@ -195,7 +246,8 @@ void DeferredVCM::process_hits(Ray& r, Hit& h, State& state, VertCache* cache) {
     bounce(state, isect, bsdf, r, false, offset);
 }
 
-void DeferredVCM::path_tracing(AtomicImage& img, bool next_evt) {
+template <typename MisType>
+void DeferredVCM<MisType>::path_tracing(AtomicImage& img, bool next_evt) {
     ArrayTileGen<ShadowState> tile_gen(settings_.tile_size * settings_.tile_size, cam_verts_->size());
     shadow_scheduler_.run_iteration(&tile_gen,
         [this, &img] (Ray& r, ShadowState& s) {
@@ -203,16 +255,14 @@ void DeferredVCM::path_tracing(AtomicImage& img, bool next_evt) {
         },
         nullptr, // hits --> occluded
         [this, &img, next_evt] (int vert_id, int unused, ::Ray& ray, ShadowState& state) -> bool {
-            const auto& cam_v   = *cam_verts_;
-            const auto& light_v = *light_verts_;
-            const auto& v = cam_v[vert_id];
+            const auto& v = (*cam_verts_)[vert_id];
 
             if (auto emit = v.isect.mat->emitter()) {
                 float pdf_lightpick = 1.0f / scene_.light_count();
                 float pdf_direct_a, pdf_emit_w;
                 rgb radiance = emit->radiance(v.isect.out_dir, v.isect.geom_normal, pdf_direct_a, pdf_emit_w);
 
-                const float mis_weight = mis_weight_hit(v.mis, pdf_direct_a, pdf_emit_w, pdf_lightpick, v.path_len);
+                const float mis_weight = mis::weight_upt(v.mis, merge_pdf_, pdf_direct_a, pdf_emit_w, pdf_lightpick, v.path_len);
 
                 rgb color = v.throughput * radiance * mis_weight;
                 add_contribution(img, v.pixel_id, color);
@@ -239,9 +289,9 @@ void DeferredVCM::path_tracing(AtomicImage& img, bool next_evt) {
             if (pdf_dir_w == 0.0f || pdf_rev_w == 0.0f)
                 return false;
 
-            const float mis_weight = mis_weight_di(v.mis, pdf_dir_w, pdf_rev_w,
-                                                   sample.pdf_direct_w, sample.pdf_emit_w, pdf_lightpick_inv,
-                                                   cos_theta_i, sample.cos_out, ls->is_delta());
+            const float mis_weight = mis::weight_di(v.mis, merge_pdf_, pdf_dir_w, pdf_rev_w,
+                                                    sample.pdf_direct_w, sample.pdf_emit_w, pdf_lightpick_inv,
+                                                    cos_theta_i, sample.cos_out, ls->is_delta(), v.path_len);
 
             const float offset = 1e-3f * (sample.distance == FLT_MAX ? 1.0f : sample.distance);
 
@@ -255,7 +305,8 @@ void DeferredVCM::path_tracing(AtomicImage& img, bool next_evt) {
         });
 }
 
-void DeferredVCM::light_tracing(AtomicImage& img) {
+template <typename MisType>
+void DeferredVCM<MisType>::light_tracing(AtomicImage& img) {
     ArrayTileGen<ShadowState> tile_gen(settings_.tile_size * settings_.tile_size, light_verts_->size());
     shadow_scheduler_.run_iteration(&tile_gen,
         [this, &img] (Ray& r, ShadowState& s) {
@@ -263,9 +314,7 @@ void DeferredVCM::light_tracing(AtomicImage& img) {
         },
         nullptr, // hits --> occluded
         [this] (int vert_id, int unused, ::Ray& ray, ShadowState& state) -> bool {
-            const auto& cam_v   = *cam_verts_;
-            const auto& light_v = *light_verts_;
-            const auto& v = light_v[vert_id];
+            const auto& v = (*light_verts_)[vert_id];
 
             if (v.path_len == 1)
                 return false; // Do not connect vertices on the light source itself
@@ -300,7 +349,7 @@ void DeferredVCM::light_tracing(AtomicImage& img) {
             if (pdf_rev_w == 0.0f)
                 return false;
 
-            const float mis_weight = mis_weight_cam_connect(v.mis, pdf_cam, cos_theta_surf, dist_to_cam_sqr, pdf_rev_w);
+            const float mis_weight = mis::weight_lt(v.mis, merge_pdf_, pdf_cam, pdf_rev_w, settings_.light_path_count, v.path_len);
 
             const float offset = dist_to_cam * 1e-4f;
 
@@ -313,7 +362,8 @@ void DeferredVCM::light_tracing(AtomicImage& img) {
         });
 }
 
-void DeferredVCM::connect(AtomicImage& img) {
+template <typename MisType>
+void DeferredVCM<MisType>::connect(AtomicImage& img) {
     ArrayTileGen<ShadowState> tile_gen(settings_.tile_size * settings_.tile_size, cam_verts_->size(), settings_.num_connections);
     shadow_scheduler_.run_iteration(&tile_gen,
         [this, &img] (Ray& r, ShadowState& s) {
@@ -377,9 +427,10 @@ void DeferredVCM::connect(AtomicImage& img) {
             if (geom_term <= 0.0f)
                 return false;
 
-            const float mis_weight = mis_weight_connect(v.mis, light_vertex.mis, pdf_dir_cam_w, pdf_rev_cam_w,
-                                                        pdf_dir_light_w, pdf_rev_light_w,
-                                                        cos_theta_cam, cos_theta_light, connect_dist_sq);
+            const float mis_weight = mis::weight_connect(v.mis, light_vertex.mis, merge_pdf_, pdf_dir_cam_w, pdf_rev_cam_w,
+                                                         pdf_dir_light_w, pdf_rev_light_w,
+                                                         cos_theta_cam, cos_theta_light, connect_dist_sq,
+                                                         v.path_len, light_vertex.path_len);
 
             state.pixel_id = v.pixel_id;
             state.contrib  = v.throughput * vc_weight * mis_weight * geom_term * bsdf_value_cam * bsdf_value_light * light_vertex.throughput;
@@ -392,7 +443,8 @@ void DeferredVCM::connect(AtomicImage& img) {
         });
 }
 
-void DeferredVCM::merge(AtomicImage& img) {
+template <typename MisType>
+void DeferredVCM<MisType>::merge(AtomicImage& img) {
     const auto& cam_v = *cam_verts_;
 
     tbb::parallel_for(tbb::blocked_range<int>(0, cam_verts_->size()),
@@ -424,7 +476,7 @@ void DeferredVCM::merge(AtomicImage& img) {
                 if (pdf_dir_w == 0.0f || pdf_rev_w == 0.0f || is_black(bsdf_value))
                     continue;
 
-                const float mis_weight = mis_weight_merge(v.mis, p->mis, pdf_dir_w, pdf_rev_w);
+                const float mis_weight = mis::weight_merge(v.mis, p->mis, merge_pdf_, pdf_dir_w, pdf_rev_w, v.path_len, p->path_len);
 
                 // Epanechnikov filter
                 const float d = lensqr(p->isect.pos - v.isect.pos);
@@ -440,5 +492,12 @@ void DeferredVCM::merge(AtomicImage& img) {
         }
     });
 }
+
+template class DeferredVCM<MisVCM>;
+template class DeferredVCM<MisBPT>;
+template class DeferredVCM<MisPT>;
+template class DeferredVCM<MisLT>;
+template class DeferredVCM<MisTWPT>;
+template class DeferredVCM<MisPPM>;
 
 } // namespace imba

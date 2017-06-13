@@ -16,6 +16,9 @@
 
 namespace imba {
 
+using namespace mis;
+
+template <typename MisType>
 class DeferredVCM : public Integrator {
     struct State : public RayState {
         /// The power or importance carried by the path up to this intersection
@@ -28,7 +31,7 @@ class DeferredVCM : public Integrator {
         /// -1 if the ancestor was not stored (e.g. is on a specular surface, first vertex, cache too small, ...)
         int ancestor;
 
-        PartialMIS mis;
+        MisType mis;
     };
 
     struct ShadowState : public RayState {
@@ -39,7 +42,7 @@ class DeferredVCM : public Integrator {
     struct Vertex {
         // TODO refactor and compress this, consider storing BSDF inside (instead of Intersection)
 
-        PartialMIS mis;
+        MisType mis;
         rgb throughput; ///< The power or importance of the path leading to this vertex
 
         Intersection isect;
@@ -53,11 +56,11 @@ class DeferredVCM : public Integrator {
         const float3& position() const { return isect.pos; }
 
         Vertex() {}
-        Vertex(const PartialMIS& mis, const rgb& c, int a, int pixel, int len, const Intersection& i)
+        Vertex(const MisType& mis, const rgb& c, int a, int pixel, int len, const Intersection& i)
             : mis(mis), throughput(c), ancestor(a), isect(i), pixel_id(pixel), path_len(len)
         {}
 
-        Vertex(const PartialMIS& mis, const rgb& c, int a, int pixel, int len, const float3& pos)
+        Vertex(const MisType& mis, const rgb& c, int a, int pixel, int len, const float3& pos)
             : mis(mis), throughput(c), ancestor(a), pixel_id(pixel), path_len(len)
         {
             isect.pos = pos;
@@ -117,6 +120,7 @@ private:
     int cur_iteration_;
     float pm_radius_;
     float base_radius_;
+    float merge_pdf_;
 
     UniformLightTileGen<State> light_tile_gen_;
     DefaultTileGen<State> camera_tile_gen_;
@@ -127,7 +131,7 @@ private:
     std::unique_ptr<VertCache> cam_verts_;
     std::unique_ptr<VertCache> light_verts_;
 
-    HashGrid<VertCache::iterator, Vertex> photon_grid_;
+    HashGrid<typename VertCache::iterator, Vertex> photon_grid_;
 
     void trace_camera_paths();
     void trace_light_paths();
