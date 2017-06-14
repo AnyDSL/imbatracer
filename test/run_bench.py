@@ -106,7 +106,7 @@ for t in thread_counts:
 
 times_in_seconds = [30]
 same_time = True
-algorithms = ['ppm']
+algorithms = ['def_twpt', 'def_bpt']
 convergence = False
 convergence_step_sec = 5
 light_path_frac = 0.5
@@ -173,6 +173,7 @@ def run_benchmark(app, setting, path, time_sec, cmd_args):
 
             if output_lines[len(output_lines) - 1][0] == "D":
                 perf_result = output_lines[len(output_lines) - 1]
+                ray_count = 0
             elif output_lines[len(output_lines) - 1][0] == "N" and output_lines[len(output_lines) - 2][0] == "D":
                 perf_result = output_lines[len(output_lines) - 2]
                 ray_count   = output_lines[len(output_lines) - 1]

@@ -37,6 +37,7 @@ void DeferredVCM<mis::MisVCM>::render(AtomicImage& img) {
     PROFILE(trace_camera_paths(), "Tracing camera paths");
     PROFILE(trace_light_paths(), "Tracing light paths");
 
+    // TODO: sort the camera an light vertices (spatially + by material / tri-id)
 
     auto m = std::async(std::launch::async, [this, &img] {
         PROFILE(photon_grid_.build(light_verts_->begin(), light_verts_->end(), pm_radius_), "Building hash grid");
