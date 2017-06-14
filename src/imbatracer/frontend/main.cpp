@@ -86,6 +86,15 @@ private:
     PerspectiveCamera& cam_;
 };
 
+template <typename T>
+void render_loop_deferred(Scene& scene, PerspectiveCamera& cam, CameraControl& ctrl, UserSettings& settings) {
+    DeferredVCM<T> integrator(scene, cam, settings);
+    integrator.preprocess();
+    ctrl.set_speed(integrator.pixel_size() * 10.0f);
+    RenderWindow wnd(settings, integrator, ctrl, settings.concurrent_spp);
+    wnd.render_loop();
+}
+
 int main(int argc, char* argv[]) {
     std::cout << "Imbatracer - An interactive raytracer" << std::endl;
 
@@ -107,15 +116,18 @@ int main(int argc, char* argv[]) {
 
     const bool gpu_traversal = settings.traversal_platform == UserSettings::gpu;
 
-    // TODO generate with macros
-
     if (settings.algorithm == UserSettings::DEF_VCM) {
-        DeferredVCM<mis::MisVCM> integrator(scene, cam, settings);
-        integrator.preprocess();
-        ctrl.set_speed(integrator.pixel_size() * 10.0f);
-        RenderWindow wnd(settings, integrator, ctrl, settings.concurrent_spp);
-        wnd.render_loop();
-        return 0;
+        render_loop_deferred<mis::MisVCM>(scene, cam, ctrl, settings);
+    } else if (settings.algorithm == UserSettings::DEF_PT) {
+        render_loop_deferred<mis::MisPT>(scene, cam, ctrl, settings);
+    } else if (settings.algorithm == UserSettings::DEF_LT) {
+        render_loop_deferred<mis::MisLT>(scene, cam, ctrl, settings);
+    } else if (settings.algorithm == UserSettings::DEF_TWPT) {
+        render_loop_deferred<mis::MisTWPT>(scene, cam, ctrl, settings);
+    } else if (settings.algorithm == UserSettings::DEF_BPT) {
+        render_loop_deferred<mis::MisBPT>(scene, cam, ctrl, settings);
+    } else if (settings.algorithm == UserSettings::DEF_PPM) {
+        render_loop_deferred<mis::MisPPM>(scene, cam, ctrl, settings);
     } else if (settings.algorithm == UserSettings::PT) {
 #ifdef QUEUE_SCHEDULER
         PixelRayGen<PTState> ray_gen(settings.width, settings.height, settings.concurrent_spp);
@@ -139,47 +151,48 @@ int main(int argc, char* argv[]) {
         RenderWindow wnd(settings, integrator, ctrl, settings.concurrent_spp);
         wnd.render_loop();
         return 0;
-    }
+    } else {
 
 #ifdef QUEUE_SCHEDULER
-    PixelRayGen<VCMState> ray_gen(settings.width, settings.height, settings.concurrent_spp);
-    QueueScheduler<VCMState, VCMShadowState> scheduler(ray_gen, scene, settings.num_connections + 1, gpu_traversal);
+        PixelRayGen<VCMState> ray_gen(settings.width, settings.height, settings.concurrent_spp);
+        QueueScheduler<VCMState, VCMShadowState> scheduler(ray_gen, scene, settings.num_connections + 1, gpu_traversal);
 #else
-    DefaultTileGen<VCMState> ray_gen(settings.width, settings.height, settings.concurrent_spp, settings.tile_size);
-    TileScheduler<VCMState, VCMShadowState> scheduler(ray_gen, scene, settings.num_connections + 1, settings.thread_count, settings.tile_size * settings.tile_size * settings.concurrent_spp, gpu_traversal);
+        DefaultTileGen<VCMState> ray_gen(settings.width, settings.height, settings.concurrent_spp, settings.tile_size);
+        TileScheduler<VCMState, VCMShadowState> scheduler(ray_gen, scene, settings.num_connections + 1, settings.thread_count, settings.tile_size * settings.tile_size * settings.concurrent_spp, gpu_traversal);
 #endif
 
-    Integrator* integrator;
+        Integrator* integrator;
 
-    switch (settings.algorithm) {
-    case UserSettings::BPT:
-        integrator = new BPT(scene, cam, scheduler, settings);
-        break;
+        switch (settings.algorithm) {
+        case UserSettings::BPT:
+            integrator = new BPT(scene, cam, scheduler, settings);
+            break;
 
-    case UserSettings::PPM:
-        integrator = new PPM(scene, cam, scheduler, settings);
-        break;
+        case UserSettings::PPM:
+            integrator = new PPM(scene, cam, scheduler, settings);
+            break;
 
-    case UserSettings::LT:
-        integrator = new LT(scene, cam, scheduler, settings);
-        break;
+        case UserSettings::LT:
+            integrator = new LT(scene, cam, scheduler, settings);
+            break;
 
-    case UserSettings::VCM_PT:
-        integrator = new VCM_PT(scene, cam, scheduler, settings);
-        break;
+        case UserSettings::VCM_PT:
+            integrator = new VCM_PT(scene, cam, scheduler, settings);
+            break;
 
-    default:
-        integrator = new VCM(scene, cam, scheduler, settings);
-        break;
+        default:
+            integrator = new VCM(scene, cam, scheduler, settings);
+            break;
+        }
+
+        integrator->preprocess();
+        ctrl.set_speed(integrator->pixel_size() * 10.0f);
+
+        RenderWindow wnd(settings, *integrator, ctrl, settings.concurrent_spp);
+        wnd.render_loop();
+
+        delete integrator;
     }
-
-    integrator->preprocess();
-    ctrl.set_speed(integrator->pixel_size() * 10.0f);
-
-    RenderWindow wnd(settings, *integrator, ctrl, settings.concurrent_spp);
-    wnd.render_loop();
-
-    delete integrator;
 
     return 0;
 }

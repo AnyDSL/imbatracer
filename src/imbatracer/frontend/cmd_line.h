@@ -47,7 +47,12 @@ struct UserSettings {
         LT,
         PHOTON_VIS,
 
-        DEF_VCM
+        DEF_VCM,
+        DEF_PT,
+        DEF_LT,
+        DEF_TWPT,
+        DEF_BPT,
+        DEF_PPM,
     } algorithm;
 
     float radius_factor;
@@ -90,7 +95,7 @@ inline void print_help() {
               << "    -q  Quiet mode, render in background without SDL preview." << std::endl
               << "    -s  Number of samples per pixel to render (default: unlimited)" << std::endl
               << "    -t  Number of seconds to run the render algorithm (default: unlimited)" << std::endl
-              << "    -a  Selects which algorithm to use: 'pt', 'bpt', 'ppm', 'lt', 'vcm_pt', 'vcm', 'photon_vis', 'def_vcm', or 'vcm_dbg' (default: pt)" << std::endl
+              << "    -a  Selects which algorithm to use: 'pt', 'bpt', 'ppm', 'lt', 'vcm_pt', 'vcm', 'photon_vis', 'def_[vcm, lt, pt, bpt, twpt, ppm]', or 'vcm_dbg' (default: pt)" << std::endl
               << "    -w  Sets the horizontal resolution in pixels (default: 512)" << std::endl
               << "    -h  Sets the vertical resolution in pixels (default: 512)" << std::endl
               << "    -f  Sets the horizontal field of view (default: 60)" << std::endl
@@ -154,6 +159,11 @@ inline bool parse_cmd_line(int argc, char* argv[], UserSettings& settings) {
         {"vcm_pt",     UserSettings::VCM_PT},
         {"photon_vis", UserSettings::PHOTON_VIS},
         {"def_vcm",    UserSettings::DEF_VCM},
+        {"def_bpt",    UserSettings::DEF_BPT},
+        {"def_pt",     UserSettings::DEF_PT},
+        {"def_lt",     UserSettings::DEF_LT},
+        {"def_twpt",   UserSettings::DEF_TWPT},
+        {"def_ppm",    UserSettings::DEF_PPM},
     };
 
     bool lp_count_given = false;

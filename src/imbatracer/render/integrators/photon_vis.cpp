@@ -52,9 +52,9 @@ inline rgb colorize(float v) {
 
     v = std::min(0.99f, std::max(0.0f, v));
 
-    rgb lo;
-    rgb hi;
-    float t;
+    rgb lo(0.0f);
+    rgb hi(0.0f);
+    float t = 0.0f;
     for (int i = 0; i < count; ++i) {
         if (v < steps[i].value) {
             hi = steps[i].color;

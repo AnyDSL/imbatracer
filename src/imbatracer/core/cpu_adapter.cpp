@@ -134,10 +134,10 @@ private:
                         Vec4 v0_x, v0_y, v0_z;
                         Vec4 e1_x, e1_y, e1_z;
                         Vec4 e2_x, e2_y, e2_z;
-                        Vec4 n_x, n_y, n_z;
+                        Vec4  n_x,  n_y,  n_z;
                         Vec4 ids;
                     } tri;
-                    float raw[4 * 4 * 3];
+                    float raw[4 * (4 * 3 + 1)];
                 } data;
 
                 for (int j = 0; j < c; j++) {

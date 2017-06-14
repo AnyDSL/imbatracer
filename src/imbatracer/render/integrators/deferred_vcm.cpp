@@ -1,6 +1,7 @@
 #include "imbatracer/render/integrators/deferred_vcm.h"
 
 #include <tbb/enumerable_thread_specific.h>
+#include <future>
 
 namespace imba {
 
@@ -36,11 +37,28 @@ void DeferredVCM<mis::MisVCM>::render(AtomicImage& img) {
     PROFILE(trace_camera_paths(), "Tracing camera paths");
     PROFILE(trace_light_paths(), "Tracing light paths");
 
-    PROFILE(photon_grid_.build(light_verts_->begin(), light_verts_->end(), pm_radius_), "Building hash grid");
-    PROFILE(path_tracing(img, true), "PT");
-    PROFILE(light_tracing(img), "LT");
-    PROFILE(connect(img), "Connect");
-    PROFILE(merge(img), "Merge");
+
+    auto m = std::async(std::launch::async, [this, &img] {
+        PROFILE(photon_grid_.build(light_verts_->begin(), light_verts_->end(), pm_radius_), "Building hash grid");
+        PROFILE(merge(img), "Merge");
+    });
+
+    auto pt = std::async(std::launch::async, [this, &img] {
+        PROFILE(path_tracing(img, true), "PT");
+    });
+
+    auto lt = std::async(std::launch::async, [this, &img] {
+        PROFILE(light_tracing(img), "LT");
+    });
+
+    auto conn = std::async(std::launch::async, [this, &img] {
+        PROFILE(connect(img), "Connect");
+    });
+
+    pt.wait();
+    lt.wait();
+    conn.wait();
+    m.wait();
 }
 
 template <>
@@ -249,7 +267,7 @@ void DeferredVCM<MisType>::process_hits(Ray& r, Hit& h, State& state, VertCache*
 template <typename MisType>
 void DeferredVCM<MisType>::path_tracing(AtomicImage& img, bool next_evt) {
     ArrayTileGen<ShadowState> tile_gen(settings_.tile_size * settings_.tile_size, cam_verts_->size());
-    shadow_scheduler_.run_iteration(&tile_gen,
+    shadow_scheduler_pt_.run_iteration(&tile_gen,
         [this, &img] (Ray& r, ShadowState& s) {
             add_contribution(img, s.pixel_id, s.contrib);
         },
@@ -308,7 +326,7 @@ void DeferredVCM<MisType>::path_tracing(AtomicImage& img, bool next_evt) {
 template <typename MisType>
 void DeferredVCM<MisType>::light_tracing(AtomicImage& img) {
     ArrayTileGen<ShadowState> tile_gen(settings_.tile_size * settings_.tile_size, light_verts_->size());
-    shadow_scheduler_.run_iteration(&tile_gen,
+    shadow_scheduler_lt_.run_iteration(&tile_gen,
         [this, &img] (Ray& r, ShadowState& s) {
             add_contribution(img, s.pixel_id, s.contrib);
         },
@@ -365,7 +383,7 @@ void DeferredVCM<MisType>::light_tracing(AtomicImage& img) {
 template <typename MisType>
 void DeferredVCM<MisType>::connect(AtomicImage& img) {
     ArrayTileGen<ShadowState> tile_gen(settings_.tile_size * settings_.tile_size, cam_verts_->size(), settings_.num_connections);
-    shadow_scheduler_.run_iteration(&tile_gen,
+    shadow_scheduler_connect_.run_iteration(&tile_gen,
         [this, &img] (Ray& r, ShadowState& s) {
             add_contribution(img, s.pixel_id, s.contrib);
         },

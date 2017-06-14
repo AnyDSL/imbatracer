@@ -77,9 +77,15 @@ public:
         , scheduler_(&scene_, settings.thread_count, settings.q_size,
                      settings.traversal_platform == UserSettings::gpu,
                      std::max(camera_tile_gen_.sizeof_ray_gen(), light_tile_gen_.sizeof_ray_gen()))
-        , shadow_scheduler_(&scene_, settings.thread_count, settings.q_size,
-                            settings.traversal_platform == UserSettings::gpu,
-                            sizeof(ArrayRayGen<ShadowState>))
+        , shadow_scheduler_pt_(&scene_, settings.thread_count, settings.q_size,
+                               settings.traversal_platform == UserSettings::gpu,
+                               sizeof(ArrayRayGen<ShadowState>))
+        , shadow_scheduler_lt_(&scene_, settings.thread_count, settings.q_size,
+                               settings.traversal_platform == UserSettings::gpu,
+                               sizeof(ArrayRayGen<ShadowState>))
+        , shadow_scheduler_connect_(&scene_, settings.thread_count, settings.q_size,
+                                    settings.traversal_platform == UserSettings::gpu,
+                                    sizeof(ArrayRayGen<ShadowState>))
     {
         // Compute the required cache size for storing the light and camera vertices.
         bool use_gpu = false;//settings.traversal_platform == UserSettings::gpu;
@@ -124,7 +130,9 @@ private:
     DefaultTileGen<State> camera_tile_gen_;
 
     DeferredScheduler<State> scheduler_;
-    DeferredScheduler<ShadowState, true> shadow_scheduler_;
+    DeferredScheduler<ShadowState, true> shadow_scheduler_pt_;
+    DeferredScheduler<ShadowState, true> shadow_scheduler_lt_;
+    DeferredScheduler<ShadowState, true> shadow_scheduler_connect_;
 
     std::unique_ptr<VertCache> cam_verts_;
     std::unique_ptr<VertCache> light_verts_;
