@@ -11,7 +11,7 @@ using ThreadLocalMemArena =
         tbb::ets_key_per_instance>;
 static ThreadLocalMemArena bsdf_memory_arenas;
 
-// #define STATISTICS
+#define STATISTICS
 #ifdef STATISTICS
 #define PROFILE(cmd, name)  {auto time_start = std::chrono::high_resolution_clock::now(); \
                             cmd; \
