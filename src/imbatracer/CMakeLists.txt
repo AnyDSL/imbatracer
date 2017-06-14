@@ -58,7 +58,6 @@ add_library(imba_render
             render/integrators/deferred_vertices.h
             render/integrators/deferred_vertices.cpp
             render/integrators/deferred_mis.h
-            render/integrators/deferred_mis.cpp
 
             render/debug/path_debug.h
             render/debug/mis_debug.h

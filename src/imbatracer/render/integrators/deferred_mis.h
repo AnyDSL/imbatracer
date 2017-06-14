@@ -259,6 +259,8 @@ struct Merge {
 };
 
 #undef TECH_UPDATE_NOOP
+#undef TECH_FINALIZE_LIGHT_NOOP
+#undef TECH_FINALIZE_SURF_NOOP
 
 template <typename T>
 inline float weight_connect(const T& cam, const T& light, float merge_weight,
