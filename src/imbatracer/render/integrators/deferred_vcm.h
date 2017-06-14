@@ -23,11 +23,11 @@ class DeferredVCM : public Integrator {
         rgb throughput;
 
         /// Number of vertices along this path until now (includes vertex at camera / light)
-        int path_length;
+        uint16_t path_length;
 
         /// Index within the vertex cache where the previous vertex along this path was stored
         /// -1 if the ancestor was not stored (e.g. is on a specular surface, first vertex, cache too small, ...)
-        int ancestor;
+        uint16_t ancestor;
 
         MisType mis;
     };
@@ -48,10 +48,8 @@ class DeferredVCM : public Integrator {
             int pixel_id; ///< Id of the pixel from which this path was sampled (only for camera paths)
             int light_id; ///< Id of the light source from which this path was sampled (only for light paths)
         };
-        int ancestor;
-        int path_len;
-
-        const float3& position() const { return isect.pos; }
+        uint16_t ancestor;
+        uint16_t path_len;
 
         Vertex() {}
         Vertex(const MisType& mis, const rgb& c, int a, int pixel, int len, const Intersection& i)
@@ -63,6 +61,32 @@ class DeferredVCM : public Integrator {
         {
             isect.pos = pos;
         }
+    };
+
+    struct VertexHandle {
+        VertexHandle() : vert(nullptr) {}
+
+        VertexHandle(const Vertex& v) {
+            vert = &v;
+        }
+
+        VertexHandle(const Vertex* v) {
+            vert = v;
+        }
+
+        VertexHandle& operator= (const Vertex& v) {
+            vert = &v;
+            return *this;
+        }
+
+        VertexHandle& operator= (const VertexHandle* v) {
+            vert = v->vert;
+            return *this;
+        }
+
+        const float3& position() const { return vert->isect.pos; }
+
+        const Vertex* vert;
     };
 
     using VertCache = DeferredVertices<Vertex>;
@@ -137,7 +161,7 @@ private:
     std::unique_ptr<VertCache> cam_verts_;
     std::unique_ptr<VertCache> light_verts_;
 
-    HashGrid<typename VertCache::iterator, Vertex> photon_grid_;
+    HashGrid<VertexHandle> photon_grid_;
 
     void trace_camera_paths();
     void trace_light_paths();

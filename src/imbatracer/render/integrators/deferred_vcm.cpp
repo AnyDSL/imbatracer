@@ -476,13 +476,13 @@ void DeferredVCM<MisType>::merge(AtomicImage& img) {
             const auto bsdf = v.isect.mat->get_bsdf(v.isect, bsdf_mem_arena, true);
 
             const int k = settings_.num_knn;
-            auto photons = V_ARRAY(const Vertex*, k);
+            auto photons = V_ARRAY(VertexHandle, k);
             int count = photon_grid_.query(v.isect.pos, photons, k);
-            const float radius_sqr = (count == k) ? lensqr(photons[k - 1]->isect.pos - v.isect.pos) : (pm_radius_ * pm_radius_);
+            const float radius_sqr = (count == k) ? lensqr(photons[k - 1].vert->isect.pos - v.isect.pos) : (pm_radius_ * pm_radius_);
 
             rgb contrib(0.0f);
             for (int i = 0; i < count; ++i) {
-                auto p = photons[i];
+                auto p = photons[i].vert;
                 if (p->path_len <= 1) continue;
 
                 const auto& photon_in_dir = p->isect.out_dir;

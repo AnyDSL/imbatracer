@@ -18,10 +18,11 @@ struct CellIdx {
     CellIdx() : x(0), y(0) {}
 };
 
-template<typename Iter, typename Photon>
+template<typename Photon>
 class HashGrid {
     typedef unsigned int uint;
 public:
+    template <typename Iter>
     void build(const Iter& photons_begin, const Iter& photons_end, float radius) {
         constexpr int inv_load_factor = 2;
         radius_        = radius;
@@ -36,7 +37,7 @@ public:
         // Compute the extents of the bounding box.
         bbox_ = tbb::parallel_reduce(tbb::blocked_range<Iter>(photons_begin, photons_end), BBox::empty(),
             [] (const tbb::blocked_range<Iter>& range, BBox init) {
-                for (Iter it = range.begin(); it != range.end(); ++it) init.extend(it->position());
+                for (Iter it = range.begin(); it != range.end(); ++it) init.extend(static_cast<Photon>(*it).position());
                 return init;
             },
             [] (BBox a, const BBox& b) { return a.extend(b); });
@@ -52,7 +53,7 @@ public:
         // Count the number of photons in each cell.
         tbb::parallel_for(tbb::blocked_range<Iter>(photons_begin, photons_end), [this](const tbb::blocked_range<Iter>& range){
             for (Iter it = range.begin(); it != range.end(); ++it) {
-                cell_ends_[cell_index(it->position())]++;
+                cell_ends_[cell_index(static_cast<Photon>(*it).position())]++;
             }
         });
 
@@ -67,9 +68,9 @@ public:
         // Assign the photons to the cells.
         tbb::parallel_for(tbb::blocked_range<Iter>(photons_begin, photons_end), [this](const tbb::blocked_range<Iter>& range){
             for (Iter it = range.begin(); it != range.end(); ++it) {
-                const float3 &pos = it->position();
+                const float3 &pos = static_cast<Photon>(*it).position();
                 const int target_idx = cell_ends_[cell_index(pos)]++;
-                photons_[target_idx] = *it;
+                photons_[target_idx] = static_cast<Photon>(*it);
             }
         });
     }

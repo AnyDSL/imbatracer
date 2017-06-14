@@ -163,7 +163,7 @@ private:
     int count_;
 
     /// Acceleration structure for photon range queries
-    HashGrid<PhotonIterator, VCMPhoton> accel_;
+    HashGrid<VCMPhoton> accel_;
 
     /// Number of light paths that will be traced and stored in this cache
     int path_count_;
