@@ -57,7 +57,7 @@ public:
         for (auto ptr : thread_local_ray_gen_) delete [] ptr;
 
         if (enable_stats)
-            std::cout << "Number primary rays: " << total_prim_rays_ << " Number shadow rays: " << total_shadow_rays_ << std::endl;
+            std::cout << total_prim_rays_ << " primary ray(s), " << total_shadow_rays_ << " shadow ray(s)" << std::endl;
     }
 
     void run_iteration(AtomicImage& image,
