@@ -16,8 +16,8 @@ class PerspectiveCamera {
 public:
     PerspectiveCamera() {}
 
-    PerspectiveCamera(float w, float h, float fov)
-        : width_(w), height_(h), fov_(fov)
+    PerspectiveCamera(float w, float h, float fov, float aspect = 1.0f)
+        : width_(w), height_(h), fov_(fov), aspect_(aspect)
     {
         move(float3(0.0, 0.0f, -1.0f),
              float3(0.0f, 0.0f, 1.0f),
@@ -38,7 +38,7 @@ public:
                                     float4(-right, -local_p.y),
                                     float4(  -dir, -local_p.z),
                                     float4(0, 0, 0, 1));
-        const auto& persp = perspective(fov_, height_ / width_, near_plane, far_plane);
+        const auto& persp = perspective(fov_, aspect_, near_plane, far_plane);
         const auto& world_to_screen = persp * world_to_cam;
         const auto& screen_to_world = invert(world_to_screen);
 
@@ -101,6 +101,7 @@ private:
     float width_;
     float height_;
     float fov_;
+    float aspect_;
 
     float3 pos_;
     float3 forward_;
