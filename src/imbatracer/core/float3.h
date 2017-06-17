@@ -43,6 +43,10 @@ struct float3 {
         x *= a.x; y *= a.y; z *= a.z;
         return *this;
     }
+
+    float3& operator /= (float b) {
+        return (*this) *= 1.0f / b;
+    }
 };
 
 inline Vec4 make_vec4(const float3& f, float w = 0.0f) {

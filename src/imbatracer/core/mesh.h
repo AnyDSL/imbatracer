@@ -21,9 +21,10 @@ public:
         int      id;
         float3x4 mat;
         float3x4 inv_mat;
+        float    det;
 
         Instance() {}
-        Instance(int i, const float4x4& m) : id(i), mat(m), inv_mat(invert(m)) {}
+        Instance(int i, const float4x4& m) : id(i), mat(m), inv_mat(invert(m)), det(determinant(m)) {}
     };
 
     enum class AttributeType {

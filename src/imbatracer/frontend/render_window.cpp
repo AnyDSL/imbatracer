@@ -8,6 +8,7 @@
 #endif // !_MSC_VER
 
 #define NOMINMAX
+#define TBB_USE_EXCEPTIONS 0
 #include <tbb/tbb.h>
 
 #include "imbatracer/frontend/render_window.h"

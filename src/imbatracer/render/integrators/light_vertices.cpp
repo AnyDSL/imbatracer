@@ -1,6 +1,7 @@
 #include "imbatracer/render/integrators/light_vertices.h"
 #include "imbatracer/render/scheduling/ray_queue.h"
 
+#define TBB_USE_EXCEPTIONS 0
 #include <tbb/enumerable_thread_specific.h>
 
 namespace imba {

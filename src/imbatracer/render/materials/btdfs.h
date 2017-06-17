@@ -6,8 +6,8 @@ namespace imba {
 template<bool adjoint>
 class SpecularTransmission : public BxDF {
 public:
-    SpecularTransmission(float eta_inside, float eta_outside, const rgb& scale)
-        : BxDF(BxDFFlags(BSDF_TRANSMISSION | BSDF_SPECULAR)),
+    SpecularTransmission(float eta_inside, float eta_outside, const rgb& scale, const float3& n)
+        : BxDF(n),
           fresnel_(eta_outside, eta_inside),
           scale_(scale),
           eta_outside_(eta_outside),
@@ -24,7 +24,8 @@ public:
         // Compute optical densities depending on whether the ray is coming from the outside or the inside.
         float eta_in = eta_outside_;
         float eta_trans = eta_inside_;
-        bool entering = cos_theta(out_dir) > 0.0f;
+        float c_out = cos_theta(out_dir);
+        bool entering = c_out > 0.0f;
         if (!entering)
             std::swap(eta_in, eta_trans);
 
@@ -34,22 +35,22 @@ public:
         float sin_trans_sqr = sqr(eta_frac) * sin_in_sqr;
 
         if (sin_trans_sqr >= 1.0f) {
-            in_dir = float3(-out_dir.x, -out_dir.y, out_dir.z);
+            in_dir = reflect(out_dir);
             return rgb(0.0f); // Total internal reflection.
         }
 
-        float cos_trans = sqrtf(std::max(0.0f, 1.0f - sin_trans_sqr));
-        if (entering) cos_trans = -cos_trans;
+        float c_trans = sqrtf(std::max(0.0f, 1.0f - sin_trans_sqr));
+        if (entering) c_trans = -c_trans;
 
-        in_dir = float3(eta_frac * -out_dir.x, eta_frac * -out_dir.y, cos_trans);
+        in_dir = eta_frac * out_dir + (eta_frac * c_out - c_trans) * normal;
 
-        float fr = fresnel_.eval(cos_theta(out_dir));
+        float fr = fresnel_.eval(c_out);
         float factor = adjoint ? 1.0f : sqr(eta_in / eta_trans);
 
-        return factor * (1.0f - fr) * scale_ / fabsf(cos_theta(in_dir));
+        return factor * (1.0f - fr) * scale_;
     }
 
-    float importance(const float3& out_dir) const override {
+    float albedo(const float3& out_dir) const override {
         float fr = fresnel_.eval(cos_theta(out_dir));
         return 1.0f - fr;
     }
@@ -57,6 +58,8 @@ public:
     float pdf(const float3& out_dir, const float3& in_dir) const override {
         return 0.0f; // Probability between any two randomly choosen directions is zero due to the delta distribution.
     }
+
+    bool specular() const override { return true; }
 
 private:
     FresnelDielectric fresnel_;

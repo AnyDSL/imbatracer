@@ -1,5 +1,6 @@
 #include "imbatracer/render/integrators/deferred_vcm.h"
 
+#define TBB_USE_EXCEPTIONS 0
 #include <tbb/enumerable_thread_specific.h>
 #include <future>
 

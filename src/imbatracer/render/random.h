@@ -93,11 +93,11 @@ inline DirectionSample sample_power_cos_hemisphere(float power, float u1, float 
 
     const float3 local_dir = spherical_dir(sin_t, cos_t, phi);
 
-    return DirectionSample(local_dir, (power + 1.0f) * powf(cos_t, power) * 1.0f / (2.0f * pi));
+    return DirectionSample(local_dir, (power + 1.0f) * powf(cos_t, power) / (2.0f * pi));
 }
 
 inline float power_cos_hemisphere_pdf(float power, float cos) {
-    return cos > 0.0f ? ((power + 1.0f) * powf(cos, power) * 1.0f / (2.0f * pi)) : 0.0f;
+    return cos > 0.0f ? ((power + 1.0f) * powf(cos, power) / (2.0f * pi)) : 0.0f;
 }
 
 inline DirectionSample sample_uniform_hemisphere(float u1, float u2) {

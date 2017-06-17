@@ -42,6 +42,14 @@ add_library(imba_render
             render/scene.cpp
             render/texture_sampler.h
 
+            render/materials/brdfs.h
+            render/materials/bsdf.h
+            render/materials/btdfs.h
+            render/materials/fresnel.h
+            render/materials/material_system.h
+            render/materials/material_system.cpp
+            render/materials/materials.h
+
             render/integrators/integrator.h
             render/integrators/integrator.cpp
             render/integrators/pt.h
@@ -92,5 +100,8 @@ target_link_libraries(imbatracer
                       ${TRAVERSAL_LIBRARY_GPU}
                       ${ANYDSL_RUNTIME_LIBRARY}
                       ${ANYDSL_RUNTIME_LIBRARIES}
-                      ${TBB_LIBRARIES})
+                      ${TBB_LIBRARIES}
+                      ${OPENIMAGEIO_LIBRARIES}
+                      ${OSL_EXEC_LIBRARY}
+                      ${OSL_QUERY_LIBRARY})
 

@@ -9,6 +9,7 @@
 #include <mutex>
 #include <memory>
 
+#define TBB_USE_EXCEPTIONS 0
 #include <tbb/parallel_sort.h>
 #include <anydsl_runtime.hpp>
 

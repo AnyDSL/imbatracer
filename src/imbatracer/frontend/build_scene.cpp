@@ -11,6 +11,7 @@
 #include "imbatracer/frontend/build_scene.h"
 #include "imbatracer/loaders/loaders.h"
 #include "imbatracer/core/adapter.h"
+#include "imbatracer/render/materials/material_system.h"
 
 namespace imba {
 
@@ -646,6 +647,14 @@ bool build_scene(const Path& path, Scene& scene, float3& cam_pos, float3& cam_di
     scene.upload_mask_buffer(masks);
 
     std::cout << std::endl;
+
+    // TODO
+    MaterialSystem mat_sys(&scene, path.base_name());
+    mat_sys.add_shader();
+    MaterialValue res;
+    Hit hit { 0, 0, 1.0f, 0.5f };
+    Ray ray {  };
+    mat_sys.eval_material(hit, ray, res);
 
     return true;
 }

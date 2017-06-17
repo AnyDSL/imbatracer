@@ -1,6 +1,7 @@
 #ifndef IMBA_COUNTING_SORT_H
 #define IMBA_COUNTING_SORT_H
 
+#define TBB_USE_EXCEPTIONS 0
 #include <tbb/tbb.h>
 #include <vector>
 #include <atomic>
@@ -60,7 +61,7 @@ struct CountingSort {
     static void sort(Iterator begin, Iterator end, int n, std::atomic_int* offs, int* ids) {
         Counter<N> c(n);
         tbb::parallel_reduce(tbb::blocked_range<Iterator>(begin, end), c);
-        std::partial_sum(&c.counts[0], &c.counts[0] + n, &c.counts[0]);     
+        std::partial_sum(&c.counts[0], &c.counts[0] + n, &c.counts[0]);
         std::copy(&c.counts[0], &c.counts[0] + n, offs);
         tbb::parallel_for(tbb::blocked_range<int>(0, end - begin),
             [=] (const tbb::blocked_range<int>& range)

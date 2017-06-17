@@ -4,6 +4,7 @@
 #include "imbatracer/render/integrators/integrator.h"
 #include "imbatracer/render/scheduling/deferred_scheduler.h"
 
+#define TBB_USE_EXCEPTIONS 0
 #include <tbb/enumerable_thread_specific.h>
 
 namespace imba {

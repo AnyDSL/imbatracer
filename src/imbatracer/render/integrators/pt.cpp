@@ -3,6 +3,7 @@
 #include "imbatracer/core/common.h"
 #include "imbatracer/render/random.h"
 
+#define TBB_USE_EXCEPTIONS 0
 #include <tbb/enumerable_thread_specific.h>
 #include <tbb/parallel_for.h>
 

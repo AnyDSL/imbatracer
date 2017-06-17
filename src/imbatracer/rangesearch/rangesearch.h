@@ -6,6 +6,7 @@
 #include <vector>
 
 #define NOMINMAX
+#define TBB_USE_EXCEPTIONS 0
 #include <tbb/tbb.h>
 
 namespace imba {

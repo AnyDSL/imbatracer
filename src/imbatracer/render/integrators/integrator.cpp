@@ -1,6 +1,7 @@
 #include "imbatracer/render/integrators/integrator.h"
 #include "imbatracer/render/scheduling/ray_queue.h"
 
+#define TBB_USE_EXCEPTIONS 0
 #include <tbb/parallel_for.h>
 #include <tbb/parallel_reduce.h>
 

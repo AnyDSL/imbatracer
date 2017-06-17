@@ -4,6 +4,7 @@
 #include "imbatracer/render/scheduling/ray_scheduler.h"
 
 #define NOMINMAX
+#define TBB_USE_EXCEPTIONS 0
 #include <tbb/tbb.h>
 #include <tbb/task_group.h>
 

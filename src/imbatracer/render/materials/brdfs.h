@@ -7,22 +7,31 @@ namespace imba {
 
 class Lambertian : public BxDF {
 public:
-    Lambertian(const rgb& color)
-        : BxDF(BxDFFlags(BSDF_DIFFUSE | BSDF_REFLECTION)), color_(color)
+    Lambertian(const rgb& color, const float3& n)
+        : BxDF(n), color_(color)
     {}
 
-    rgb eval(const float3& out_dir, const float3& in_dir) const override {
-        return same_hemisphere(out_dir, in_dir) ? color_ * (1.0f / pi) : rgb(0.0f);
+    rgb eval(const float3& out_dir, const float3& in_dir) const override final {
+        float c = cos_theta(in_dir);
+        return cos_theta(out_dir) * c > 0 ? color_ * (cos_theta(in_dir) / pi) : rgb(0.0f);
+    }
+
+    rgb sample(const float3& out_dir, float3& in_dir, RNG& rng, float& pdf) const override final {
+        DirectionSample ds = sample_cos_hemisphere(rng.random_float(), rng.random_float());
+        in_dir = local_to_world(ds.dir);
+        pdf = ds.pdf;
+        return color_; // cos/pi cancels out
     }
 
 private:
     rgb color_;
 };
 
+template <typename Fr>
 class SpecularReflection : public BxDF {
 public:
-    SpecularReflection(const rgb& scale, const Fresnel& fresnel)
-        : BxDF(BxDFFlags(BSDF_SPECULAR | BSDF_REFLECTION)), scale_(scale), fresnel_(fresnel)
+    SpecularReflection(const rgb& scale, const Fr& fresnel, const float3& n)
+        : BxDF(n), scale_(scale), fresnel_(fresnel)
     {}
 
     rgb eval(const float3& out_dir, const float3& in_dir) const override {
@@ -30,55 +39,62 @@ public:
     }
 
     rgb sample(const float3& out_dir, float3& in_dir, RNG& rng, float& pdf) const override {
-        in_dir = float3(-out_dir.x, -out_dir.y, out_dir.z); // Reflected direction in shading space (normal == z.)
+        in_dir = reflect(out_dir);
         pdf = 1.0f;
 
-        return fresnel_.eval(cos_theta(out_dir)) * scale_ / fabsf(cos_theta(in_dir));
+        return fresnel_.eval(cos_theta(out_dir)) * scale_;
     }
 
     float pdf(const float3& out_dir, const float3& in_dir) const override {
         return 0.0f; // Probability between any two randomly choosen directions is zero due to delta distribution.
     }
 
+    float albedo(const float3& out_dir) const override {
+        float fr = fresnel_.eval(cos_theta(out_dir));
+        return fr;
+    }
+
+    bool specular() const override { return true; }
+
 private:
     rgb scale_;
-    const Fresnel& fresnel_;
+    Fr fresnel_;
 };
 
 class Phong : public BxDF {
 public:
-    Phong(const rgb& coefficient, float exponent)
-        : BxDF(BxDFFlags(BSDF_GLOSSY | BSDF_REFLECTION)),
-          coefficient_(coefficient), exponent_(exponent)
+    Phong(const rgb& coefficient, float exponent, const float3& n)
+        : BxDF(n), coefficient_(coefficient), exponent_(exponent)
     {}
 
     rgb eval(const float3& out_dir, const float3& in_dir) const override {
-        auto reflected_in = float3(-in_dir.x, -in_dir.y, in_dir.z);
+        auto reflected_in = reflect(in_dir);
         float cos_r_o = std::max(0.0f, dot(reflected_in, out_dir));
         cos_r_o = std::min(cos_r_o, 1.0f);
 
-        return same_hemisphere(out_dir, in_dir)
-                ? (exponent_ + 2.0f) / (2.0f * pi) * coefficient_ * powf(cos_r_o, exponent_)
-                : rgb(0.0f);
+        float c = cos_theta(in_dir)
+        return c * cos_theta(out_dir) > 0
+               ? (exponent_ + 2.0f) / (2.0f * pi) * coefficient_ * powf(cos_r_o, exponent_) * c
+               : rgb(0.0f);
     }
 
     rgb sample(const float3& out_dir, float3& in_dir, RNG& rng, float& pdf) const override {
         // Sample a power weighted direction relative to the reflected direction
         auto dir_sample = sample_power_cos_hemisphere(exponent_, rng.random_float(), rng.random_float());
 
-        auto reflected_in = float3(-out_dir.x, -out_dir.y, out_dir.z);
+        auto reflected_out = reflect(out_dir);
         float3 reflected_tan, reflected_binorm;
-        local_coordinates(reflected_in, reflected_tan, reflected_binorm);
+        local_coordinates(reflected_out, reflected_tan, reflected_binorm);
 
         auto& dir = dir_sample.dir;
 
-        in_dir = float3(reflected_binorm.x * dir.x + reflected_tan.x * dir.y + reflected_in.x * dir.z,
-                        reflected_binorm.y * dir.x + reflected_tan.y * dir.y + reflected_in.y * dir.z,
-                        reflected_binorm.z * dir.x + reflected_tan.z * dir.y + reflected_in.z * dir.z);
+        in_dir = float3(reflected_binorm.x * dir.x + reflected_tan.x * dir.y + reflected_out.x * dir.z,
+                        reflected_binorm.y * dir.x + reflected_tan.y * dir.y + reflected_out.y * dir.z,
+                        reflected_binorm.z * dir.x + reflected_tan.z * dir.y + reflected_out.z * dir.z);
 
         pdf = dir_sample.pdf;
 
-        return same_hemisphere(out_dir, in_dir) ? eval(out_dir, in_dir) : rgb(0.0f);
+        return same_hemisphere(out_dir, in_dir) ? eval(out_dir, in_dir) / pdf : rgb(0.0f);
     }
 
     float pdf(const float3& out_dir, const float3& in_dir) const override {
@@ -93,9 +109,8 @@ private:
 
 class OrenNayar : public BxDF {
 public:
-    OrenNayar(const rgb& reflectance, float roughness_degrees)
-        : BxDF(BxDFFlags(BSDF_DIFFUSE | BSDF_REFLECTION)),
-          reflectance_(reflectance)
+    OrenNayar(const rgb& reflectance, float roughness_degrees, const float3& n)
+        : BxDF(n), reflectance_(reflectance)
     {
         param_sigma_ = radians(roughness_degrees);
         param_sigma_sqr_ = param_sigma_ * param_sigma_;
@@ -129,7 +144,7 @@ public:
         }
 
         return same_hemisphere(out_dir, in_dir)
-                ? reflectance_ * (1.0f / pi) * (param_a_ + param_b_ * max_cos * sin_alpha * tan_beta)
+                ? reflectance_ * (1.0f / pi) * (param_a_ + param_b_ * max_cos * sin_alpha * tan_beta) * cos_theta(in_dir)
                 : rgb(0.0f);
     }
 
@@ -146,15 +161,17 @@ private:
 /// Cook Torrance microfacet BRDF with Blinn distribution.
 class CookTorrance : public BxDF {
 public:
-    CookTorrance(const rgb& reflectance, Fresnel* fresnel, float exponent)
-        : BxDF(BxDFFlags(BSDF_GLOSSY | BSDF_REFLECTION)),
+    CookTorrance(const rgb& reflectance, float eta, float kappa, float exponent, const float3& n)
+        : BxDF(n),
           reflectance_(reflectance),
-          fresnel_(fresnel),
+          fresnel_(eta, kappa),
           exponent_(exponent)
     {}
 
     rgb eval(const float3& out_dir, const float3& in_dir) const override {
-        if (abs_cos_theta(out_dir) == 0.0f || abs_cos_theta(in_dir) == 0.0f)
+        float c_out = cos_theta(out_dir);
+        float c_in  = cos_theta(in_dir)
+        if (fabsf(c_out) == 0.0f || fabsf(c_in) == 0.0f)
             return rgb(0.0f);
 
         auto half_dir = normalize(in_dir + out_dir);
@@ -162,17 +179,17 @@ public:
 
         auto fr = fresnel_->eval(cos_half);
 
-        if (!same_hemisphere(out_dir, in_dir))
+        if (cout * c_in < 0.0f)
             return rgb(0.0f);
 
         return (reflectance_ * blinn_distribution(half_dir) * geom_attenuation(out_dir, in_dir, half_dir) * fr)
                 /
-               (4.0f * abs_cos_theta(in_dir) * abs_cos_theta(out_dir));
+               (4.0f * abs_c_out);
     }
 
     rgb sample(const float3& out_dir, float3& in_dir, RNG& rng, float& pdf) const override {
         sample_blinn_distribution(out_dir, in_dir, rng.random_float(), rng.random_float(), pdf);
-        return same_hemisphere(out_dir, in_dir) ? eval(out_dir, in_dir) : rgb(0.0f);
+        return same_hemisphere(out_dir, in_dir) ? eval(out_dir, in_dir) / pdf : rgb(0.0f);
     }
 
     float pdf(const float3& out_dir, const float3& in_dir) const override {
@@ -180,7 +197,7 @@ public:
     }
 
 private:
-    Fresnel* fresnel_;
+    FresnelConductor fresnel_;
     rgb reflectance_;
     float exponent_;
 

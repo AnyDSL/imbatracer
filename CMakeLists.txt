@@ -52,6 +52,24 @@ include_directories(${TRAVERSAL_INCLUDE_DIR})
 find_package(TBB REQUIRED)
 include_directories(${TBB_INCLUDE_DIRS})
 
+# OpenImageIO
+find_package (OpenImageIO 1.7 REQUIRED)
+include_directories ("${OPENIMAGEIO_INCLUDE_DIR}")
+link_directories ("${OPENIMAGEIO_LIBRARY_DIRS}")
+message (STATUS "Using OpenImageIO ${OPENIMAGEIO_VERSION}")
+
+# OpenShadingLanguage
+find_package (OpenShadingLanguage REQUIRED)
+include_directories ("${OSL_INCLUDE_DIR}")
+link_directories ("${OSL_LIBRARY_DIRS}")
+
+# OSL requires RTTI to be disabled (we have to inherit from OSL classes)
+if (MSVC)
+    set ( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /GR-" )
+else ()
+    set ( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-rtti" )
+endif()
+
 # Add the project files
 include_directories(src)
 add_subdirectory(src)
