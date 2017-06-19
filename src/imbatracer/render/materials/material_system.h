@@ -1,7 +1,7 @@
 #ifndef IMBA_MATERIAL_SYSTEM
 #define IMBA_MATERIAL_SYSTEM
 
-#include "imbatracer/render/scene.h"
+#include "imbatracer/render/materials/bsdf.h"
 
 #include <memory>
 #include <string>
@@ -17,13 +17,16 @@ struct MaterialValue {
 /// Sets up a material system that uses Open Shading Language to create BSDF objects.
 class MaterialSystem {
 public:
-    MaterialSystem(Scene* scene, const std::string& search_path);
+    MaterialSystem(const std::string& search_path);
     ~MaterialSystem();
 
-    void eval_material(const Hit& hit, const Ray& ray, MaterialValue& res);
+    MaterialValue eval_material(const float3& pos, const float2& uv, const float3& dir, const float3& normal,
+                                const float3& geom_normal, float area, int shader, bool adjoint);
 
-    // TODO parse shader parameters, connections, etc (what file format?)
-    void add_shader();
+    // TODO specify shader parameters, connections, etc.
+    void add_shader(const std::string& name, const std::string& search_path);
+
+    int shader_count() const;
 
 private:
     struct MatSysInternal;

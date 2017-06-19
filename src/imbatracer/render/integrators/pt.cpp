@@ -21,7 +21,7 @@ void PathTracer::compute_direct_illum(const Intersection& isect, PTState& state,
     const float pdf_lightpick = 1.0f / scene_.light_count();
     const auto sample = ls->sample_direct(isect.pos, state.rng);
 
-    const auto bsdf_value = bsdf->eval(isect.out_dir, sample.dir, BSDF_ALL);
+    const auto bsdf_value = bsdf->eval(isect.out_dir, sample.dir);
 
     const float pdf_hit = bsdf->pdf(isect.out_dir, sample.dir);
     const float pdf_di  = pdf_lightpick * sample.pdf_direct_w;
@@ -32,7 +32,7 @@ void PathTracer::compute_direct_illum(const Intersection& isect, PTState& state,
 
     // The contribution is stored in the state of the shadow ray and added, if the shadow ray does not intersect anything.
     ShadowState s;
-    s.throughput = state.throughput * bsdf_value * fabsf(dot(isect.normal, sample.dir)) * sample.radiance * mis_weight / pdf_lightpick;
+    s.throughput = state.throughput * bsdf_value * sample.radiance * mis_weight / pdf_lightpick;
     s.pixel_id   = state.pixel_id;
 
     const float offset = 1e-3f * (sample.distance == FLT_MAX ? 1.0f : sample.distance);
@@ -46,7 +46,7 @@ void PathTracer::compute_direct_illum(const Intersection& isect, PTState& state,
 
 void PathTracer::bounce(const Intersection& isect, PTState& state_out, Ray& ray_out, BSDF* bsdf, float offset) {
     // Terminate the path if it is too long or with russian roulette.
-    if (state_out.bounces + 1 >= max_path_len_) {// Path length includes the vertices on the camera and the light.
+    if (state_out.bounces + 1 >= 2){//max_path_len_) {// Path length includes the vertices on the camera and the light.
         terminate_path(state_out);
         return;
     }
@@ -59,19 +59,18 @@ void PathTracer::bounce(const Intersection& isect, PTState& state_out, Ray& ray_
 
     float pdf;
     float3 sample_dir;
-    BxDFFlags sampled_flags;
-    const auto bsdf_value = bsdf->sample(isect.out_dir, sample_dir, state_out.rng, BSDF_ALL, sampled_flags, pdf);
+    const auto bsdf_value = bsdf->sample(isect.out_dir, sample_dir, state_out.rng, pdf);
 
-    if (pdf == 0.0f || sampled_flags == BSDF_NONE || is_black(bsdf_value)) {
+    if (pdf == 0.0f || is_black(bsdf_value)) {
         terminate_path(state_out);
         return;
     }
 
     const float cos_term = fabsf(dot(isect.normal, sample_dir));
 
-    state_out.throughput *= bsdf_value * cos_term / (pdf * rr_pdf);
+    state_out.throughput *= bsdf_value / rr_pdf;
     state_out.bounces++;
-    state_out.last_specular = sampled_flags & BSDF_SPECULAR;
+    state_out.last_specular = bsdf->is_specular();
     state_out.last_pdf = pdf;
 
     ray_out = Ray {
@@ -131,29 +130,29 @@ void PathTracer::process_primary_rays(RayQueue<PTState>& ray_in, RayQueue<Shadow
             const auto isect = calculate_intersection(scene_, ray_in.hit(i), ray_in.ray(i));
             const float offset = 1e-3f * ray_in.hit(i).tmax;
 
-            if (auto emit = isect.mat->emitter()) {
-                float pdf_direct_a, pdf_emit_w;
-                const auto li = emit->radiance(isect.out_dir, isect.geom_normal, pdf_direct_a, pdf_emit_w);
+            auto mat = scene_.eval_material(ray_in.hit(i), ray_in.ray(i), false);
+            mat.bsdf.prepare(state.throughput);
 
-                float pdf_di = pdf_direct_a / scene_.light_count();
+            if (!is_black(mat.emit)) {
+                const float cos_light = dot(isect.normal, isect.out_dir);
+                if (cos_light < 0.0f) continue;
+                const float d_sqr = ray_in.hit(i).tmax * ray_in.hit(i).tmax;
+                float pdf_di = 1.0f / isect.area / scene_.light_count();
 
                 // convert pdf from area measure to solid angle measure
-                const float d_sqr = ray_in.hit(i).tmax * ray_in.hit(i).tmax;
-                const float cos_light = dot(isect.normal, isect.out_dir);
                 pdf_di *= d_sqr / cos_light;
 
                 const float mis_weight = (state.bounces == 0 || state.last_specular) ? 1.0f
                                          : state.last_pdf / (state.last_pdf + pdf_di);
 
-                add_contribution(res_img, state.pixel_id, state.throughput * li * mis_weight);
+                add_contribution(res_img, state.pixel_id, state.throughput * mat.emit * mis_weight);
 
                 terminate_path(state);
                 continue;
             }
 
-            const auto bsdf = isect.mat->get_bsdf(isect, bsdf_mem_arena);
-            compute_direct_illum(isect, state, ray_out_shadow, bsdf);
-            bounce(isect, state, ray_in.ray(i), bsdf, offset);
+            compute_direct_illum(isect, state, ray_out_shadow, &mat.bsdf);
+            bounce(isect, state, ray_in.ray(i), &mat.bsdf, offset);
         }
     });
 

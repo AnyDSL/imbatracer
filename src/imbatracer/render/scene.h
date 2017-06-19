@@ -1,7 +1,7 @@
 #ifndef IMBA_SCENE_H
 #define IMBA_SCENE_H
 
-#include "imbatracer/render/materials/materials.h"
+#include "imbatracer/render/materials/material_system.h"
 #include "imbatracer/render/light.h"
 #include "imbatracer/render/scheduling/ray_queue.h"
 
@@ -20,8 +20,8 @@ struct MeshAttributes {
 };
 
 using LightContainer = std::vector<std::unique_ptr<Light>>;
-using TextureContainer = std::vector<std::unique_ptr<TextureSampler>>;
-using MaterialContainer = std::vector<std::unique_ptr<Material>>;
+//using TextureContainer = std::vector<std::unique_ptr<TextureSampler>>;
+// using MaterialContainer = std::vector<std::unique_ptr<Material>>;
 using MeshContainer = std::vector<Mesh>;
 using InstanceContainer = std::vector<Mesh::Instance>;
 
@@ -44,8 +44,6 @@ public:
     /// All the mesh acceleration structures must have been built before this call.
     void build_top_level_accel();
 
-    /// Uploads the mask buffer to use for traversal.
-    void upload_mask_buffer(const MaskBuffer&);
     /// Uploads all mesh acceleration structures on the device.
     void upload_mesh_accels();
     /// Uploads the top-level acceleration structure on the device.
@@ -63,8 +61,8 @@ public:
     size_t name##_count() const { return names##_.size(); }
 
     CONTAINER_ACCESSORS(light,    lights,    std::unique_ptr<Light>,          LightContainer)
-    CONTAINER_ACCESSORS(texture,  textures,  std::unique_ptr<TextureSampler>, TextureContainer)
-    CONTAINER_ACCESSORS(material, materials, std::unique_ptr<Material>,       MaterialContainer)
+    //CONTAINER_ACCESSORS(texture,  textures,  std::unique_ptr<TextureSampler>, TextureContainer)
+    // CONTAINER_ACCESSORS(material, materials, std::unique_ptr<Material>,       MaterialContainer)
     CONTAINER_ACCESSORS(mesh,     meshes,    Mesh,                            MeshContainer)
     CONTAINER_ACCESSORS(instance, instances, Mesh::Instance,                  InstanceContainer)
 
@@ -100,6 +98,64 @@ public:
         return env_map_.get();
     }
 
+    /// Creates a new material system.
+    /// \param path the search path for .oso files (OpenShadingLanguage compiled shader files)
+    void create_mat_sys(const std::string& path) {
+        mat_sys_.reset(new MaterialSystem(path));
+    }
+
+    MaterialSystem* material_system() { return mat_sys_.get(); }
+
+    /// Adds the OSL material with the given name to the scene.
+    /// \returns the id of the newly added material.
+    int add_material(const std::string& name, const std::string& path) { // TODO specify shader parameters, connections, etc. (maybe an std::map<param_name, value>)
+        mat_sys_->add_shader(name, path);
+        return mat_sys_->shader_count() - 1;
+    }
+
+    int material_count() const {
+        return mat_sys_->shader_count();
+    }
+
+    /// Computes the material properties at the given hit point (BRDF and emission)
+    MaterialValue eval_material(const Hit& hit, const Ray& ray, bool adjoint) const {
+        // TODO: compare with values required in the integrator, make sure to not compute the same stuff twice!
+        const Mesh::Instance& inst = instance(hit.inst_id);
+        const Mesh& m = mesh(inst.id);
+
+        const int lid = local_tri_id(hit.tri_id, inst.id);
+
+        const int i0  = m.indices()[lid * 4 + 0];
+        const int i1  = m.indices()[lid * 4 + 1];
+        const int i2  = m.indices()[lid * 4 + 2];
+        const int mat = m.indices()[lid * 4 + 3];
+
+        const float3     org(ray.org.x, ray.org.y, ray.org.z);
+        const float3 out_dir(ray.dir.x, ray.dir.y, ray.dir.z);
+        const auto       pos = org + hit.tmax * out_dir;
+        const auto local_pos = inst.inv_mat * float4(pos, 1.0f);
+
+        // Recompute v based on u and local_pos
+        const float u = hit.u;
+        const auto v0 = float3(m.vertices()[i0]);
+        const auto e1 = float3(m.vertices()[i1]) - v0;
+        const auto e2 = float3(m.vertices()[i2]) - v0;
+        const float v = dot(local_pos - v0 - u * e1, e2) / dot(e2, e2);
+
+        const auto texcoords    = m.attribute<float2>(MeshAttributes::TEXCOORDS);
+        const auto normals      = m.attribute<float3>(MeshAttributes::NORMALS);
+        const auto geom_normals = m.attribute<float3>(MeshAttributes::GEOM_NORMALS);
+
+        const auto uv_coords    = lerp(texcoords[i0], texcoords[i1], texcoords[i2], u, v);
+        const auto local_normal = lerp(normals[i0], normals[i1], normals[i2], u, v);
+        const auto normal       = normalize(float3(local_normal * inst.inv_mat));
+        const auto geom_normal  = normalize(float3(geom_normals[lid] * inst.inv_mat));
+
+        float area = length(cross(e1, e2)) * 0.5f * inst.det;
+
+        return mat_sys_->eval_material(pos, uv_coords, out_dir, normal, geom_normal, area, mat, adjoint);
+    }
+
 private:
     template <typename Node>
     struct BuildAccelData {
@@ -120,8 +176,6 @@ private:
     template <typename Node, typename NewAdapterFn, typename LoadAccelFn, typename StoreAccelFn>
     void build_mesh_accels(BuildAccelData<Node>&, const std::vector<std::string>&, NewAdapterFn, LoadAccelFn, StoreAccelFn);
     template <typename Node>
-    void upload_mask_buffer(TraversalData<Node>&, anydsl::Platform, const MaskBuffer&);
-    template <typename Node>
     void upload_mesh_accels(BuildAccelData<Node>&, TraversalData<Node>&);
     template <typename Node>
     void upload_top_level_accel(BuildAccelData<Node>&, TraversalData<Node>&);
@@ -129,8 +183,8 @@ private:
     void setup_traversal_buffers();
 
     LightContainer     lights_;
-    TextureContainer   textures_;
-    MaterialContainer  materials_;
+    // TextureContainer   textures_;
+    // MaterialContainer  materials_;
     MeshContainer      meshes_;
     InstanceContainer  instances_;
 
@@ -149,6 +203,7 @@ private:
     BBox scene_bb_;
 
     std::unique_ptr<EnvMap> env_map_;
+    std::unique_ptr<MaterialSystem> mat_sys_;
 };
 
 } // namespace imba

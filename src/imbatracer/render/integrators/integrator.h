@@ -83,8 +83,6 @@ inline Intersection calculate_intersection(const Scene& scene, const Hit& hit, c
     const int i2 = mesh.indices()[local_tri_id * 4 + 2];
     const int  m = mesh.indices()[local_tri_id * 4 + 3];
 
-    const auto& mat = scene.material(m);
-
     const float3     org(ray.org.x, ray.org.y, ray.org.z);
     const float3 out_dir(ray.dir.x, ray.dir.y, ray.dir.z);
     const auto       pos = org + hit.tmax * out_dir;
@@ -108,16 +106,15 @@ inline Intersection calculate_intersection(const Scene& scene, const Hit& hit, c
 
     const auto w_out = -normalize(out_dir);
 
+    float area = length(cross(e1, e2)) * 0.5f * inst.det;
+
     float3 u_tangent;
     float3 v_tangent;
     local_coordinates(normal, u_tangent, v_tangent);
 
     Intersection res {
-        pos, w_out, normal, uv_coords, geom_normal, u_tangent, v_tangent, mat.get()
+        pos, w_out, normal, uv_coords, geom_normal, u_tangent, v_tangent, area, m
     };
-
-    // If the material has a bump map, modify the shading normal accordingly.
-    mat->bump(res);
 
     // Ensure that the shading normal is always in the same hemisphere as the geometric normal.
     if (dot(res.geom_normal, res.normal) < 0.0f)

@@ -5,33 +5,38 @@
 
 namespace imba {
 
+template <bool translucent = false>
 class Lambertian : public BxDF {
 public:
-    Lambertian(const rgb& color, const float3& n)
-        : BxDF(n), color_(color)
+    Lambertian(const float3& n)
+        : BxDF(n)
     {}
 
     rgb eval(const float3& out_dir, const float3& in_dir) const override final {
         float c = cos_theta(in_dir);
-        return cos_theta(out_dir) * c > 0 ? color_ * (cos_theta(in_dir) / pi) : rgb(0.0f);
+        if (!translucent)
+            return cos_theta(out_dir) * c > 0 ? rgb(cos_theta(in_dir) / pi) : rgb(0.0f);
+        else
+            return cos_theta(out_dir) * c < 0 ? rgb(cos_theta(in_dir) / pi) : rgb(0.0f);
     }
 
     rgb sample(const float3& out_dir, float3& in_dir, RNG& rng, float& pdf) const override final {
         DirectionSample ds = sample_cos_hemisphere(rng.random_float(), rng.random_float());
         in_dir = local_to_world(ds.dir);
         pdf = ds.pdf;
-        return color_; // cos/pi cancels out
-    }
 
-private:
-    rgb color_;
+        if (translucent)
+            in_dir = in_dir - 2.0f * normal;
+
+        return rgb(1.0f); // cos/pi cancels out
+    }
 };
 
 template <typename Fr>
 class SpecularReflection : public BxDF {
 public:
-    SpecularReflection(const rgb& scale, const Fr& fresnel, const float3& n)
-        : BxDF(n), scale_(scale), fresnel_(fresnel)
+    SpecularReflection(const Fr& fresnel, const float3& n)
+        : BxDF(n), fresnel_(fresnel)
     {}
 
     rgb eval(const float3& out_dir, const float3& in_dir) const override {
@@ -42,7 +47,7 @@ public:
         in_dir = reflect(out_dir);
         pdf = 1.0f;
 
-        return fresnel_.eval(cos_theta(out_dir)) * scale_;
+        return rgb(fresnel_.eval(cos_theta(out_dir)));
     }
 
     float pdf(const float3& out_dir, const float3& in_dir) const override {
@@ -57,14 +62,13 @@ public:
     bool specular() const override { return true; }
 
 private:
-    rgb scale_;
     Fr fresnel_;
 };
 
 class Phong : public BxDF {
 public:
-    Phong(const rgb& coefficient, float exponent, const float3& n)
-        : BxDF(n), coefficient_(coefficient), exponent_(exponent)
+    Phong(float exponent, const float3& n)
+        : BxDF(n), exponent_(exponent)
     {}
 
     rgb eval(const float3& out_dir, const float3& in_dir) const override {
@@ -72,9 +76,9 @@ public:
         float cos_r_o = std::max(0.0f, dot(reflected_in, out_dir));
         cos_r_o = std::min(cos_r_o, 1.0f);
 
-        float c = cos_theta(in_dir)
+        float c = cos_theta(in_dir);
         return c * cos_theta(out_dir) > 0
-               ? (exponent_ + 2.0f) / (2.0f * pi) * coefficient_ * powf(cos_r_o, exponent_) * c
+               ? rgb((exponent_ + 2.0f) / (2.0f * pi) * powf(cos_r_o, exponent_) * c)
                : rgb(0.0f);
     }
 
@@ -102,7 +106,6 @@ public:
     }
 
 private:
-    rgb coefficient_;
     float exponent_;
 };
 
@@ -122,14 +125,17 @@ public:
         float sin_theta_in = sin_theta(in_dir);
         float sin_theta_out = sin_theta(out_dir);
 
+        float3 tangent, binormal;
+        local_coordinates(normal, tangent, binormal);
+
         // Compute max(0, cos(phi_i - phi_o)) by using cos(a-b) = cos(a) cos(b) + sin(a) sin(b)
         float max_cos = 0.0f;
         if (sin_theta_in > 0.0001f && sin_theta_out > 0.0001f) {
-            float sin_phi_in = sin_phi(in_dir);
-            float cos_phi_in = cos_phi(in_dir);
+            float sin_phi_in = sin_phi(in_dir, tangent, binormal);
+            float cos_phi_in = cos_phi(in_dir, tangent, binormal);
 
-            float sin_phi_out = sin_phi(out_dir);
-            float cos_phi_out = cos_phi(out_dir);
+            float sin_phi_out = sin_phi(out_dir, tangent, binormal);
+            float cos_phi_out = cos_phi(out_dir, tangent, binormal);
 
             max_cos = std::max(0.0f, cos_phi_in * cos_phi_out + sin_phi_in * sin_phi_out);
         }
@@ -170,21 +176,21 @@ public:
 
     rgb eval(const float3& out_dir, const float3& in_dir) const override {
         float c_out = cos_theta(out_dir);
-        float c_in  = cos_theta(in_dir)
+        float c_in  = cos_theta(in_dir);
         if (fabsf(c_out) == 0.0f || fabsf(c_in) == 0.0f)
             return rgb(0.0f);
 
         auto half_dir = normalize(in_dir + out_dir);
         float cos_half = dot(in_dir, half_dir);
 
-        auto fr = fresnel_->eval(cos_half);
+        auto fr = fresnel_.eval(cos_half);
 
-        if (cout * c_in < 0.0f)
+        if (c_out * c_in < 0.0f)
             return rgb(0.0f);
 
         return (reflectance_ * blinn_distribution(half_dir) * geom_attenuation(out_dir, in_dir, half_dir) * fr)
                 /
-               (4.0f * abs_c_out);
+               (4.0f * fabsf(c_out));
     }
 
     rgb sample(const float3& out_dir, float3& in_dir, RNG& rng, float& pdf) const override {

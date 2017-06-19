@@ -1,0 +1,19 @@
+#include "stdosl.h"
+
+surface
+light
+    [[ string help = "Lambertian emitter material" ]]
+(
+    float power = 0.2
+        [[  string help = "Total power of the light" ]],
+    color Cs = color(17, 12, 4)
+        [[  string help = "Base color" ]]
+  )
+{
+    // Because emission() expects a weight in radiance, we must convert by dividing
+    // the power (in Watts) by the surface area and the factor of PI implied by
+    // uniform emission over the hemisphere. N.B.: The total power is BEFORE Cs
+    // filters the color!
+    //Ci = (power / (M_PI * surfacearea())) * Cs * emission();
+    Ci = Cs * emission();
+}

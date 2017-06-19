@@ -43,15 +43,9 @@ struct ShadowState {
 template <typename Node>
 struct TraversalData {
     int root;
-
     anydsl::Array<Node> nodes;
-
     anydsl::Array<InstanceNode> instances;
     anydsl::Array<Vec4> tris;
-    anydsl::Array<Vec2> texcoords;
-    anydsl::Array<int> indices;
-    anydsl::Array<TransparencyMask> masks;
-    anydsl::Array<char> mask_buffer;
 };
 
 /// Stores a set of rays for traversal along with their state.
@@ -252,17 +246,13 @@ public:
         auto& data = const_cast<TraversalData<traversal_cpu::Node>&>(c_data);
         auto nodes = reinterpret_cast<traversal_cpu::Node*>(data.nodes.data());
 
-        traversal_cpu::intersect_cpu_masked_instanced(
+        traversal_cpu::intersect_cpu_instanced(
             data.root,
             nodes,
             data.instances.data(),
             data.tris.data(),
             ray_buffer_.data(),
             hit_buffer_.data(),
-            data.indices.data(),
-            data.texcoords.data(),
-            data.masks.data(),
-            data.mask_buffer.data(),
             count);
     }
 
@@ -277,17 +267,13 @@ public:
 
         anydsl::copy(ray_buffer_, dev_ray_buffer_, size());
 
-        traversal_gpu::intersect_gpu_masked_instanced(
+        traversal_gpu::intersect_gpu_instanced(
             data.root,
             nodes,
             (traversal_gpu::InstanceNode*)data.instances.data(),
             (traversal_gpu::Vec4*)data.tris.data(),
             (traversal_gpu::Ray*)dev_ray_buffer_.data(),
             (traversal_gpu::Hit*)dev_hit_buffer_.data(),
-            data.indices.data(),
-            (traversal_gpu::Vec2*)data.texcoords.data(),
-            (traversal_gpu::TransparencyMask*)data.masks.data(),
-            data.mask_buffer.data(),
             count);
 
         anydsl::copy(dev_hit_buffer_, hit_buffer_, size());
@@ -302,17 +288,13 @@ public:
 
         auto nodes = reinterpret_cast<traversal_cpu::Node*>(data.nodes.data());
 
-        traversal_cpu::occluded_cpu_masked_instanced(
+        traversal_cpu::occluded_cpu_instanced(
             data.root,
             nodes,
             data.instances.data(),
             data.tris.data(),
             ray_buffer_.data(),
             hit_buffer_.data(),
-            data.indices.data(),
-            data.texcoords.data(),
-            data.masks.data(),
-            data.mask_buffer.data(),
             count);
     }
 
@@ -327,17 +309,13 @@ public:
 
         anydsl::copy(ray_buffer_, dev_ray_buffer_, size());
 
-        traversal_gpu::occluded_gpu_masked_instanced(
+        traversal_gpu::occluded_gpu_instanced(
             data.root,
             nodes,
             (traversal_gpu::InstanceNode*)data.instances.data(),
             (traversal_gpu::Vec4*)data.tris.data(),
             (traversal_gpu::Ray*)dev_ray_buffer_.data(),
             (traversal_gpu::Hit*)dev_hit_buffer_.data(),
-            data.indices.data(),
-            (traversal_gpu::Vec2*)data.texcoords.data(),
-            (traversal_gpu::TransparencyMask*)data.masks.data(),
-            data.mask_buffer.data(),
             count);
 
         anydsl::copy(dev_hit_buffer_, hit_buffer_, size());

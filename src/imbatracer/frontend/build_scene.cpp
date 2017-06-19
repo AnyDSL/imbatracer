@@ -4,6 +4,7 @@
 #include <locale>
 #include <memory>
 #include <fstream>
+#include <map>
 
 // For isnan
 #include <math.h>
@@ -53,137 +54,148 @@ struct CompareIndex {
 
 using MtlLightBuffer = std::unordered_map<int, rgb>;
 
-void convert_materials(const Path& path, const obj::File& obj_file, const obj::MaterialLib& mtl_lib, Scene& scene,
-                       MtlLightBuffer& mtl_to_light_intensity, MaskBuffer& masks) {
-    std::unordered_map<std::string, int> tex_map;
-    auto load_texture = [&](const std::string& name) {
-        auto tex = tex_map.find(name);
-        if (tex != tex_map.end())
-            return tex->second;
+// void convert_materials(const Path& path, const obj::File& obj_file, const obj::MaterialLib& mtl_lib, Scene& scene,
+//                        MtlLightBuffer& mtl_to_light_intensity, MaskBuffer& masks) {
+//     std::unordered_map<std::string, int> tex_map;
+//     auto load_texture = [&](const std::string& name) {
+//         auto tex = tex_map.find(name);
+//         if (tex != tex_map.end())
+//             return tex->second;
 
-        std::cout << "  Loading texture " << name << "..." << std::flush;
+//         std::cout << "  Loading texture " << name << "..." << std::flush;
 
-        Image img;
-        int id;
-        if (load_image(name, img)) {
-            id = scene.texture_count();
-            tex_map.emplace(name, id);
-            scene.textures().emplace_back(new TextureSampler(std::move(img)));
-            std::cout << std::endl;
-        } else {
-            id = -1;
-            tex_map.emplace(name, -1);
-            std::cout << " FAILED!" << std::endl;
-        }
+//         Image img;
+//         int id;
+//         if (load_image(name, img)) {
+//             id = scene.texture_count();
+//             tex_map.emplace(name, id);
+//             scene.textures().emplace_back(new TextureSampler(std::move(img)));
+//             std::cout << std::endl;
+//         } else {
+//             id = -1;
+//             tex_map.emplace(name, -1);
+//             std::cout << " FAILED!" << std::endl;
+//         }
 
-        return id;
-    };
+//         return id;
+//     };
 
-    std::unordered_map<int, int> mask_map;
+//     std::unordered_map<int, int> mask_map;
 
-    // Add a dummy material, for objects that have no material
-    scene.materials().emplace_back(new DiffuseMaterial);
-    masks.add_desc();
+//     // Add a dummy material, for objects that have no material
+//     scene.materials().emplace_back(new DiffuseMaterial);
+//     masks.add_desc();
 
-    for (int i = 1; i < obj_file.materials.size(); i++) {
-        auto& mat_name = obj_file.materials[i];
-        auto it = mtl_lib.find(mat_name);
+//     for (int i = 1; i < obj_file.materials.size(); i++) {
+//         auto& mat_name = obj_file.materials[i];
+//         auto it = mtl_lib.find(mat_name);
 
-        int mask_id = -1;
-        if (it == mtl_lib.end()) {
-            // Add a dummy material in this case
-            scene.materials().emplace_back(new DiffuseMaterial);
-        } else {
-            const obj::Material& mat = it->second;
+//         int mask_id = -1;
+//         if (it == mtl_lib.end()) {
+//             // Add a dummy material in this case
+//             scene.materials().emplace_back(new DiffuseMaterial);
+//         } else {
+//             const obj::Material& mat = it->second;
 
-            // Change the ambient map if needed
-            std::string map_ka;
-            if (mat.map_ka.empty() &&
-                dot(mat.ka, mat.ka) > 0.0f &&
-                !mat.map_kd.empty()) {
-                map_ka = mat.map_kd;
-            } else {
-                map_ka = mat.map_ka;
-            }
+//             // Change the ambient map if needed
+//             std::string map_ka;
+//             if (mat.map_ka.empty() &&
+//                 dot(mat.ka, mat.ka) > 0.0f &&
+//                 !mat.map_kd.empty()) {
+//                 map_ka = mat.map_kd;
+//             } else {
+//                 map_ka = mat.map_ka;
+//             }
 
-            // We do not support textured light sources yet.
-            bool is_emissive = /*!mat.map_ke.empty() || */(mat.ke.x > 0.0f || mat.ke.y > 0.0f || mat.ke.z > 0.0f);
+//             // We do not support textured light sources yet.
+//             bool is_emissive = /*!mat.map_ke.empty() || */(mat.ke.x > 0.0f || mat.ke.y > 0.0f || mat.ke.z > 0.0f);
 
-            bool is_phong = /*!mat.map_ks.empty() ||*/(mat.ks.x > 0.0f || mat.ks.y > 0.0f || mat.ks.z > 0.0f);
+//             bool is_phong = /*!mat.map_ks.empty() ||*/(mat.ks.x > 0.0f || mat.ks.y > 0.0f || mat.ks.z > 0.0f);
 
-            if (is_emissive)
-                mtl_to_light_intensity.insert(std::make_pair(scene.material_count(), mat.ke));
+//             if (is_emissive)
+//                 mtl_to_light_intensity.insert(std::make_pair(scene.material_count(), mat.ke));
 
-            TextureSampler* bump_sampler = nullptr;
-            if (!mat.map_bump.empty()) {
-                // Load the bump map.
-                const std::string img_file = path.base_name() + "/" + mat.map_bump;
-                int sampler_id = load_texture(img_file);
-                if (sampler_id >= 0)
-                    bump_sampler = scene.texture(sampler_id).get();
-            }
+//             TextureSampler* bump_sampler = nullptr;
+//             if (!mat.map_bump.empty()) {
+//                 // Load the bump map.
+//                 const std::string img_file = path.base_name() + "/" + mat.map_bump;
+//                 int sampler_id = load_texture(img_file);
+//                 if (sampler_id >= 0)
+//                     bump_sampler = scene.texture(sampler_id).get();
+//             }
 
-            if (mat.illum == 5)
-                scene.materials().emplace_back(new MirrorMaterial(1.0f, mat.ns, mat.ks, bump_sampler));
-            else if (mat.illum == 7)
-                scene.materials().emplace_back(new GlassMaterial(mat.ni, mat.tf, mat.ks, bump_sampler));
-            else if (is_phong){
-                Material* mtl;
-                if (!mat.map_kd.empty()) {
-                    const std::string img_file = path.base_name() + "/" + mat.map_kd;
+//             if (mat.illum == 5)
+//                 scene.materials().emplace_back(new MirrorMaterial(1.0f, mat.ns, mat.ks, bump_sampler));
+//             else if (mat.illum == 7)
+//                 scene.materials().emplace_back(new GlassMaterial(mat.ni, mat.tf, mat.ks, bump_sampler));
+//             else if (is_phong){
+//                 Material* mtl;
+//                 if (!mat.map_kd.empty()) {
+//                     const std::string img_file = path.base_name() + "/" + mat.map_kd;
 
-                    int sampler_id = load_texture(img_file);
-                    if (sampler_id < 0) {
-                        mtl = new GlossyMaterial(mat.ns, mat.ks, rgb(1.0f, 0.0f, 1.0f), bump_sampler);
-                    } else {
-                        mtl = new GlossyMaterial(mat.ns, mat.ks, scene.texture(sampler_id).get(), bump_sampler);
-                    }
-                } else {
-                    mtl = new GlossyMaterial(mat.ns, mat.ks, mat.kd, bump_sampler);
-                }
+//                     int sampler_id = load_texture(img_file);
+//                     if (sampler_id < 0) {
+//                         mtl = new GlossyMaterial(mat.ns, mat.ks, rgb(1.0f, 0.0f, 1.0f), bump_sampler);
+//                     } else {
+//                         mtl = new GlossyMaterial(mat.ns, mat.ks, scene.texture(sampler_id).get(), bump_sampler);
+//                     }
+//                 } else {
+//                     mtl = new GlossyMaterial(mat.ns, mat.ks, mat.kd, bump_sampler);
+//                 }
 
-                scene.materials().emplace_back(mtl);
-            } else {
-                Material* mtl;
-                if (!mat.map_kd.empty()) {
-                    const std::string img_file = path.base_name() + "/" + mat.map_kd;
+//                 scene.materials().emplace_back(mtl);
+//             } else {
+//                 Material* mtl;
+//                 if (!mat.map_kd.empty()) {
+//                     const std::string img_file = path.base_name() + "/" + mat.map_kd;
 
-                    int sampler_id = load_texture(img_file);
-                    if (sampler_id < 0) {
-                        mtl = new DiffuseMaterial(rgb(1.0f, 0.0f, 1.0f), bump_sampler);
-                    } else {
-                        mtl = new DiffuseMaterial(scene.texture(sampler_id).get(), bump_sampler);
-                    }
-                } else {
-                    mtl = new DiffuseMaterial(mat.kd, bump_sampler);
-                }
+//                     int sampler_id = load_texture(img_file);
+//                     if (sampler_id < 0) {
+//                         mtl = new DiffuseMaterial(rgb(1.0f, 0.0f, 1.0f), bump_sampler);
+//                     } else {
+//                         mtl = new DiffuseMaterial(scene.texture(sampler_id).get(), bump_sampler);
+//                     }
+//                 } else {
+//                     mtl = new DiffuseMaterial(mat.kd, bump_sampler);
+//                 }
 
-                scene.materials().emplace_back(mtl);
-            }
+//                 scene.materials().emplace_back(mtl);
+//             }
 
-            // If specified, load the alpha map
-            if (!mat.map_d.empty()) {
-                mask_id = load_texture(path.base_name() + "/" + mat.map_d);
-            }
-        }
+//             // If specified, load the alpha map
+//             if (!mat.map_d.empty()) {
+//                 mask_id = load_texture(path.base_name() + "/" + mat.map_d);
+//             }
+//         }
 
-        if (mask_id >= 0) {
-            auto offset = mask_map.find(mask_id);
-            const auto& image = scene.texture(mask_id)->image();
-            if (offset != mask_map.end()) {
-                masks.add_desc(MaskBuffer::MaskDesc(image.width(), image.height(), offset->second));
-            } else {
-                auto desc = masks.append_mask(image);
-                mask_map.emplace(mask_id, desc.offset);
-            }
-        } else {
-            masks.add_desc();
-        }
-    }
-}
+//         if (mask_id >= 0) {
+//             auto offset = mask_map.find(mask_id);
+//             const auto& image = scene.texture(mask_id)->image();
+//             if (offset != mask_map.end()) {
+//                 masks.add_desc(MaskBuffer::MaskDesc(image.width(), image.height(), offset->second));
+//             } else {
+//                 auto desc = masks.append_mask(image);
+//                 mask_map.emplace(mask_id, desc.offset);
+//             }
+//         } else {
+//             masks.add_desc();
+//         }
+//     }
+// }
 
-void create_mesh(const obj::File& obj_file, Scene& scene, std::vector<TriangleLight>& tri_lights, MtlLightBuffer& mtl_to_light_intensity,
-                 int mtl_offset, MaskBuffer& masks) {
+struct TriLight {
+    int tri_id;
+    float3 p0, p1, p2;
+
+    TriLight() {}
+    TriLight(int tri_id, const float3& p0, const float3& p1, const float3& p2)
+        : tri_id(tri_id), p0(p0), p1(p1), p2(p2)
+    {}
+};
+
+using LightIdMap = std::map<int, std::vector<TriLight> >;
+
+void create_mesh(const obj::File& obj_file, Scene& scene, LightIdMap& tri_lights, int mtl_offset) {
     // This function creates a big mesh out of the whole scene.
     scene.meshes().emplace_back();
 
@@ -221,24 +233,23 @@ void create_mesh(const obj::File& obj_file, Scene& scene, std::vector<TriangleLi
 
                     // If this is a light, we need a separate material for every face
                     // as the emitter might be different (different area)
-                    auto iter = mtl_to_light_intensity.find(mtl_idx);
-                    if (iter != mtl_to_light_intensity.end()) {
-                        auto mat = scene.material(mtl_idx).get();
-                        scene.materials().emplace_back(mat->duplicate());
-                        mat = scene.materials().back().get();
-                        mtl_idx = scene.materials().size() - 1;
+                    auto iter = tri_lights.find(mtl_idx);
+                    if (iter != tri_lights.end()) {
+                        // auto mat = scene.material(mtl_idx).get();
+                        // scene.materials().emplace_back(mat->duplicate());
+                        // mat = scene.materials().back().get();
+                        // mtl_idx = scene.materials().size() - 1;
 
-                        // We created a new material, thus we have to add a corresponding alpha mask as well.
-                        // TODO: Change this if support for masked light sources is desired.
-                        masks.add_desc();
+                        // // We created a new material, thus we have to add a corresponding alpha mask as well.
+                        // // TODO: Change this if support for masked light sources is desired.
+                        // masks.add_desc();
 
                         auto p0 = obj_file.vertices[face.indices[0].v];
                         auto p1 = obj_file.vertices[face.indices[i].v];
                         auto p2 = obj_file.vertices[face.indices[i+1].v];
 
-                        // Create a light source for this emissive object.
-                        tri_lights.emplace_back(iter->second, p0, p1, p2);
-                        mat->set_emitter(new AreaEmitter(iter->second, Tri(p0, p1, p2).area()));
+                        // Store the id of this triangle in the list of emissive triangles
+                        iter->second.emplace_back(triangles.size(), p0, p1, p2);
                     }
 
                     // Now emplace the triangle with either the original or the new material
@@ -558,8 +569,10 @@ bool build_scene(const Path& path, Scene& scene, float3& cam_pos, float3& cam_di
     cam_up  = scene_info.cam_up;
     std::cout << std::endl;
 
+    scene.create_mat_sys(".");
+
     std::cout << "[2/5] Loading mesh files..." << std::endl;
-    std::vector<std::vector<TriangleLight> > tri_lights;
+    std::vector<LightIdMap> tri_lights;
     MaskBuffer masks;
     for (int i = 0; i < scene_info.mesh_filenames.size(); ++i) {
         std::cout << " Mesh " << i + 1 << " of " << scene_info.mesh_filenames.size() << "..." << std::endl;
@@ -571,22 +584,32 @@ bool build_scene(const Path& path, Scene& scene, float3& cam_pos, float3& cam_di
             return false;
         }
 
-        obj::MaterialLib mtl_lib;
+        tri_lights.emplace_back();
+        int mtl_offset = scene.material_count();
+        // Replace associated MTL by .oso with same name & path
+        for (auto& name : obj_file.materials) {
+            int id = scene.add_material(name, obj_path.base_name() + "/");
 
-        // Parse the associated MTL files
-        for (auto& lib : obj_file.mtl_libs) {
-            if (!load_mtl(obj_path.base_name() + "/" + lib, mtl_lib)) {
-                std::cout << " FAILED loading materials" << std::endl;
-                return false;
-            }
+            if (id == 8) // TODO if ( islight )
+                tri_lights[i].insert(std::make_pair(id, std::vector<TriLight>()));
         }
 
-        MtlLightBuffer mtl_to_light_intensity;
-        int mtl_offset = scene.materials().size();
-        convert_materials(obj_path, obj_file, mtl_lib, scene, mtl_to_light_intensity, masks);
+        // obj::MaterialLib mtl_lib;
 
-        tri_lights.emplace_back();
-        create_mesh(obj_file, scene, tri_lights.back(), mtl_to_light_intensity, mtl_offset, masks);
+        // // Parse the associated MTL files
+        // for (auto& lib : obj_file.mtl_libs) {
+        //     if (!load_mtl(obj_path.base_name() + "/" + lib, mtl_lib)) {
+        //         std::cout << " FAILED loading materials" << std::endl;
+        //         return false;
+        //     }
+        // }
+
+        // MtlLightBuffer mtl_to_light_intensity;
+        // int mtl_offset = scene.material_count();
+        // convert_materials(obj_path, obj_file, mtl_lib, scene, mtl_to_light_intensity, masks);
+
+        //tri_lights.emplace_back();
+        create_mesh(obj_file, scene, tri_lights.back(), mtl_offset);
 
         std::cout << "  validating..." << std::flush;
 
@@ -616,13 +639,16 @@ bool build_scene(const Path& path, Scene& scene, float3& cam_pos, float3& cam_di
 
     std::cout << "[3/5] Instancing light sources..." << std::endl;
 
-    for (auto& inst : scene.instances()) {
-        // Copy the triangle lights if there are any.
+    for (int i = 0; i < scene.instance_count(); ++i) {
+        auto& inst = scene.instance(i);
+        // Create the triangle lights, if there are any.
         for (auto& light : tri_lights[inst.id]) {
-            auto p0 = inst.mat * float4(light.vertex(0), 1.0f);
-            auto p1 = inst.mat * float4(light.vertex(1), 1.0f);
-            auto p2 = inst.mat * float4(light.vertex(2), 1.0f);
-            scene.lights().emplace_back(new TriangleLight(light.emitter()->intensity, p0, p1, p2));
+            for (auto& tri : light.second) {
+                auto p0 = inst.mat * float4(tri.p0, 1.0f);
+                auto p1 = inst.mat * float4(tri.p1, 1.0f);
+                auto p2 = inst.mat * float4(tri.p2, 1.0f);
+                scene.lights().emplace_back(new TriangleLight(light.first, p0, p1, p2, scene.material_system()));
+            }
         }
     }
 
@@ -644,17 +670,8 @@ bool build_scene(const Path& path, Scene& scene, float3& cam_pos, float3& cam_di
     std::cout << "[5/5] Moving the scene to the device..." << std::flush;
     scene.upload_mesh_accels();
     scene.upload_top_level_accel();
-    scene.upload_mask_buffer(masks);
 
     std::cout << std::endl;
-
-    // TODO
-    MaterialSystem mat_sys(&scene, path.base_name());
-    mat_sys.add_shader();
-    MaterialValue res;
-    Hit hit { 0, 0, 1.0f, 0.5f };
-    Ray ray {  };
-    mat_sys.eval_material(hit, ray, res);
 
     return true;
 }

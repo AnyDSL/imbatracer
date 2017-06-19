@@ -1,0 +1,16 @@
+#include "stdosl.h"
+
+surface
+rightWall
+    [[ string help = "Lambertian diffuse material" ]]
+(
+    float Kd = 1
+        [[  string help = "Diffuse scaling",
+            float min = 0, float max = 1 ]],
+    color Cs = color(0.14, 0.45, 0.091)
+        [[  string help = "Base color",
+            float min = 0, float max = 1 ]]
+  )
+{
+    Ci = Kd * Cs * diffuse (N);
+}

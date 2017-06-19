@@ -59,29 +59,29 @@ protected:
                       tangent.z * dir.x + binormal.z * dir.y + normal.z * dir.z);
     }
 
-    inline bool same_hemisphere(const float3& out_dir, const float3& in_dir) {
+    inline bool same_hemisphere(const float3& out_dir, const float3& in_dir) const {
         return cos_theta(out_dir) * cos_theta(in_dir) > 0.0f;
     }
 
-    inline float cos_theta(const float3& dir) { return dot(normal, dir); }
-    inline float abs_cos_theta(const float3& dir) { return fabsf(cos_theta(dir)); }
-    inline float sin_theta_sqr(const float3& dir) { return std::max(0.0f, 1.0f - sqr(cos_theta(dir))); }
-    inline float sin_theta(const float3& dir) { return sqrtf(sin_theta_sqr(dir)); }
+    inline float cos_theta(const float3& dir) const { return dot(normal, dir); }
+    inline float abs_cos_theta(const float3& dir) const { return fabsf(cos_theta(dir)); }
+    inline float sin_theta_sqr(const float3& dir) const { return std::max(0.0f, 1.0f - sqr(cos_theta(dir))); }
+    inline float sin_theta(const float3& dir) const { return sqrtf(sin_theta_sqr(dir)); }
 
-    inline float cos_phi(const float3& dir, const float3& tangent, const float3& binormal) {
+    inline float cos_phi(const float3& dir, const float3& tangent, const float3& binormal) const {
         float st = sin_theta(dir);
         if (st == 0.0f) return 1.0f;
         return clamp((tangent.x * dir.x + binormal.x * dir.y + normal.x * dir.z) / st, -1.0f, 1.0f);
     }
 
-    inline float sin_phi(const float3& dir) {
+    inline float sin_phi(const float3& dir, const float3& tangent, const float3& binormal) const {
         float st = sin_theta(dir);
         if (st == 0.0f) return 0.0f;
         return clamp((tangent.y * dir.x + binormal.y * dir.y + normal.y * dir.z) / st, -1.0f, 1.0f);
     }
 
-    inline float3 reflect(const float3& dir) {
-        return dir - 2.0f * dot(dir, normal) * normal
+    inline float3 reflect(const float3& dir) const {
+        return dir - 2.0f * dot(dir, normal) * normal;
     }
 };
 
@@ -93,20 +93,25 @@ public:
         : all_specular_(true), num_comps_(0), used_bytes_(0)
     { }
 
+    /// Checks wether or not this BSDF is a black body, i.e. absorbing all light.
+    bool black_body() const {
+        return num_comps_ == 0;
+    }
+
     /// Adds a new BSDF to this combined BSDF
     template <typename T, typename... Args>
-    bool add(const float3& weight, Args&& a...) {
+    bool add(const float3& weight, const Args&... a) {
         // Ensure that no buffer overflow can occur.
         if (num_comps_ >= MAX_COMPONENTS) return false;
         if (used_bytes_ + sizeof(T) >= MAX_COMPONENTS * MAX_SIZE) return false;
 
         weights_[num_comps_] = weight;
-        components_[num_comps_] = new (mem_pool_ + used_bytes_) T(std::forward(a...));
+        components_[num_comps_] = new (mem_pool_ + used_bytes_) T(a...);
 
         num_comps_++;
         used_bytes_ += sizeof(T);
 
-        if (!components_[num_comps_]->specular()) all_specular_ = false;
+        if (!components_[num_comps_ - 1]->specular()) all_specular_ = false;
 
         return true;
     }
@@ -114,34 +119,35 @@ public:
     /// Done adding components.
     /// The BSDF is now prepared for rendering.
     /// Calling add() after a call to this function results in undefined behavior.
-    void finish(const float3& throughput) {
+    void prepare(const float3& throughput) {
         float total = 0.0f;
         for (int i = 0; i < num_comps_; ++i) {
-            pdfs[i] = dot(weights_[i], throughput);
-            total += w;
+            pdfs_[i] = dot(weights_[i], throughput);
+            total += pdfs_[i];
         }
 
         // normalize the pdfs
         for (int i = 0; i < num_comps_; ++i) {
-            pdfs[i] /= total;
+            pdfs_[i] /= total;
         }
     }
 
     rgb eval(const float3& out_dir, const float3& in_dir) const {
         rgb res(0.0f);
         for (int i = 0; i < num_comps_; ++i) {
-            res += weights_[i] * components_[i].eval(out_dir, in_dir);
+            res += weights_[i] * components_[i]->eval(out_dir, in_dir);
         }
         return res;
     }
 
-    rgb sample(const float3& out_dir, float3& in_dir, RNG& rng, float& pdf, bool& specular) const {
+    rgb sample(const float3& out_dir, float3& in_dir, RNG& rng, float& pdf) const {
         float rnd_comp = rng.random_float();
 
         float sum = 0.0f;
         rgb res(0.0f);
         for (int i = 0; i < num_comps_; ++i) {
             if (rnd_comp < pdfs_[i] + sum) {
+                float sample_pdf;
                 res += weights_[i] * components_[i]->sample(out_dir, in_dir, rng, sample_pdf) / pdfs_[i];
                 pdf = sample_pdf * pdfs_[i];
 
@@ -161,14 +167,14 @@ public:
 
     /// Computes the pdf of sampling the given incoming direction, taking into account only BxDFs with the given flags.
     float pdf(const float3& out_dir, const float3& in_dir) const {
-        float pdf;
+        float pdf = 0.0f;
         for (int i = 0; i < num_comps_; ++i) {
-            pdf += pdfs_[i] * components_[i].pdf(out_dir, in_dir);
+            pdf += pdfs_[i] * components_[i]->pdf(out_dir, in_dir);
         }
         return pdf;
     }
 
-    bool specular() const { return all_specular_; }
+    bool is_specular() const { return all_specular_; }
 
 private:
     BxDF* components_[MAX_COMPONENTS];

@@ -19,12 +19,6 @@ void Scene::setup_traversal_buffers(BuildAccelData<Node>& build_data, TraversalD
     if (traversal_data.instances.size() < instance_nodes_.size()) {
         traversal_data.instances = std::move(anydsl::Array<InstanceNode>(plat, anydsl::Device(0), instance_nodes_.size()));
     }
-    if (traversal_data.indices.size() < index_buf_.size()) {
-        traversal_data.indices = anydsl::Array<int>(plat, anydsl::Device(0), index_buf_.size());
-    }
-    if (traversal_data.texcoords.size() < texcoord_buf_.size()) {
-        traversal_data.texcoords = anydsl::Array<Vec2>(plat, anydsl::Device(0), texcoord_buf_.size());
-    }
 }
 
 void Scene::setup_traversal_buffers() {
@@ -117,24 +111,6 @@ void Scene::build_top_level_accel() {
 }
 
 template <typename Node>
-void Scene::upload_mask_buffer(TraversalData<Node>& traversal_data, anydsl::Platform plat, const MaskBuffer& masks) {
-    traversal_data.masks = std::move(anydsl::Array<::TransparencyMask>(plat, anydsl::Device(0), masks.mask_count()));
-    anydsl_copy(0, masks.descs(), 0,
-                traversal_data.masks.device(), traversal_data.masks.data(), 0,
-                sizeof(MaskBuffer::MaskDesc) * masks.mask_count());
-
-    traversal_data.mask_buffer = std::move(anydsl::Array<char>(plat, anydsl::Device(0), masks.buffer_size()));
-    anydsl_copy(0, masks.buffer(), 0,
-                traversal_data.mask_buffer.device(), traversal_data.mask_buffer.data(), 0,
-                masks.buffer_size());
-}
-
-void Scene::upload_mask_buffer(const MaskBuffer& masks) {
-    if (cpu_buffers_) upload_mask_buffer(traversal_cpu_, anydsl::Platform::Host, masks);
-    if (gpu_buffers_) upload_mask_buffer(traversal_gpu_, anydsl::Platform::Cuda, masks);
-}
-
-template <typename Node>
 void Scene::upload_mesh_accels(BuildAccelData<Node>& build_data, TraversalData<Node>& traversal_data) {
     anydsl_copy(0, build_data.nodes.data(), 0,
                 traversal_data.nodes.device(), traversal_data.nodes.data(), 0,
@@ -142,13 +118,6 @@ void Scene::upload_mesh_accels(BuildAccelData<Node>& build_data, TraversalData<N
     anydsl_copy(0, build_data.tris.data(), 0,
                 traversal_data.tris.device(), traversal_data.tris.data(), 0,
                 sizeof(Vec4) * build_data.tris.size());
-
-    anydsl_copy(0, index_buf_.data(), 0,
-                traversal_data.indices.device(), traversal_data.indices.data(), 0,
-                sizeof(int) * index_buf_.size());
-    anydsl_copy(0, texcoord_buf_.data(), 0,
-                traversal_data.texcoords.device(), traversal_data.texcoords.data(), 0,
-                sizeof(Vec2) * texcoord_buf_.size());
 
     std::vector<Node>().swap(build_data.nodes);
     std::vector<Vec4>().swap(build_data.tris);

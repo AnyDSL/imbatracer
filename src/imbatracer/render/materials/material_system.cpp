@@ -1,4 +1,6 @@
 #include "imbatracer/render/materials/material_system.h"
+#include "imbatracer/render/materials/brdfs.h"
+#include "imbatracer/render/materials/btdfs.h"
 
 #define TBB_USE_EXCEPTIONS 0
 #include <tbb/enumerable_thread_specific.h>
@@ -15,6 +17,10 @@ constexpr int OSL_OPTIMIZE_LVL = 2;
 using namespace OSL;
 
 namespace imba {
+
+float3 make_float3(const Color3& cl) {
+    return float3(cl.x, cl.y, cl.z);
+}
 
 struct ThreadLocalContext {
     ShadingContext* ctx;
@@ -73,17 +79,14 @@ struct MaterialSystem::MatSysInternal {
     ErrorHandler err_hand_;
     std::vector<ShaderGroupRef> shaders_;
 
-    Scene* scene_;
-
     void register_closures();
-    ShaderGlobals isect_to_globals(const Hit& hit, const Ray& ray, int& shader_id);
-    void process_closure(MaterialValue& res, const ClosureColor* closure);
+    ShaderGlobals isect_to_globals(const float3& pos, const float2& uv, const float3& dir,
+                                   const float3& normal, const float3& geom_normal, float area);
+    void process_closure(MaterialValue& res, const ClosureColor* closure, bool adjoint);
 };
 
-MaterialSystem::MaterialSystem(Scene* scene, const std::string& search_path) {
+MaterialSystem::MaterialSystem(const std::string& search_path) {
     internal_.reset(new MatSysInternal);
-
-    internal_->scene_ = scene;
 
     internal_->sys_.reset(new ShadingSystem(&internal_->ren_serv_, nullptr, &internal_->err_hand_));
 
@@ -99,14 +102,16 @@ MaterialSystem::MaterialSystem(Scene* scene, const std::string& search_path) {
 
     sys->attribute("optimize", OSL_OPTIMIZE_LVL);
 
-    // TODO pass shader search path
-    sys->attribute("searchpath:shader", search_path);
-
     // TODO Do we need this?
     // shadingsys->attribute ("options", extraoptions);
 }
 
-void MaterialSystem::eval_material(const Hit& hit, const Ray& ray, MaterialValue& res) {
+int MaterialSystem::shader_count() const {
+    return internal_->shaders_.size();
+}
+
+MaterialValue MaterialSystem::eval_material(const float3& pos, const float2& uv, const float3& dir, const float3& normal,
+                                            const float3& geom_normal, float area, int shader_id, bool adjoint) {
     auto& ctx = thread_local_contexts.local();
     if (!ctx.ctx) {
         ctx.tinfo = internal_->sys_->create_thread_info();
@@ -116,25 +121,24 @@ void MaterialSystem::eval_material(const Hit& hit, const Ray& ray, MaterialValue
         printf("created new context\n");
     }
 
-    int shader_id = -1;
-    auto sg = internal_->isect_to_globals(hit, ray, shader_id);
-
-    // TODO TEST CODE REMOVE
-    shader_id = 0;
+    auto sg = internal_->isect_to_globals(pos, uv, dir, normal, geom_normal, area);
 
     auto shader = internal_->shaders_[shader_id];
 
     internal_->sys_->execute(ctx.ctx, *shader, sg);
 
-    internal_->process_closure(res, sg.Ci);
+    MaterialValue res;
+    internal_->process_closure(res, sg.Ci, adjoint);
+    return res;
 }
 
-void MaterialSystem::add_shader() {
+void MaterialSystem::add_shader(const std::string& name, const std::string& search_path) {
     // TODO write an actual implementation
     auto sys = internal_->sys_.get();
+    sys->attribute("searchpath:shader", search_path);
 
-    auto group = sys->ShaderGroupBegin("test_shader");
-    sys->Shader("surface", "test_diff");
+    auto group = sys->ShaderGroupBegin(name);
+    sys->Shader("surface", name);
     // sys->ConnectShaders();
     sys->ShaderGroupEnd();
 
@@ -163,10 +167,10 @@ enum ClosureIDs {
 };
 
 struct EmptyParams       {};
-struct DiffuseParams     { Vec3 N; };
-struct PhongParams       { Vec3 N; float exponent; };
-struct ReflectionParams  { Vec3 N; float eta; };
-struct RefractionParams  { Vec3 N; float eta; };
+struct DiffuseParams     { float3 normal() const { return make_float3(N); }; Vec3 N; };
+struct PhongParams       { float3 normal() const { return make_float3(N); }; Vec3 N; float exponent; };
+struct ReflectionParams  { float3 normal() const { return make_float3(N); }; Vec3 N; float eta; float kappa; };
+struct RefractionParams  { float3 normal() const { return make_float3(N); }; Vec3 N; float eta; };
 
 void MaterialSystem::MatSysInternal::register_closures() {
     constexpr int MAX_PARAMS = 32;
@@ -189,6 +193,7 @@ void MaterialSystem::MatSysInternal::register_closures() {
 
         { "reflection",  CLOSURE_REFLECTION,  { CLOSURE_VECTOR_PARAM(ReflectionParams, N),
                                                 CLOSURE_FLOAT_PARAM(ReflectionParams, eta),
+                                                CLOSURE_FLOAT_PARAM(ReflectionParams, kappa),
                                                 CLOSURE_FINISH_PARAM(ReflectionParams) } },
 
         { "refraction",  CLOSURE_REFRACTION,  { CLOSURE_VECTOR_PARAM(RefractionParams, N),
@@ -204,45 +209,14 @@ void MaterialSystem::MatSysInternal::register_closures() {
     }
 }
 
-ShaderGlobals MaterialSystem::MatSysInternal::isect_to_globals(const Hit& hit, const Ray& ray, int& shader_id) {
+ShaderGlobals MaterialSystem::MatSysInternal::isect_to_globals(const float3& pos, const float2& uv_c, const float3& dir,
+                                                               const float3& normal, const float3& geom_normal, float area) {
     ShaderGlobals res;
     memset(&res, 0, sizeof(ShaderGlobals));
 
-    // TODO: compare with values required in the integrator, make sure to not compute the same stuff twice!
-    const Mesh::Instance& inst = scene_->instance(hit.inst_id);
-    const Mesh& mesh = scene_->mesh(inst.id);
-
-    const int local_tri_id = scene_->local_tri_id(hit.tri_id, inst.id);
-
-    const int i0 = mesh.indices()[local_tri_id * 4 + 0];
-    const int i1 = mesh.indices()[local_tri_id * 4 + 1];
-    const int i2 = mesh.indices()[local_tri_id * 4 + 2];
-    const int  m = mesh.indices()[local_tri_id * 4 + 3];
-
-    const float3     org(ray.org.x, ray.org.y, ray.org.z);
-    const float3 out_dir(ray.dir.x, ray.dir.y, ray.dir.z);
-    const auto       pos = org + hit.tmax * out_dir;
-    const auto local_pos = inst.inv_mat * float4(pos, 1.0f);
-
-    // Recompute v based on u and local_pos
-    const float u = hit.u;
-    const auto v0 = float3(mesh.vertices()[i0]);
-    const auto e1 = float3(mesh.vertices()[i1]) - v0;
-    const auto e2 = float3(mesh.vertices()[i2]) - v0;
-    const float v = dot(local_pos - v0 - u * e1, e2) / dot(e2, e2);
-
-    const auto texcoords    = mesh.attribute<float2>(MeshAttributes::TEXCOORDS);
-    const auto normals      = mesh.attribute<float3>(MeshAttributes::NORMALS);
-    const auto geom_normals = mesh.attribute<float3>(MeshAttributes::GEOM_NORMALS);
-
-    const auto uv_coords    = lerp(texcoords[i0], texcoords[i1], texcoords[i2], u, v);
-    const auto local_normal = lerp(normals[i0], normals[i1], normals[i2], u, v);
-    const auto normal       = normalize(float3(local_normal * inst.inv_mat));
-    const auto geom_normal  = normalize(float3(geom_normals[local_tri_id] * inst.inv_mat));
-
-    Dual2<OSL::Vec3> point  = OSL::Vec3(ray.org.x, ray.org.y, ray.org.z);
-    Dual2<OSL::Vec2> uv     = OSL::Vec2(uv_coords.x, uv_coords.y);
-    Dual2<OSL::Vec3> in_dir = OSL::Vec3(ray.dir.x, ray.dir.y, ray.dir.z);
+    Dual2<OSL::Vec3> point  = OSL::Vec3(pos.x, pos.y, pos.z);
+    Dual2<OSL::Vec2> uv     = OSL::Vec2(uv_c.x, uv_c.y);
+    Dual2<OSL::Vec3> in_dir = OSL::Vec3(dir.x, dir.y, dir.z);
 
     res.P    = point.val();
     res.dPdx = point.dx();
@@ -260,7 +234,7 @@ ShaderGlobals MaterialSystem::MatSysInternal::isect_to_globals(const Hit& hit, c
     res.dvdy = uv.dy().y;
 
     // instancing / animations may cange the area
-    res.surfacearea = length(cross(e1, e2)) * 0.5f * inst.det;
+    res.surfacearea = area;
 
     res.I    = in_dir.val();
     res.dIdx = in_dir.dx();
@@ -278,29 +252,21 @@ ShaderGlobals MaterialSystem::MatSysInternal::isect_to_globals(const Hit& hit, c
     // TODO add ray type support
     // res.raytype;
 
-    shader_id = m;
-
     return res;
 }
 
-float3 make_float3(const Color3& cl) {
-    return float3(cl.x, cl.y, cl.z);
-}
-
-void process_closure(MaterialValue& res, const ClosureColor* closure, const Color3& w) {
+void process_closure(MaterialValue& res, const ClosureColor* closure, const Color3& w, bool adjoint) {
     if (!closure) return;
 
     switch (closure->id) {
     case ClosureColor::MUL: {
         Color3 cw = w * closure->as_mul()->weight;
-        process_closure(res, closure->as_mul()->closure, cw);
-        break;
-    }
+        process_closure(res, closure->as_mul()->closure, cw, adjoint);
+    } break;
     case ClosureColor::ADD: {
-        process_closure(res, closure->as_add()->closureA, w);
-        process_closure(res, closure->as_add()->closureB, w);
-        break;
-    }
+        process_closure(res, closure->as_add()->closureA, w, adjoint);
+        process_closure(res, closure->as_add()->closureB, w, adjoint);
+    } break;
     default: {
         const ClosureComponent* comp = closure->as_comp();
         Color3 cw = w * comp->w;
@@ -309,11 +275,29 @@ void process_closure(MaterialValue& res, const ClosureColor* closure, const Colo
         else {
             bool ok = false;
             switch (comp->id) {
-            case CLOSURE_DIFFUSE:     ok = res.bsdf.add_bsdf<Diffuse<0>, DiffuseParams   >(cw, *comp->as<DiffuseParams>  ()); break;
-            case CLOSURE_TRANSLUCENT: ok = res.bsdf.add_bsdf<Diffuse<1>, DiffuseParams   >(cw, *comp->as<DiffuseParams>  ()); break;
-            case CLOSURE_PHONG:       ok = res.bsdf.add_bsdf<Phong     , PhongParams     >(cw, *comp->as<PhongParams>    ()); break;
-            case CLOSURE_REFLECTION:  ok = res.bsdf.add_bsdf<Reflection, ReflectionParams>(cw, *comp->as<ReflectionParams>()); break;
-            case CLOSURE_REFRACTION:  ok = res.bsdf.add_bsdf<Refraction, RefractionParams>(cw, *comp->as<RefractionParams>()); break;
+            case CLOSURE_DIFFUSE: {
+                auto params = *comp->as<DiffuseParams>();
+                ok = res.bsdf.add<Lambertian<false>>(make_float3(cw), params.normal());
+            } break;
+            case CLOSURE_TRANSLUCENT: {
+                auto params = *comp->as<DiffuseParams>();
+                ok = res.bsdf.add<Lambertian<true>>(make_float3(cw), params.normal());
+            } break;
+            case CLOSURE_PHONG: {
+                auto params = *comp->as<PhongParams>();
+                ok = res.bsdf.add<Phong>(make_float3(cw), params.exponent, params.normal());
+            } break;
+            case CLOSURE_REFLECTION: {
+                auto params = *comp->as<ReflectionParams>();
+                ok = res.bsdf.add<SpecularReflection<FresnelConductor>>(make_float3(cw), FresnelConductor(params.eta, params.kappa), params.normal());
+            } break;
+            case CLOSURE_REFRACTION: {
+                auto params = *comp->as<RefractionParams>();
+                if (adjoint)
+                    ok = res.bsdf.add<SpecularTransmission<true>>(make_float3(cw), params.eta, 1.0f, params.normal());
+                else
+                    ok = res.bsdf.add<SpecularTransmission<false>>(make_float3(cw), params.eta, 1.0f, params.normal());
+            } break;
             }
             ASSERT(ok && "Invalid closure invoked in surface shader");
         }
@@ -322,8 +306,9 @@ void process_closure(MaterialValue& res, const ClosureColor* closure, const Colo
     }
 }
 
-void MaterialSystem::MatSysInternal::process_closure(MaterialValue& res, const ClosureColor* closure) {
-    process_closure(res, closure, Color3(1,1,1));
+void MaterialSystem::MatSysInternal::process_closure(MaterialValue& res, const ClosureColor* closure, bool adjoint) {
+    res.emit = rgb(0.0f);
+    imba::process_closure(res, closure, Color3(1,1,1), adjoint);
 }
 
 } // namespace imba

@@ -4,6 +4,7 @@
 #include "imbatracer/render/random.h"
 #include "imbatracer/core/bsphere.h"
 #include "imbatracer/core/image.h"
+#include "imbatracer/render/materials/material_system.h"
 
 #include <cfloat>
 #include <memory>
@@ -93,15 +94,17 @@ public:
 
 class TriangleLight : public Light {
 public:
-    TriangleLight(const rgb& intensity,
+    TriangleLight(int mat_id,
                   const float3& p0,
                   const float3& p1,
-                  const float3& p2)
+                  const float3& p2,
+                  MaterialSystem* mat_sys)
         : verts_{p0, p1, p2}
+        , mat_sys_(mat_sys)
+        , mat_id_(mat_id)
     {
-        emit_.intensity = intensity;
         normal_ = cross(p1 - p0, p2 - p0);
-        emit_.area = length(normal_) * 0.5f;
+        area_   = length(normal_) * 0.5f;
         normal_ = normalize(normal_);
         local_coordinates(normal_, tangent_, binormal_);
     }
@@ -132,11 +135,12 @@ public:
             return sample;
         }
 
-        sample.radiance = emit_.intensity * emit_.area * pi; // The cosine cancels out with the pdf
+        auto radiance = compute_radiance(u, v, sample.pos, -sample.dir);
+        sample.radiance = radiance * area_ * pi; // The cosine cancels out with the pdf
 
         sample.cos_out      = cos_out;
-        sample.pdf_emit_w   = dir_sample.pdf / emit_.area;
-        sample.pdf_direct_a = 1.0f / emit_.area;
+        sample.pdf_emit_w   = dir_sample.pdf / area_;
+        sample.pdf_direct_a = 1.0f / area_;
 
         return sample;
     }
@@ -159,11 +163,12 @@ public:
 
         // directions form the opposite side of the light have zero intensity
         if (cos_out > 0.0f && cos_out < 1.0f) {
-            sample.radiance = emit_.intensity * cos_out * (emit_.area / distsq);
+            auto radiance = compute_radiance(u, v, pos, sample.dir);
+            sample.radiance = radiance * cos_out * (area_ / distsq);
 
             sample.cos_out      = cos_out;
-            sample.pdf_emit_w   = cos_hemisphere_pdf(cos_out) / emit_.area;
-            sample.pdf_direct_w = 1.0f / emit_.area * distsq / cos_out;
+            sample.pdf_emit_w   = cos_hemisphere_pdf(cos_out) / area_;
+            sample.pdf_direct_w = 1.0f / area_ * distsq / cos_out;
         } else {
             sample.radiance = rgb(0.0f);
 
@@ -176,8 +181,6 @@ public:
         return sample;
     }
 
-    const AreaEmitter* emitter() const override { return &emit_; }
-
     const float3& vertex(int i) { return verts_[i]; }
 
 private:
@@ -185,8 +188,14 @@ private:
     float3 normal_;
     float3 tangent_;
     float3 binormal_;
+    float area_;
+    MaterialSystem* mat_sys_;
+    int mat_id_;
 
-    AreaEmitter emit_;
+    rgb compute_radiance(float u, float v, const float3& p, const float3& d) {
+        // TODO support texturing (compute correct texture coordinates!)
+        return mat_sys_->eval_material(p, float2(u,v), d, normal_, normal_, area_, mat_id_, true).emit;
+    }
 };
 
 class DirectionalLight : public Light {

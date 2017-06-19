@@ -6,10 +6,9 @@ namespace imba {
 template<bool adjoint>
 class SpecularTransmission : public BxDF {
 public:
-    SpecularTransmission(float eta_inside, float eta_outside, const rgb& scale, const float3& n)
+    SpecularTransmission(float eta_inside, float eta_outside, const float3& n)
         : BxDF(n),
           fresnel_(eta_outside, eta_inside),
-          scale_(scale),
           eta_outside_(eta_outside),
           eta_inside_(eta_inside)
     {}
@@ -47,7 +46,7 @@ public:
         float fr = fresnel_.eval(c_out);
         float factor = adjoint ? 1.0f : sqr(eta_in / eta_trans);
 
-        return factor * (1.0f - fr) * scale_;
+        return rgb(factor * (1.0f - fr));
     }
 
     float albedo(const float3& out_dir) const override {
@@ -63,7 +62,6 @@ public:
 
 private:
     FresnelDielectric fresnel_;
-    rgb scale_;
     float eta_outside_, eta_inside_;
 };
 
