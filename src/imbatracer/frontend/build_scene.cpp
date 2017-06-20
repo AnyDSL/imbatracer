@@ -587,7 +587,7 @@ bool build_scene(const Path& path, Scene& scene, float3& cam_pos, float3& cam_di
         int mtl_offset = scene.material_count();
         // Replace associated MTL by .oso with same name & path
         for (auto& name : obj_file.materials) {
-            int id = scene.add_material(name, obj_path.base_name() + "/");
+            int id = scene.add_material(obj_path.base_name() + "/", name, "shader \"" + name + "\" \"" + name + "\"");
 
             if (id == 7) // TODO if ( islight )
                 tri_lights[i].insert(std::make_pair(id, std::vector<TriLight>()));

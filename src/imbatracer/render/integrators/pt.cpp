@@ -23,10 +23,10 @@ void PathTracer::compute_direct_illum(const Intersection& isect, PTState& state,
 
     if (pdf_hit == 0.0f || pdf_di == 0.0f || is_black(bsdf_value)) return;
 
-    const float mis_weight = ls->is_delta() || true ? 1.0f : pdf_di / (pdf_di + pdf_hit);
+    const float mis_weight = ls->is_delta() ? 1.0f : 1.0f / (1.0f + pdf_hit / pdf_di);
 
     // The contribution is stored in the state of the shadow ray and added, if the shadow ray does not intersect anything.
-    ShadowState s; auto oldtp = state.throughput;
+    ShadowState s;
     s.throughput  = state.throughput * bsdf_value * sample.radiance * mis_weight / pdf_lightpick;
     s.pixel_id    = state.pixel_id;
 
@@ -60,8 +60,6 @@ void PathTracer::bounce(const Intersection& isect, PTState& state_out, Ray& ray_
         terminate_path(state_out);
         return;
     }
-
-    const float cos_term = fabsf(dot(isect.normal, sample_dir));
 
     state_out.throughput *= bsdf_value / rr_pdf;
     state_out.bounces++;
@@ -103,7 +101,7 @@ void PathTracer::process_primary_rays(RayQueue<PTState>& ray_in, RayQueue<Shadow
                 const float pdf_di  = pdf_direct_w * pdf_lightpick;
                 const float pdf_hit = state.last_pdf;
                 const float mis_weight = (state.bounces == 0 || state.last_specular) ? 1.0f
-                                         : (pdf_hit / (pdf_hit + pdf_di));
+                                         : (1.0f / (1.0f + pdf_di / pdf_hit));
 
                 add_contribution(res_img, state.pixel_id, state.throughput * li * mis_weight);
             }
@@ -135,7 +133,7 @@ void PathTracer::process_primary_rays(RayQueue<PTState>& ray_in, RayQueue<Shadow
                 pdf_di *= d_sqr / cos_light;
 
                 const float mis_weight = (state.bounces == 0 || state.last_specular) ? 1.0f
-                                         : state.last_pdf / (state.last_pdf + pdf_di);
+                                         : 1.0f / (1.0f + pdf_di / state.last_pdf);
 
                 add_contribution(res_img, state.pixel_id, state.throughput * mat.emit * mis_weight);
 
@@ -144,7 +142,7 @@ void PathTracer::process_primary_rays(RayQueue<PTState>& ray_in, RayQueue<Shadow
             }
 
             compute_direct_illum(isect, state, ray_out_shadow, &mat.bsdf);
-            // bounce(isect, state, ray_in.ray(i), &mat.bsdf, offset);
+            bounce(isect, state, ray_in.ray(i), &mat.bsdf, offset);
         }
     });
 

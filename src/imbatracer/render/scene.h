@@ -108,8 +108,8 @@ public:
 
     /// Adds the OSL material with the given name to the scene.
     /// \returns the id of the newly added material.
-    int add_material(const std::string& name, const std::string& path) { // TODO specify shader parameters, connections, etc. (maybe an std::map<param_name, value>)
-        mat_sys_->add_shader(name, path);
+    int add_material(const std::string& search_path, const std::string& name, const std::string& serialized_graph) {
+        mat_sys_->add_shader(search_path, name, serialized_graph);
         return mat_sys_->shader_count() - 1;
     }
 

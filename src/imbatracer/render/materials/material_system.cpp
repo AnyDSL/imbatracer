@@ -5,6 +5,10 @@
 #define TBB_USE_EXCEPTIONS 0
 #include <tbb/enumerable_thread_specific.h>
 
+#include <sstream>
+#include <algorithm>
+#include <functional>
+
 #include <OSL/oslexec.h>
 #include <OSL/genclosure.h>
 #include <OSL/dual.h>
@@ -17,6 +21,66 @@ constexpr int OSL_OPTIMIZE_LVL = 2;
 using namespace OSL;
 
 namespace imba {
+
+static inline std::string &ltrim(std::string &s) {
+    s.erase(s.begin(), std::find_if(s.begin(), s.end(),
+            std::not1(std::ptr_fun<int, int>(std::isspace))));
+    return s;
+}
+
+// trim from end
+static inline std::string &rtrim(std::string &s) {
+    s.erase(std::find_if(s.rbegin(), s.rend(),
+            std::not1(std::ptr_fun<int, int>(std::isspace))).base(), s.end());
+    return s;
+}
+
+// trim from both ends
+static inline std::string &trim(std::string &s) {
+    return ltrim(rtrim(s));
+}
+
+template <int N>
+struct ParamStorage {
+    ParamStorage() : fparamindex(0), iparamindex(0), sparamindex(0) {}
+
+    void* Int(int i) {
+        ASSERT(iparamindex < N);
+        iparamdata[iparamindex] = i;
+        iparamindex++;
+        return &iparamdata[iparamindex - 1];
+    }
+
+    void* Float(float f) {
+        ASSERT(fparamindex < N);
+        fparamdata[fparamindex] = f;
+        fparamindex++;
+        return &fparamdata[fparamindex - 1];
+    }
+
+    void* Vec(float x, float y, float z) {
+        Float(x);
+        Float(y);
+        Float(z);
+        return &fparamdata[fparamindex - 3];
+    }
+
+    void* Str(const char* str) {
+        ASSERT(sparamindex < N);
+        sparamdata[sparamindex] = ustring(str);
+        sparamindex++;
+        return &sparamdata[sparamindex - 1];
+    }
+private:
+    // storage for shader parameters
+    float   fparamdata[N];
+    int     iparamdata[N];
+    ustring sparamdata[N];
+
+    int fparamindex;
+    int iparamindex;
+    int sparamindex;
+};
 
 float3 make_float3(const Color3& cl) {
     return float3(cl.x, cl.y, cl.z);
@@ -132,16 +196,97 @@ MaterialValue MaterialSystem::eval_material(const float3& pos, const float2& uv,
     return res;
 }
 
-void MaterialSystem::add_shader(const std::string& name, const std::string& search_path) {
-    // TODO write an actual implementation
+bool parse_shader_line(std::stringstream& str, ShadingSystem* sys) {
+    std::string instr;
+    if (!(str >> instr)) return false;
+    trim(instr);
+
+    if (instr == "param") {
+        std::string type;
+        std::string name;
+
+        if (!(str >> type)) return false;
+        trim(type);
+
+        if (!(str >> name)) return false;
+        trim(name);
+
+        ParamStorage<1024> store; // scratch space to hold parameters until they are read by Shader()
+        if (type == "string") {
+            std::string value;
+            std::getline(str, value, ';');
+            trim(value);
+            value = value.substr(1, value.size() - 2);
+            sys->Parameter(name, TypeDesc::TypeString, store.Str(value.c_str()));
+        } else if (type == "float") {
+            float value;
+            str >> value;
+            std::string buf; std::getline(str, buf, ';');
+            sys->Parameter(name, TypeDesc::TypeFloat, store.Float(value));
+        } else if (type == "int") {
+            int value;
+            str >> value;
+            std::string buf; std::getline(str, buf, ';');
+            sys->Parameter(name, TypeDesc::TypeInt, store.Int(value));
+        } else if (type == "color") {
+            float x, y, z;
+            str >> x >> y >> z;
+            std::string buf; std::getline(str, buf, ';');
+            sys->Parameter(name, TypeDesc::TypeColor, store.Vec(x, y, z));
+        } else if (type == "point") {
+            float x, y, z;
+            str >> x >> y >> z;
+            std::string buf; std::getline(str, buf, ';');
+            sys->Parameter(name, TypeDesc::TypePoint, store.Vec(x, y, z));
+        } else if (type == "vector") {
+            float x, y, z;
+            str >> x >> y >> z;
+            std::string buf; std::getline(str, buf, ';');
+            sys->Parameter(name, TypeDesc::TypeVector, store.Vec(x, y, z));
+        } else {
+            std::cerr << "Unknown parameter type " << type << std::endl;
+            return false;
+        }
+    } else if (instr == "shader") {
+        std::string name;
+        std::string layer;
+        std::string buf;
+        std::getline(str, buf, '"');
+        std::getline(str, name, '"');
+        std::getline(str, buf, '"');
+        std::getline(str, layer, '"');
+        std::getline(str, buf, ';');
+        sys->Shader("surface", name, layer);
+    } else if (instr == "connect") {
+        std::string srclayer;
+        std::string srcparam;
+        std::string destlayer;
+        std::string destparam;
+        std::getline(str, srclayer, '.');
+        str >> srcparam; trim(srcparam);
+        std::getline(str, destlayer, '.');
+        str >> destparam; trim(destparam);
+        std::string buf;
+        std::getline(str, buf, ';');
+        sys->ConnectShaders(srclayer, srcparam, destlayer, destparam);
+    } else {
+        std::cerr << "Error in shader graph: unknown instruction " << instr << std::endl;
+        return false;
+    }
+
+    return true;
+}
+
+void MaterialSystem::add_shader(const std::string& search_path, const std::string& name, const std::string& serialized_graph) {
     auto sys = internal_->sys_.get();
     sys->attribute("searchpath:shader", search_path);
 
     auto group = sys->ShaderGroupBegin(name);
-    sys->Shader("surface", name);
-    // sys->ConnectShaders();
-    sys->ShaderGroupEnd();
 
+    std::stringstream str(serialized_graph);
+    while (parse_shader_line(str, sys)) ;
+
+    sys->ShaderGroupEnd();
     internal_->shaders_.push_back(group);
 }
 
