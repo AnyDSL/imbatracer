@@ -174,8 +174,8 @@ void Scene::upload_top_level_accel(BuildAccelData<Node>& build_data, TraversalDa
                 sizeof(InstanceNode) * instance_nodes_.size());
     traversal_data.root = build_data.node_count;
 
+    // Keep the layout, as it is necessary to rebuild the top level
     std::vector<Node>().swap(build_data.top_nodes);
-    std::vector<int>().swap(build_data.layout);
 }
 
 void Scene::upload_top_level_accel() {
