@@ -31,14 +31,7 @@ struct AreaEmitter {
         }
 
         pdf_direct_a = 1.0f / area;
-
-        float3 tangent, binormal;
-        local_coordinates(normal, tangent, binormal);
-
-        auto local_out_dir = float3(dot(binormal, out_dir),
-                                    dot(tangent, out_dir),
-                                    dot(normal, out_dir));
-        pdf_emit_w   = 1.0f / area * cos_hemisphere_pdf(local_out_dir.z);
+        pdf_emit_w   = 1.0f / area * cos_hemisphere_pdf(cos_theta_o);
 
         return intensity;
     }
@@ -194,7 +187,9 @@ private:
 
     rgb compute_radiance(float u, float v, const float3& p, const float3& d) {
         // TODO support texturing (compute correct texture coordinates!)
-        return mat_sys_->eval_material(p, float2(u,v), d, normal_, normal_, area_, mat_id_, true).emit;
+        MaterialValue res;
+        mat_sys_->eval_material(p, float2(u,v), d, normal_, normal_, area_, mat_id_, true, res);
+        return res.emit;
     }
 };
 

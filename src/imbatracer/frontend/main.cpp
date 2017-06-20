@@ -116,17 +116,17 @@ int main(int argc, char* argv[]) {
     const bool gpu_traversal = settings.traversal_platform == UserSettings::gpu;
 
     if (settings.algorithm == UserSettings::DEF_VCM) {
-        // render_loop_deferred<mis::MisVCM>(scene, cam, ctrl, settings);
+        render_loop_deferred<mis::MisVCM>(scene, cam, ctrl, settings);
     } else if (settings.algorithm == UserSettings::DEF_PT) {
-        // render_loop_deferred<mis::MisPT>(scene, cam, ctrl, settings);
+        render_loop_deferred<mis::MisPT>(scene, cam, ctrl, settings);
     } else if (settings.algorithm == UserSettings::DEF_LT) {
-        // render_loop_deferred<mis::MisLT>(scene, cam, ctrl, settings);
+        render_loop_deferred<mis::MisLT>(scene, cam, ctrl, settings);
     } else if (settings.algorithm == UserSettings::DEF_TWPT) {
-        // render_loop_deferred<mis::MisTWPT>(scene, cam, ctrl, settings);
+        render_loop_deferred<mis::MisTWPT>(scene, cam, ctrl, settings);
     } else if (settings.algorithm == UserSettings::DEF_BPT) {
-        // render_loop_deferred<mis::MisBPT>(scene, cam, ctrl, settings);
+        render_loop_deferred<mis::MisBPT>(scene, cam, ctrl, settings);
     } else if (settings.algorithm == UserSettings::DEF_PPM) {
-        // render_loop_deferred<mis::MisPPM>(scene, cam, ctrl, settings);
+        render_loop_deferred<mis::MisPPM>(scene, cam, ctrl, settings);
     } else if (settings.algorithm == UserSettings::PT) {
 #ifdef QUEUE_SCHEDULER
         PixelRayGen<PTState> ray_gen(settings.width, settings.height, settings.concurrent_spp);

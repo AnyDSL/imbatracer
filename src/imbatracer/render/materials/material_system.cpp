@@ -146,7 +146,7 @@ struct MaterialSystem::MatSysInternal {
     void register_closures();
     ShaderGlobals isect_to_globals(const float3& pos, const float2& uv, const float3& dir,
                                    const float3& normal, const float3& geom_normal, float area);
-    void process_closure(MaterialValue& res, const ClosureColor* closure, bool adjoint);
+    void process_closure(MaterialValue& res, const ClosureColor* closure, bool adjoint) const;
 };
 
 MaterialSystem::MaterialSystem(const std::string& search_path) {
@@ -174,8 +174,8 @@ int MaterialSystem::shader_count() const {
     return internal_->shaders_.size();
 }
 
-MaterialValue MaterialSystem::eval_material(const float3& pos, const float2& uv, const float3& dir, const float3& normal,
-                                            const float3& geom_normal, float area, int shader_id, bool adjoint) {
+void MaterialSystem::eval_material(const float3& pos, const float2& uv, const float3& dir, const float3& normal,
+                                   const float3& geom_normal, float area, int shader_id, bool adjoint, MaterialValue& res) const {
     auto& ctx = thread_local_contexts.local();
     if (!ctx.ctx) {
         ctx.tinfo = internal_->sys_->create_thread_info();
@@ -191,9 +191,7 @@ MaterialValue MaterialSystem::eval_material(const float3& pos, const float2& uv,
 
     internal_->sys_->execute(ctx.ctx, *shader, sg);
 
-    MaterialValue res;
     internal_->process_closure(res, sg.Ci, adjoint);
-    return res;
 }
 
 bool parse_shader_line(std::stringstream& str, ShadingSystem* sys) {
@@ -451,7 +449,7 @@ void process_closure(MaterialValue& res, const ClosureColor* closure, const Colo
     }
 }
 
-void MaterialSystem::MatSysInternal::process_closure(MaterialValue& res, const ClosureColor* closure, bool adjoint) {
+void MaterialSystem::MatSysInternal::process_closure(MaterialValue& res, const ClosureColor* closure, bool adjoint) const {
     res.emit = rgb(0.0f);
     imba::process_closure(res, closure, Color3(1,1,1), adjoint);
 }

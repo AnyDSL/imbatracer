@@ -105,6 +105,7 @@ public:
     }
 
     MaterialSystem* material_system() { return mat_sys_.get(); }
+    const MaterialSystem* material_system() const { return mat_sys_.get(); }
 
     /// Adds the OSL material with the given name to the scene.
     /// \returns the id of the newly added material.
@@ -118,7 +119,7 @@ public:
     }
 
     /// Computes the material properties at the given hit point (BRDF and emission)
-    MaterialValue eval_material(const Hit& hit, const Ray& ray, bool adjoint) const {
+    void eval_material(const Hit& hit, const Ray& ray, bool adjoint, MaterialValue& res) const {
         // TODO: compare with values required in the integrator, make sure to not compute the same stuff twice!
         const Mesh::Instance& inst = instance(hit.inst_id);
         const Mesh& m = mesh(inst.id);
@@ -153,7 +154,7 @@ public:
 
         float area = length(cross(e1, e2)) * 0.5f * inst.det;
 
-        return mat_sys_->eval_material(pos, uv_coords, out_dir, normal, geom_normal, area, mat, adjoint);
+        mat_sys_->eval_material(pos, uv_coords, out_dir, normal, geom_normal, area, mat, adjoint, res);
     }
 
 private:

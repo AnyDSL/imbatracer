@@ -26,7 +26,7 @@ public:
     int add(const Vertex& v) {
         int i = next_++;
         if (i >= verts_.size()) {
-            std::cout << "A vertex did not fit into the cache!" << std::endl;
+            std::cout << "A vertex did not fit into the cache! (capacity:" << verts_.size() << ")" << std::endl;
             return -1;
         } else
             verts_[i] = v;

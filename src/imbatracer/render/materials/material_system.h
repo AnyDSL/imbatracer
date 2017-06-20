@@ -20,8 +20,8 @@ public:
     MaterialSystem(const std::string& search_path);
     ~MaterialSystem();
 
-    MaterialValue eval_material(const float3& pos, const float2& uv, const float3& dir, const float3& normal,
-                                const float3& geom_normal, float area, int shader, bool adjoint);
+    void eval_material(const float3& pos, const float2& uv, const float3& dir, const float3& normal,
+                       const float3& geom_normal, float area, int shader, bool adjoint, MaterialValue& res) const;
 
     /// Creates a new shader
     /// \param search_path      the path where the required .oso files are located

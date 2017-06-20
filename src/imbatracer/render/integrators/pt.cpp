@@ -54,7 +54,8 @@ void PathTracer::bounce(const Intersection& isect, PTState& state_out, Ray& ray_
 
     float pdf;
     float3 sample_dir;
-    const auto bsdf_value = bsdf->sample(isect.out_dir, sample_dir, state_out.rng, pdf);
+    bool specular;
+    const auto bsdf_value = bsdf->sample(isect.out_dir, sample_dir, state_out.rng, pdf, specular);
 
     if (pdf == 0.0f || is_black(bsdf_value)) {
         terminate_path(state_out);
@@ -63,7 +64,7 @@ void PathTracer::bounce(const Intersection& isect, PTState& state_out, Ray& ray_
 
     state_out.throughput *= bsdf_value / rr_pdf;
     state_out.bounces++;
-    state_out.last_specular = bsdf->is_specular();
+    state_out.last_specular = specular;
     state_out.last_pdf = pdf;
 
     ray_out = Ray {
@@ -120,7 +121,8 @@ void PathTracer::process_primary_rays(RayQueue<PTState>& ray_in, RayQueue<Shadow
             const auto isect = calculate_intersection(scene_, ray_in.hit(i), ray_in.ray(i));
             const float offset = 1e-3f * ray_in.hit(i).tmax;
 
-            auto mat = scene_.eval_material(ray_in.hit(i), ray_in.ray(i), false);
+            MaterialValue mat;
+            scene_.eval_material(ray_in.hit(i), ray_in.ray(i), false, mat);
             mat.bsdf.prepare(state.throughput, isect.out_dir);
 
             if (!is_black(mat.emit)) {

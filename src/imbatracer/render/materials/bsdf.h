@@ -10,6 +10,7 @@
 #include "imbatracer/render/materials/fresnel.h"
 
 #include <cassert>
+#include <algorithm>
 
 namespace imba {
 
@@ -90,8 +91,11 @@ template <int MAX_COMPONENTS, int MAX_SIZE>
 class CombineBSDF {
 public:
     CombineBSDF()
-        : all_specular_(true), num_comps_(0), used_bytes_(0)
+        : all_specular_(true), num_comps_(0)
     { }
+
+    CombineBSDF(const CombineBSDF&) = delete;
+    CombineBSDF& operator= (const CombineBSDF&) = delete;
 
     /// Checks wether or not this BSDF is a black body, i.e. absorbing all light.
     bool black_body() const {
@@ -101,15 +105,15 @@ public:
     /// Adds a new BSDF to this combined BSDF
     template <typename T, typename... Args>
     bool add(const float3& weight, const Args&... a) {
+        if (is_black(weight)) return true;
+
         // Ensure that no buffer overflow can occur.
         if (num_comps_ >= MAX_COMPONENTS) return false;
-        if (used_bytes_ + sizeof(T) >= MAX_COMPONENTS * MAX_SIZE) return false;
 
         weights_[num_comps_] = weight;
-        components_[num_comps_] = new (mem_pool_ + used_bytes_) T(a...);
+        components_[num_comps_] = new (mem_pool_ + num_comps_ * MAX_SIZE) T(a...);
 
         num_comps_++;
-        used_bytes_ += sizeof(T);
 
         if (!components_[num_comps_ - 1]->specular()) all_specular_ = false;
 
@@ -132,6 +136,8 @@ public:
             if (pdfs_[i] < 0.99f)
             printf("%f\n", pdfs_[i]);
         }
+
+        if (black_body()) all_specular_ = false;
     }
 
     rgb eval(const float3& out_dir, const float3& in_dir) const {
@@ -142,9 +148,9 @@ public:
         return res;
     }
 
-    rgb sample(const float3& out_dir, float3& in_dir, RNG& rng, float& pdf) const {
+    rgb sample(const float3& out_dir, float3& in_dir, RNG& rng, float& pdf, bool& specular) const {
         float rnd_comp = rng.random_float();
-
+        specular = false;
         float sum = 0.0f;
         rgb res(0.0f);
         for (int i = 0; i < num_comps_; ++i) {
@@ -163,6 +169,7 @@ public:
                 break;
             }
             sum += pdfs_[i];
+            if (components_[i]->specular()) specular = true;
         }
         return res;
     }
@@ -183,8 +190,6 @@ private:
     rgb   weights_[MAX_COMPONENTS];
     float pdfs_[MAX_COMPONENTS];
     char  mem_pool_[MAX_COMPONENTS * MAX_SIZE];
-    int   used_bytes_;
-
     int num_comps_;
 
     bool all_specular_;

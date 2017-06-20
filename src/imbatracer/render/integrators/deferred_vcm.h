@@ -1,6 +1,7 @@
 #ifndef IMBA_DEFERRED_VCM_H
 #define IMBA_DEFERRED_VCM_H
 
+#include "imbatracer/render/materials/material_system.h"
 #include "imbatracer/render/scheduling/deferred_scheduler.h"
 
 #include "imbatracer/render/integrators/integrator.h"
@@ -38,28 +39,35 @@ class DeferredVCM : public Integrator {
     };
 
     struct Vertex {
-        // TODO refactor and compress this, consider storing BSDF inside (instead of Intersection)
-
         MisType mis;
         rgb throughput; ///< The power or importance of the path leading to this vertex
 
-        Intersection isect;
+        float3 pos;
+        float2 uv;
+        float3 normal;
+        float3 out_dir;
+        float area;
+        int mat;
+
         union {
             int pixel_id; ///< Id of the pixel from which this path was sampled (only for camera paths)
             int light_id; ///< Id of the light source from which this path was sampled (only for light paths)
         };
-        uint16_t ancestor;
-        uint16_t path_len;
+        uint32_t ancestor : 24;
+        uint32_t path_len : 8;
 
         Vertex() {}
-        Vertex(const MisType& mis, const rgb& c, int a, int pixel, int len, const Intersection& i)
-            : mis(mis), throughput(c), ancestor(a), isect(i), pixel_id(pixel), path_len(len)
+        Vertex(const MisType& mis, const rgb& c, int a, int pixel, int len,
+               int mat, const float3& pos, const float2& uv, const float3& normal, const float3& out, float area)
+            : mis(mis), throughput(c), ancestor(a), pixel_id(pixel), path_len(len)
+            , pos(pos), normal(normal), out_dir(out), mat(mat), area(area), uv(uv)
         {}
 
+        // TODO this is used by the emission (can be replaced by the other constructor if light exposes material)
         Vertex(const MisType& mis, const rgb& c, int a, int pixel, int len, const float3& pos)
             : mis(mis), throughput(c), ancestor(a), pixel_id(pixel), path_len(len)
+            , pos(pos)
         {
-            isect.pos = pos;
         }
     };
 
@@ -84,7 +92,7 @@ class DeferredVCM : public Integrator {
             return *this;
         }
 
-        const float3& position() const { return vert->isect.pos; }
+        const float3& position() const { return vert->pos; }
 
         const Vertex* vert;
     };
@@ -165,7 +173,7 @@ private:
 
     void trace_camera_paths();
     void trace_light_paths();
-    void process_hits(Ray& r, Hit& h, State& s, VertCache* cache);
+    void process_hits(Ray& r, Hit& h, State& s, VertCache* cache, bool adjoint);
     void process_envmap_hits(Ray& r, State& s);
 
     void bounce(State& state_out, const Intersection& isect, BSDF* bsdf, Ray& ray_out, bool adjoint, float offset);

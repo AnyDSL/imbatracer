@@ -6,13 +6,6 @@
 
 namespace imba {
 
-// Thread-local storage for BSDF objects.
-using ThreadLocalMemArena =
-    tbb::enumerable_thread_specific<MemoryArena,
-        tbb::cache_aligned_allocator<MemoryArena>,
-        tbb::ets_key_per_instance>;
-static ThreadLocalMemArena bsdf_memory_arenas;
-
 // #define STATISTICS
 #ifdef STATISTICS
 #define PROFILE(cmd, name)  {auto time_start = std::chrono::high_resolution_clock::now(); \
@@ -82,7 +75,7 @@ void DeferredVCM<mis::MisPT>::render(AtomicImage& img) {
     light_verts_->clear();
 
     PROFILE(trace_camera_paths(), "Tracing camera paths");
-    PROFILE(trace_light_paths(), "Tracing light paths");
+    // PROFILE(trace_light_paths(), "Tracing light paths");
 
     PROFILE(path_tracing(img, true), "PT");
 }
@@ -141,7 +134,7 @@ void DeferredVCM<MisType>::trace_camera_paths() {
     scheduler_.run_iteration(&camera_tile_gen_,
         env_hit,
         [this] (Ray& r, Hit& h, State& s) {
-            process_hits(r, h, s, cam_verts_.get());
+            process_hits(r, h, s, cam_verts_.get(), false);
         },
         [this] (int x, int y, Ray& ray, State& state) -> bool {
             // Sample a ray from the camera.
@@ -166,7 +159,7 @@ void DeferredVCM<MisType>::trace_light_paths() {
     scheduler_.run_iteration(&light_tile_gen_,
         nullptr,
         [this] (Ray& r, Hit& h, State& s) {
-            process_hits(r, h, s, light_verts_.get());
+            process_hits(r, h, s, light_verts_.get(), true);
         },
         [this] (int ray_id, int light_id, ::Ray& ray, State& state) -> bool {
             auto& l = scene_.light(light_id);
@@ -203,25 +196,23 @@ void DeferredVCM<MisType>::bounce(State& state, const Intersection& isect, BSDF*
 
     float pdf_dir_w;
     float3 sample_dir;
-    BxDFFlags sampled_flags;
-    auto bsdf_value = bsdf->sample(isect.out_dir, sample_dir, state.rng, BSDF_ALL, sampled_flags, pdf_dir_w);
+    bool specular;
+    auto bsdf_value = bsdf->sample(isect.out_dir, sample_dir, state.rng, pdf_dir_w, specular);
 
-    bool is_specular = sampled_flags & BSDF_SPECULAR;
-
-    if (sampled_flags == 0 || pdf_dir_w == 0.0f || is_black(bsdf_value)) {
+    if (pdf_dir_w == 0.0f || is_black(bsdf_value)) {
         terminate_path(state);
         return;
     }
 
-    float pdf_rev_w = pdf_dir_w;
-    if (!is_specular) // The reverse pdf of specular surfaces is the same as the forward pdf due to symmetry.
-        pdf_rev_w = bsdf->pdf(sample_dir, isect.out_dir);
+    float pdf_rev_w = bsdf->pdf(sample_dir, isect.out_dir);
+    if (specular) // The reverse pdf of specular surfaces is the same as the forward pdf due to symmetry.
+        pdf_rev_w = pdf_dir_w;
 
     const float cos_theta_i = adjoint ? fabsf(shading_normal_adjoint(isect.normal, isect.geom_normal, isect.out_dir, sample_dir))
                                       : fabsf(dot(sample_dir, isect.normal));
 
-    state.throughput *= bsdf_value * cos_theta_i / (rr_pdf * pdf_dir_w);
-    state.mis.update_bounce(pdf_dir_w, pdf_rev_w, cos_theta_i, is_specular, merge_pdf_, state.path_length, !adjoint);
+    state.throughput *= bsdf_value / rr_pdf;
+    state.mis.update_bounce(pdf_dir_w, pdf_rev_w, cos_theta_i, specular, merge_pdf_, state.path_length, !adjoint);
 
     ray = Ray {
         { isect.pos.x, isect.pos.y, isect.pos.z, offset },
@@ -239,10 +230,7 @@ void DeferredVCM<MisType>::process_envmap_hits(Ray& r, State& state) {
 }
 
 template <typename MisType>
-void DeferredVCM<MisType>::process_hits(Ray& r, Hit& h, State& state, VertCache* cache) {
-    auto& bsdf_mem_arena = bsdf_memory_arenas.local();
-    bsdf_mem_arena.free_all();
-
+void DeferredVCM<MisType>::process_hits(Ray& r, Hit& h, State& state, VertCache* cache, bool adjoint) {
     const auto isect = calculate_intersection(scene_, h, r);
     const float cos_theta_o = fabsf(dot(isect.out_dir, isect.normal));
 
@@ -251,19 +239,22 @@ void DeferredVCM<MisType>::process_hits(Ray& r, Hit& h, State& state, VertCache*
         return;
     }
 
-    auto bsdf = isect.mat->get_bsdf(isect, bsdf_mem_arena);
+    MaterialValue mat;
+    scene_.eval_material(h, r, adjoint, mat);
+    mat.bsdf.prepare(state.throughput, isect.out_dir);
 
     state.mis.update_hit(cos_theta_o, h.tmax * h.tmax);
-
     state.path_length++;
-    if (!isect.mat->is_specular())
-        state.ancestor = cache->add(Vertex(state.mis, state.throughput, state.ancestor, state.pixel_id, state.path_length, isect));
+
+    if (!mat.bsdf.is_specular())
+        state.ancestor = cache->add(Vertex(state.mis, state.throughput, state.ancestor, state.pixel_id, state.path_length,
+                                           isect.mat, isect.pos, isect.uv, isect.normal, isect.out_dir, isect.area));
     else
         state.ancestor = -1;
 
     // Continue the path using russian roulette.
     const float offset = h.tmax * 1e-4f;
-    bounce(state, isect, bsdf, r, false, offset);
+    bounce(state, isect, &mat.bsdf, r, false, offset);
 }
 
 template <typename MisType>
@@ -277,14 +268,21 @@ void DeferredVCM<MisType>::path_tracing(AtomicImage& img, bool next_evt) {
         [this, &img, next_evt] (int vert_id, int unused, ::Ray& ray, ShadowState& state) -> bool {
             const auto& v = (*cam_verts_)[vert_id];
 
-            if (auto emit = v.isect.mat->emitter()) {
+            MaterialValue mat;
+            scene_.material_system()->eval_material(v.pos, v.uv, -v.out_dir, v.normal, v.normal, v.area, v.mat, false, mat);
+            mat.bsdf.prepare(v.throughput, v.out_dir);
+
+            if (!is_black(mat.emit)) {
+                float cos_out = dot(v.normal, v.out_dir);
+                if (cos_out < 0.0f) return false;
+
                 float pdf_lightpick = 1.0f / scene_.light_count();
-                float pdf_direct_a, pdf_emit_w;
-                rgb radiance = emit->radiance(v.isect.out_dir, v.isect.geom_normal, pdf_direct_a, pdf_emit_w);
+                float pdf_direct_a  = 1.0f / v.area;
+                float pdf_emit_w    = 1.0f / v.area * cos_hemisphere_pdf(cos_out);
 
                 const float mis_weight = mis::weight_upt(v.mis, merge_pdf_, pdf_direct_a, pdf_emit_w, pdf_lightpick, v.path_len);
 
-                rgb color = v.throughput * radiance * mis_weight;
+                rgb color = v.throughput * mat.emit * mis_weight;
                 add_contribution(img, v.pixel_id, color);
 
                 return false;
@@ -294,17 +292,14 @@ void DeferredVCM<MisType>::path_tracing(AtomicImage& img, bool next_evt) {
             // Sample a point on a light
             const auto& ls = scene_.light(state.rng.random_int(0, scene_.light_count()));
             const float pdf_lightpick_inv = scene_.light_count();
-            const auto sample = ls->sample_direct(v.isect.pos, state.rng);
-            const float cos_theta_i = fabsf(dot(v.isect.normal, sample.dir));
+            const auto sample = ls->sample_direct(v.pos, state.rng);
+            const float cos_theta_i = fabsf(dot(v.normal, sample.dir));
 
             // Evaluate the BSDF and compute the pdf values
-            auto& bsdf_mem_arena = bsdf_memory_arenas.local();
-            bsdf_mem_arena.free_all();
-            auto bsdf = v.isect.mat->get_bsdf(v.isect, bsdf_mem_arena);
-
-            auto bsdf_value = bsdf->eval(v.isect.out_dir, sample.dir, BSDF_ALL);
-            float pdf_dir_w = bsdf->pdf(v.isect.out_dir, sample.dir);
-            float pdf_rev_w = bsdf->pdf(sample.dir, v.isect.out_dir);
+            auto bsdf = &mat.bsdf;
+            auto bsdf_value = bsdf->eval(v.out_dir, sample.dir);
+            float pdf_dir_w = bsdf->pdf(v.out_dir, sample.dir);
+            float pdf_rev_w = bsdf->pdf(sample.dir, v.out_dir);
 
             if (pdf_dir_w == 0.0f || pdf_rev_w == 0.0f)
                 return false;
@@ -315,10 +310,10 @@ void DeferredVCM<MisType>::path_tracing(AtomicImage& img, bool next_evt) {
 
             const float offset = 1e-3f * (sample.distance == FLT_MAX ? 1.0f : sample.distance);
 
-            ray.org = make_vec4(v.isect.pos, offset);
+            ray.org = make_vec4(v.pos, offset);
             ray.dir = make_vec4(sample.dir, sample.distance - offset);
 
-            state.contrib  = v.throughput * bsdf_value * cos_theta_i * sample.radiance * mis_weight * pdf_lightpick_inv;
+            state.contrib  = v.throughput * bsdf_value * sample.radiance * mis_weight * pdf_lightpick_inv;
             state.pixel_id = v.pixel_id;
 
             return true;
@@ -339,12 +334,12 @@ void DeferredVCM<MisType>::light_tracing(AtomicImage& img) {
             if (v.path_len == 1)
                 return false; // Do not connect vertices on the light source itself
 
-            float3 dir_to_cam = cam_.pos() - v.isect.pos;
+            float3 dir_to_cam = cam_.pos() - v.pos;
 
             if (dot(-dir_to_cam, cam_.dir()) < 0.0f)
                 return false; // Vertex is behind the camera.
 
-            const float2 raster_pos = cam_.world_to_raster(v.isect.pos);
+            const float2 raster_pos = cam_.world_to_raster(v.pos);
             state.pixel_id = cam_.raster_to_id(raster_pos);
 
             if (state.pixel_id < 0 || state.pixel_id >= settings_.width * settings_.height)
@@ -354,17 +349,19 @@ void DeferredVCM<MisType>::light_tracing(AtomicImage& img) {
             const float dist_to_cam_sqr = lensqr(dir_to_cam);
             const float dist_to_cam = sqrtf(dist_to_cam_sqr);
             dir_to_cam = dir_to_cam / dist_to_cam;
-            const float cos_theta_surf = fabsf(shading_normal_adjoint(v.isect.normal, v.isect.geom_normal, v.isect.out_dir, dir_to_cam));
+            const float cos_theta_surf = fabsf(dot(v.normal, dir_to_cam));
 
             float pdf_cam = cam_.pdf(-dir_to_cam);
             pdf_cam *= cos_theta_surf / dist_to_cam_sqr;
 
             // Evaluate the BSDF and compute the pdf values
-            auto& bsdf_mem_arena = bsdf_memory_arenas.local();
-            bsdf_mem_arena.free_all();
-            auto bsdf = v.isect.mat->get_bsdf(v.isect, bsdf_mem_arena);
-            auto bsdf_value = bsdf->eval(v.isect.out_dir, dir_to_cam, BSDF_ALL);
-            float pdf_rev_w = bsdf->pdf(dir_to_cam, v.isect.out_dir);
+            MaterialValue mat;
+            scene_.material_system()->eval_material(v.pos, v.uv, -v.out_dir, v.normal, v.normal, v.area, v.mat, true, mat);
+            mat.bsdf.prepare(v.throughput, v.out_dir);
+
+            auto bsdf = &mat.bsdf;
+            auto bsdf_value = bsdf->eval(v.out_dir, dir_to_cam);
+            float pdf_rev_w = bsdf->pdf(dir_to_cam, v.out_dir);
 
             if (pdf_rev_w == 0.0f)
                 return false;
@@ -373,10 +370,10 @@ void DeferredVCM<MisType>::light_tracing(AtomicImage& img) {
 
             const float offset = dist_to_cam * 1e-4f;
 
-            ray.org = make_vec4(v.isect.pos, offset);
+            ray.org = make_vec4(v.pos, offset);
             ray.dir = make_vec4(dir_to_cam, dist_to_cam - offset);
 
-            state.contrib = v.throughput * bsdf_value * mis_weight * pdf_cam / settings_.light_path_count;
+            state.contrib = v.throughput * bsdf_value / cos_theta_surf * mis_weight * pdf_cam / settings_.light_path_count;
 
             return true;
         });
@@ -404,13 +401,21 @@ void DeferredVCM<MisType>::connect(AtomicImage& img) {
             if (light_vertex.path_len == 1)
                 return false;
 
-            auto& bsdf_mem_arena = bsdf_memory_arenas.local();
-            bsdf_mem_arena.free_all();
-            const auto light_bsdf = light_vertex.isect.mat->get_bsdf(light_vertex.isect, bsdf_mem_arena, true);
-            const auto cam_bsdf   = v.isect.mat->get_bsdf(v.isect, bsdf_mem_arena, true);
+            MaterialValue lmat;
+            scene_.material_system()->eval_material(light_vertex.pos, light_vertex.uv, -light_vertex.out_dir,
+                                                    light_vertex.normal, light_vertex.normal, light_vertex.area,
+                                                    light_vertex.mat, true, lmat);
+            lmat.bsdf.prepare(light_vertex.throughput, light_vertex.out_dir);
+
+            MaterialValue cmat;
+            scene_.material_system()->eval_material(v.pos, v.uv, -v.out_dir, v.normal, v.normal, v.area, v.mat, true, cmat);
+            cmat.bsdf.prepare(v.throughput, v.out_dir);
+
+            const auto light_bsdf = &lmat.bsdf;
+            const auto cam_bsdf   = &cmat.bsdf;
 
             // Compute connection direction and distance.
-            float3 connect_dir = light_vertex.isect.pos - v.isect.pos;
+            float3 connect_dir = light_vertex.pos - v.pos;
             const float connect_dist_sq = lensqr(connect_dir);
             const float connect_dist = std::sqrt(connect_dist_sq);
             connect_dir *= 1.0f / connect_dist;
@@ -425,27 +430,24 @@ void DeferredVCM<MisType>::connect(AtomicImage& img) {
             }
 
             // Evaluate the bsdf at the camera vertex.
-            const auto bsdf_value_cam = cam_bsdf->eval(v.isect.out_dir, connect_dir, BSDF_ALL);
-            const float pdf_dir_cam_w = cam_bsdf->pdf(v.isect.out_dir, connect_dir);
-            const float pdf_rev_cam_w = cam_bsdf->pdf(connect_dir, v.isect.out_dir);
+            const auto bsdf_value_cam = cam_bsdf->eval(v.out_dir, connect_dir);
+            const float pdf_dir_cam_w = cam_bsdf->pdf(v.out_dir, connect_dir);
+            const float pdf_rev_cam_w = cam_bsdf->pdf(connect_dir, v.out_dir);
 
             // Evaluate the bsdf at the light vertex.
-            const auto bsdf_value_light = light_bsdf->eval(light_vertex.isect.out_dir, -connect_dir, BSDF_ALL);
-            const float pdf_dir_light_w = light_bsdf->pdf(light_vertex.isect.out_dir, -connect_dir);
-            const float pdf_rev_light_w = light_bsdf->pdf(-connect_dir, light_vertex.isect.out_dir);
+            const auto bsdf_value_light = light_bsdf->eval(light_vertex.out_dir, -connect_dir);
+            const float pdf_dir_light_w = light_bsdf->pdf(light_vertex.out_dir, -connect_dir);
+            const float pdf_rev_light_w = light_bsdf->pdf(-connect_dir, light_vertex.out_dir);
 
             if (pdf_dir_cam_w == 0.0f || pdf_dir_light_w == 0.0f ||
                 pdf_rev_cam_w == 0.0f || pdf_rev_light_w == 0.0f)
                 return false;  // A pdf value of zero means that there has to be zero contribution from this pair of directions as well.
 
             // Compute the cosine terms. We need to use the adjoint for the light vertex BSDF.
-            const float cos_theta_cam   = fabsf(dot(v.isect.normal, connect_dir));
-            const float cos_theta_light = fabsf(shading_normal_adjoint(light_vertex.isect.normal, light_vertex.isect.geom_normal,
-                                                                       light_vertex.isect.out_dir, -connect_dir));
+            const float cos_theta_cam   = fabsf(dot(v.normal, connect_dir));
+            const float cos_theta_light = fabsf(dot(light_vertex.normal, -connect_dir));
 
-            const float geom_term = cos_theta_cam * cos_theta_light / connect_dist_sq;
-            if (geom_term <= 0.0f)
-                return false;
+            const float geom_term = 1.0f / connect_dist_sq; // Cosine contained in bsdf
 
             const float mis_weight = mis::weight_connect(v.mis, light_vertex.mis, merge_pdf_, pdf_dir_cam_w, pdf_rev_cam_w,
                                                          pdf_dir_light_w, pdf_rev_light_w,
@@ -456,7 +458,7 @@ void DeferredVCM<MisType>::connect(AtomicImage& img) {
             state.contrib  = v.throughput * vc_weight * mis_weight * geom_term * bsdf_value_cam * bsdf_value_light * light_vertex.throughput;
 
             const float offset = 1e-4f * connect_dist;
-            ray.org = make_vec4(v.isect.pos, offset);
+            ray.org = make_vec4(v.pos, offset);
             ray.dir = make_vec4(connect_dir, connect_dist - offset);
 
             return true;
@@ -473,25 +475,26 @@ void DeferredVCM<MisType>::merge(AtomicImage& img) {
         for (auto i = range.begin(); i != range.end(); ++i) {
             const auto& v = cam_v[i];
 
-            auto& bsdf_mem_arena = bsdf_memory_arenas.local();
-            bsdf_mem_arena.free_all();
-            const auto bsdf = v.isect.mat->get_bsdf(v.isect, bsdf_mem_arena, true);
+            MaterialValue mat;
+            scene_.material_system()->eval_material(v.pos, v.uv, -v.out_dir, v.normal, v.normal, v.area, v.mat, false, mat);
+            mat.bsdf.prepare(v.throughput, v.out_dir);
+            const auto bsdf = &mat.bsdf;
 
             const int k = settings_.num_knn;
             auto photons = V_ARRAY(VertexHandle, k);
-            int count = photon_grid_.query(v.isect.pos, photons, k);
-            const float radius_sqr = (count == k) ? lensqr(photons[k - 1].vert->isect.pos - v.isect.pos) : (pm_radius_ * pm_radius_);
+            int count = photon_grid_.query(v.pos, photons, k);
+            const float radius_sqr = (count == k) ? lensqr(photons[k - 1].vert->pos - v.pos) : (pm_radius_ * pm_radius_);
 
             rgb contrib(0.0f);
             for (int i = 0; i < count; ++i) {
                 auto p = photons[i].vert;
                 if (p->path_len <= 1) continue;
 
-                const auto& photon_in_dir = p->isect.out_dir;
+                const auto& photon_in_dir = p->out_dir;
 
-                const auto& bsdf_value = bsdf->eval(v.isect.out_dir, photon_in_dir);
-                const float pdf_dir_w = bsdf->pdf(v.isect.out_dir, photon_in_dir);
-                const float pdf_rev_w = bsdf->pdf(photon_in_dir, v.isect.out_dir);
+                const auto& bsdf_value = bsdf->eval(v.out_dir, photon_in_dir);
+                const float pdf_dir_w = bsdf->pdf(v.out_dir, photon_in_dir);
+                const float pdf_rev_w = bsdf->pdf(photon_in_dir, v.out_dir);
 
                 if (pdf_dir_w == 0.0f || pdf_rev_w == 0.0f || is_black(bsdf_value))
                     continue;
@@ -499,10 +502,10 @@ void DeferredVCM<MisType>::merge(AtomicImage& img) {
                 const float mis_weight = mis::weight_merge(v.mis, p->mis, merge_pdf_, pdf_dir_w, pdf_rev_w, v.path_len, p->path_len);
 
                 // Epanechnikov filter
-                const float d = lensqr(p->isect.pos - v.isect.pos);
+                const float d = lensqr(p->pos - v.pos);
                 const float kernel = 1.0f - d / radius_sqr;
 
-                contrib += mis_weight * bsdf_value * kernel * p->throughput;
+                contrib += mis_weight * bsdf_value / fabsf(dot(photon_in_dir, v.normal)) * kernel * p->throughput;
             }
 
             // Complete the Epanechnikov kernel

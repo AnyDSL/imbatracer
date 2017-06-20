@@ -9,25 +9,18 @@
 
 namespace imba {
 
-using ThreadLocalMemArena =
-    tbb::enumerable_thread_specific<MemoryArena,
-        tbb::cache_aligned_allocator<MemoryArena>,
-        tbb::ets_key_per_instance>;
-static ThreadLocalMemArena bsdf_memory_arenas;
-
-
 struct ProbeState : RayState {
     rgb throughput;
 };
 
 void bounce(const Scene& scene, Ray& r, Hit& h, ProbeState& s, std::atomic<int>& vertex_count) {
-    auto& bsdf_mem_arena = bsdf_memory_arenas.local();
-    bsdf_mem_arena.free_all();
-
     const auto isect = calculate_intersection(scene, h, r);
-    auto bsdf = isect.mat->get_bsdf(isect, bsdf_mem_arena, true);
 
-    if (!isect.mat->is_specular())
+    MaterialValue mat;
+    scene.eval_material(h, r, false, mat);
+    mat.bsdf.prepare(s.throughput, isect.out_dir);
+
+    if (!mat.bsdf.is_specular())
         ++vertex_count; // we would store a vertex at this position
 
     float rr_pdf;
@@ -36,15 +29,11 @@ void bounce(const Scene& scene, Ray& r, Hit& h, ProbeState& s, std::atomic<int>&
 
     float pdf_dir_w;
     float3 sample_dir;
-    BxDFFlags sampled_flags;
-    auto bsdf_value = bsdf->sample(isect.out_dir, sample_dir, s.rng, BSDF_ALL, sampled_flags, pdf_dir_w);
+    bool specular;
+    auto bsdf_value = mat.bsdf.sample(isect.out_dir, sample_dir, s.rng, pdf_dir_w, specular);
+    if (pdf_dir_w == 0.0f || is_black(bsdf_value)) return;
 
-    if (sampled_flags == 0 || pdf_dir_w == 0.0f || is_black(bsdf_value))
-        return;
-
-    const float cos_theta_i = fabsf(dot(isect.normal, sample_dir));
-
-    s.throughput *= bsdf_value * cos_theta_i / (rr_pdf * pdf_dir_w);
+    s.throughput *= bsdf_value / rr_pdf;
 
     const float offset = h.tmax * 1e-3f;
 

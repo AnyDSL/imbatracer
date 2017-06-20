@@ -57,11 +57,11 @@ add_library(imba_render
             render/integrators/photon_vis.h
             render/integrators/photon_vis.cpp
             render/integrators/contrib_grid.h
-            # render/integrators/deferred_vcm.h
-            # render/integrators/deferred_vcm.cpp
-            # render/integrators/deferred_vertices.h
-            # render/integrators/deferred_vertices.cpp
-            # render/integrators/deferred_mis.h
+            render/integrators/deferred_vcm.h
+            render/integrators/deferred_vcm.cpp
+            render/integrators/deferred_vertices.h
+            render/integrators/deferred_vertices.cpp
+            render/integrators/deferred_mis.h
 
             render/debug/mis_debug.h
 
