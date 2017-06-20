@@ -573,7 +573,6 @@ bool build_scene(const Path& path, Scene& scene, float3& cam_pos, float3& cam_di
 
     std::cout << "[2/5] Loading mesh files..." << std::endl;
     std::vector<LightIdMap> tri_lights;
-    MaskBuffer masks;
     for (int i = 0; i < scene_info.mesh_filenames.size(); ++i) {
         std::cout << " Mesh " << i + 1 << " of " << scene_info.mesh_filenames.size() << "..." << std::endl;
 
@@ -590,7 +589,7 @@ bool build_scene(const Path& path, Scene& scene, float3& cam_pos, float3& cam_di
         for (auto& name : obj_file.materials) {
             int id = scene.add_material(name, obj_path.base_name() + "/");
 
-            if (id == 8) // TODO if ( islight )
+            if (id == 7) // TODO if ( islight )
                 tri_lights[i].insert(std::make_pair(id, std::vector<TriLight>()));
         }
 

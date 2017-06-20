@@ -119,16 +119,18 @@ public:
     /// Done adding components.
     /// The BSDF is now prepared for rendering.
     /// Calling add() after a call to this function results in undefined behavior.
-    void prepare(const float3& throughput) {
+    void prepare(const float3& throughput, const float3& out_dir) {
         float total = 0.0f;
         for (int i = 0; i < num_comps_; ++i) {
-            pdfs_[i] = dot(weights_[i], throughput);
+            pdfs_[i] = dot(weights_[i], throughput * components_[i]->albedo(out_dir));
             total += pdfs_[i];
         }
 
         // normalize the pdfs
         for (int i = 0; i < num_comps_; ++i) {
             pdfs_[i] /= total;
+            if (pdfs_[i] < 0.99f)
+            printf("%f\n", pdfs_[i]);
         }
     }
 

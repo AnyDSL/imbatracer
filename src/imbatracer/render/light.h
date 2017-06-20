@@ -155,16 +155,16 @@ public:
 
         // compute distance and shadow ray direction
         sample.dir         = pos - from;
-        const float distsq = dot(sample.dir, sample.dir);
+        const float distsq = lensqr(sample.dir);
         sample.distance    = sqrtf(distsq);
-        sample.dir         = sample.dir * (1.0f / sample.distance);
+        sample.dir        /= sample.distance;
 
-        const float cos_out = dot(normal_, -1.0f * sample.dir);
+        const float cos_out = dot(normal_, -sample.dir);
 
         // directions form the opposite side of the light have zero intensity
         if (cos_out > 0.0f && cos_out < 1.0f) {
             auto radiance = compute_radiance(u, v, pos, sample.dir);
-            sample.radiance = radiance * cos_out * (area_ / distsq);
+            sample.radiance = radiance * area_ * (cos_out / distsq);
 
             sample.cos_out      = cos_out;
             sample.pdf_emit_w   = cos_hemisphere_pdf(cos_out) / area_;

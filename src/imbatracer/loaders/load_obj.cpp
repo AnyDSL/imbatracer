@@ -84,8 +84,8 @@ static bool parse_obj(std::istream& stream, obj::File& file) {
     file.objects[0].groups.emplace_back();
 
     // Add an empty material to the scene
-    int cur_mtl = 0;
-    file.materials.emplace_back("");
+    int cur_mtl = -1;
+    // file.materials.emplace_back("");
 
     // Add dummy vertex, normal, and texcoord
     file.vertices.emplace_back();
@@ -145,6 +145,10 @@ static bool parse_obj(std::istream& stream, obj::File& file) {
 
             f.index_count = 0;
             f.material = cur_mtl;
+            if (cur_mtl < 0) {
+                error("missing material");
+                return false;
+            }
 
             bool valid = true;
             ptr += 2;

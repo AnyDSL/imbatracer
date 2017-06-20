@@ -15,9 +15,9 @@ public:
     rgb eval(const float3& out_dir, const float3& in_dir) const override final {
         float c = cos_theta(in_dir);
         if (!translucent)
-            return cos_theta(out_dir) * c > 0 ? rgb(cos_theta(in_dir) / pi) : rgb(0.0f);
+            return cos_theta(out_dir) * c > 0 ? rgb(fabsf(c) / pi) : rgb(0.0f);
         else
-            return cos_theta(out_dir) * c < 0 ? rgb(cos_theta(in_dir) / pi) : rgb(0.0f);
+            return cos_theta(out_dir) * c < 0 ? rgb(fabsf(c) / pi) : rgb(0.0f);
     }
 
     rgb sample(const float3& out_dir, float3& in_dir, RNG& rng, float& pdf) const override final {

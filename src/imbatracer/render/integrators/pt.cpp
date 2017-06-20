@@ -4,7 +4,6 @@
 #include "imbatracer/render/random.h"
 
 #define TBB_USE_EXCEPTIONS 0
-#include <tbb/enumerable_thread_specific.h>
 #include <tbb/parallel_for.h>
 
 #include <cfloat>
@@ -12,28 +11,24 @@
 
 namespace imba {
 
-using ThreadLocalMemArena = tbb::enumerable_thread_specific<MemoryArena, tbb::cache_aligned_allocator<MemoryArena>, tbb::ets_key_per_instance>;
-static ThreadLocalMemArena bsdf_memory_arenas;
-
 void PathTracer::compute_direct_illum(const Intersection& isect, PTState& state, RayQueue<ShadowState>& ray_out_shadow, BSDF* bsdf) {
     // Generate the shadow ray (sample one point on one lightsource)
     const auto& ls = scene_.light(state.rng.random_int(0, scene_.light_count()));
     const float pdf_lightpick = 1.0f / scene_.light_count();
     const auto sample = ls->sample_direct(isect.pos, state.rng);
+    const float pdf_di  = pdf_lightpick * sample.pdf_direct_w;
 
     const auto bsdf_value = bsdf->eval(isect.out_dir, sample.dir);
-
     const float pdf_hit = bsdf->pdf(isect.out_dir, sample.dir);
-    const float pdf_di  = pdf_lightpick * sample.pdf_direct_w;
-    const float mis_weight = ls->is_delta() ? 1.0f : pdf_di / (pdf_di + pdf_hit);
 
-    if (pdf_hit == 0.0f || pdf_di == 0.0f)
-        return;
+    if (pdf_hit == 0.0f || pdf_di == 0.0f || is_black(bsdf_value)) return;
+
+    const float mis_weight = ls->is_delta() || true ? 1.0f : pdf_di / (pdf_di + pdf_hit);
 
     // The contribution is stored in the state of the shadow ray and added, if the shadow ray does not intersect anything.
-    ShadowState s;
-    s.throughput = state.throughput * bsdf_value * sample.radiance * mis_weight / pdf_lightpick;
-    s.pixel_id   = state.pixel_id;
+    ShadowState s; auto oldtp = state.throughput;
+    s.throughput  = state.throughput * bsdf_value * sample.radiance * mis_weight / pdf_lightpick;
+    s.pixel_id    = state.pixel_id;
 
     const float offset = 1e-3f * (sample.distance == FLT_MAX ? 1.0f : sample.distance);
     Ray ray {
@@ -46,7 +41,7 @@ void PathTracer::compute_direct_illum(const Intersection& isect, PTState& state,
 
 void PathTracer::bounce(const Intersection& isect, PTState& state_out, Ray& ray_out, BSDF* bsdf, float offset) {
     // Terminate the path if it is too long or with russian roulette.
-    if (state_out.bounces + 1 >= 2){//max_path_len_) {// Path length includes the vertices on the camera and the light.
+    if (state_out.bounces + 1 >= max_path_len_) {// Path length includes the vertices on the camera and the light.
         terminate_path(state_out);
         return;
     }
@@ -122,16 +117,13 @@ void PathTracer::process_primary_rays(RayQueue<PTState>& ray_in, RayQueue<Shadow
     tbb::parallel_for(tbb::blocked_range<int>(0, ray_in.size()),
         [&] (const tbb::blocked_range<int>& range)
     {
-        auto& bsdf_mem_arena = bsdf_memory_arenas.local();
-
         for (auto i = range.begin(); i != range.end(); ++i) {
-            bsdf_mem_arena.free_all();
             PTState& state = ray_in.state(i);
             const auto isect = calculate_intersection(scene_, ray_in.hit(i), ray_in.ray(i));
             const float offset = 1e-3f * ray_in.hit(i).tmax;
 
             auto mat = scene_.eval_material(ray_in.hit(i), ray_in.ray(i), false);
-            mat.bsdf.prepare(state.throughput);
+            mat.bsdf.prepare(state.throughput, isect.out_dir);
 
             if (!is_black(mat.emit)) {
                 const float cos_light = dot(isect.normal, isect.out_dir);
@@ -152,7 +144,7 @@ void PathTracer::process_primary_rays(RayQueue<PTState>& ray_in, RayQueue<Shadow
             }
 
             compute_direct_illum(isect, state, ray_out_shadow, &mat.bsdf);
-            bounce(isect, state, ray_in.ray(i), &mat.bsdf, offset);
+            // bounce(isect, state, ray_in.ray(i), &mat.bsdf, offset);
         }
     });
 
