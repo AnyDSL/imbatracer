@@ -5,9 +5,6 @@
 
 #include <numeric>
 
-// Macro for empty loop bodies to suppress compiler warnings
-#define NO_OP ((void)0)
-
 namespace imba {
 
 /// Interface for tile generators, i.e. classes that generate RayGen objects for subsets of an image.
@@ -31,6 +28,12 @@ public:
     virtual size_t sizeof_ray_gen() const = 0;
     /// Restarts the frame.
     virtual void start_frame() = 0;
+
+    /// Returns the number of tiles that can be generated for the current frame
+    virtual int num_tiles() const = 0;
+
+    /// Obtains the ray generator for the ith tile.
+    virtual TilePtr get_tile(int i, uint8_t* mem) const = 0;
 };
 
 /// Generates quadratic tiles of a fixed size.
@@ -82,6 +85,21 @@ public:
 
     void start_frame() override final {
         cur_tile_ = 0;
+    }
+
+    int num_tiles() const override final {
+        return tile_count_;
+    }
+
+    TilePtr get_tile(int i, uint8_t* mem) const override final {
+        assert(i < tile_count_);
+
+        // Get the next tile and compute its extents
+        int tile_pos_x  = (i % tiles_per_row_) * tile_size_;
+        int tile_pos_y  = (i / tiles_per_row_) * tile_size_;
+        int tile_width  = std::min(width_ - tile_pos_x, tile_size_);
+        int tile_height = std::min(height_ - tile_pos_y, tile_size_);
+        return TilePtr(new (mem) TiledRayGen<StateType>(tile_pos_x, tile_pos_y, tile_width, tile_height, spp_, width_, height_));
     }
 
 private:
@@ -145,12 +163,34 @@ public:
 
         int light;
         for (light = 0; cumul_tiles_per_light_[light] <= tile_id ; ++light)
-            NO_OP;
+            ;
 
         int ray_count = desired_per_tile_;
         if (tile_id == cumul_tiles_per_light_[light] - 1) {
             // If this is the last tile for this light, assign all remaining rays to it
             int tiles = tile_id - (light == 0 ? 0 : cumul_tiles_per_light_[light - 1]);
+            ray_count = rays_per_light_[light] - tiles * desired_per_tile_;
+        }
+
+        return TilePtr(new (mem) LightRayGen<StateType>(light, ray_count));
+    }
+
+    int num_tiles() const override final {
+        return cumul_tiles_per_light_.back() - 1;
+    }
+
+    TilePtr get_tile(int i, uint8_t* mem) const override final {
+        assert(i < num_tiles());
+
+        // Find the light source
+        int light;
+        for (light = 0; cumul_tiles_per_light_[light] <= i ; ++light)
+            ;
+
+        int ray_count = desired_per_tile_;
+        if (i == cumul_tiles_per_light_[light] - 1) {
+            // If this is the last tile for this light, assign all remaining rays to it
+            int tiles = i - (light == 0 ? 0 : cumul_tiles_per_light_[light - 1]);
             ray_count = rays_per_light_[light] - tiles * desired_per_tile_;
         }
 
@@ -201,8 +241,17 @@ public:
         if (t >= tile_count_)
             return nullptr;
 
-        int offset = tile_sz_ * t;
-        int len = std::min(tile_sz_ * (t + 1), sz_) - offset;
+        return get_tile(t, mem);
+    }
+
+    int num_tiles() const override final {
+        return tile_count_;
+    }
+
+    TilePtr get_tile(int i, uint8_t* mem) const override final {
+        assert(i < num_tiles());
+        int offset = tile_sz_ * i;
+        int len = std::min(tile_sz_ * (i + 1), sz_) - offset;
         return TilePtr(new (mem) ArrayRayGen<StateType>(offset, len, samples_));
     }
 

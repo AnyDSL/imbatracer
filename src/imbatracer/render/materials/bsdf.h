@@ -152,6 +152,7 @@ public:
         float rnd_comp = rng.random_float();
         specular = false;
         float sum = 0.0f;
+        pdf = 0.0f;
         rgb res(0.0f);
         for (int i = 0; i < num_comps_; ++i) {
             if (rnd_comp < pdfs_[i] + sum) {

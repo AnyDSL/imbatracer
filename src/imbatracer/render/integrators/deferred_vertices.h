@@ -16,6 +16,10 @@ int estimate_light_path_len(const Scene& scene, bool use_gpu, int probes);
 /// Traces a number of camera paths through the scene and computes their average length.
 int estimate_cam_path_len(const Scene& scene, const PerspectiveCamera& cam, bool use_gpu, int probes);
 
+struct ProbeState : RayState {
+    rgb throughput;
+};
+
 template <typename Vertex>
 class DeferredVertices {
 public:
@@ -34,6 +38,8 @@ public:
     }
 
     int size() const { return std::min(static_cast<int>(verts_.size()), next_.load()); }
+    int capacity() const { return verts_.size(); }
+
     const Vertex& operator[] (int i) const { assert(i < size()); return verts_[i]; }
 
     void clear() { next_.store(0); }

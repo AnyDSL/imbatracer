@@ -225,6 +225,11 @@ private:
     int samples_;
 };
 
+template <typename T>
+constexpr size_t max_ray_gen_size() {
+    return std::max(sizeof(PixelRayGen<T>), std::max(sizeof(TiledRayGen<T>), std::max(sizeof(LightRayGen<T>), sizeof(ArrayRayGen<T>))));
+}
+
 } // namespace imba
 
 #endif // IMBA_RAY_GEN_H

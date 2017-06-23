@@ -15,7 +15,7 @@
 #include <OSL/oslclosure.h>
 #include <OSL/oslconfig.h>
 
-constexpr int OSL_DEBUG_LVL = 1;
+constexpr int OSL_DEBUG_LVL = 0;
 constexpr int OSL_OPTIMIZE_LVL = 2;
 
 using namespace OSL;
@@ -180,9 +180,6 @@ void MaterialSystem::eval_material(const float3& pos, const float2& uv, const fl
     if (!ctx.ctx) {
         ctx.tinfo = internal_->sys_->create_thread_info();
         ctx.ctx = internal_->sys_->get_context(ctx.tinfo);
-
-        // TODO remove debugging code
-        printf("created new context\n");
     }
 
     auto sg = internal_->isect_to_globals(pos, uv, dir, normal, geom_normal, area);

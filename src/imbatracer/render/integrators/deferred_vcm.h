@@ -107,32 +107,24 @@ public:
         , light_tile_gen_(scene.light_count(), settings.light_path_count, settings.tile_size * settings.tile_size)
         , camera_tile_gen_(settings.width, settings.height, settings.concurrent_spp, settings.tile_size)
         , scheduler_(&scene_, settings.thread_count, settings.q_size,
-                     settings.traversal_platform == UserSettings::gpu,
-                     std::max(camera_tile_gen_.sizeof_ray_gen(), light_tile_gen_.sizeof_ray_gen()))
+                     settings.traversal_platform == UserSettings::gpu)
         , shadow_scheduler_pt_(&scene_, settings.thread_count, settings.q_size,
-                               settings.traversal_platform == UserSettings::gpu,
-                               sizeof(ArrayRayGen<ShadowState>))
+                               settings.traversal_platform == UserSettings::gpu)
         , shadow_scheduler_lt_(&scene_, settings.thread_count, settings.q_size,
-                               settings.traversal_platform == UserSettings::gpu,
-                               sizeof(ArrayRayGen<ShadowState>))
+                               settings.traversal_platform == UserSettings::gpu)
         , shadow_scheduler_connect_(&scene_, settings.thread_count, settings.q_size,
-                                    settings.traversal_platform == UserSettings::gpu,
-                                    sizeof(ArrayRayGen<ShadowState>))
+                                    settings.traversal_platform == UserSettings::gpu)
     {
         // Compute the required cache size for storing the light and camera vertices.
-        bool use_gpu = false;//settings.traversal_platform == UserSettings::gpu;
-
-        auto time_start = std::chrono::high_resolution_clock::now();
-
-        int avg_light_v = estimate_light_path_len(scene, use_gpu, 10000);
+        bool use_gpu = settings.traversal_platform == UserSettings::gpu;
+        int avg_light_v = estimate_light_path_len(scene, use_gpu, settings.light_path_count);
         int avg_cam_v = estimate_cam_path_len(scene, cam, use_gpu, 1);
 
-        auto time_end = std::chrono::high_resolution_clock::now();
-        auto delta = std::chrono::duration_cast<std::chrono::milliseconds>(time_end - time_start).count();
-        std::cout << "Estimated path length after " << " - " << delta << "ms" << std::endl;
-
-        int num_cam_v   = 1.1f * avg_cam_v * settings.width * settings.height * settings.concurrent_spp;
-        int num_light_v = 1.1f * avg_light_v * settings.light_path_count;
+        // TODO: this path length estimation is only really necessary in a GPU implementation
+        //       on the CPU, we can stop wasting these rays and use them instead to build an initial distribution
+        //       to guide the first iteration! The memory will be allocated on the fly for this (amortized, doubling the size every time)
+        int num_cam_v   = 1.2f * avg_cam_v * settings.width * settings.height * settings.concurrent_spp;
+        int num_light_v = 1.2f * avg_light_v * settings.light_path_count;
 
         cam_verts_.reset(new VertCache(num_cam_v));
         light_verts_.reset(new VertCache(num_light_v));
