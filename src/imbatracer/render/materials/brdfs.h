@@ -44,7 +44,7 @@ public:
     }
 
     rgb sample(const float3& out_dir, float3& in_dir, RNG& rng, float& pdf) const override {
-        in_dir = reflect(out_dir);
+        in_dir = reflect(-out_dir);
         pdf = 1.0f;
 
         return rgb(fresnel_.eval(cos_theta(out_dir)));
@@ -69,10 +69,11 @@ class Phong : public BxDF {
 public:
     Phong(float exponent, const float3& n)
         : BxDF(n), exponent_(exponent)
-    {}
+    {
+    }
 
     rgb eval(const float3& out_dir, const float3& in_dir) const override {
-        auto reflected_in = reflect(in_dir);
+        auto reflected_in = reflect(-in_dir);
         float cos_r_o = std::max(0.0f, dot(reflected_in, out_dir));
         cos_r_o = std::min(cos_r_o, 1.0f);
 
@@ -86,7 +87,7 @@ public:
         // Sample a power weighted direction relative to the reflected direction
         auto dir_sample = sample_power_cos_hemisphere(exponent_, rng.random_float(), rng.random_float());
 
-        auto reflected_out = reflect(out_dir);
+        auto reflected_out = reflect(-out_dir);
         float3 reflected_tan, reflected_binorm;
         local_coordinates(reflected_out, reflected_tan, reflected_binorm);
 

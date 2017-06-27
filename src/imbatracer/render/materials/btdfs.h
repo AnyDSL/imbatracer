@@ -24,24 +24,22 @@ public:
         float eta_in = eta_outside_;
         float eta_trans = eta_inside_;
         float c_out = cos_theta(out_dir);
-        bool entering = c_out > 0.0f;
-        if (!entering)
+        float3 n = normal;
+        if (c_out < 0.0f) {
+            n = -normal;
             std::swap(eta_in, eta_trans);
+        }
 
         // Compute the direction of the transmitted ray.
-        float sin_in_sqr = sin_theta_sqr(out_dir);
         float eta_frac = eta_in / eta_trans;
-        float sin_trans_sqr = sqr(eta_frac) * sin_in_sqr;
+        float sin_trans_sqr = sqr(eta_frac) * (1.0f - c_out * c_out);
 
-        if (sin_trans_sqr >= 1.0f) {
-            in_dir = reflect(out_dir);
+        if (sin_trans_sqr > 1.0f) {
+            in_dir = float3(0,0,0);
             return rgb(0.0f); // Total internal reflection.
         }
 
-        float c_trans = sqrtf(std::max(0.0f, 1.0f - sin_trans_sqr));
-        if (entering) c_trans = -c_trans;
-
-        in_dir = eta_frac * out_dir + (eta_frac * c_out - c_trans) * normal;
+        in_dir = eta_frac * -out_dir + n * (eta_frac * fabsf(c_out) - sqrt(1.0f - sin_trans_sqr));
 
         float fr = fresnel_.eval(c_out);
         float factor = adjoint ? 1.0f : sqr(eta_in / eta_trans);

@@ -49,9 +49,11 @@ private:
 class FresnelDielectric : public Fresnel {
 public:
     FresnelDielectric(float eta_outside, float eta_inside)
-        : eta_outside_(eta_outside), eta_inside_(eta_inside) {}
+        : eta_outside_(eta_outside), eta_inside_(eta_inside) { }
 
     float eval(float cosi) const override final {
+        if (eta_inside_ == 0.0f) return 1.0f;
+
         // Compute indices of refraction according to whether the ray is coming from inside or outside.
         float eta_in = eta_outside_;
         float eta_trans = eta_inside_;
@@ -59,12 +61,12 @@ public:
             std::swap(eta_in, eta_trans);
 
         // Use Snell's law to compute the sine of the transmitted direction.
-        float sin_trans = eta_in / eta_trans * sqrtf(std::max(0.0f, 1.0f - sqr(cosi)));
+        float sin_trans_sqr = sqr(eta_in / eta_trans) * (1.0f - sqr(cosi));
 
-        if (sin_trans >= 1.0f) {
+        if (sin_trans_sqr >= 1.0f) {
             return 1.0f; // Total internal reflection.
         } else {
-            float cos_trans = sqrtf(std::max(0.0f, 1.0f - sqr(sin_trans)));
+            float cos_trans = sqrtf(1.0f - sin_trans_sqr);
             return fresnel_dielectric(fabsf(cosi), cos_trans, eta_in, eta_trans);
         }
     }

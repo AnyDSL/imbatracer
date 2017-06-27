@@ -5,6 +5,7 @@
 #include <memory>
 #include <fstream>
 #include <map>
+#include <sstream>
 
 // For isnan
 #include <math.h>
@@ -585,23 +586,46 @@ bool build_scene(const Path& path, Scene& scene, float3& cam_pos, float3& cam_di
 
         tri_lights.emplace_back();
         int mtl_offset = scene.material_count();
-        // Replace associated MTL by .oso with same name & path
-        for (auto& name : obj_file.materials) {
-            int id = scene.add_material(obj_path.base_name() + "/", name, "shader \"" + name + "\" \"" + name + "\"");
 
-            if (id == 7) // TODO if ( islight )
-                tri_lights[i].insert(std::make_pair(id, std::vector<TriLight>()));
+        obj::MaterialLib mtl_lib;
+
+        // Parse the associated MTL files
+        for (auto& lib : obj_file.mtl_libs) {
+            if (!load_mtl(obj_path.base_name() + "/" + lib, mtl_lib)) {
+                std::cout << " FAILED loading materials" << std::endl;
+                return false;
+            }
         }
 
-        // obj::MaterialLib mtl_lib;
 
-        // // Parse the associated MTL files
-        // for (auto& lib : obj_file.mtl_libs) {
-        //     if (!load_mtl(obj_path.base_name() + "/" + lib, mtl_lib)) {
-        //         std::cout << " FAILED loading materials" << std::endl;
-        //         return false;
-        //     }
-        // }
+        // Replace associated MTL by .oso with same name & path
+        for (auto& name : obj_file.materials) {
+            auto it = mtl_lib.find(name);
+            if (it == mtl_lib.end()) {
+                std::cout << " ERROR: material " << name << " not found" << std::endl;
+                return false;
+            }
+            const obj::Material& mat = it->second;
+
+            std::stringstream shaderdesc;
+            shaderdesc << "param int illum "        << mat.illum                        << " ;" << std::endl
+                       << "param color Kd "         << mat.kd.x << ' ' << mat.kd.y << ' ' << mat.kd.z << " ;" << std::endl
+                       << "param color Ks "         << mat.ks.x << ' ' << mat.ks.y << ' ' << mat.ks.z << " ;" << std::endl
+                       << "param color Ke "         << mat.ke.x << ' ' << mat.ke.y << ' ' << mat.ke.z << " ;" << std::endl
+                       << "param color Tf "         << mat.tf.x << ' ' << mat.tf.y << ' ' << mat.tf.z << " ;" << std::endl
+                       << "param float Ni "         << mat.ni                            << " ;" << std::endl
+                       << "param float Ns "         << mat.ns                            << " ;" << std::endl
+                       << "param string map_d \""   << mat.map_d    << "\" "             << ";" << std::endl
+                       << "param string map_Kd \""  << mat.map_kd   << "\" "             << ";" << std::endl
+                       << "param string map_Ks \""  << mat.map_ks   << "\" "             << ";" << std::endl
+                       << "shader \"" << "mtl_shader" << "\" \"" << name << "\"";
+
+            int id = scene.add_material(obj_path.base_name() + "/", name, shaderdesc.str());
+
+            if (!is_black(mat.ke)) {
+                tri_lights[i].insert(std::make_pair(id, std::vector<TriLight>()));
+            }
+        }
 
         // MtlLightBuffer mtl_to_light_intensity;
         // int mtl_offset = scene.material_count();

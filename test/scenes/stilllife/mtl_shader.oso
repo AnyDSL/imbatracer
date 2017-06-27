@@ -1,0 +1,172 @@
+OpenShadingLanguage 1.00
+# Compiled by oslc 1.9.0dev
+# options: 
+surface mtl_shader	%meta{string,help,"Uber shader for .mtl file compatibility"} 
+param	int	illum	2		%meta{string,help,"Illumination mode, currently supports 2 (Phong), 5 (Mirror), and 7 (Glass)"}  %read{7,19} %write{2147483647,-1}
+param	color	Kd	1 1 1		%read{41,41} %write{2147483647,-1}
+param	color	Ks	0 0 0		%read{10,36} %write{2147483647,-1}
+param	color	Ke	0 0 0		%read{6,6} %write{2147483647,-1}
+param	float	Ns	1		%read{35,35} %write{2147483647,-1}
+param	float	Ni	1		%read{21,21} %write{2147483647,-1}
+param	color	Tf	0 0 0		%read{31,31} %write{2147483647,-1}
+param	string	map_d	""		%read{1,4} %write{2147483647,-1}
+param	string	map_Kd	""		%read{42,45} %write{2147483647,-1}
+param	string	map_Ks	""		%read{11,40} %write{2147483647,-1}
+global	normal	N	%read{15,49} %write{2147483647,-1}
+global	float	u	%read{4,45} %write{2147483647,-1} %derivs
+global	float	v	%read{3,44} %write{2147483647,-1} %derivs
+global	closure color	Ci	%read{18,53} %write{6,53}
+local	float	d	%read{16,50} %write{0,4}
+local	float	___329_eta	%read{15,15} %write{9,9}
+local	color	___329_spec	%read{16,16} %write{10,14}
+local	float	___330_eta	%read{27,30} %write{21,21}
+local	color	___330_spec	%read{28,28} %write{22,26}
+local	float	___331_exponent	%read{49,49} %write{35,35}
+local	color	___331_spec	%read{50,50} %write{36,40}
+local	color	___331_diff	%read{47,47} %write{41,45}
+const	float	$const1	1		%read{0,44} %write{2147483647,-1}
+temp	int	$tmp1	%read{2,2} %write{1,1}
+const	string	$const2	""		%read{1,42} %write{2147483647,-1}
+temp	float	$tmp2	%read{4,4} %write{3,3} %derivs
+const	string	$const3	"wrap"		%read{4,45} %write{2147483647,-1}
+const	string	$const4	"periodic"		%read{4,45} %write{2147483647,-1}
+temp	closure color	$tmp3	%read{6,6} %write{5,5}
+const	string	$const5	"emission"		%read{5,5} %write{2147483647,-1}
+const	int	$const6	5		%read{7,7} %write{2147483647,-1}
+temp	int	$tmp4	%read{8,8} %write{7,7}
+const	float	$const7	0		%read{9,9} %write{2147483647,-1}
+temp	int	$tmp5	%read{12,12} %write{11,11}
+temp	float	$tmp6	%read{14,14} %write{13,13} %derivs
+temp	closure color	$tmp7	%read{17,17} %write{15,15}
+const	string	$const8	"reflection"		%read{15,27} %write{2147483647,-1}
+temp	color	$tmp8	%read{17,17} %write{16,16}
+temp	closure color	$tmp9	%read{18,18} %write{17,17}
+const	int	$const9	7		%read{19,19} %write{2147483647,-1}
+temp	int	$tmp10	%read{20,20} %write{19,19}
+temp	int	$tmp11	%read{24,24} %write{23,23}
+temp	float	$tmp12	%read{26,26} %write{25,25} %derivs
+temp	closure color	$tmp13	%read{29,29} %write{27,27}
+temp	color	$tmp14	%read{29,29} %write{28,28}
+temp	closure color	$tmp15	%read{33,33} %write{29,29}
+temp	closure color	$tmp16	%read{32,32} %write{30,30}
+const	string	$const10	"refraction"		%read{30,30} %write{2147483647,-1}
+temp	color	$tmp17	%read{32,32} %write{31,31}
+temp	closure color	$tmp18	%read{33,33} %write{32,32}
+temp	closure color	$tmp19	%read{34,34} %write{33,33}
+temp	int	$tmp20	%read{38,38} %write{37,37}
+temp	float	$tmp21	%read{40,40} %write{39,39} %derivs
+temp	int	$tmp22	%read{43,43} %write{42,42}
+temp	float	$tmp23	%read{45,45} %write{44,44} %derivs
+temp	closure color	$tmp24	%read{48,48} %write{46,46}
+const	string	$const11	"diffuse"		%read{46,46} %write{2147483647,-1}
+temp	color	$tmp25	%read{48,48} %write{47,47}
+temp	closure color	$tmp26	%read{52,52} %write{48,48}
+temp	closure color	$tmp27	%read{51,51} %write{49,49}
+const	string	$const12	"phong"		%read{49,49} %write{2147483647,-1}
+temp	color	$tmp28	%read{51,51} %write{50,50}
+temp	closure color	$tmp29	%read{52,52} %write{51,51}
+temp	closure color	$tmp30	%read{53,53} %write{52,52}
+code ___main___
+# mtl_shader.osl:19
+#     float d = 1.0;
+	assign		d $const1 	%filename{"mtl_shader.osl"} %line{19} %argrw{"wr"}
+# mtl_shader.osl:20
+#     if (map_d) {
+	neq		$tmp1 map_d $const2 	%line{20} %argrw{"wrr"}
+	if		$tmp1 5 5 	%argrw{"r"}
+# mtl_shader.osl:21
+#         d = texture(map_d, u, 1.0-v, "wrap", "periodic");
+	sub		$tmp2 $const1 v 	%line{21} %argrw{"wrr"}
+	texture		d map_d u $tmp2 $const3 $const4 	%argrw{"wrrrrr"} %argderivs{2,3}
+# mtl_shader.osl:24
+#     Ci = Ke * emission();
+	closure		$tmp3 $const5 	%line{24} %argrw{"wr"}
+	mul		Ci $tmp3 Ke 	%argrw{"wrr"}
+# mtl_shader.osl:26
+#     if (illum == 5) {
+	eq		$tmp4 illum $const6 	%line{26} %argrw{"wrr"}
+	if		$tmp4 19 54 	%argrw{"r"}
+# mtl_shader.osl:28
+#         float eta = 0.0;
+	assign		___329_eta $const7 	%line{28} %argrw{"wr"}
+# mtl_shader.osl:30
+#         color spec = Ks;
+	assign		___329_spec Ks 	%line{30} %argrw{"wr"}
+# mtl_shader.osl:31
+#         if (map_Ks)
+	neq		$tmp5 map_Ks $const2 	%line{31} %argrw{"wrr"}
+	if		$tmp5 15 15 	%argrw{"r"}
+# mtl_shader.osl:32
+#             spec = texture(map_Ks, u, 1.0-v, "wrap", "periodic");
+	sub		$tmp6 $const1 v 	%line{32} %argrw{"wrr"}
+	texture		___329_spec map_Ks u $tmp6 $const3 $const4 	%argrw{"wrrrrr"} %argderivs{2,3}
+# mtl_shader.osl:34
+#         Ci += d * spec * reflection(N, eta);
+	closure		$tmp7 $const8 N ___329_eta 	%line{34} %argrw{"wrrr"}
+	mul		$tmp8 d ___329_spec 	%argrw{"wrr"}
+	mul		$tmp9 $tmp7 $tmp8 	%argrw{"wrr"}
+	add		Ci Ci $tmp9 	%argrw{"wrr"}
+# mtl_shader.osl:35
+#     } else if (illum == 7) {
+	eq		$tmp10 illum $const9 	%line{35} %argrw{"wrr"}
+	if		$tmp10 35 54 	%argrw{"r"}
+# mtl_shader.osl:37
+#         float eta = Ni;
+	assign		___330_eta Ni 	%line{37} %argrw{"wr"}
+# mtl_shader.osl:39
+#         color spec = Ks;
+	assign		___330_spec Ks 	%line{39} %argrw{"wr"}
+# mtl_shader.osl:40
+#         if (map_Ks)
+	neq		$tmp11 map_Ks $const2 	%line{40} %argrw{"wrr"}
+	if		$tmp11 27 27 	%argrw{"r"}
+# mtl_shader.osl:41
+#             spec = texture(map_Ks, u, 1.0-v, "wrap", "periodic");
+	sub		$tmp12 $const1 v 	%line{41} %argrw{"wrr"}
+	texture		___330_spec map_Ks u $tmp12 $const3 $const4 	%argrw{"wrrrrr"} %argderivs{2,3}
+# mtl_shader.osl:43
+#         Ci += d * spec * reflection(N, eta) + d * Tf * refraction(N, eta);
+	closure		$tmp13 $const8 N ___330_eta 	%line{43} %argrw{"wrrr"}
+	mul		$tmp14 d ___330_spec 	%argrw{"wrr"}
+	mul		$tmp15 $tmp13 $tmp14 	%argrw{"wrr"}
+	closure		$tmp16 $const10 N ___330_eta 	%argrw{"wrrr"}
+	mul		$tmp17 d Tf 	%argrw{"wrr"}
+	mul		$tmp18 $tmp16 $tmp17 	%argrw{"wrr"}
+	add		$tmp19 $tmp15 $tmp18 	%argrw{"wrr"}
+	add		Ci Ci $tmp19 	%argrw{"wrr"}
+# mtl_shader.osl:46
+#         float exponent = Ns;
+	assign		___331_exponent Ns 	%line{46} %argrw{"wr"}
+# mtl_shader.osl:48
+#         color spec = Ks;
+	assign		___331_spec Ks 	%line{48} %argrw{"wr"}
+# mtl_shader.osl:49
+#         if (map_Ks)
+	neq		$tmp20 map_Ks $const2 	%line{49} %argrw{"wrr"}
+	if		$tmp20 41 41 	%argrw{"r"}
+# mtl_shader.osl:50
+#             spec = texture(map_Ks, u, 1.0-v, "wrap", "periodic");
+	sub		$tmp21 $const1 v 	%line{50} %argrw{"wrr"}
+	texture		___331_spec map_Ks u $tmp21 $const3 $const4 	%argrw{"wrrrrr"} %argderivs{2,3}
+# mtl_shader.osl:52
+#         color diff = Kd;
+	assign		___331_diff Kd 	%line{52} %argrw{"wr"}
+# mtl_shader.osl:53
+#         if (map_Kd)
+	neq		$tmp22 map_Kd $const2 	%line{53} %argrw{"wrr"}
+	if		$tmp22 46 46 	%argrw{"r"}
+# mtl_shader.osl:54
+#             diff = texture(map_Kd, u, 1.0-v, "wrap", "periodic");
+	sub		$tmp23 $const1 v 	%line{54} %argrw{"wrr"}
+	texture		___331_diff map_Kd u $tmp23 $const3 $const4 	%argrw{"wrrrrr"} %argderivs{2,3}
+# mtl_shader.osl:56
+#         Ci += d * diff * diffuse(N) + d * spec * phong(N, exponent);
+	closure		$tmp24 $const11 N 	%line{56} %argrw{"wrr"}
+	mul		$tmp25 d ___331_diff 	%argrw{"wrr"}
+	mul		$tmp26 $tmp24 $tmp25 	%argrw{"wrr"}
+	closure		$tmp27 $const12 N ___331_exponent 	%argrw{"wrrr"}
+	mul		$tmp28 d ___331_spec 	%argrw{"wrr"}
+	mul		$tmp29 $tmp27 $tmp28 	%argrw{"wrr"}
+	add		$tmp30 $tmp26 $tmp29 	%argrw{"wrr"}
+	add		Ci Ci $tmp30 	%argrw{"wrr"}
+	end

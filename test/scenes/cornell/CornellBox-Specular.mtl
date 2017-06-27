@@ -17,6 +17,7 @@ newmtl leftSphere
     Kd 0.01 0.01 0.01
     Ks 0.95 0.95 0.95
     Ns 1000
+    Ni 1.8
     illum 5
 
 newmtl rightSphere
@@ -61,6 +62,7 @@ newmtl rightWall
 	#Ks 0 0 0
 	Ks 0.95 0.95 0.95
     Ns 1000
+    Ni 1.8
     illum 5
 
 newmtl leftWall

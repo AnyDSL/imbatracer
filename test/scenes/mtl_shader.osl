@@ -1,0 +1,58 @@
+#include "stdosl.h"
+
+surface mtl_shader
+    [[ string help = "Uber shader for .mtl file compatibility" ]]
+    (
+        int illum = 2
+            [[ string help = "Illumination mode, currently supports 2 (Phong), 5 (Mirror), and 7 (Glass)" ]],
+        color Kd = color(1,1,1),
+        color Ks = color(0,0,0),
+        color Ke = color(0,0,0),
+        float Ns = 1.0,
+        float Ni = 1.0,
+        color Tf = color(0,0,0),
+        string map_d = "",
+        string map_Kd = "",
+        string map_Ks = ""
+    )
+{
+    float d = 1.0;
+    if (map_d) {
+        d = texture(map_d, u, 1.0-v, "wrap", "periodic");
+    }
+
+    Ci = Ke * emission();
+
+    if (illum == 5) {
+        // Mirror
+        float eta = 0.0;
+
+        color spec = Ks;
+        if (map_Ks)
+            spec = texture(map_Ks, u, 1.0-v, "wrap", "periodic");
+
+        Ci += d * spec * reflection(N, eta);
+    } else if (illum == 7) {
+        // Glass
+        float eta = Ni;
+
+        color spec = Ks;
+        if (map_Ks)
+            spec = texture(map_Ks, u, 1.0-v, "wrap", "periodic");
+
+        Ci += d * spec * reflection(N, eta) + d * Tf * refraction(N, eta);
+    } else {
+        // Phong
+        float exponent = Ns;
+
+        color spec = Ks;
+        if (map_Ks)
+            spec = texture(map_Ks, u, 1.0-v, "wrap", "periodic");
+
+        color diff = Kd;
+        if (map_Kd)
+            diff = texture(map_Kd, u, 1.0-v, "wrap", "periodic");
+
+        Ci += d * diff * diffuse(N) + d * spec * phong(N, exponent);
+    }
+}

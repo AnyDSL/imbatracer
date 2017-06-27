@@ -130,11 +130,11 @@ public:
             total += pdfs_[i];
         }
 
+        if (total == 0.0f) return;
+
         // normalize the pdfs
         for (int i = 0; i < num_comps_; ++i) {
             pdfs_[i] /= total;
-            if (pdfs_[i] < 0.99f)
-            printf("%f\n", pdfs_[i]);
         }
 
         if (black_body()) all_specular_ = false;
@@ -166,11 +166,10 @@ public:
                     res += weights_[j] * components_[j]->eval(out_dir, in_dir) / (sample_pdf * pdfs_[i]);
                     pdf += components_[j]->pdf(out_dir, in_dir) * pdfs_[j];
                 }
-
+                if (components_[i]->specular()) specular = true;
                 break;
             }
             sum += pdfs_[i];
-            if (components_[i]->specular()) specular = true;
         }
         return res;
     }

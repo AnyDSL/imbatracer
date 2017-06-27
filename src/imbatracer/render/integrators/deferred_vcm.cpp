@@ -302,7 +302,7 @@ void DeferredVCM<MisType>::path_tracing(AtomicImage& img, bool next_evt) {
             float pdf_rev_w = bsdf->pdf(sample.dir, v.out_dir);
 
             if (pdf_dir_w == 0.0f || pdf_rev_w == 0.0f)
-                return false;
+               return false;
 
             const float mis_weight = mis::weight_di(v.mis, merge_pdf_, pdf_dir_w, pdf_rev_w,
                                                     sample.pdf_direct_w, sample.pdf_emit_w, pdf_lightpick_inv,

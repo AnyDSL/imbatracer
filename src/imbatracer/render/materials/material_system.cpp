@@ -142,6 +142,7 @@ struct MaterialSystem::MatSysInternal {
     RenServ ren_serv_;
     ErrorHandler err_hand_;
     std::vector<ShaderGroupRef> shaders_;
+    std::string texture_search_path_;
 
     void register_closures();
     ShaderGlobals isect_to_globals(const float3& pos, const float2& uv, const float3& dir,
@@ -193,17 +194,23 @@ void MaterialSystem::eval_material(const float3& pos, const float2& uv, const fl
 
 bool parse_shader_line(std::stringstream& str, ShadingSystem* sys) {
     std::string instr;
-    if (!(str >> instr)) return false;
+    if (!(str >> instr)) { return false; }
     trim(instr);
 
     if (instr == "param") {
         std::string type;
         std::string name;
 
-        if (!(str >> type)) return false;
+        if (!(str >> type)) {
+            std::cerr << "Unexpected EOF while reading param type" << std::endl;
+            return false;
+        }
         trim(type);
 
-        if (!(str >> name)) return false;
+        if (!(str >> name)) {
+            std::cerr << "Unexpected EOF while reading param name (type=" << type << ")" << std::endl;
+            return false;
+        }
         trim(name);
 
         ParamStorage<1024> store; // scratch space to hold parameters until they are read by Shader()
@@ -283,6 +290,13 @@ void MaterialSystem::add_shader(const std::string& search_path, const std::strin
 
     sys->ShaderGroupEnd();
     internal_->shaders_.push_back(group);
+
+    sys->optimize_group(group.get());
+
+    // Add the folder containing the .oso file to the texture search path.
+    if (internal_->texture_search_path_ == "") internal_->texture_search_path_ = search_path;
+    else internal_->texture_search_path_ += ":" + search_path;
+    sys->renderer()->texturesys()->attribute("searchpath", internal_->texture_search_path_);
 }
 
 MaterialSystem::~MaterialSystem() {
@@ -333,7 +347,6 @@ void MaterialSystem::MatSysInternal::register_closures() {
 
         { "reflection",  CLOSURE_REFLECTION,  { CLOSURE_VECTOR_PARAM(ReflectionParams, N),
                                                 CLOSURE_FLOAT_PARAM(ReflectionParams, eta),
-                                                CLOSURE_FLOAT_PARAM(ReflectionParams, kappa),
                                                 CLOSURE_FINISH_PARAM(ReflectionParams) } },
 
         { "refraction",  CLOSURE_REFRACTION,  { CLOSURE_VECTOR_PARAM(RefractionParams, N),
@@ -362,8 +375,8 @@ ShaderGlobals MaterialSystem::MatSysInternal::isect_to_globals(const float3& pos
     res.dPdx = point.dx();
     res.dPdy = point.dy();
 
-    res.Ng = Vec3(normal.x, normal.y, normal.z);
-    res.N  = Vec3(geom_normal.x, geom_normal.y, geom_normal.z);
+    res.Ng = Vec3(geom_normal.x, geom_normal.y, geom_normal.z);
+    res.N  = Vec3(normal.x, normal.y, normal.z);
 
     res.u    = uv.val().x;
     res.dudx = uv.dx().x;
@@ -380,12 +393,7 @@ ShaderGlobals MaterialSystem::MatSysInternal::isect_to_globals(const float3& pos
     res.dIdx = in_dir.dx();
     res.dIdy = in_dir.dy();
 
-    // Flip the normal if backfacing
     res.backfacing = res.N.dot(res.I) > 0;
-    if (res.backfacing) {
-        res.N  = -res.N;
-        res.Ng = -res.Ng;
-    }
 
     res.flipHandedness = false; // TODO account for this
 
@@ -417,26 +425,36 @@ void process_closure(MaterialValue& res, const ClosureColor* closure, const Colo
             switch (comp->id) {
             case CLOSURE_DIFFUSE: {
                 auto params = *comp->as<DiffuseParams>();
-                ok = res.bsdf.add<Lambertian<false>>(make_float3(cw), params.normal());
+                auto f3w = make_float3(cw);
+                if (is_black(f3w)) break;
+                ok = res.bsdf.add<Lambertian<false>>(f3w, params.normal());
             } break;
             case CLOSURE_TRANSLUCENT: {
                 auto params = *comp->as<DiffuseParams>();
-                ok = res.bsdf.add<Lambertian<true>>(make_float3(cw), params.normal());
+                auto f3w = make_float3(cw);
+                if (is_black(f3w)) break;
+                ok = res.bsdf.add<Lambertian<true>>(f3w, params.normal());
             } break;
             case CLOSURE_PHONG: {
-                auto params = *comp->as<PhongParams>();
-                ok = res.bsdf.add<Phong>(make_float3(cw), params.exponent, params.normal());
+            auto params = *comp->as<PhongParams>();
+                auto f3w = make_float3(cw);
+                if (is_black(f3w)) break;
+                ok = res.bsdf.add<Phong>(f3w, params.exponent, params.normal());
             } break;
             case CLOSURE_REFLECTION: {
                 auto params = *comp->as<ReflectionParams>();
-                ok = res.bsdf.add<SpecularReflection<FresnelConductor>>(make_float3(cw), FresnelConductor(params.eta, params.kappa), params.normal());
+                auto f3w = make_float3(cw);
+                if (is_black(f3w)) break;
+                ok = res.bsdf.add<SpecularReflection<FresnelDielectric>>(f3w, FresnelDielectric(1.0f, params.eta), params.normal());
             } break;
             case CLOSURE_REFRACTION: {
                 auto params = *comp->as<RefractionParams>();
+                auto f3w = make_float3(cw);
+                if (is_black(f3w)) break;
                 if (adjoint)
-                    ok = res.bsdf.add<SpecularTransmission<true>>(make_float3(cw), params.eta, 1.0f, params.normal());
+                    ok = res.bsdf.add<SpecularTransmission<true>>(f3w, params.eta, 1.0f, params.normal());
                 else
-                    ok = res.bsdf.add<SpecularTransmission<false>>(make_float3(cw), params.eta, 1.0f, params.normal());
+                    ok = res.bsdf.add<SpecularTransmission<false>>(f3w, params.eta, 1.0f, params.normal());
             } break;
             }
             ASSERT(ok && "Invalid closure invoked in surface shader");
