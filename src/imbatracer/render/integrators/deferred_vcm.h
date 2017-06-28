@@ -106,13 +106,13 @@ public:
         , cur_iteration_(0)
         , light_tile_gen_(scene.light_count(), settings.light_path_count, settings.tile_size * settings.tile_size)
         , camera_tile_gen_(settings.width, settings.height, settings.concurrent_spp, settings.tile_size)
-        , scheduler_(&scene_, settings.thread_count, settings.q_size,
+        , scheduler_(&scene_, settings.q_size,
                      settings.traversal_platform == UserSettings::gpu)
-        , shadow_scheduler_pt_(&scene_, settings.thread_count, settings.q_size,
+        , shadow_scheduler_pt_(&scene_, settings.q_size,
                                settings.traversal_platform == UserSettings::gpu)
-        , shadow_scheduler_lt_(&scene_, settings.thread_count, settings.q_size,
+        , shadow_scheduler_lt_(&scene_, settings.q_size,
                                settings.traversal_platform == UserSettings::gpu)
-        , shadow_scheduler_connect_(&scene_, settings.thread_count, settings.q_size,
+        , shadow_scheduler_connect_(&scene_, settings.q_size,
                                     settings.traversal_platform == UserSettings::gpu)
     {
         // Compute the required cache size for storing the light and camera vertices.

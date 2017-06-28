@@ -42,7 +42,7 @@ void bounce(const Scene& scene, Ray& r, Hit& h, ProbeState& s, std::atomic<int>&
 
 int estimate_light_path_len(const Scene& scene, bool use_gpu, int probes) {
     UniformLightTileGen<ProbeState> tile_gen(scene.light_count(), probes, 512 * 512);
-    DeferredScheduler<ProbeState> scheduler(&scene, 4, 256 * 256, use_gpu);
+    DeferredScheduler<ProbeState> scheduler(&scene, 256 * 256, use_gpu);
 
     std::atomic<int> vertex_count(0);
     scheduler.run_iteration(&tile_gen,
@@ -79,7 +79,7 @@ int estimate_light_path_len(const Scene& scene, bool use_gpu, int probes) {
 
 int estimate_cam_path_len(const Scene& scene, const PerspectiveCamera& cam, bool use_gpu, int probes) {
     DefaultTileGen<ProbeState> tile_gen(cam.width(), cam.height(), probes, 256);
-    DeferredScheduler<ProbeState> scheduler(&scene, 4, 256 * 256, use_gpu);
+    DeferredScheduler<ProbeState> scheduler(&scene, 256 * 256, use_gpu);
 
     std::atomic<int> vertex_count(0);
     scheduler.run_iteration(&tile_gen,

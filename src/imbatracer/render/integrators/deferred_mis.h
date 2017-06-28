@@ -87,7 +87,7 @@ struct MisHelper {
         partial *= pdf_rev_w;
 
         // Allow all techniques to add new strategies occuring at this vertex / path length.
-        update_bounceDispatch<Techs...>::forall(&last, &partial, pdf_dir_w, pdf_rev_w, cos_in, specular, merge_weight, path_len, cam_path);
+        update_bounceDispatch<Techs...>::forall(&last, &partial, pdf_dir_w, pdf_rev_w, cos_in, merge_weight, path_len, cam_path);
 
         // Divide by the technique used for sampling
         // Include the cosine for solid-angle -> area (converts the reverse PDF at the next vertex)
@@ -158,7 +158,7 @@ struct DirectIllum {
     }
 
     static void update_bounce(float* last_pdf, float* partial, float pdf_dir_w, float pdf_rev_w, float cos_in,
-                              bool specular, float merge_weight, int path_len, bool cam_path) {
+                              float merge_weight, int path_len, bool cam_path) {
         if (path_len == 2 && !cam_path) {
             // At the first vertex along a light path, we have can account for DI weight now converted to area measure
             *partial += *last_pdf;
@@ -200,7 +200,7 @@ struct ConnectLT {
     }
 
     static void update_bounce(float* last_pdf, float* partial, float pdf_dir_w, float pdf_rev_w, float cos_in,
-                              bool specular, float merge_weight, int path_len, bool cam_path) {
+                              float merge_weight, int path_len, bool cam_path) {
         if (path_len == 2 && cam_path) {
             // At the first vertex along a camera path, we have the pdf for connecting to the camera now converted to area measure.
             *partial += *last_pdf;
@@ -222,7 +222,7 @@ struct Connect {
     TECH_UPDATE_NOOP(init_light); // No connections to light source vertices
 
     static void update_bounce(float* last_pdf, float* partial, float pdf_dir_w, float pdf_rev_w, float cos_in,
-                              bool specular, float merge_weight, int path_len, bool cam_path) {
+                              float merge_weight, int path_len, bool cam_path) {
         // Assumes that the pdf for a connection is 1
         // The partial weight for a connection at some vertex is 1/p, the last_pdf
         if (path_len > 2) // No connections to the light / camera!
@@ -244,7 +244,7 @@ struct Merge {
     TECH_UPDATE_NOOP(init_camera);
     TECH_UPDATE_NOOP(init_light); // No merging on the light source
 
-    static void update_bounce(float* last_pdf, float* partial, float pdf_dir_w, float pdf_rev_w, float cos_in, bool specular,
+    static void update_bounce(float* last_pdf, float* partial, float pdf_dir_w, float pdf_rev_w, float cos_in,
                               float merge_weight, int path_len, bool cam_path) {
         // A merge is possible at every vertex on a path
         *partial += merge_weight;
