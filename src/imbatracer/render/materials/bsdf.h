@@ -27,7 +27,7 @@ public:
     /// Samples a direction from the BSDF, returns the value for that direction times cosine divided by the pdf.
     virtual rgb sample(const float3& out_dir, float3& in_dir, RNG& rng, float& pdf) const {
         DirectionSample ds = sample_cos_hemisphere(rng.random_float(), rng.random_float());
-        in_dir = local_to_world(ds.dir);
+        in_dir = local_to_world(ds.dir, dot(out_dir, normal));
         pdf = ds.pdf;
         return eval(out_dir, in_dir) / pdf;
     }
@@ -44,20 +44,13 @@ public:
 protected:
     float3 normal;
 
-    float3 world_to_local(const float3& dir) const {
+    float3 local_to_world(const float3& dir, float hemisphere) const {
         float3 tangent, binormal;
-        local_coordinates(normal, tangent, binormal);
-        return float3(dot(tangent, dir),
-                      dot(binormal, dir),
-                      dot(normal, dir));
-    }
-
-    float3 local_to_world(const float3& dir) const {
-        float3 tangent, binormal;
-        local_coordinates(normal, tangent, binormal);
-        return float3(tangent.x * dir.x + binormal.x * dir.y + normal.x * dir.z,
-                      tangent.y * dir.x + binormal.y * dir.y + normal.y * dir.z,
-                      tangent.z * dir.x + binormal.z * dir.y + normal.z * dir.z);
+        float3 n = hemisphere < 0.0f ? -normal : normal;
+        local_coordinates(n, tangent, binormal);
+        return float3(tangent.x * dir.x + binormal.x * dir.y + n.x * dir.z,
+                      tangent.y * dir.x + binormal.y * dir.y + n.y * dir.z,
+                      tangent.z * dir.x + binormal.z * dir.y + n.z * dir.z);
     }
 
     inline bool same_hemisphere(const float3& out_dir, const float3& in_dir) const {
@@ -126,18 +119,22 @@ public:
     void prepare(const float3& throughput, const float3& out_dir) {
         float total = 0.0f;
         for (int i = 0; i < num_comps_; ++i) {
-            pdfs_[i] = dot(weights_[i], throughput * components_[i]->albedo(out_dir));
+            // TODO taking the throuput into account requires some knowledge during VCM partial MIS
+            // computation that is not available until after all paths have been traced!
+            //pdfs_[i] = dot(weights_[i], throughput * components_[i]->albedo(out_dir));
+            pdfs_[i] = luminance(weights_[i] * components_[i]->albedo(out_dir));
             total += pdfs_[i];
         }
 
-        if (total == 0.0f) return;
+        if (total == 0.0f) {
+            all_specular_ = false; // everything is absorbed so no specular
+            return;
+        }
 
         // normalize the pdfs
         for (int i = 0; i < num_comps_; ++i) {
             pdfs_[i] /= total;
         }
-
-        if (black_body()) all_specular_ = false;
     }
 
     rgb eval(const float3& out_dir, const float3& in_dir) const {
@@ -176,11 +173,16 @@ public:
 
     /// Computes the pdf of sampling the given incoming direction, taking into account only BxDFs with the given flags.
     float pdf(const float3& out_dir, const float3& in_dir) const {
+        if (black_body()) return 0.0f;
+
         float pdf = 0.0f;
+        float factor = 0.0f;
         for (int i = 0; i < num_comps_; ++i) {
-            pdf += pdfs_[i] * components_[i]->pdf(out_dir, in_dir);
+            float select_pdf = luminance(weights_[i] * components_[i]->albedo(out_dir));
+            pdf += select_pdf * components_[i]->pdf(out_dir, in_dir);
+            factor += select_pdf;
         }
-        return pdf;
+        return pdf / factor;
     }
 
     bool is_specular() const { return all_specular_; }

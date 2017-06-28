@@ -62,13 +62,17 @@ void RenderWindow::render_loop() {
         const auto elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(cur_time - start_time_).count();
         const auto msg_ms = std::chrono::duration_cast<std::chrono::milliseconds>(cur_time - msg_time).count();
         const auto avg_frame_time = frames_ == 0 ? static_cast<float>(elapsed_ms) : static_cast<float>(elapsed_ms) / frames_;
+        const float fps = 1000.0f * frames_ / static_cast<float>(elapsed_ms);
         if (msg_ms > msg_interval_ms && frames_ > 0) {
             std::cout << frames_ * spp_ << " samples, "
-                      << 1000.0f * frames_ / static_cast<float>(elapsed_ms) << " frames per second, "
+                      << fps << " frames per second, "
                       << avg_frame_time << "ms per frame"
                       << std::endl;
             msg_time = cur_time;
         }
+
+        std::stringstream title; title << "Imbatracer - " << fps << " fps";
+        SDL_SetWindowTitle(window_, title.str().c_str());
 
         if ((window_ && handle_events()) ||
             (frames_ + 1) * spp_ > max_samples_ ||

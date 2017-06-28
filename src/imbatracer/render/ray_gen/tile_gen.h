@@ -176,7 +176,7 @@ public:
     }
 
     int num_tiles() const override final {
-        return cumul_tiles_per_light_.back() - 1;
+        return cumul_tiles_per_light_.back();
     }
 
     TilePtr get_tile(int i, uint8_t* mem) const override final {

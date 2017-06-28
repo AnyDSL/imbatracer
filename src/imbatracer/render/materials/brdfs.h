@@ -22,7 +22,8 @@ public:
 
     rgb sample(const float3& out_dir, float3& in_dir, RNG& rng, float& pdf) const override final {
         DirectionSample ds = sample_cos_hemisphere(rng.random_float(), rng.random_float());
-        in_dir = local_to_world(ds.dir);
+        float c_out = dot(out_dir, normal);
+        in_dir = local_to_world(ds.dir, c_out);
         pdf = ds.pdf;
 
         if (translucent)

@@ -85,7 +85,7 @@ void DeferredVCM<mis::MisLT>::render(AtomicImage& img) {
     cam_verts_->clear();
     light_verts_->clear();
 
-    PROFILE(trace_camera_paths(), "Tracing camera paths");
+    // PROFILE(trace_camera_paths(), "Tracing camera paths");
     PROFILE(trace_light_paths(), "Tracing light paths");
 
     PROFILE(light_tracing(img), "LT");
@@ -163,6 +163,7 @@ void DeferredVCM<MisType>::trace_light_paths() {
         },
         [this] (int ray_id, int light_id, ::Ray& ray, State& state) -> bool {
             auto& l = scene_.light(light_id);
+
             // TODO: this pdf depends on the LightTileGen used!
             float pdf_lightpick = 1.0f / scene_.light_count();
 
@@ -199,17 +200,20 @@ void DeferredVCM<MisType>::bounce(State& state, const Intersection& isect, BSDF*
     bool specular;
     auto bsdf_value = bsdf->sample(isect.out_dir, sample_dir, state.rng, pdf_dir_w, specular);
 
+    // float tmp = bsdf->pdf(isect.out_dir, sample_dir);
+    // if (fabsf(tmp - pdf_dir_w) > 0.001f)
+    //     printf("defuq %f %f\n", tmp, pdf_dir_w);
+
     if (pdf_dir_w == 0.0f || is_black(bsdf_value)) {
         terminate_path(state);
         return;
     }
 
-    float pdf_rev_w = bsdf->pdf(sample_dir, isect.out_dir);
-    if (specular) // The reverse pdf of specular surfaces is the same as the forward pdf due to symmetry.
-        pdf_rev_w = pdf_dir_w;
+    float pdf_rev_w = 0.0f;
+    if (!specular)
+        pdf_rev_w = bsdf->pdf(sample_dir, isect.out_dir);
 
-    const float cos_theta_i = adjoint ? fabsf(shading_normal_adjoint(isect.normal, isect.geom_normal, isect.out_dir, sample_dir))
-                                      : fabsf(dot(sample_dir, isect.normal));
+    const float cos_theta_i = fabsf(dot(sample_dir, isect.normal));
 
     state.throughput *= bsdf_value / rr_pdf;
     state.mis.update_bounce(pdf_dir_w, pdf_rev_w, cos_theta_i, specular, merge_pdf_, state.path_length, !adjoint);
@@ -363,8 +367,7 @@ void DeferredVCM<MisType>::light_tracing(AtomicImage& img) {
             auto bsdf_value = bsdf->eval(v.out_dir, dir_to_cam);
             float pdf_rev_w = bsdf->pdf(dir_to_cam, v.out_dir);
 
-            if (pdf_rev_w == 0.0f)
-                return false;
+            if (pdf_rev_w == 0.0f) return false;
 
             const float mis_weight = mis::weight_lt(v.mis, merge_pdf_, pdf_cam, pdf_rev_w, settings_.light_path_count, v.path_len);
 
@@ -408,7 +411,7 @@ void DeferredVCM<MisType>::connect(AtomicImage& img) {
             lmat.bsdf.prepare(light_vertex.throughput, light_vertex.out_dir);
 
             MaterialValue cmat;
-            scene_.material_system()->eval_material(v.pos, v.uv, -v.out_dir, v.normal, v.normal, v.area, v.mat, true, cmat);
+            scene_.material_system()->eval_material(v.pos, v.uv, -v.out_dir, v.normal, v.normal, v.area, v.mat, false, cmat);
             cmat.bsdf.prepare(v.throughput, v.out_dir);
 
             const auto light_bsdf = &lmat.bsdf;
