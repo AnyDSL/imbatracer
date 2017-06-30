@@ -145,8 +145,7 @@ struct MaterialSystem::MatSysInternal {
     std::string texture_search_path_;
 
     void register_closures();
-    ShaderGlobals isect_to_globals(const float3& pos, const float2& uv, const float3& dir,
-                                   const float3& normal, const float3& geom_normal, float area);
+    ShaderGlobals isect_to_globals(const Intersection& isect);
     void process_closure(MaterialValue& res, const ClosureColor* closure, bool adjoint) const;
 };
 
@@ -175,20 +174,17 @@ int MaterialSystem::shader_count() const {
     return internal_->shaders_.size();
 }
 
-void MaterialSystem::eval_material(const float3& pos, const float2& uv, const float3& dir, const float3& normal,
-                                   const float3& geom_normal, float area, int shader_id, bool adjoint, MaterialValue& res) const {
+void MaterialSystem::eval_material(const Intersection& isect, bool adjoint, MaterialValue& res) const {
     auto& ctx = thread_local_contexts.local();
     if (!ctx.ctx) {
         ctx.tinfo = internal_->sys_->create_thread_info();
         ctx.ctx = internal_->sys_->get_context(ctx.tinfo);
     }
 
-    auto sg = internal_->isect_to_globals(pos, uv, dir, normal, geom_normal, area);
-
-    auto shader = internal_->shaders_[shader_id];
-
+    // Compute shader globals and evaluate the closure
+    auto sg = internal_->isect_to_globals(isect);
+    auto shader = internal_->shaders_[isect.mat];
     internal_->sys_->execute(ctx.ctx, *shader, sg);
-
     internal_->process_closure(res, sg.Ci, adjoint);
 }
 
@@ -362,21 +358,20 @@ void MaterialSystem::MatSysInternal::register_closures() {
     }
 }
 
-ShaderGlobals MaterialSystem::MatSysInternal::isect_to_globals(const float3& pos, const float2& uv_c, const float3& dir,
-                                                               const float3& normal, const float3& geom_normal, float area) {
+ShaderGlobals MaterialSystem::MatSysInternal::isect_to_globals(const Intersection& isect) {
     ShaderGlobals res;
     memset(&res, 0, sizeof(ShaderGlobals));
 
-    Dual2<OSL::Vec3> point  = OSL::Vec3(pos.x, pos.y, pos.z);
-    Dual2<OSL::Vec2> uv     = OSL::Vec2(uv_c.x, uv_c.y);
-    Dual2<OSL::Vec3> in_dir = OSL::Vec3(dir.x, dir.y, dir.z);
+    Dual2<OSL::Vec3> point = OSL::Vec3(isect.pos.x, isect.pos.y, isect.pos.z);
+    Dual2<OSL::Vec2> uv    = OSL::Vec2(isect.uv.x, isect.uv.y);
+    Dual2<OSL::Vec3> dir   = OSL::Vec3(isect.out_dir.x, isect.out_dir.y, isect.out_dir.z);
 
     res.P    = point.val();
     res.dPdx = point.dx();
     res.dPdy = point.dy();
 
-    res.Ng = Vec3(geom_normal.x, geom_normal.y, geom_normal.z);
-    res.N  = Vec3(normal.x, normal.y, normal.z);
+    res.Ng = Vec3(isect.geom_normal.x, isect.geom_normal.y, isect.geom_normal.z);
+    res.N  = Vec3(isect.normal.x, isect.normal.y, isect.normal.z);
 
     res.u    = uv.val().x;
     res.dudx = uv.dx().x;
@@ -387,11 +382,11 @@ ShaderGlobals MaterialSystem::MatSysInternal::isect_to_globals(const float3& pos
     res.dvdy = uv.dy().y;
 
     // instancing / animations may cange the area
-    res.surfacearea = area;
+    res.surfacearea = isect.area;
 
-    res.I    = in_dir.val();
-    res.dIdx = in_dir.dx();
-    res.dIdy = in_dir.dy();
+    res.I    = dir.val();
+    res.dIdx = dir.dx();
+    res.dIdy = dir.dy();
 
     res.backfacing = res.N.dot(res.I) > 0;
 

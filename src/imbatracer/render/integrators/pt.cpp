@@ -118,11 +118,11 @@ void PathTracer::process_primary_rays(RayQueue<PTState>& ray_in, RayQueue<Shadow
     {
         for (auto i = range.begin(); i != range.end(); ++i) {
             PTState& state = ray_in.state(i);
-            const auto isect = calculate_intersection(scene_, ray_in.hit(i), ray_in.ray(i));
+            const auto isect = scene_.calculate_intersection(ray_in.hit(i), ray_in.ray(i));
             const float offset = 1e-3f * ray_in.hit(i).tmax;
 
             MaterialValue mat;
-            scene_.eval_material(ray_in.hit(i), ray_in.ray(i), false, mat);
+            scene_.material_system()->eval_material(isect, false, mat);
             mat.bsdf.prepare(state.throughput, isect.out_dir);
 
             if (!is_black(mat.emit)) {

@@ -50,8 +50,9 @@ public:
                            translate(-1.0f, -1.0f, 0.0f) *
                            scale(2.0f / height_, 2.0f / width_, 0.0f, 1.0f);
 
+        // Compute the inverse of the ratio of pixel area to image plane area
         const float tan_half = std::tan(fov_ * pi / 360.0f);
-        pixel_area_ = sqr(width_ / (2.0f * tan_half)) * height_ / width_;
+        inv_rel_pixel_area_ = height_ / (sqr(2.0f * tan_half) * width_) * width_ * height_;
     }
 
     Ray generate_ray(const float2& raster_pos) const {
@@ -100,7 +101,7 @@ public:
         // TODO, check that the direction lies within the frustum.
 
         const float cos_theta_o = dot(d, forward_);
-        return pixel_area_ / (cos_theta_o * cos_theta_o * cos_theta_o);
+        return inv_rel_pixel_area_ / (cos_theta_o * cos_theta_o * cos_theta_o);
     }
 
 private:
@@ -110,7 +111,7 @@ private:
 
     float3 pos_;
     float3 forward_;
-    float pixel_area_;
+    float inv_rel_pixel_area_;
 
     float4x4 world_to_raster_;
     float4x4 raster_to_world_;

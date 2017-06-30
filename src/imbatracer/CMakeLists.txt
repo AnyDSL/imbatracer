@@ -48,7 +48,6 @@ add_library(imba_render
             render/materials/fresnel.h
             render/materials/material_system.h
             render/materials/material_system.cpp
-            render/materials/materials.h
 
             render/integrators/integrator.h
             render/integrators/integrator.cpp

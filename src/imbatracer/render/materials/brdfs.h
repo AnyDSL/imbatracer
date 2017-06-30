@@ -100,11 +100,13 @@ public:
 
         pdf = dir_sample.pdf;
 
-        return same_hemisphere(out_dir, in_dir) ? eval(out_dir, in_dir) / pdf : rgb(0.0f);
+        return eval(out_dir, in_dir) / pdf;
     }
 
     float pdf(const float3& out_dir, const float3& in_dir) const override {
-        return power_cos_hemisphere_pdf(exponent_, in_dir.z);
+        float cos_r_o = std::max(0.0f, dot(reflect(-in_dir), out_dir));
+        cos_r_o = std::min(cos_r_o, 1.0f);
+        return power_cos_hemisphere_pdf(exponent_, cos_r_o);
     }
 
 private:

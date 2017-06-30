@@ -118,18 +118,16 @@ public:
         return mat_sys_->shader_count();
     }
 
-    /// Computes the material properties at the given hit point (BRDF and emission)
-    void eval_material(const Hit& hit, const Ray& ray, bool adjoint, MaterialValue& res) const {
-        // TODO: compare with values required in the integrator, make sure to not compute the same stuff twice!
+    Intersection calculate_intersection(const Hit& hit, const Ray& ray) const {
         const Mesh::Instance& inst = instance(hit.inst_id);
         const Mesh& m = mesh(inst.id);
 
-        const int lid = local_tri_id(hit.tri_id, inst.id);
+        const int l_tri = local_tri_id(hit.tri_id, inst.id);
 
-        const int i0  = m.indices()[lid * 4 + 0];
-        const int i1  = m.indices()[lid * 4 + 1];
-        const int i2  = m.indices()[lid * 4 + 2];
-        const int mat = m.indices()[lid * 4 + 3];
+        const int i0  = m.indices()[l_tri * 4 + 0];
+        const int i1  = m.indices()[l_tri * 4 + 1];
+        const int i2  = m.indices()[l_tri * 4 + 2];
+        const int mat = m.indices()[l_tri * 4 + 3];
 
         const float3     org(ray.org.x, ray.org.y, ray.org.z);
         const float3 out_dir(ray.dir.x, ray.dir.y, ray.dir.z);
@@ -150,11 +148,21 @@ public:
         const auto uv_coords    = lerp(texcoords[i0], texcoords[i1], texcoords[i2], u, v);
         const auto local_normal = lerp(normals[i0], normals[i1], normals[i2], u, v);
         const auto normal       = normalize(float3(local_normal * inst.inv_mat));
-        const auto geom_normal  = normalize(float3(geom_normals[lid] * inst.inv_mat));
+        const auto geom_normal  = normalize(float3(geom_normals[l_tri] * inst.inv_mat));
 
-        float area = length(cross(e1, e2)) * 0.5f * inst.det;
+        const auto w_out = -normalize(out_dir);
 
-        mat_sys_->eval_material(pos, uv_coords, out_dir, normal, geom_normal, area, mat, adjoint, res);
+        float area = length(cross(e1, e2)) * 0.5f * inst.det; // TODO precompute this?
+
+        Intersection res {
+            pos, w_out, normal, uv_coords, geom_normal, area, mat
+        };
+
+        // Ensure that the shading normal is always in the same hemisphere as the geometric normal.
+        if (dot(res.geom_normal, res.normal) < 0.0f)
+            res.normal = -res.normal;
+
+        return res;
     }
 
 private:

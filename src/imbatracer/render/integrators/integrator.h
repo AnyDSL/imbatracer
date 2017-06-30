@@ -72,57 +72,6 @@ private:
     void estimate_pixel_size();
 };
 
-inline Intersection calculate_intersection(const Scene& scene, const Hit& hit, const Ray& ray) {
-    const Mesh::Instance& inst = scene.instance(hit.inst_id);
-    const Mesh& mesh = scene.mesh(inst.id);
-
-    const int local_tri_id = scene.local_tri_id(hit.tri_id, inst.id);
-
-    const int i0 = mesh.indices()[local_tri_id * 4 + 0];
-    const int i1 = mesh.indices()[local_tri_id * 4 + 1];
-    const int i2 = mesh.indices()[local_tri_id * 4 + 2];
-    const int  m = mesh.indices()[local_tri_id * 4 + 3];
-
-    const float3     org(ray.org.x, ray.org.y, ray.org.z);
-    const float3 out_dir(ray.dir.x, ray.dir.y, ray.dir.z);
-    const auto       pos = org + hit.tmax * out_dir;
-    const auto local_pos = inst.inv_mat * float4(pos, 1.0f);
-
-    // Recompute v based on u and local_pos
-    const float u = hit.u;
-    const auto v0 = float3(mesh.vertices()[i0]);
-    const auto e1 = float3(mesh.vertices()[i1]) - v0;
-    const auto e2 = float3(mesh.vertices()[i2]) - v0;
-    const float v = dot(local_pos - v0 - u * e1, e2) / dot(e2, e2);
-
-    const auto texcoords    = mesh.attribute<float2>(MeshAttributes::TEXCOORDS);
-    const auto normals      = mesh.attribute<float3>(MeshAttributes::NORMALS);
-    const auto geom_normals = mesh.attribute<float3>(MeshAttributes::GEOM_NORMALS);
-
-    const auto uv_coords    = lerp(texcoords[i0], texcoords[i1], texcoords[i2], u, v);
-    const auto local_normal = lerp(normals[i0], normals[i1], normals[i2], u, v);
-    const auto normal       = normalize(float3(local_normal * inst.inv_mat));
-    const auto geom_normal  = normalize(float3(geom_normals[local_tri_id] * inst.inv_mat));
-
-    const auto w_out = -normalize(out_dir);
-
-    float area = length(cross(e1, e2)) * 0.5f * inst.det;
-
-    float3 u_tangent;
-    float3 v_tangent;
-    local_coordinates(normal, u_tangent, v_tangent);
-
-    Intersection res {
-        pos, w_out, normal, uv_coords, geom_normal, u_tangent, v_tangent, area, m
-    };
-
-    // Ensure that the shading normal is always in the same hemisphere as the geometric normal.
-    if (dot(res.geom_normal, res.normal) < 0.0f)
-        res.normal = -res.normal;
-
-    return res;
-}
-
 template<typename StateType>
 void terminate_path(StateType& state) {
     state.pixel_id = -1;

@@ -142,6 +142,7 @@ public:
         for (int i = 0; i < num_comps_; ++i) {
             res += weights_[i] * components_[i]->eval(out_dir, in_dir);
         }
+
         return res;
     }
 
@@ -193,7 +194,6 @@ private:
     float pdfs_[MAX_COMPONENTS];
     char  mem_pool_[MAX_COMPONENTS * MAX_SIZE];
     int num_comps_;
-
     bool all_specular_;
 };
 

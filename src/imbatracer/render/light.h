@@ -186,9 +186,14 @@ private:
     int mat_id_;
 
     rgb compute_radiance(float u, float v, const float3& p, const float3& d) {
-        // TODO support texturing (compute correct texture coordinates!)
+        Intersection isect {
+            p, d, normal_,
+            float2(0,0), // TODO support texturing (compute correct texture coordinates!)
+            normal_, area_, mat_id_
+        };
+
         MaterialValue res;
-        mat_sys_->eval_material(p, float2(u,v), d, normal_, normal_, area_, mat_id_, true, res);
+        mat_sys_->eval_material(isect, true, res);
         return res.emit;
     }
 };

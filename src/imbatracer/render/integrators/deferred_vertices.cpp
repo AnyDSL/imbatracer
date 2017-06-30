@@ -10,10 +10,10 @@
 namespace imba {
 
 void bounce(const Scene& scene, Ray& r, Hit& h, ProbeState& s, std::atomic<int>& vertex_count) {
-    const auto isect = calculate_intersection(scene, h, r);
+    const auto isect = scene.calculate_intersection(h, r);
 
     MaterialValue mat;
-    scene.eval_material(h, r, false, mat);
+    scene.material_system()->eval_material(isect, false, mat);
     mat.bsdf.prepare(s.throughput, isect.out_dir);
 
     ++vertex_count;

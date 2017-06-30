@@ -42,12 +42,7 @@ class DeferredVCM : public Integrator {
         MisType mis;
         rgb throughput; ///< The power or importance of the path leading to this vertex
 
-        float3 pos;
-        float2 uv;
-        float3 normal;
-        float3 out_dir;
-        float area;
-        int mat;
+        Intersection isect;
 
         union {
             int pixel_id; ///< Id of the pixel from which this path was sampled (only for camera paths)
@@ -57,17 +52,15 @@ class DeferredVCM : public Integrator {
         uint32_t path_len : 8;
 
         Vertex() {}
-        Vertex(const MisType& mis, const rgb& c, int a, int pixel, int len,
-               int mat, const float3& pos, const float2& uv, const float3& normal, const float3& out, float area)
-            : mis(mis), throughput(c), ancestor(a), pixel_id(pixel), path_len(len)
-            , pos(pos), normal(normal), out_dir(out), mat(mat), area(area), uv(uv)
+        Vertex(const MisType& mis, const rgb& c, int a, int pixel, int len, const Intersection& isect)
+            : mis(mis), throughput(c), ancestor(a), pixel_id(pixel), path_len(len), isect(isect)
         {}
 
         // TODO this is used by the emission (can be replaced by the other constructor if light exposes material)
         Vertex(const MisType& mis, const rgb& c, int a, int pixel, int len, const float3& pos)
             : mis(mis), throughput(c), ancestor(a), pixel_id(pixel), path_len(len)
-            , pos(pos)
         {
+            isect.pos = pos;
         }
     };
 
@@ -92,7 +85,7 @@ class DeferredVCM : public Integrator {
             return *this;
         }
 
-        const float3& position() const { return vert->pos; }
+        const float3& position() const { return vert->isect.pos; }
 
         const Vertex* vert;
     };
