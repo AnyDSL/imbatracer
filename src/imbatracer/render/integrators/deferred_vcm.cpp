@@ -200,10 +200,6 @@ void DeferredVCM<MisType>::bounce(State& state, const Intersection& isect, BSDF*
     bool specular;
     auto bsdf_value = bsdf->sample(isect.out_dir, sample_dir, state.rng, pdf_dir_w, specular);
 
-    // float tmp = bsdf->pdf(isect.out_dir, sample_dir);
-    // if (fabsf(tmp - pdf_dir_w) > 0.001f)
-    //     printf("defuq %f %f\n", tmp, pdf_dir_w);
-
     if (pdf_dir_w == 0.0f || is_black(bsdf_value)) {
         terminate_path(state);
         return;
@@ -353,7 +349,7 @@ void DeferredVCM<MisType>::light_tracing(AtomicImage& img) {
             const float dist_to_cam_sqr = lensqr(dir_to_cam);
             const float dist_to_cam = sqrtf(dist_to_cam_sqr);
             dir_to_cam = dir_to_cam / dist_to_cam;
-            const float cos_theta_surf = fabsf(dot(v.normal, dir_to_cam));
+            const float cos_theta_surf = dot(v.normal, dir_to_cam);
 
             float pdf_cam = cam_.pdf(-dir_to_cam);
             pdf_cam *= cos_theta_surf / dist_to_cam_sqr;
@@ -376,7 +372,7 @@ void DeferredVCM<MisType>::light_tracing(AtomicImage& img) {
             ray.org = make_vec4(v.pos, offset);
             ray.dir = make_vec4(dir_to_cam, dist_to_cam - offset);
 
-            state.contrib = v.throughput * bsdf_value / cos_theta_surf * mis_weight * pdf_cam / settings_.light_path_count;
+            state.contrib = v.throughput * bsdf_value * pdf_cam * mis_weight / settings_.light_path_count;
 
             return true;
         });

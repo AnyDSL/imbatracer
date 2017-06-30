@@ -51,7 +51,7 @@ public:
                            scale(2.0f / height_, 2.0f / width_, 0.0f, 1.0f);
 
         const float tan_half = std::tan(fov_ * pi / 360.0f);
-        img_plane_dist_ = width_ / (2.0f * tan_half);
+        pixel_area_ = sqr(width_ / (2.0f * tan_half)) * height_ / width_;
     }
 
     Ray generate_ray(const float2& raster_pos) const {
@@ -95,14 +95,12 @@ public:
     const float3& pos() const { return pos_; }
     const float3& dir() const { return forward_; }
 
-    const float image_plane_dist() const { return img_plane_dist_; }
-
     /// Returns the pdf for sampling the given direction form this camera.
     float pdf(const float3& d) const {
         // TODO, check that the direction lies within the frustum.
 
         const float cos_theta_o = dot(d, forward_);
-        return sqr(img_plane_dist_ / cos_theta_o) / cos_theta_o;
+        return pixel_area_ / (cos_theta_o * cos_theta_o * cos_theta_o);
     }
 
 private:
@@ -112,7 +110,7 @@ private:
 
     float3 pos_;
     float3 forward_;
-    float img_plane_dist_;
+    float pixel_area_;
 
     float4x4 world_to_raster_;
     float4x4 raster_to_world_;

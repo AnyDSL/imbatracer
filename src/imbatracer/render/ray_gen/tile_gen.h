@@ -141,6 +141,7 @@ public:
         // Number of paths might not be a multiple of the number of lights
         // To still generate exactly path_count paths, we assign the leftovers to the first light
         rays_per_light_[0] += path_count % light_count;
+        // TODO assert that this is 0 (for simplicity!)
 
         // Compute the number of tiles for every light source
         for (int i = 0; i < light_count; ++i) {
