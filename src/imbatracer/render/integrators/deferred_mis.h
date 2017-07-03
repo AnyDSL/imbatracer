@@ -328,7 +328,7 @@ using MisPT   = MisHelper<UnidirPT, DirectIllum>;
 using MisLT   = MisHelper<ConnectLT>;
 using MisTWPT = MisHelper<UnidirPT, DirectIllum, ConnectLT>;
 using MisBPT  = MisHelper<UnidirPT, DirectIllum, ConnectLT, Connect>;
-using MisPPM  = MisHelper<UnidirPT, DirectIllum, Merge>;
+using MisSPPM = MisHelper<UnidirPT, DirectIllum, Merge>;
 using MisVCM  = MisHelper<UnidirPT, DirectIllum, ConnectLT, Connect, Merge>;
 
 #undef MIS_HANDLER_FNS

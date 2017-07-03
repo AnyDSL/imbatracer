@@ -40,11 +40,7 @@ struct UserSettings {
     // Algorithm settings
     enum Algorithm {
         PT,
-        BPT,
-        VCM,
-        PPM,
-        VCM_PT,
-        LT,
+
         PHOTON_VIS,
 
         DEF_VCM,
@@ -52,7 +48,7 @@ struct UserSettings {
         DEF_LT,
         DEF_TWPT,
         DEF_BPT,
-        DEF_PPM,
+        DEF_SPPM,
     } algorithm;
 
     float radius_factor;
@@ -95,7 +91,7 @@ inline void print_help() {
               << "    -q  Quiet mode, render in background without SDL preview." << std::endl
               << "    -s  Number of samples per pixel to render (default: unlimited)" << std::endl
               << "    -t  Number of seconds to run the render algorithm (default: unlimited)" << std::endl
-              << "    -a  Selects which algorithm to use: 'pt', 'bpt', 'ppm', 'lt', 'vcm_pt', 'vcm', 'photon_vis', 'def_[vcm, lt, pt, bpt, twpt, ppm]', or 'vcm_dbg' (default: pt)" << std::endl
+              << "    -a  Selects which algorithm to use: 'pt', 'photon_vis', 'def_[vcm, lt, pt, bpt, twpt, sppm]' (default: pt)" << std::endl
               << "    -w  Sets the horizontal resolution in pixels (default: 512)" << std::endl
               << "    -h  Sets the vertical resolution in pixels (default: 512)" << std::endl
               << "    -f  Sets the horizontal field of view (default: 60)" << std::endl
@@ -152,18 +148,13 @@ inline bool parse_cmd_line(int argc, char* argv[], UserSettings& settings) {
 
     std::unordered_map<std::string, UserSettings::Algorithm> supported_algs = {
         {"pt",         UserSettings::PT},
-        {"bpt",        UserSettings::BPT},
-        {"vcm",        UserSettings::VCM},
-        {"lt",         UserSettings::LT},
-        {"ppm",        UserSettings::PPM},
-        {"vcm_pt",     UserSettings::VCM_PT},
         {"photon_vis", UserSettings::PHOTON_VIS},
         {"def_vcm",    UserSettings::DEF_VCM},
         {"def_bpt",    UserSettings::DEF_BPT},
         {"def_pt",     UserSettings::DEF_PT},
         {"def_lt",     UserSettings::DEF_LT},
         {"def_twpt",   UserSettings::DEF_TWPT},
-        {"def_ppm",    UserSettings::DEF_PPM},
+        {"def_sppm",   UserSettings::DEF_SPPM},
     };
 
     bool lp_count_given = false;
@@ -183,7 +174,7 @@ inline bool parse_cmd_line(int argc, char* argv[], UserSettings& settings) {
             auto alg_iter = supported_algs.find(algname);
             if (alg_iter == supported_algs.end()) {
                 std::cout << "Invalid algorithm name: " << algname
-                          << " Supported algorithms are: 'pt', 'bpt', 'ppm', 'lt', 'vcm_pt', 'def_vcm', and 'vcm'. Defaulting to 'pt'..." << std::endl;
+                          << " Supported algorithms are: 'pt', 'def_[vcm, bpt, pt, lt, twpt, sppm]', and 'photon_vis'. Defaulting to 'pt'..." << std::endl;
                 settings.algorithm = UserSettings::PT;
             } else {
                 settings.algorithm = alg_iter->second;

@@ -112,7 +112,7 @@ void DeferredVCM<mis::MisTWPT>::render(AtomicImage& img) {
 }
 
 template <>
-void DeferredVCM<mis::MisPPM>::render(AtomicImage& img) {
+void DeferredVCM<mis::MisSPPM>::render(AtomicImage& img) {
     const float radius_alpha = 0.75f;
     cur_iteration_++;
     pm_radius_ = base_radius_ / powf(static_cast<float>(cur_iteration_), 0.5f * (1.0f - radius_alpha));
@@ -526,6 +526,6 @@ template class DeferredVCM<mis::MisBPT>;
 template class DeferredVCM<mis::MisPT>;
 template class DeferredVCM<mis::MisLT>;
 template class DeferredVCM<mis::MisTWPT>;
-template class DeferredVCM<mis::MisPPM>;
+template class DeferredVCM<mis::MisSPPM>;
 
 } // namespace imba

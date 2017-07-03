@@ -125,8 +125,8 @@ int main(int argc, char* argv[]) {
         render_loop_deferred<mis::MisTWPT>(scene, cam, ctrl, settings);
     } else if (settings.algorithm == UserSettings::DEF_BPT) {
         render_loop_deferred<mis::MisBPT>(scene, cam, ctrl, settings);
-    } else if (settings.algorithm == UserSettings::DEF_PPM) {
-        render_loop_deferred<mis::MisPPM>(scene, cam, ctrl, settings);
+    } else if (settings.algorithm == UserSettings::DEF_SPPM) {
+        render_loop_deferred<mis::MisSPPM>(scene, cam, ctrl, settings);
     } else if (settings.algorithm == UserSettings::PT) {
 #ifdef QUEUE_SCHEDULER
         PixelRayGen<PTState> ray_gen(settings.width, settings.height, settings.concurrent_spp);
