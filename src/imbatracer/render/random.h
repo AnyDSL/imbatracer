@@ -55,20 +55,13 @@ struct DirectionSample {
 
 /// Computes an orthogonal local coordinate system.
 inline void local_coordinates(const float3& normal, float3& tangent_out, float3& binormal_out) {
-    const int   id0 = (fabsf(normal.x) > fabsf(normal.y)) ?    0 : 1;
-    const int   id1 = (fabsf(normal.x) > fabsf(normal.y)) ?    1 : 0;
-    const float sig = (fabsf(normal.x) > fabsf(normal.y)) ? -1.f : 1.f;
-
-    const float inv_len = 1.f / sqrtf(sqr(normal[id0]) + sqr(normal.z));
-
-    tangent_out[id0] = normal.z * sig * inv_len;
-    tangent_out[id1] = 0.f;
-    tangent_out.z    = normal[id0] * -1.f * sig * inv_len;
-
-    binormal_out = cross(normal, tangent_out);
-
-    tangent_out = normalize(tangent_out);
-    binormal_out = normalize(binormal_out);
+    float sign = copysignf(1.0f, normal.z);
+    const float a = -1.0f / (sign + normal.z);
+    const float b = normal.x * normal.y * a;
+    tangent_out = float3(1.0f + sign * normal.x * normal.x * a,
+                         sign * b,
+                         -sign * normal.x);
+    binormal_out = float3(b, sign + normal.y * normal.y * a, -normal.y);
 }
 
 inline float3 spherical_dir(float sintheta, float costheta, float phi) {
