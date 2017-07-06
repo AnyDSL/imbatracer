@@ -22,7 +22,7 @@ inline float adjoint_correction(const Intersection& isect, const float3& in, con
     // TODO this will not work if OSL shaders are allowed to alter shading normals! -> has to be moved inside the Bsdf objects!
     float n = dot(isect.normal, out) * dot(isect.geom_normal, in);
     float d = dot(isect.normal, in) * dot(isect.geom_normal, out);
-    return d == 0.0f ? 0.0f : n / d;
+    return fabsf(d) <= 0.001f ? 0.0f : fabsf(n / d);
 }
 
 template <>
@@ -261,7 +261,7 @@ void DeferredVCM<MisType>::process_hits(Ray& r, Hit& h, State& state, VertCache*
 
     // Continue the path using russian roulette.
     const float offset = h.tmax * 1e-4f;
-    bounce(state, isect, &mat.bsdf, r, false, offset);
+    bounce(state, isect, &mat.bsdf, r, adjoint, offset);
 }
 
 template <typename MisType>
@@ -404,7 +404,7 @@ void DeferredVCM<MisType>::connect(AtomicImage& img) {
 
             int lv_idx = state.rng.random_int(0, light_v.size());
             auto& light_vertex = light_v[lv_idx];
-            if (light_vertex.path_len == 1)
+            if (light_vertex.path_len == 1) // do not connect to the light (handled by next event!)
                 return false;
 
             MaterialValue lmat;
@@ -493,7 +493,7 @@ void DeferredVCM<MisType>::merge(AtomicImage& img) {
             rgb contrib(0.0f);
             for (int i = 0; i < count; ++i) {
                 auto p = photons[i].vert;
-                if (p->path_len <= 1) continue;
+                if (p->path_len <= 2) continue; // do not merge on the light (handled by UPT)
 
                 const auto& photon_in_dir = p->isect.out_dir;
 

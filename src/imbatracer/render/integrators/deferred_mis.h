@@ -28,9 +28,9 @@ struct MisHelper {
     MisHelper() : last(0.0f), partial(0.0f), started_at_infinity(false) {}
 
     /// Computes the final partial weight for this subpath, given the missing reverse pdf.
-    float weight(float pdf_rev_w, float merge_weight, int path_len, bool cam_path) const {
+    float weight(float pdf_rev_w, float merge_weight, int path_len, bool cam_path, int path_len_other) const {
         float res = partial * pdf_rev_w;
-        return res + finalizeDispatch<Techs...>::forall(merge_weight, last, partial, path_len, cam_path);
+        return res + finalizeDispatch<Techs...>::forall(merge_weight, last, partial, path_len, cam_path, path_len_other);
     }
 
     /// Computes the final partial weight for this subpath, if it ends on an emitter
@@ -147,7 +147,7 @@ private:
 
 #define TECH_UPDATE_NOOP(NAME) template<typename... Ts> static void NAME(float* last_pdf, float* partial, Ts... params) {}
 #define TECH_FINALIZE_LIGHT_NOOP static float finalize_on_emitter(float merge_weight, float pdf_di_a, float last_pdf, float partial) { return 0.0f; }
-#define TECH_FINALIZE_SURF_NOOP  static float finalize(float merge_weight, float last_pdf, float partial, int path_len, bool cam_path) { return 0.0f; }
+#define TECH_FINALIZE_SURF_NOOP  static float finalize(float merge_weight, float last_pdf, float partial, int path_len, bool cam_path, int path_len_other) { return 0.0f; }
 
 struct DirectIllum {
     TECH_UPDATE_NOOP(init_camera);
@@ -170,7 +170,7 @@ struct DirectIllum {
         return last_pdf * pdf_di_a;
     }
 
-    static float finalize(float merge_weight, float last_pdf, float partial, int path_len, bool cam_path) {
+    static float finalize(float merge_weight, float last_pdf, float partial, int path_len, bool cam_path, int path_len_other) {
         if (path_len == 2 && !cam_path)
             return last_pdf; // Include weight for direct illumination if it is not yet part of partial
         else
@@ -207,7 +207,7 @@ struct ConnectLT {
         }
     }
 
-    static float finalize(float merge_weight, float last_pdf, float partial, int path_len, bool cam_path) {
+    static float finalize(float merge_weight, float last_pdf, float partial, int path_len, bool cam_path, int path_len_other) {
         if (path_len == 2 && cam_path)
             return last_pdf; // Include weight for light tracing if it is not yet part of partial
         else
@@ -231,7 +231,7 @@ struct Connect {
 
     TECH_FINALIZE_LIGHT_NOOP; // No connections to vertices on the light
 
-    static float finalize(float merge_weight, float last_pdf, float partial, int path_len, bool cam_path) {
+    static float finalize(float merge_weight, float last_pdf, float partial, int path_len, bool cam_path, int path_len_other) {
         // Include weight for connection instead of the last bounce
         if (path_len > 2)
             return last_pdf;
@@ -247,14 +247,20 @@ struct Merge {
     static void update_bounce(float* last_pdf, float* partial, float pdf_dir_w, float pdf_rev_w, float cos_in,
                               float merge_weight, int path_len, bool cam_path) {
         // A merge is possible at every vertex on a path
-        *partial += merge_weight;
+        if (path_len > 2 || cam_path)
+            *partial += merge_weight;
     }
 
-    TECH_FINALIZE_LIGHT_NOOP; // No merging on the light source
-
-    static float finalize(float merge_weight, float last_pdf, float partial, int path_len, bool cam_path) {
+    static float finalize(float merge_weight, float last_pdf, float partial, int path_len, bool cam_path, int path_len_other) {
         // Include weight for merging at the last bounce
-        return merge_weight;
+        if ((!cam_path && path_len > 2) || (cam_path && path_len_other > 2))
+            return merge_weight;
+        else return 0.0f;
+    }
+
+    static float finalize_on_emitter(float merge_weight, float pdf_di_a, float last_pdf, float partial) {
+        // We already added the merge at the last bounce, although we do not want to consider it!
+        return 0.0f; // TODO: account for this!
     }
 };
 
@@ -271,8 +277,8 @@ inline float weight_connect(const T& cam, const T& light, float merge_weight,
     const float pdf_light_a = pdf_light_w * cos_cam   / d2;
 
     // Add missing unidirectional pdfs
-    const float wc = pdf_light_a *   cam.template weight(pdf_rev_cam_w  , merge_weight, path_len_c, true);
-    const float wl = pdf_cam_a   * light.template weight(pdf_rev_light_w, merge_weight, path_len_l, false);
+    const float wc = pdf_light_a *   cam.template weight(pdf_rev_cam_w  , merge_weight, path_len_c, true , path_len_l);
+    const float wl = pdf_cam_a   * light.template weight(pdf_rev_light_w, merge_weight, path_len_l, false, path_len_c);
 
     return 1.0f / (wc + 1.0f + wl);
 }
@@ -283,8 +289,8 @@ inline float weight_merge(const T& cam, const T& light, float merge_weight,
     float merge_weight_inv = 1.0f / merge_weight; // TODO could also be precomputed
 
     // Uses the fact that the pdf for merging is the pdf for connecting times the merge acceptance probability
-    const float wl = merge_weight_inv * light.template weight(pdf_dir_w, merge_weight, path_len_c, true);
-    const float wc = merge_weight_inv *   cam.template weight(pdf_rev_w, merge_weight, path_len_l, false);
+    const float wc = merge_weight_inv *   cam.template weight(pdf_rev_w, merge_weight, path_len_c, true , path_len_l);
+    const float wl = merge_weight_inv * light.template weight(pdf_dir_w, merge_weight, path_len_l, false, path_len_c);
 
     return 1.0f / (wc + wl - 1.0f); // The 1 in the sum is already included twice, once in each subpath partial sum
 }
@@ -311,7 +317,7 @@ inline float weight_di(const T& path, float merge_weight,
     const float wl = !delta_light ? pow_heuristic(pdf_dir_w / pdf_di_w * pdf_lightpick_inv) : 0.0f;
 
     const float wc = pow_heuristic(pdf_emit_w * cos_in / (pdf_di_w * cos_out))
-                   * path.template weight(pdf_rev_w, merge_weight, path_len, true);
+                   * path.template weight(pdf_rev_w, merge_weight, path_len, true, 1);
 
     return 1.0f / (wc + 1.0f + wl);
 }
@@ -319,7 +325,7 @@ inline float weight_di(const T& path, float merge_weight,
 template <typename T>
 inline float weight_lt(const T& path, float merge_weight, float pdf_cam_a, float pdf_rev_w, int num_light_paths, int path_len) {
     const float wl = pow_heuristic(pdf_cam_a / num_light_paths)
-                   * path.template weight(pdf_rev_w, merge_weight, path_len, false);
+                   * path.template weight(pdf_rev_w, merge_weight, path_len, false, 1);
 
     return 1.0f / (wl + 1.0f);
 }
