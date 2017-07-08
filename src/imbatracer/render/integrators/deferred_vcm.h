@@ -116,8 +116,8 @@ public:
         // TODO: this path length estimation is only really necessary in a GPU implementation
         //       on the CPU, we can stop wasting these rays and use them instead to build an initial distribution
         //       to guide the first iteration! The memory will be allocated on the fly for this (amortized, doubling the size every time)
-        int num_cam_v   = 1.2f * avg_cam_v * settings.width * settings.height * settings.concurrent_spp;
-        int num_light_v = 1.2f * avg_light_v * settings.light_path_count;
+        int num_cam_v   = 2.2f * avg_cam_v * settings.width * settings.height * settings.concurrent_spp;
+        int num_light_v = 2.2f * avg_light_v * settings.light_path_count;
 
         cam_verts_.reset(new VertCache(num_cam_v));
         light_verts_.reset(new VertCache(num_light_v));
@@ -155,13 +155,15 @@ private:
     std::unique_ptr<VertCache> light_verts_;
 
     HashGrid<VertexHandle> photon_grid_;
+    HashGrid<VertexHandle> importon_grid_;
 
     void trace_camera_paths();
     void trace_light_paths();
     void process_hits(Ray& r, Hit& h, State& s, VertCache* cache, bool adjoint);
     void process_envmap_hits(Ray& r, State& s);
 
-    void bounce(State& state_out, const Intersection& isect, BSDF* bsdf, Ray& ray_out, bool adjoint, float offset);
+    void bounce(State& state_out, const Intersection& isect, BSDF* bsdf, Ray& ray_out, bool adjoint, float offset, float rr_pdf);
+    void guided_bounce(State& state_out, const Intersection& isect, BSDF* bsdf, Ray& ray_out, bool adjoint, float offset, float rr_pdf);
 
     /// Computes the cosine term for adjoint BSDFs that use shading normals.
     ///

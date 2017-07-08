@@ -25,9 +25,14 @@ public:
         return static_cast<float>(MWC64X()) / static_cast<float>(0xFFFFFFFF);
     }
 
-    // Random number from min (inclusive) to max (exclusive)
+    /// Random number from min (inclusive) to max (exclusive)
     int random_int(int min, int max) {
         return max == min ? min : MWC64X() % (max - min) + min;
+    }
+
+    /// Returns a random index to an array of the given size.
+    int random_idx(int size) {
+        return random_int(0, size);
     }
 
     void discard(int n) {

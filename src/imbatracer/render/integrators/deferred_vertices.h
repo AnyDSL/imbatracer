@@ -46,7 +46,7 @@ public:
 
     using iterator = typename std::vector<Vertex>::iterator;
     iterator begin() { return verts_.begin(); }
-    iterator end()   { return verts_.end();   }
+    iterator end()   { return verts_.begin() + size(); }
 
 private:
     std::vector<Vertex> verts_;

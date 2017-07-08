@@ -15,6 +15,7 @@ struct Intersection {
 
     float area;
     int mat;
+    float d_sqr; ///< Squared distance from the previous vertex or one if there is none.
 };
 
 } // namespace imba

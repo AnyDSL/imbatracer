@@ -155,7 +155,7 @@ public:
         float area = length(cross(e1, e2)) * 0.5f * inst.det; // TODO precompute this?
 
         Intersection res {
-            pos, w_out, normal, uv_coords, geom_normal, area, mat
+            pos, w_out, normal, uv_coords, geom_normal, area, mat, hit.tmax * hit.tmax
         };
 
         // Ensure that the shading normal is always in the same hemisphere as the geometric normal.

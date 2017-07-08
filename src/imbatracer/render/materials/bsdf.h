@@ -146,6 +146,8 @@ public:
         return res;
     }
 
+    /// Samples a direction from this BSDF
+    /// \param specular Will be set to true if the chosen BSDF was specular. Does not mean that the entire combined BSDF is specular!
     rgb sample(const float3& out_dir, float3& in_dir, RNG& rng, float& pdf, bool& specular) const {
         float rnd_comp = rng.random_float();
         specular = false;
