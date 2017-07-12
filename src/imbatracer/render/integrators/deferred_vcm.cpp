@@ -32,7 +32,7 @@ void DeferredVCM<mis::MisVCM>::render(AtomicImage& img) {
     PROFILE(trace_light_paths(), "Tracing light paths");
 
     auto m = std::async(std::launch::async, [this, &img] {
-        PROFILE(photon_grid_.build(light_verts_->begin(), light_verts_->end(), pm_radius_), "Building hash grid (photons)");
+        PROFILE(photon_grid_.build(light_verts_->begin(), light_verts_->end(), pm_radius_, [](auto& v){ return !v.specular; }), "Building hash grid (photons)");
         PROFILE(merge(img), "Merge");
     });
 
@@ -65,6 +65,8 @@ void DeferredVCM<mis::MisBPT>::render(AtomicImage& img) {
     PROFILE(path_tracing(img, true), "PT");
     PROFILE(light_tracing(img), "LT");
     PROFILE(connect(img), "Connect");
+
+    path_log_.write("connections.obj");
 }
 
 template <>
@@ -84,7 +86,7 @@ void DeferredVCM<mis::MisLT>::render(AtomicImage& img) {
     light_verts_->clear();
 
     PROFILE(trace_camera_paths(), "Tracing camera paths");
-    PROFILE(importon_grid_.build(cam_verts_->begin(), cam_verts_->end(), base_radius_), "Building hash grid (importons)");
+    PROFILE(importon_grid_.build(cam_verts_->begin(), cam_verts_->end(), base_radius_, [](auto& v){ return !v.specular; }), "Building hash grid (importons)");
     PROFILE(trace_light_paths(), "Tracing light paths");
 
     PROFILE(light_tracing(img), "LT");
@@ -96,7 +98,7 @@ void DeferredVCM<mis::MisTWPT>::render(AtomicImage& img) {
     light_verts_->clear();
 
     PROFILE(trace_camera_paths(), "Tracing camera paths");
-    PROFILE(importon_grid_.build(cam_verts_->begin(), cam_verts_->end(), base_radius_), "Building hash grid (importons)");
+    PROFILE(importon_grid_.build(cam_verts_->begin(), cam_verts_->end(), base_radius_, [](auto& v){ return !v.specular; }), "Building hash grid (importons)");
     PROFILE(trace_light_paths(), "Tracing light paths");
 
     PROFILE(path_tracing(img, true), "PT");
@@ -117,7 +119,7 @@ void DeferredVCM<mis::MisSPPM>::render(AtomicImage& img) {
     PROFILE(trace_camera_paths(), "Tracing camera paths");
     PROFILE(trace_light_paths(), "Tracing light paths");
 
-    PROFILE(photon_grid_.build(light_verts_->begin(), light_verts_->end(), pm_radius_), "Building hash grid");
+    PROFILE(photon_grid_.build(light_verts_->begin(), light_verts_->end(), pm_radius_, [](auto& v){ return !v.specular; }), "Building hash grid");
     PROFILE(path_tracing(img, true), "PT");
     PROFILE(merge(img), "Merge");
 }
@@ -145,6 +147,7 @@ void DeferredVCM<MisType>::trace_camera_paths() {
 
             state.throughput = rgb(1.0f);
             state.path_length = 1;
+            state.ancestor = -1;
 
             float pdf = cam_.pdf(ray.dir);
 
@@ -173,6 +176,7 @@ void DeferredVCM<MisType>::trace_light_paths() {
 
             state.throughput = sample.radiance / pdf_lightpick;
             state.path_length = 1;
+            state.ancestor = -1;
 
             state.mis.init_light(sample.pdf_emit_w, sample.pdf_direct_a, pdf_lightpick, sample.cos_out, l->is_finite(), l->is_delta());
 
@@ -227,7 +231,7 @@ void DeferredVCM<MisType>::guided_bounce(State& state, const Intersection& isect
             // TODO filter such importons at query time! otherwise this is a shitty RR decision!
             terminate_path(state);
             return;
-        } 
+        }
 
         const float cos_cone_angle = sqrtf(1.0f - r_sqr / d_sqr);
         const auto  sample = sample_uniform_cone(cos_cone_angle, state.rng.random_float(), state.rng.random_float());
@@ -247,7 +251,7 @@ void DeferredVCM<MisType>::guided_bounce(State& state, const Intersection& isect
         // Sample a direction from the BSDF
         bool specular;
         bsdf_value = bsdf->sample(isect.out_dir, sample_dir, state.rng, pdf_dir_w, specular);
-        
+
         // Remove the pdf to not divide multiple times
         bsdf_value *= pdf_dir_w;
 
@@ -256,7 +260,7 @@ void DeferredVCM<MisType>::guided_bounce(State& state, const Intersection& isect
             pdf_rev_w = bsdf->pdf(sample_dir, isect.out_dir);
 
         terminate_path(state); return;
-    }  
+    }
 
     if (pdf_dir_w == 0.0f || is_black(bsdf_value)) {
         terminate_path(state);
@@ -340,10 +344,7 @@ void DeferredVCM<MisType>::process_hits(Ray& r, Hit& h, State& state, VertCache*
     state.mis.update_hit(cos_theta_o, h.tmax * h.tmax);
     state.path_length++;
 
-    if (!mat.bsdf.is_specular())
-        state.ancestor = cache->add(Vertex(state.mis, state.throughput, state.ancestor, state.pixel_id, state.path_length, isect));
-    else
-        state.ancestor = -1;
+    state.ancestor = cache->add(Vertex(state.mis, state.throughput, state.ancestor, state.pixel_id, state.path_length, isect, mat.bsdf.is_specular()));
 
     // Continue the path using russian roulette.
     if (state.path_length >= settings_.max_path_len) {
@@ -379,6 +380,8 @@ void DeferredVCM<MisType>::path_tracing(AtomicImage& img, bool next_evt) {
             MaterialValue mat;
             scene_.material_system()->eval_material(v.isect, false, mat);
             mat.bsdf.prepare(v.throughput, v.isect.out_dir);
+
+            if (mat.bsdf.is_specular()) return false;
 
             if (!is_black(mat.emit)) {
                 float cos_out = dot(v.isect.geom_normal, v.isect.out_dir);
@@ -467,6 +470,8 @@ void DeferredVCM<MisType>::light_tracing(AtomicImage& img) {
             scene_.material_system()->eval_material(v.isect, true, mat);
             mat.bsdf.prepare(v.throughput, v.isect.out_dir);
 
+            if (mat.bsdf.is_specular()) return false;
+
             auto bsdf = &mat.bsdf;
             auto bsdf_value = bsdf->eval(v.isect.out_dir, dir_to_cam);
             float pdf_rev_w = bsdf->pdf(dir_to_cam, v.isect.out_dir);
@@ -488,13 +493,29 @@ void DeferredVCM<MisType>::light_tracing(AtomicImage& img) {
 
 template <typename MisType>
 void DeferredVCM<MisType>::connect(AtomicImage& img) {
-    ArrayTileGen<ShadowState> tile_gen(settings_.tile_size * settings_.tile_size, cam_verts_->size(), settings_.num_connections);
+    ArrayTileGen<ShadowStateConnectDbg> tile_gen(settings_.tile_size * settings_.tile_size, cam_verts_->size(), settings_.num_connections);
     shadow_scheduler_connect_.run_iteration(&tile_gen,
-        [this, &img] (Ray& r, ShadowState& s) {
+        [this, &img] (Ray& r, ShadowStateConnectDbg& s) {
             add_contribution(img, s.pixel_id, s.contrib);
+
+            const auto& cam_v   = *cam_verts_;
+            const auto& light_v = *light_verts_;
+            if (s.mis_weight > 0.9f) {
+                path_log_.log_connection(*s.cam, *s.light, [&, this](Vertex& v) {
+                    if (v.ancestor < 0) return false;
+                    v = cam_v[v.ancestor];
+                    return true;
+                }, [&, this](Vertex& v){
+                    if (v.ancestor < 0) return false;
+                    v = light_v[v.ancestor];
+                    return true;
+                }, [this](Vertex& v){
+                    return v.isect.pos;
+                });
+            }
         },
         nullptr, // hits --> occluded
-        [this] (int vert_id, int unused, ::Ray& ray, ShadowState& state) -> bool {
+        [this] (int vert_id, int unused, ::Ray& ray, ShadowStateConnectDbg& state) -> bool {
             const auto& cam_v   = *cam_verts_;
             const auto& light_v = *light_verts_;
             const auto& v = cam_v[vert_id];
@@ -515,6 +536,8 @@ void DeferredVCM<MisType>::connect(AtomicImage& img) {
             MaterialValue cmat;
             scene_.material_system()->eval_material(v.isect, false, cmat);
             cmat.bsdf.prepare(v.throughput, v.isect.out_dir);
+
+            if (cmat.bsdf.is_specular() || lmat.bsdf.is_specular()) return false;
 
             const auto light_bsdf = &lmat.bsdf;
             const auto cam_bsdf   = &cmat.bsdf;
@@ -562,6 +585,10 @@ void DeferredVCM<MisType>::connect(AtomicImage& img) {
             state.pixel_id = v.pixel_id;
             state.contrib  = v.throughput * vc_weight * mis_weight * geom_term * bsdf_value_cam * bsdf_value_light * light_vertex.throughput;
 
+            state.cam = &v;
+            state.light = &light_vertex;
+            state.mis_weight = mis_weight;
+
             const float offset = 1e-4f * connect_dist;
             ray.org = make_vec4(v.isect.pos, offset);
             ray.dir = make_vec4(connect_dir, connect_dist - offset);
@@ -583,6 +610,7 @@ void DeferredVCM<MisType>::merge(AtomicImage& img) {
             MaterialValue mat;
             scene_.material_system()->eval_material(v.isect, false, mat);
             mat.bsdf.prepare(v.throughput, v.isect.out_dir);
+            if (mat.bsdf.is_specular()) continue;
             const auto bsdf = &mat.bsdf;
 
             const int k = settings_.num_knn;

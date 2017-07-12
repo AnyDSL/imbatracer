@@ -23,8 +23,8 @@ template<typename Photon>
 class HashGrid {
     typedef unsigned int uint;
 public:
-    template <typename Iter>
-    void build(const Iter& photons_begin, const Iter& photons_end, float radius) {
+    template <typename Iter, typename FilterFn>
+    void build(const Iter& photons_begin, const Iter& photons_end, float radius, FilterFn filter) {
         constexpr int inv_load_factor = 2;
         radius_        = radius;
         radius_sqr_    = sqr(radius_);
@@ -52,9 +52,10 @@ public:
         std::fill(cell_ends_.begin(), cell_ends_.end(), 0);
 
         // Count the number of photons in each cell.
-        tbb::parallel_for(tbb::blocked_range<Iter>(photons_begin, photons_end), [this](const tbb::blocked_range<Iter>& range){
+        tbb::parallel_for(tbb::blocked_range<Iter>(photons_begin, photons_end), [&filter, this](const tbb::blocked_range<Iter>& range){
             for (Iter it = range.begin(); it != range.end(); ++it) {
-                cell_ends_[cell_index(static_cast<Photon>(*it).position())]++;
+                if (filter(*it))
+                    cell_ends_[cell_index(static_cast<Photon>(*it).position())]++;
             }
         });
 
@@ -67,11 +68,13 @@ public:
         }
 
         // Assign the photons to the cells.
-        tbb::parallel_for(tbb::blocked_range<Iter>(photons_begin, photons_end), [this](const tbb::blocked_range<Iter>& range){
+        tbb::parallel_for(tbb::blocked_range<Iter>(photons_begin, photons_end), [&filter, this](const tbb::blocked_range<Iter>& range){
             for (Iter it = range.begin(); it != range.end(); ++it) {
-                const float3 &pos = static_cast<Photon>(*it).position();
-                const int target_idx = cell_ends_[cell_index(pos)]++;
-                photons_[target_idx] = static_cast<Photon>(*it);
+                if (filter(*it)) {
+                    const float3 &pos = static_cast<Photon>(*it).position();
+                    const int target_idx = cell_ends_[cell_index(pos)]++;
+                    photons_[target_idx] = static_cast<Photon>(*it);
+                }
             }
         });
     }

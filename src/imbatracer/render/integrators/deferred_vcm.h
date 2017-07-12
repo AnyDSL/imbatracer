@@ -8,6 +8,8 @@
 #include "imbatracer/render/integrators/deferred_vertices.h"
 #include "imbatracer/render/integrators/deferred_mis.h"
 
+#include "imbatracer/render/debug/path_debug.h"
+
 #include "imbatracer/render/ray_gen/tile_gen.h"
 #include "imbatracer/render/ray_gen/ray_gen.h"
 
@@ -28,7 +30,7 @@ class DeferredVCM : public Integrator {
 
         /// Index within the vertex cache where the previous vertex along this path was stored
         /// -1 if the ancestor was not stored (e.g. is on a specular surface, first vertex, cache too small, ...)
-        uint16_t ancestor;
+        int32_t ancestor;
 
         MisType mis;
     };
@@ -48,20 +50,30 @@ class DeferredVCM : public Integrator {
             int pixel_id; ///< Id of the pixel from which this path was sampled (only for camera paths)
             int light_id; ///< Id of the light source from which this path was sampled (only for light paths)
         };
-        uint32_t ancestor : 24;
+        int32_t  ancestor : 24;
         uint32_t path_len : 8;
+        bool specular;
 
         Vertex() {}
-        Vertex(const MisType& mis, const rgb& c, int a, int pixel, int len, const Intersection& isect)
-            : mis(mis), throughput(c), ancestor(a), pixel_id(pixel), path_len(len), isect(isect)
+        Vertex(const MisType& mis, const rgb& c, int a, int pixel, int len, const Intersection& isect, bool specular)
+            : mis(mis), throughput(c), ancestor(a), pixel_id(pixel), path_len(len), isect(isect), specular(specular)
         {}
 
         // TODO this is used by the emission (can be replaced by the other constructor if light exposes material)
         Vertex(const MisType& mis, const rgb& c, int a, int pixel, int len, const float3& pos)
-            : mis(mis), throughput(c), ancestor(a), pixel_id(pixel), path_len(len)
+            : mis(mis), throughput(c), ancestor(a), pixel_id(pixel), path_len(len), specular(false)
         {
             isect.pos = pos;
         }
+    };
+
+    struct ShadowStateConnectDbg : public RayState {
+        /// Weighted contribution of the shadow ray if it is not occluded
+        rgb contrib;
+
+        const Vertex* cam;
+        const Vertex* light;
+        float mis_weight;
     };
 
     struct VertexHandle {
@@ -149,13 +161,15 @@ private:
     DeferredScheduler<State> scheduler_;
     DeferredScheduler<ShadowState, true> shadow_scheduler_pt_;
     DeferredScheduler<ShadowState, true> shadow_scheduler_lt_;
-    DeferredScheduler<ShadowState, true> shadow_scheduler_connect_;
+    DeferredScheduler<ShadowStateConnectDbg, true> shadow_scheduler_connect_;
 
     std::unique_ptr<VertCache> cam_verts_;
     std::unique_ptr<VertCache> light_verts_;
 
     HashGrid<VertexHandle> photon_grid_;
     HashGrid<VertexHandle> importon_grid_;
+
+    PathDebugger<Vertex> path_log_;
 
     void trace_camera_paths();
     void trace_light_paths();

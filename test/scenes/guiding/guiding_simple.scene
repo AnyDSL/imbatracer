@@ -1,0 +1,56 @@
+pos -3.0  1.5  0.0
+dir 1  -0.2   0
+up  0  1  0
+
+mesh guiding_simple.obj
+accel guiding_simple.bvh
+
+instance 0
+pos 0 0 0
+scale 1 1 1
+rot 0 0 0
+
+instance 0
+pos -10 0 0
+scale 1 1 1
+rot 0 0 0
+
+instance 0
+pos 10 0 0
+scale 1 1 1
+rot 0 0 0
+
+
+
+instance 0
+pos 0 0 20
+scale 1 1 1
+rot 0 0 0
+
+instance 0
+pos -10 0 20
+scale 1 1 1
+rot 0 0 0
+
+instance 0
+pos 10 0 0
+scale 1 1 1
+rot 0 0 0
+
+
+
+instance 0
+pos 0 0 -20
+scale 1 1 1
+rot 0 0 0
+
+instance 0
+pos -10 0 -20
+scale 1 1 1
+rot 0 0 0
+
+instance 0
+pos 10 0 -20
+scale 1 1 1
+rot 0 0 0
+
