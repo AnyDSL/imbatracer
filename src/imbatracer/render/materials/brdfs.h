@@ -31,6 +31,14 @@ public:
 
         return rgb(1.0f); // cos/pi cancels out
     }
+
+    float pdf(const float3& out_dir, const float3& in_dir) const override final {
+        float c = dot(normal, in_dir);
+        if (!translucent)
+            return c * dot(normal, out_dir) > 0 ? cos_hemisphere_pdf(c) : 0.0f;
+        else 
+            return c * dot(normal, out_dir) < 0 ? cos_hemisphere_pdf(c) : 0.0f;
+    }
 };
 
 template <typename Fr>

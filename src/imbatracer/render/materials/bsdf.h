@@ -41,7 +41,6 @@ public:
 
     virtual bool specular() const { return false; }
 
-protected:
     float3 normal;
 
     float3 local_to_world(const float3& dir, float hemisphere) const {
@@ -89,6 +88,11 @@ public:
 
     CombineBSDF(const CombineBSDF&) = delete;
     CombineBSDF& operator= (const CombineBSDF&) = delete;
+
+    void init(float3 geom_normal, bool adjoint) {
+        geom_normal_ = geom_normal;
+        adjoint_     = adjoint;
+    }
 
     /// Checks wether or not this BSDF is a black body, i.e. absorbing all light.
     bool black_body() const {
@@ -140,7 +144,7 @@ public:
     rgb eval(const float3& out_dir, const float3& in_dir) const {
         rgb res(0.0f);
         for (int i = 0; i < num_comps_; ++i) {
-            res += weights_[i] * components_[i]->eval(out_dir, in_dir);
+            res += weights_[i] * components_[i]->eval(out_dir, in_dir) * shading_normal_correction(out_dir, in_dir, i);
         }
 
         return res;
@@ -157,13 +161,13 @@ public:
         for (int i = 0; i < num_comps_; ++i) {
             if (rnd_comp < pdfs_[i] + sum) {
                 float sample_pdf;
-                res += weights_[i] * components_[i]->sample(out_dir, in_dir, rng, sample_pdf) / pdfs_[i];
+                res += weights_[i] * components_[i]->sample(out_dir, in_dir, rng, sample_pdf) * shading_normal_correction(out_dir, in_dir, i) / pdfs_[i];
                 pdf = sample_pdf * pdfs_[i];
 
                 // Evaluate the contributions of all other BSDFs to this direction
                 for (int j = 0; j < num_comps_; ++j) {
                     if (i == j) continue;
-                    res += weights_[j] * components_[j]->eval(out_dir, in_dir) / (sample_pdf * pdfs_[i]);
+                    res += weights_[j] * components_[j]->eval(out_dir, in_dir) * shading_normal_correction(out_dir, in_dir, j) / (sample_pdf * pdfs_[i]);
                     pdf += components_[j]->pdf(out_dir, in_dir) * pdfs_[j];
                 }
                 if (components_[i]->specular()) specular = true;
@@ -197,6 +201,20 @@ private:
     char  mem_pool_[MAX_COMPONENTS * MAX_SIZE];
     int num_comps_;
     bool all_specular_;
+
+    bool adjoint_;
+    float3 geom_normal_;
+
+    /// Applies the adjoint correction for the shading normals.
+    float shading_normal_correction(const float3& out, const float3& in, int component) const {
+        if (!adjoint_) return 1.0f;
+
+        auto& normal = components_[component]->normal;
+        
+        float n = dot(normal, out) * dot(geom_normal_, in);
+        float d = dot(normal, in)  * dot(geom_normal_, out);
+        return fabsf(d) <= 0.001f ? 0.0f : fabsf(n / d);
+    }
 };
 
 using BSDF = CombineBSDF<8, 256>;

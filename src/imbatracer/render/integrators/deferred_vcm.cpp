@@ -17,14 +17,6 @@ namespace imba {
 #define PROFILE(cmd, name) {cmd;}
 #endif
 
-/// Computes the cosine correction factor for particle tracing with shading normals.
-inline float adjoint_correction(const Intersection& isect, const float3& in, const float3& out) {
-    // TODO this will not work if OSL shaders are allowed to alter shading normals! -> has to be moved inside the Bsdf objects!
-    float n = dot(isect.normal, out) * dot(isect.geom_normal, in);
-    float d = dot(isect.normal, in) * dot(isect.geom_normal, out);
-    return fabsf(d) <= 0.001f ? 0.0f : fabsf(n / d);
-}
-
 template <>
 void DeferredVCM<mis::MisVCM>::render(AtomicImage& img) {
     const float radius_alpha = 0.75f;
@@ -199,7 +191,7 @@ void DeferredVCM<MisType>::guided_bounce(State& state, const Intersection& isect
     auto importons = V_ARRAY(VertexHandle, k);
     int count = guiding_dist.query(isect.pos, importons, k);
 
-    const float guide_prob = count ? 1.0f : 0.0f; // percentage of bounces that should be sampled from the guiding
+    const float guide_prob = count ? 0.5f : 0.0f; // percentage of bounces that should be sampled from the guiding
 
     // Compute the PMF (importon luminance)
     auto pmf = V_ARRAY(float, count);
@@ -262,6 +254,8 @@ void DeferredVCM<MisType>::guided_bounce(State& state, const Intersection& isect
         pdf_rev_w = pdf_dir_w;
         if (!specular) // TODO: this is not correct! Change to allow combine BSDF of specular + diffuse!
             pdf_rev_w = bsdf->pdf(sample_dir, isect.out_dir);
+
+        terminate_path(state); return;
     }  
 
     if (pdf_dir_w == 0.0f || is_black(bsdf_value)) {
@@ -269,7 +263,7 @@ void DeferredVCM<MisType>::guided_bounce(State& state, const Intersection& isect
         return;
     }
 
-    const float cos_theta_i = fabsf(dot(sample_dir, isect.normal));
+    const float cos_theta_i = fabsf(dot(sample_dir, isect.geom_normal));
 
     // Compute the pdf of sampling this direction from the cones of any importon
     float guided_pdf = 0.0f;
@@ -284,7 +278,7 @@ void DeferredVCM<MisType>::guided_bounce(State& state, const Intersection& isect
     float pdf = guide_prob * guided_pdf + (1.0f - guide_prob) * pdf_dir_w;
     pdf *= rr_pdf;
 
-    state.throughput *= bsdf_value / pdf * (adjoint ? adjoint_correction(isect, sample_dir, isect.out_dir) : 1.0f);
+    state.throughput *= bsdf_value / pdf;
     state.mis.update_bounce(pdf_dir_w, pdf_rev_w, cos_theta_i, false, merge_pdf_, state.path_length, !adjoint);
 
     ray = Ray {
@@ -309,9 +303,9 @@ void DeferredVCM<MisType>::bounce(State& state, const Intersection& isect, BSDF*
     if (!specular)
         pdf_rev_w = bsdf->pdf(sample_dir, isect.out_dir);
 
-    const float cos_theta_i = fabsf(dot(sample_dir, isect.normal));
+    const float cos_theta_i = fabsf(dot(sample_dir, isect.geom_normal));
 
-    state.throughput *= bsdf_value / rr_pdf * (adjoint ? adjoint_correction(isect, sample_dir, isect.out_dir) : 1.0f);
+    state.throughput *= bsdf_value / rr_pdf;
     state.mis.update_bounce(pdf_dir_w, pdf_rev_w, cos_theta_i, specular, merge_pdf_, state.path_length, !adjoint);
 
     ray = Ray {
@@ -332,7 +326,7 @@ void DeferredVCM<MisType>::process_envmap_hits(Ray& r, State& state) {
 template <typename MisType>
 void DeferredVCM<MisType>::process_hits(Ray& r, Hit& h, State& state, VertCache* cache, bool adjoint) {
     const auto isect = scene_.calculate_intersection(h, r);
-    const float cos_theta_o = fabsf(dot(isect.out_dir, isect.normal));
+    const float cos_theta_o = fabsf(dot(isect.out_dir, isect.geom_normal));
 
     if (cos_theta_o == 0.0f) { // Prevent NaNs
         terminate_path(state);
@@ -365,7 +359,7 @@ void DeferredVCM<MisType>::process_hits(Ray& r, Hit& h, State& state, VertCache*
 
     const float offset = h.tmax * 1e-4f;
     // Use guiding for the light paths only (for now)
-    if (adjoint && !mat.bsdf.is_specular())
+    if (false && adjoint && !mat.bsdf.is_specular())
         guided_bounce(state, isect, &mat.bsdf, r, adjoint, offset, rr_pdf);
     else
         bounce(state, isect, &mat.bsdf, r, adjoint, offset, rr_pdf);
@@ -387,7 +381,7 @@ void DeferredVCM<MisType>::path_tracing(AtomicImage& img, bool next_evt) {
             mat.bsdf.prepare(v.throughput, v.isect.out_dir);
 
             if (!is_black(mat.emit)) {
-                float cos_out = dot(v.isect.normal, v.isect.out_dir);
+                float cos_out = dot(v.isect.geom_normal, v.isect.out_dir);
                 if (cos_out < 0.0f) return false;
 
                 float pdf_lightpick = 1.0f / scene_.light_count();
@@ -407,7 +401,7 @@ void DeferredVCM<MisType>::path_tracing(AtomicImage& img, bool next_evt) {
             const auto& ls = scene_.light(state.rng.random_int(0, scene_.light_count()));
             const float pdf_lightpick_inv = scene_.light_count();
             const auto sample = ls->sample_direct(v.isect.pos, state.rng);
-            const float cos_theta_i = fabsf(dot(v.isect.normal, sample.dir));
+            const float cos_theta_i = fabsf(dot(v.isect.geom_normal, sample.dir));
 
             // Evaluate the BSDF and compute the pdf values
             auto bsdf = &mat.bsdf;
@@ -463,7 +457,7 @@ void DeferredVCM<MisType>::light_tracing(AtomicImage& img) {
             const float dist_to_cam_sqr = lensqr(dir_to_cam);
             const float dist_to_cam = sqrtf(dist_to_cam_sqr);
             dir_to_cam = dir_to_cam / dist_to_cam;
-            const float cos_theta_surf = fabsf(dot(v.isect.normal, dir_to_cam));
+            const float cos_theta_surf = fabsf(dot(v.isect.geom_normal, dir_to_cam));
 
             float pdf_cam = cam_.pdf(-dir_to_cam);
             pdf_cam *= 1.0f / dist_to_cam_sqr;
@@ -474,7 +468,7 @@ void DeferredVCM<MisType>::light_tracing(AtomicImage& img) {
             mat.bsdf.prepare(v.throughput, v.isect.out_dir);
 
             auto bsdf = &mat.bsdf;
-            auto bsdf_value = bsdf->eval(v.isect.out_dir, dir_to_cam) * adjoint_correction(v.isect, dir_to_cam, v.isect.out_dir);
+            auto bsdf_value = bsdf->eval(v.isect.out_dir, dir_to_cam);
             float pdf_rev_w = bsdf->pdf(dir_to_cam, v.isect.out_dir);
 
             if (pdf_rev_w == 0.0f) return false;
@@ -546,8 +540,7 @@ void DeferredVCM<MisType>::connect(AtomicImage& img) {
             const float pdf_rev_cam_w = cam_bsdf->pdf(connect_dir, v.isect.out_dir);
 
             // Evaluate the bsdf at the light vertex.
-            const auto bsdf_value_light = light_bsdf->eval(light_vertex.isect.out_dir, -connect_dir)
-                                        * adjoint_correction(light_vertex.isect, -connect_dir, light_vertex.isect.out_dir);
+            const auto bsdf_value_light = light_bsdf->eval(light_vertex.isect.out_dir, -connect_dir);
             const float pdf_dir_light_w = light_bsdf->pdf(light_vertex.isect.out_dir, -connect_dir);
             const float pdf_rev_light_w = light_bsdf->pdf(-connect_dir, light_vertex.isect.out_dir);
 
@@ -556,8 +549,8 @@ void DeferredVCM<MisType>::connect(AtomicImage& img) {
                 return false;  // A pdf value of zero means that there has to be zero contribution from this pair of directions as well.
 
             // Compute the cosine terms. We need to use the adjoint for the light vertex BSDF.
-            const float cos_theta_cam   = fabsf(dot(v.isect.normal, connect_dir));
-            const float cos_theta_light = fabsf(dot(light_vertex.isect.normal, -connect_dir));
+            const float cos_theta_cam   = fabsf(dot(v.isect.geom_normal, connect_dir));
+            const float cos_theta_light = fabsf(dot(light_vertex.isect.geom_normal, -connect_dir));
 
             const float geom_term = 1.0f / connect_dist_sq; // Cosine contained in bsdf
 
@@ -617,7 +610,10 @@ void DeferredVCM<MisType>::merge(AtomicImage& img) {
                 const float d = lensqr(p->isect.pos - v.isect.pos);
                 const float kernel = 1.0f - d / radius_sqr;
 
-                contrib += mis_weight * bsdf_value / fabsf(dot(photon_in_dir, v.isect.normal)) * kernel * p->throughput;
+                // Apparent density changes
+                const float adjoint = 1.0f / fabsf(dot(photon_in_dir, p->isect.geom_normal));
+
+                contrib += mis_weight * bsdf_value * adjoint * kernel * p->throughput;
             }
 
             // Complete the Epanechnikov kernel

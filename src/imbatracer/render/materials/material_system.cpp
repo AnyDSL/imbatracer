@@ -181,6 +181,8 @@ void MaterialSystem::eval_material(const Intersection& isect, bool adjoint, Mate
         ctx.ctx = internal_->sys_->get_context(ctx.tinfo);
     }
 
+    res.bsdf.init(isect.geom_normal, adjoint);
+
     // Compute shader globals and evaluate the closure
     auto sg = internal_->isect_to_globals(isect);
     auto shader = internal_->shaders_[isect.mat];
