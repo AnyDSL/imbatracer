@@ -161,7 +161,8 @@ public:
         for (int i = 0; i < num_comps_; ++i) {
             if (rnd_comp < pdfs_[i] + sum) {
                 float sample_pdf;
-                res += weights_[i] * components_[i]->sample(out_dir, in_dir, rng, sample_pdf) * shading_normal_correction(out_dir, in_dir, i) / pdfs_[i];
+                res = weights_[i] * components_[i]->sample(out_dir, in_dir, rng, sample_pdf);
+                res *= shading_normal_correction(out_dir, in_dir, i) / pdfs_[i];
                 pdf = sample_pdf * pdfs_[i];
 
                 // Evaluate the contributions of all other BSDFs to this direction
@@ -210,10 +211,11 @@ private:
         if (!adjoint_) return 1.0f;
 
         auto& normal = components_[component]->normal;
-        
+
         float n = dot(normal, out) * dot(geom_normal_, in);
         float d = dot(normal, in)  * dot(geom_normal_, out);
-        return fabsf(d) <= 0.001f ? 0.0f : fabsf(n / d);
+        
+        return fabsf(d) <= 0.01f ? 0.0f : fabsf(n / d);
     }
 };
 
