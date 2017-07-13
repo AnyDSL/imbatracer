@@ -17,6 +17,10 @@
 
 #include "imbatracer/frontend/cmd_line.h"
 
+// Use this to enable writing paths to file. Can be used to visualize the most interesting
+// light paths, or for debugging fireflies.
+// #define PATH_STATISTICS
+
 namespace imba {
 
 template <typename MisType>
@@ -71,9 +75,11 @@ class DeferredVCM : public Integrator {
         /// Weighted contribution of the shadow ray if it is not occluded
         rgb contrib;
 
+#ifdef PATH_STATISTICS
         const Vertex* cam;
         const Vertex* light;
         float mis_weight;
+#endif
     };
 
     struct VertexHandle {

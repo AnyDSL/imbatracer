@@ -13,8 +13,12 @@ namespace imba {
 template <typename Vertex>
 class PathDebugger {
 public:
+    void enable() { enabled_ = true; }
+
     template <typename GetAncestorCamFn, typename GetAncestorLightFn, typename GetPosFn>
     void log_connection(const Vertex& cam, const Vertex& light, GetAncestorCamFn cam_ancestor, GetAncestorLightFn light_ancestor, GetPosFn pos) {
+        if (!enabled_) return;
+
         Connection c;
         auto v = cam;
         do {
@@ -32,6 +36,8 @@ public:
 
     /// Writes all logged paths to a .obj file
     void write(const std::string& file) {
+        if (!enabled_) return;
+
         std::ofstream str(file);
 
         int i = 0;
@@ -51,6 +57,7 @@ public:
     }
 
 private:
+    bool enabled_;
     std::mutex mutex_;
     using Path = std::list<float3>;
 

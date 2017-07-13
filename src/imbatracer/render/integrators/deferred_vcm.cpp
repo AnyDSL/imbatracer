@@ -64,8 +64,9 @@ void DeferredVCM<mis::MisBPT>::render(AtomicImage& img) {
 
     PROFILE(path_tracing(img, true), "PT");
     PROFILE(light_tracing(img), "LT");
-    PROFILE(connect(img), "Connect");
 
+    path_log_.enable();
+    PROFILE(connect(img), "Connect");
     path_log_.write("connections.obj");
 }
 
@@ -498,6 +499,7 @@ void DeferredVCM<MisType>::connect(AtomicImage& img) {
         [this, &img] (Ray& r, ShadowStateConnectDbg& s) {
             add_contribution(img, s.pixel_id, s.contrib);
 
+#ifdef PATH_STATISTICS
             const auto& cam_v   = *cam_verts_;
             const auto& light_v = *light_verts_;
             if (s.mis_weight > 0.9f) {
@@ -513,6 +515,7 @@ void DeferredVCM<MisType>::connect(AtomicImage& img) {
                     return v.isect.pos;
                 });
             }
+#endif
         },
         nullptr, // hits --> occluded
         [this] (int vert_id, int unused, ::Ray& ray, ShadowStateConnectDbg& state) -> bool {
@@ -585,9 +588,11 @@ void DeferredVCM<MisType>::connect(AtomicImage& img) {
             state.pixel_id = v.pixel_id;
             state.contrib  = v.throughput * vc_weight * mis_weight * geom_term * bsdf_value_cam * bsdf_value_light * light_vertex.throughput;
 
+#ifdef PATH_STATISTICS
             state.cam = &v;
             state.light = &light_vertex;
             state.mis_weight = mis_weight;
+#endif
 
             const float offset = 1e-4f * connect_dist;
             ray.org = make_vec4(v.isect.pos, offset);
