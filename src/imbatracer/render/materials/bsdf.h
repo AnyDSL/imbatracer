@@ -162,21 +162,22 @@ public:
             if (rnd_comp < pdfs_[i] + sum) {
                 float sample_pdf;
                 res = weights_[i] * components_[i]->sample(out_dir, in_dir, rng, sample_pdf);
-                res *= shading_normal_correction(out_dir, in_dir, i) / pdfs_[i];
+                res *= shading_normal_correction(out_dir, in_dir, i);
+                res *= sample_pdf; // TODO clean this up: either change convention or find a nicer way to compute this here.
                 pdf = sample_pdf * pdfs_[i];
 
                 // Evaluate the contributions of all other BSDFs to this direction
                 for (int j = 0; j < num_comps_; ++j) {
                     if (i == j) continue;
-                    res += weights_[j] * components_[j]->eval(out_dir, in_dir) * shading_normal_correction(out_dir, in_dir, j) / (sample_pdf * pdfs_[i]);
+                    res += weights_[j] * components_[j]->eval(out_dir, in_dir) * shading_normal_correction(out_dir, in_dir, j);
                     pdf += components_[j]->pdf(out_dir, in_dir) * pdfs_[j];
                 }
                 if (components_[i]->specular()) specular = true;
-                break;
+                return res / pdf;
             }
             sum += pdfs_[i];
         }
-        return res;
+        return res / pdf;
     }
 
     /// Computes the pdf of sampling the given incoming direction, taking into account only BxDFs with the given flags.
@@ -214,7 +215,7 @@ private:
 
         float n = dot(normal, out) * dot(geom_normal_, in);
         float d = dot(normal, in)  * dot(geom_normal_, out);
-        
+
         return fabsf(d) <= 0.01f ? 0.0f : fabsf(n / d);
     }
 };

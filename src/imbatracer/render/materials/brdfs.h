@@ -36,7 +36,7 @@ public:
         float c = dot(normal, in_dir);
         if (!translucent)
             return c * dot(normal, out_dir) > 0 ? cos_hemisphere_pdf(c) : 0.0f;
-        else 
+        else
             return c * dot(normal, out_dir) < 0 ? cos_hemisphere_pdf(c) : 0.0f;
     }
 };
@@ -108,7 +108,17 @@ public:
 
         pdf = dir_sample.pdf;
 
-        return eval(out_dir, in_dir) / pdf;
+        float c = cos_theta(in_dir);
+        auto reflected_in = reflect(-in_dir);
+        float cos_r_o = std::max(0.0f, dot(reflected_in, out_dir));
+        cos_r_o = std::min(cos_r_o, 1.0f);
+
+        if (c * cos_theta(out_dir) > 0) {
+            return rgb((1.0f / (exponent_ + 1.0f) + 1.0f) * c);
+        } else {
+            pdf = 0.0f;
+            return rgb(0.0f);
+        }
     }
 
     float pdf(const float3& out_dir, const float3& in_dir) const override {
