@@ -19,7 +19,7 @@
 
 // Use this to enable writing paths to file. Can be used to visualize the most interesting
 // light paths, or for debugging fireflies.
-// #define PATH_STATISTICS
+#define PATH_STATISTICS
 
 namespace imba {
 
@@ -84,24 +84,10 @@ class DeferredVCM : public Integrator {
 
     struct VertexHandle {
         VertexHandle() : vert(nullptr) {}
-
-        VertexHandle(const Vertex& v) {
-            vert = &v;
-        }
-
-        VertexHandle(const Vertex* v) {
-            vert = v;
-        }
-
-        VertexHandle& operator= (const Vertex& v) {
-            vert = &v;
-            return *this;
-        }
-
-        VertexHandle& operator= (const VertexHandle* v) {
-            vert = v->vert;
-            return *this;
-        }
+        VertexHandle(const Vertex& v) { vert = &v; }
+        VertexHandle(const Vertex* v) { vert = v; }
+        VertexHandle& operator= (const Vertex& v) { vert = &v; return *this; }
+        VertexHandle& operator= (const VertexHandle* v) { vert = v->vert; return *this; }
 
         const float3& position() const { return vert->isect.pos; }
 

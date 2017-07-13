@@ -142,11 +142,11 @@ int main(int argc, char* argv[]) {
         RenderWindow wnd(settings, integrator, ctrl, settings.concurrent_spp);
         wnd.render_loop();
     } else if (settings.algorithm == UserSettings::PHOTON_VIS) {
-        // PhotonVis integrator(scene, cam, settings);
-        // integrator.preprocess();
-        // ctrl.set_speed(integrator.pixel_size() * 10.0f);
-        // RenderWindow wnd(settings, integrator, ctrl, settings.concurrent_spp);
-        // wnd.render_loop();
+        PhotonVis integrator(scene, cam, settings);
+        integrator.preprocess();
+        ctrl.set_speed(integrator.pixel_size() * 10.0f);
+        RenderWindow wnd(settings, integrator, ctrl, settings.concurrent_spp);
+        wnd.render_loop();
     }
 
     return 0;

@@ -31,6 +31,13 @@ void DeferredVCM<mis::MisVCM>::render(AtomicImage& img) {
     PROFILE(trace_camera_paths(), "Tracing camera paths");
     PROFILE(trace_light_paths(), "Tracing light paths");
 
+#ifdef PATH_STATISTICS
+    dump_vertices("camera_paths.path", settings_.width * settings_.height * settings_.concurrent_spp, cam_verts_->begin(), cam_verts_->end(),
+                  [](auto& v){ return DebugVertex(v.throughput, v.isect, v.pixel_id, v.ancestor, v.path_len, v.specular); });
+    dump_vertices("light_paths.path", settings_.light_path_count, light_verts_->begin(), light_verts_->end(),
+                  [](auto& v){ return DebugVertex(v.throughput, v.isect, v.light_id, v.ancestor, v.path_len, v.specular); });
+#endif
+
     auto m = std::async(std::launch::async, [this, &img] {
         PROFILE(photon_grid_.build(light_verts_->begin(), light_verts_->end(), pm_radius_, [](auto& v){ return !v.specular; }), "Building hash grid (photons)");
         PROFILE(merge(img), "Merge");

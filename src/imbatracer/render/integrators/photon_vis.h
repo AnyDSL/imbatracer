@@ -1,7 +1,7 @@
 #ifndef IMBA_PHOTON_VIS_H
 #define IMBA_PHOTON_VIS_H
 
-#include "imbatracer/render/integrators/integrator.h"
+#include "imbatracer/render/integrators/deferred_vcm.h"
 #include "imbatracer/render/integrators/contrib_grid.h"
 #include "imbatracer/render/scheduling/tile_scheduler.h"
 #include "imbatracer/render/ray_gen/tile_gen.h"
@@ -11,97 +11,112 @@
 
 namespace imba {
 
-// TODO adapt this to the DeferredVCM integrator
+struct PhotonVisState : RayState {
+    rgb throughput;
+    int wnd;
+};
 
-// struct PhotonVisState : RayState {
-//     rgb throughput;
-//     int wnd;
-// };
+/// Visualizes a photon / VPL distribution that was computed and stored by
+/// a VCM, BPT, or PPM iteration
+class PhotonVis : public Integrator {
+    static constexpr int RES = 40;
 
-// /// Visualizes a photon / VPL distribution that was computed and stored by
-// /// a VCM, BPT, or PPM iteration
-// class PhotonVis : public Integrator {
-//     static constexpr int RES = 40;
+public:
+    PhotonVis(Scene& scene, PerspectiveCamera& cam, const UserSettings& settings)
+        : Integrator(scene, cam)
+        , settings_(settings)
+        , ray_gen_(settings.width, settings.height, settings.concurrent_spp, settings.tile_size)
+        , scheduler_(ray_gen_, scene, 1, settings.thread_count,
+                     settings.tile_size * settings.tile_size * settings.concurrent_spp,
+                     settings.traversal_platform == UserSettings::gpu)
+        , depth_(0)
+        , eye_light_(false)
+    {
+    }
 
-// public:
-//     PhotonVis(Scene& scene, PerspectiveCamera& cam, const UserSettings& settings)
-//         : Integrator(scene, cam)
-//         , settings_(settings)
-//         , ray_gen_(settings.width, settings.height, settings.concurrent_spp, settings.tile_size)
-//         , scheduler_(ray_gen_, scene, 1, settings.thread_count,
-//                      settings.tile_size * settings.tile_size * settings.concurrent_spp,
-//                      settings.traversal_platform == UserSettings::gpu)
-//         , grid_light_(RES, RES, RES, scene_.bounds())
-//         , grid_cam_(RES, RES, RES, scene_.bounds())
-//     {
-//     }
+    virtual void render(AtomicImage& out) override;
 
-//     virtual void render(AtomicImage& out) override;
+    virtual void reset() override {}
 
-//     virtual void reset() override {}
+    virtual void preprocess() override {
+        Integrator::preprocess();
+        load("camera_paths.path", "light_paths.path");
+        build();
+    }
 
-//     virtual void preprocess() override {
-//         Integrator::preprocess();
-//         load(0);
-//     }
+    void load(const std::string& file_cam, const std::string& file_light) {
+        if (!(num_cam_paths_ = read_vertices<DebugVertex>(file_cam, [this](const DebugVertex& v) {
+            cam_vertices_.push_back(v);
+        }))) {
+            std::cout << "Camera path file not found." << std::endl;
+            return;
+        }
 
-//     void load(int frame) {
-//         if (!pl_light_.read_file(frame, true)) {
-//             std::cout << "Frame " << frame << " not found." << std::endl;
-//             return;
-//         }
+        if (!(num_light_paths_ = read_vertices<DebugVertex>(file_light, [this](const DebugVertex& v) {
+            light_vertices_.push_back(v);
+        }))) {
+            std::cout << "Light path file not found." << std::endl;
+            return;
+        }
 
-//         grid_light_.reset();
-//         grid_cam_.reset();
+        radius_ = pixel_size() * settings_.radius_factor * 0.25f;
+    }
 
-//         grid_light_.build(pl_light_.photons_begin(), pl_light_.photons_end(),
-//                           [](const PathLoader::DebugPhoton& p, float c[]){
-//                               c[0] = luminance(p.contrib_pm);
-//                               c[1] = luminance(p.contrib_vc);
-//                               c[2] = 1.0f;
-//                               c[3] = luminance(p.power);
-//                           },
-//                           [](const PathLoader::DebugPhoton& p){ return p.pos; });
+    void build() {
+        cam_grid_  .build(cam_vertices_  .begin(), cam_vertices_  .end(), radius_, [this](auto& v){ return !depth_ || v.path_len - 1 <= depth_; });
+        light_grid_.build(light_vertices_.begin(), light_vertices_.end(), radius_, [this](auto& v){ return !depth_ || v.path_len - 1 <= depth_; });
+    }
 
-//         pl_cam_.read_file(0, false);
-//         grid_cam_.build(pl_cam_.photons_begin(), pl_cam_.photons_end(),
-//                         [](const PathLoader::DebugPhoton& p, float c[]){
-//                             c[0] = luminance(p.power);
-//                             c[1] = 1.0f;
-//                         },
-//                         [](const PathLoader::DebugPhoton& p){ return p.pos; });
-//     }
+    virtual bool key_press(int32_t k) override {
+        if (k >= '0' && k <= '9') {
+            depth_ = k - '0';
 
-//     virtual bool key_press(int32_t k) override {
-//         if (k >= '0' && k <= '9') {
-//             int frame = k - '0';
+            // // convert from 1,..,9,0 to 0,1,...,9,10
+            // if (depth_ == 0) depth_ = 10;
+            // depth_--;
 
-//             // convert from 1,..,9,0 to 0,1,...,9,10
-//             if (frame == 0) frame = 10;
-//             frame--;
+            build();
 
-//             load(frame);
+            return true;
+        } else if (k == 'e' || k == 'r') {
+            eye_light_ = !eye_light_;
+        }
 
-//             printf("frame %d\n", frame);
-//             return true;
-//         }
+        return false;
+    }
 
-//         return false;
-//     }
+private:
+    UserSettings settings_;
 
-// private:
-//     UserSettings settings_;
-//     PathLoader pl_light_;
-//     PathLoader pl_cam_;
+    int depth_; ///< Path length to be visualized. 0 == all
+    float radius_;
+    bool eye_light_;
 
-//     ContribGrid<PathLoader::DebugPhoton, 4> grid_light_;
-//     ContribGrid<PathLoader::DebugPhoton, 2> grid_cam_;
+    std::vector<DebugVertex> cam_vertices_;
+    std::vector<DebugVertex> light_vertices_;
+    int num_cam_paths_;
+    int num_light_paths_;
 
-//     DefaultTileGen<PhotonVisState> ray_gen_;
-//     TileScheduler<PhotonVisState, ShadowState> scheduler_;
+    struct VertexHandle {
+        VertexHandle() : vert(nullptr) {}
+        VertexHandle(const DebugVertex& v) { vert = &v; }
+        VertexHandle(const DebugVertex* v) { vert = v; }
+        VertexHandle& operator= (const DebugVertex& v) { vert = &v; return *this; }
+        VertexHandle& operator= (const VertexHandle* v) { vert = v->vert; return *this; }
 
-//     void process_camera_rays(RayQueue<PhotonVisState>& prim_rays, RayQueue<ShadowState>& shadow_rays, AtomicImage& out);
-// };
+        const float3& position() const { return vert->isect.pos; }
+
+        const DebugVertex* vert;
+    };
+
+    HashGrid<VertexHandle> cam_grid_;
+    HashGrid<VertexHandle> light_grid_;
+
+    DefaultTileGen<PhotonVisState> ray_gen_;
+    TileScheduler<PhotonVisState, ShadowState> scheduler_;
+
+    void process_camera_rays(RayQueue<PhotonVisState>& prim_rays, RayQueue<ShadowState>& shadow_rays, AtomicImage& out);
+};
 
 } // namespace imba
 

@@ -79,15 +79,52 @@ private:
     }
 };
 
-/// Writes all vertices from the current iteration to a file.
-template <typename Iter>
-void dump_vertices(Iter begin, Iter end) {
+struct DebugVertex {
+    rgb throughput;
+    Intersection isect;
+    union {
+        int pixel_id; ///< Id of the pixel from which this path was sampled (only for camera paths)
+        int light_id; ///< Id of the light source from which this path was sampled (only for light paths)
+    };
+    int32_t  ancestor : 24;
+    uint32_t path_len : 8;
+    bool specular;
 
+    DebugVertex(const rgb& t, const Intersection& i, int id, int a, int plen, bool s)
+        : throughput(t), isect(i), pixel_id(id), ancestor(a), path_len(plen), specular(s)
+    {}
+
+    DebugVertex() {}
+};
+
+/// Writes all vertices from the current iteration to a file.
+template <typename Iter, typename DataFn>
+void dump_vertices(const std::string& file, int path_count, Iter begin, Iter end, DataFn data) {
+    std::ofstream str(file, std::ios::binary);
+    str.write(reinterpret_cast<char*>(&path_count), sizeof(path_count));
+    for (Iter i = begin; i != end; ++i) {
+        auto vert = data(*i);
+        str.write(reinterpret_cast<char*>(&vert), sizeof(vert));
+    }
 }
 
-template <typename AddFunc>
-void read_vertices(const std::string& file, AddFunc add_callback) {
+/// Reads all vertices from the given file and calls the add functor for each of them.
+/// \returns The number of paths
+template <typename Vertex, typename AddFunc>
+int read_vertices(const std::string& file, AddFunc add_callback) {
+    std::ifstream str(file, std::ios::binary);
 
+    if (!str) return 0;
+
+    int path_count;
+    str.read(reinterpret_cast<char*>(&path_count), sizeof(path_count));
+
+    Vertex v;
+    while (str.read(reinterpret_cast<char*>(&v), sizeof(Vertex))) {
+        add_callback(v);
+    }
+
+    return path_count;
 }
 
 } // namespace imba
