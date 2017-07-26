@@ -79,19 +79,19 @@ struct MisHelper {
             // No sensible technique can do anything with a delta distribution.
             // Just finish converting the partials.
             last = 0.0f;
-            partial *= mis::pow_heuristic(cos_in);
+            partial *= pow_heuristic(cos_in);
             return;
         }
 
         // Account for the (now known) reverse pdf in the partials.
-        partial *= pdf_rev_w;
+        partial *= pow_heuristic(pdf_rev_w);
 
         // Allow all techniques to add new strategies occuring at this vertex / path length.
         update_bounceDispatch<Techs...>::forall(&last, &partial, pdf_dir_w, pdf_rev_w, cos_in, merge_weight, path_len, cam_path);
 
         // Divide by the technique used for sampling
         // Include the cosine for solid-angle -> area (converts the reverse PDF at the next vertex)
-        partial *= cos_in / pdf_dir_w;
+        partial *= pow_heuristic(cos_in / pdf_dir_w);
 
         // Store the pdf for this bounce. It is converted to area at the next hit and (maybe) used for this next vertex.
         last = pow_heuristic(1.0f / pdf_dir_w);
@@ -247,21 +247,16 @@ struct Merge {
     static void update_bounce(float* last_pdf, float* partial, float pdf_dir_w, float pdf_rev_w, float cos_in,
                               float merge_weight, int path_len, bool cam_path) {
         // A merge is possible at every vertex on a path
-        if (path_len > 2 || cam_path)
+       if (path_len > 2 || cam_path)
             *partial += merge_weight;
     }
 
     static float finalize(float merge_weight, float last_pdf, float partial, int path_len, bool cam_path, int path_len_other) {
         // Include weight for merging at the last bounce
-        if ((!cam_path && path_len > 2) || (cam_path && path_len_other > 2))
-            return merge_weight;
-        else return 0.0f;
+        return merge_weight;
     }
 
-    static float finalize_on_emitter(float merge_weight, float pdf_di_a, float last_pdf, float partial) {
-        // We already added the merge at the last bounce, although we do not want to consider it!
-        return 0.0f; // TODO: account for this!
-    }
+    TECH_FINALIZE_LIGHT_NOOP;
 };
 
 #undef TECH_UPDATE_NOOP
@@ -334,7 +329,7 @@ using MisPT   = MisHelper<UnidirPT, DirectIllum>;
 using MisLT   = MisHelper<ConnectLT>;
 using MisTWPT = MisHelper<UnidirPT, DirectIllum, ConnectLT>;
 using MisBPT  = MisHelper<UnidirPT, DirectIllum, ConnectLT, Connect>;
-using MisSPPM = MisHelper<UnidirPT, DirectIllum, Merge>;
+using MisSPPM = MisHelper<Merge, UnidirPT, DirectIllum>;
 using MisVCM  = MisHelper<UnidirPT, DirectIllum, ConnectLT, Connect, Merge>;
 
 #undef MIS_HANDLER_FNS

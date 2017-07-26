@@ -19,7 +19,7 @@
 
 // Use this to enable writing paths to file. Can be used to visualize the most interesting
 // light paths, or for debugging fireflies.
-#define PATH_STATISTICS
+// #define PATH_STATISTICS
 
 namespace imba {
 

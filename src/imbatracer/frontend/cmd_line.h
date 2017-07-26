@@ -72,7 +72,7 @@ struct UserSettings {
         , max_samples(INT_MAX), max_time_sec(FLT_MAX)
         , background(false)
         , fov(60.0f)
-        , radius_factor(2.0f)
+        , radius_factor(1.0f)
         , max_path_len(25)
         , light_path_count(512 * 512 / 2)
         , concurrent_spp(1), tile_size(256), thread_count(4)
@@ -95,7 +95,7 @@ inline void print_help() {
               << "    -w  Sets the horizontal resolution in pixels (default: 512)" << std::endl
               << "    -h  Sets the vertical resolution in pixels (default: 512)" << std::endl
               << "    -f  Sets the horizontal field of view (default: 60)" << std::endl
-              << "    -r  Sets the initial radius for photon mapping as a factor of the approx. pixel size (default: 2)" << std::endl
+              << "    -r  Sets the initial radius for photon mapping as a factor of the approx. pixel size (default: 1)" << std::endl
               << "    -c  Sets the number of vertices form the light path that any vertex on a camera path is connected to (default: 1)" << std::endl
               << "    -k  Sets the number of photons to use for density estimation (default: 10)" << std::endl
               << "    --gamma   Sets the gamma correction value (default: 0.5)"

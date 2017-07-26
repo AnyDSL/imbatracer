@@ -13,51 +13,82 @@ namespace imba {
 template <typename Vertex>
 class PathDebugger {
 public:
-    void enable() { enabled_ = true; }
+    enum Debuggers {
+        connection = 1 << 0,
+        merging    = 1 << 1
+    };
+
+    void enable(int flags) { flags_ = flags; }
 
     template <typename GetAncestorCamFn, typename GetAncestorLightFn, typename GetPosFn>
     void log_connection(const Vertex& cam, const Vertex& light, GetAncestorCamFn cam_ancestor, GetAncestorLightFn light_ancestor, GetPosFn pos) {
-        if (!enabled_) return;
+        if (!(flags_ & connection)) return;
 
         Connection c;
-        auto v = cam;
-        do {
-            c.cam_path.push_front(pos(v));
-        } while(cam_ancestor(v));
-
-        v = light;
-        do {
-            c.light_path.push_front(pos(v));
-        } while(light_ancestor(v));
+        push_path(c.cam_path, cam, cam_ancestor, pos);
+        push_path(c.light_path, light, light_ancestor, pos);
 
         std::lock_guard<std::mutex> lock(mutex_);
         connections_.push_back(c);
     }
 
+    template <typename GetAncestorCamFn, typename GetAncestorLightFn, typename GetPosFn>
+    void log_merge(float radius, const Vertex& cam, const Vertex& light, GetAncestorCamFn cam_ancestor, GetAncestorLightFn light_ancestor, GetPosFn pos) {
+        if (!(flags_ & merging)) return;
+
+        Merge m;
+        m.radius = radius;
+        push_path(m.cam_path, cam, cam_ancestor, pos);
+        push_path(m.light_path, light, light_ancestor, pos);
+
+        std::lock_guard<std::mutex> lock(mutex_);
+        merges_.push_back(m);
+    }
+
     /// Writes all logged paths to a .obj file
     void write(const std::string& file) {
-        if (!enabled_) return;
+        if (!flags_) return;
 
         std::ofstream str(file);
-
         int i = 0;
-        for (auto& c : connections_) {
-            str << "o cam_" << i << std::endl;
-            write_path(str, c.cam_path);
 
-            str << "o conn_" << i << std::endl;
-            str << "v " << c.cam_path.back().x << " " << c.cam_path.back().y << " " << c.cam_path.back().z << std::endl;
-            str << "v " << c.light_path.back().x << " " << c.light_path.back().y << " " << c.light_path.back().z << std::endl;
-            str << "l -2 -1" << std::endl;
+        // Write all connections
+        if (flags_ & connection) {
+            for (auto& c : connections_) {
+                str << "o cam_" << i << std::endl;
+                write_path(str, c.cam_path);
 
-            str << "o light_" << i << std::endl;
-            write_path(str, c.light_path);
-            ++i;
+                str << "o conn_" << i << std::endl;
+                str << "v " << c.cam_path.back().x << " " << c.cam_path.back().y << " " << c.cam_path.back().z << std::endl;
+                str << "v " << c.light_path.back().x << " " << c.light_path.back().y << " " << c.light_path.back().z << std::endl;
+                str << "l -2 -1" << std::endl;
+
+                str << "o light_" << i << std::endl;
+                write_path(str, c.light_path);
+                ++i;
+            }
+        }
+
+        // Write all merges
+        if (flags_ & merging) {
+            for (auto& m : merges_) {
+                str << "o cam_" << i << std::endl;
+                write_path(str, m.cam_path);
+
+                str << "o conn_" << i << std::endl;
+                str << "v " << m.cam_path.back().x << " " << m.cam_path.back().y << " " << m.cam_path.back().z << std::endl;
+                str << "v " << m.light_path.back().x << " " << m.light_path.back().y << " " << m.light_path.back().z << std::endl;
+                str << "l -2 -1" << std::endl;
+
+                str << "o light_" << i << std::endl;
+                write_path(str, m.light_path);
+                ++i;
+            }
         }
     }
 
 private:
-    bool enabled_;
+    int flags_;
     std::mutex mutex_;
     using Path = std::list<float3>;
 
@@ -65,8 +96,21 @@ private:
         Path cam_path;
         Path light_path;
     };
-
     std::vector<Connection> connections_;
+
+    struct Merge {
+        Path cam_path;
+        Path light_path;
+        float radius;
+    };
+    std::vector<Merge> merges_;
+
+    template <typename GetAncestorFn, typename C, typename V, typename GetPosFn>
+    void push_path(C& path, V vert, GetAncestorFn ancestor, GetPosFn pos) {
+        do {
+            path.push_front(pos(vert));
+        } while(ancestor(vert));
+    }
 
     void write_path(std::ofstream& str, const Path& path) {
         for (auto& p : path)

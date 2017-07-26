@@ -36,6 +36,8 @@ void DeferredVCM<mis::MisVCM>::render(AtomicImage& img) {
                   [](auto& v){ return DebugVertex(v.throughput, v.isect, v.pixel_id, v.ancestor, v.path_len, v.specular); });
     dump_vertices("light_paths.path", settings_.light_path_count, light_verts_->begin(), light_verts_->end(),
                   [](auto& v){ return DebugVertex(v.throughput, v.isect, v.light_id, v.ancestor, v.path_len, v.specular); });
+
+    path_log_.enable(PathDebugger<Vertex>::merging);
 #endif
 
     auto m = std::async(std::launch::async, [this, &img] {
@@ -59,6 +61,10 @@ void DeferredVCM<mis::MisVCM>::render(AtomicImage& img) {
     lt.wait();
     conn.wait();
     m.wait();
+
+#ifdef PATH_STATISTICS
+    path_log_.write("pathdbg.obj");
+#endif
 }
 
 template <>
@@ -72,9 +78,7 @@ void DeferredVCM<mis::MisBPT>::render(AtomicImage& img) {
     PROFILE(path_tracing(img, true), "PT");
     PROFILE(light_tracing(img), "LT");
 
-    path_log_.enable();
     PROFILE(connect(img), "Connect");
-    path_log_.write("connections.obj");
 }
 
 template <>
@@ -633,7 +637,7 @@ void DeferredVCM<MisType>::merge(AtomicImage& img) {
             rgb contrib(0.0f);
             for (int i = 0; i < count; ++i) {
                 auto p = photons[i].vert;
-                if (p->path_len <= 2) continue; // do not merge on the light (handled by UPT)
+                if (p->path_len < 2) continue; // do not merge on the light sources
 
                 const auto& photon_in_dir = p->isect.out_dir;
 
@@ -654,6 +658,24 @@ void DeferredVCM<MisType>::merge(AtomicImage& img) {
                 const float adjoint = 1.0f / fabsf(dot(photon_in_dir, p->isect.geom_normal));
 
                 contrib += mis_weight * bsdf_value * adjoint * kernel * p->throughput;
+
+#ifdef PATH_STATISTICS
+                const auto& cam_v   = *cam_verts_;
+                const auto& light_v = *light_verts_;
+                if (mis_weight > 0.9f && p->path_len == 2) {
+                    path_log_.log_merge(pm_radius_, v, *p, [&, this](Vertex& v) {
+                        if (v.ancestor < 0) return false;
+                        v = cam_v[v.ancestor];
+                        return true;
+                    }, [&, this](Vertex& v){
+                        if (v.ancestor < 0) return false;
+                        v = light_v[v.ancestor];
+                        return true;
+                    }, [this](Vertex& v){
+                        return v.isect.pos;
+                    });
+                }
+#endif
             }
 
             // Complete the Epanechnikov kernel
