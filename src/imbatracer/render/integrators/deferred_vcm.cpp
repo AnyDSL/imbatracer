@@ -183,124 +183,16 @@ void DeferredVCM<MisType>::trace_light_paths() {
             float pdf_lightpick = 1.0f / scene_.light_count();
 
             Light::EmitSample sample = l->sample_emit(state.rng);
-            ray.org = make_vec4(sample.pos, 1e-4f);
+            ray.org = make_vec4(sample.isect.pos, 1e-4f);
             ray.dir = make_vec4(sample.dir, FLT_MAX);
 
-            state.throughput = sample.radiance / pdf_lightpick;
+            state.throughput  = sample.radiance / pdf_lightpick;
             state.path_length = 1;
-            state.ancestor = -1;
-
+            state.ancestor    = light_verts_->add(Vertex(state.mis, state.throughput, -1, light_id, 1, sample.isect, l->is_delta() || !l->is_finite()));
             state.mis.init_light(sample.pdf_emit_w, sample.pdf_direct_a, pdf_lightpick, sample.cos_out, l->is_finite(), l->is_delta());
-
-            light_verts_->add(Vertex(state.mis, state.throughput, -1, light_id, 1, sample.pos));
 
             return true;
         });
-}
-
-template <typename MisType>
-void DeferredVCM<MisType>::guided_bounce(State& state, const Intersection& isect, BSDF* bsdf, Ray& ray, bool adjoint, float offset, float rr_pdf) {
-    auto& guiding_dist = adjoint ? importon_grid_ : photon_grid_;
-
-    // Guide the light paths
-    const int k = 20;
-    auto importons = V_ARRAY(VertexHandle, k);
-    int count = guiding_dist.query(isect.pos, importons, k);
-
-    const float guide_prob = count ? 0.5f : 0.0f; // percentage of bounces that should be sampled from the guiding
-
-    // Compute the PMF (importon luminance)
-    auto pmf = V_ARRAY(float, count);
-    float sum = 0.0f;
-    for (int i = 0; i < count; ++i) {
-        auto p = importons[i].vert;
-        auto bsdf_value = bsdf->eval(isect.out_dir, p->isect.out_dir);
-        pmf[i] = luminance(p->throughput * bsdf_value); // TODO consider the cosine/BSDF?
-        sum += pmf[i];
-    }
-    for (int i = 0; i < count; ++i) pmf[i] /= sum;
-
-    float pdf_dir_w, pdf_rev_w;
-    float3 sample_dir;
-    rgb bsdf_value;
-
-    // If there are importons, consider guiding as an option
-    const float r_sqr = 1*1;//base_radius_ * base_radius_;
-    if (state.rng.random_float() < guide_prob) {
-        // Sample an importon from the PMF
-        sum = 0.0f;
-        float rnd_p = state.rng.random_float();
-        int selected;
-        for (selected = 0; selected < count - 1; ++selected) {
-            if (rnd_p <= pmf[selected] + sum) break;
-            sum += pmf[selected];
-        }
-
-        // Compute the opening angle of the cone by projecting the sphere about the importon's ancestor onto the hemisphere
-        const float d_sqr = importons[selected].vert->isect.d_sqr;
-
-        if (r_sqr > d_sqr) { // the importon is too close
-            // TODO filter such importons at query time! otherwise this is a shitty RR decision!
-            terminate_path(state);
-            return;
-        }
-
-        const float cos_cone_angle = sqrtf(1.0f - r_sqr / d_sqr);
-        const auto  sample = sample_uniform_cone(cos_cone_angle, state.rng.random_float(), state.rng.random_float());
-
-        // Transform the direction from the cone to world coordinates.
-        float3 tan, bnorm;
-        local_coordinates(importons[selected].vert->isect.out_dir, tan, bnorm);
-        sample_dir = float3(tan.x * sample.dir.x + bnorm.x * sample.dir.y + importons[selected].vert->isect.out_dir.x * sample.dir.z,
-                            tan.y * sample.dir.x + bnorm.y * sample.dir.y + importons[selected].vert->isect.out_dir.y * sample.dir.z,
-                            tan.z * sample.dir.x + bnorm.z * sample.dir.y + importons[selected].vert->isect.out_dir.z * sample.dir.z);
-
-        // Evaluate the BSDF
-        bsdf_value = bsdf->eval(isect.out_dir, sample_dir);
-        pdf_dir_w  = bsdf->pdf (isect.out_dir, sample_dir);
-        pdf_rev_w  = bsdf->pdf (sample_dir, isect.out_dir);
-    } else {
-        // Sample a direction from the BSDF
-        bool specular;
-        bsdf_value = bsdf->sample(isect.out_dir, sample_dir, state.rng, pdf_dir_w, specular);
-
-        // Remove the pdf to not divide multiple times
-        bsdf_value *= pdf_dir_w;
-
-        pdf_rev_w = pdf_dir_w;
-        if (!specular) // TODO: this is not correct! Change to allow combine BSDF of specular + diffuse!
-            pdf_rev_w = bsdf->pdf(sample_dir, isect.out_dir);
-
-        terminate_path(state); return;
-    }
-
-    if (pdf_dir_w == 0.0f || is_black(bsdf_value)) {
-        terminate_path(state);
-        return;
-    }
-
-    const float cos_theta_i = fabsf(dot(sample_dir, isect.geom_normal));
-
-    // Compute the pdf of sampling this direction from the cones of any importon
-    float guided_pdf = 0.0f;
-    for (int i = 0; i < count; ++i) {
-        const float d_sqr = importons[i].vert->isect.d_sqr;
-        const float cos_cone_angle = sqrtf(1.0f - r_sqr / d_sqr);
-        const float cos = dot(sample_dir, importons[i].vert->isect.out_dir);
-        const float pdf_g = d_sqr > r_sqr ? uniform_cone_pdf(cos_cone_angle, cos) : 0.0f;
-        guided_pdf += pdf_g * pmf[i];
-    }
-
-    float pdf = guide_prob * guided_pdf + (1.0f - guide_prob) * pdf_dir_w;
-    pdf *= rr_pdf;
-
-    state.throughput *= bsdf_value / pdf;
-    state.mis.update_bounce(pdf_dir_w, pdf_rev_w, cos_theta_i, false, merge_pdf_, state.path_length, !adjoint);
-
-    ray = Ray {
-        { isect.pos.x, isect.pos.y, isect.pos.z, offset },
-        { sample_dir.x, sample_dir.y, sample_dir.z, FLT_MAX }
-    };
 }
 
 template <typename MisType>
@@ -371,11 +263,7 @@ void DeferredVCM<MisType>::process_hits(Ray& r, Hit& h, State& state, VertCache*
     }
 
     const float offset = h.tmax * 1e-4f;
-    // Use guiding for the light paths only (for now)
-    if (false && adjoint && !mat.bsdf.is_specular())
-        guided_bounce(state, isect, &mat.bsdf, r, adjoint, offset, rr_pdf);
-    else
-        bounce(state, isect, &mat.bsdf, r, adjoint, offset, rr_pdf);
+    bounce(state, isect, &mat.bsdf, r, adjoint, offset, rr_pdf);
 }
 
 template <typename MisType>

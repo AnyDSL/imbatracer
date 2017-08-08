@@ -56,9 +56,9 @@ int estimate_light_path_len(const Scene& scene, bool use_gpu, int probes) {
             float pdf_lightpick = 1.0f / scene.light_count();
 
             Light::EmitSample sample = l->sample_emit(state.rng);
-            ray.org.x = sample.pos.x;
-            ray.org.y = sample.pos.y;
-            ray.org.z = sample.pos.z;
+            ray.org.x = sample.isect.pos.x;
+            ray.org.y = sample.isect.pos.y;
+            ray.org.z = sample.isect.pos.z;
             ray.org.w = 1e-4f;
 
             ray.dir.x = sample.dir.x;

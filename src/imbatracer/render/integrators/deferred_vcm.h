@@ -169,7 +169,6 @@ private:
     void process_envmap_hits(Ray& r, State& s);
 
     void bounce(State& state_out, const Intersection& isect, BSDF* bsdf, Ray& ray_out, bool adjoint, float offset, float rr_pdf);
-    void guided_bounce(State& state_out, const Intersection& isect, BSDF* bsdf, Ray& ray_out, bool adjoint, float offset, float rr_pdf);
 
     /// Computes the cosine term for adjoint BSDFs that use shading normals.
     ///

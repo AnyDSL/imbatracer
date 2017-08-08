@@ -57,7 +57,7 @@ public:
     };
 
     struct EmitSample {
-        float3 pos;
+        Intersection isect;
         float3 dir;
 
         rgb radiance;
@@ -108,7 +108,6 @@ public:
         // Sample a point on the light source
         float u, v;
         sample_uniform_triangle(rng.random_float(), rng.random_float(), u, v);
-        sample.pos = u * verts_[0] + v * verts_[1] + (1.0f - u - v) * verts_[2];
 
         // Sample an outgoing direction
         DirectionSample dir_sample = sample_cos_hemisphere(rng.random_float(), rng.random_float());
@@ -116,6 +115,14 @@ public:
                      dir_sample.dir.y * tangent_ +
                      dir_sample.dir.z * normal_;
         const float cos_out = dir_sample.dir.z;
+
+        sample.isect.pos = u * verts_[0] + v * verts_[1] + (1.0f - u - v) * verts_[2];
+        sample.isect.out_dir = sample.dir;
+        sample.isect.normal = normal_;
+        sample.isect.geom_normal = normal_;
+        sample.isect.area = area_;
+        sample.isect.mat = mat_id_;
+        sample.isect.uv = float2(0,0); // TODO support texturing (compute correct texture coordinates!)
 
         if (dir_sample.pdf <= 0.0f) {
             // pdf and cosine are zero! In theory impossible, but happens roughly once in a thousand frames in practice.
@@ -128,7 +135,7 @@ public:
             return sample;
         }
 
-        auto radiance = compute_radiance(u, v, sample.pos, -sample.dir);
+        auto radiance = compute_radiance(sample.isect);
         sample.radiance = radiance * area_ * pi; // The cosine cancels out with the pdf
 
         sample.cos_out      = cos_out;
@@ -156,7 +163,16 @@ public:
 
         // directions form the opposite side of the light have zero intensity
         if (cos_out > 0.0f && cos_out < 1.0f) {
-            auto radiance = compute_radiance(u, v, pos, sample.dir);
+            Intersection isect;
+            isect.pos = pos;
+            isect.out_dir = sample.dir;
+            isect.normal = normal_;
+            isect.geom_normal = normal_;
+            isect.area = area_;
+            isect.mat = mat_id_;
+            isect.uv = float2(0,0); // TODO support texturing (compute correct texture coordinates!)
+
+            auto radiance = compute_radiance(isect);
             sample.radiance = radiance * area_ * (cos_out / distsq);
 
             sample.cos_out      = cos_out;
@@ -185,13 +201,7 @@ private:
     MaterialSystem* mat_sys_;
     int mat_id_;
 
-    rgb compute_radiance(float u, float v, const float3& p, const float3& d) {
-        Intersection isect {
-            p, d, normal_,
-            float2(0,0), // TODO support texturing (compute correct texture coordinates!)
-            normal_, area_, mat_id_
-        };
-
+    rgb compute_radiance(const Intersection& isect) {
         MaterialValue res;
         mat_sys_->eval_material(isect, true, res);
         return res.emit;
@@ -211,7 +221,7 @@ public:
         float2 disc_pos = sample_concentric_disc(rng.random_float(), rng.random_float());
 
         EmitSample sample;
-        sample.pos = bsphere_->center + bsphere_->radius * (-dir_ + binormal_ * disc_pos.x + tangent_ * disc_pos.y);
+        sample.isect.pos = bsphere_->center + bsphere_->radius * (-dir_ + binormal_ * disc_pos.x + tangent_ * disc_pos.y);
         sample.dir = dir_;
 
         sample.pdf_direct_a = 1.0f;
@@ -258,7 +268,7 @@ public:
     EmitSample sample_emit(RNG& rng) override {
         EmitSample sample;
 
-        sample.pos      = pos_;
+        sample.isect.pos      = pos_;
         sample.radiance = intensity_;
 
         auto dir_sample = sample_uniform_sphere(rng.random_float(), rng.random_float());
@@ -313,7 +323,7 @@ public:
     EmitSample sample_emit(RNG& rng) override {
         EmitSample sample;
 
-        sample.pos      = pos_;
+        sample.isect.pos      = pos_;
 
         auto dir_sample = sample_uniform_cone(cos_angle_, rng.random_float(), rng.random_float());
         sample.cos_out = 1.0f;
@@ -512,7 +522,7 @@ public:
         local_coordinates(dir, tangent, binormal);
 
         EmitSample sample;
-        sample.pos = bsphere_.center + bsphere_.radius * (-dir + binormal * disc_pos.x + tangent * disc_pos.y);
+        sample.isect.pos = bsphere_.center + bsphere_.radius * (-dir + binormal * disc_pos.x + tangent * disc_pos.y);
         sample.dir = dir;
 
         sample.pdf_direct_a = pdf;
