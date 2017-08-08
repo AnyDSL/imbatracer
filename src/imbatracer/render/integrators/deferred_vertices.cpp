@@ -51,6 +51,7 @@ int estimate_light_path_len(const Scene& scene, bool use_gpu, int probes) {
             bounce(scene, r, h, s, vertex_count);
         },
         [&vertex_count, &scene] (int ray_id, int light_id, ::Ray& ray, ProbeState& state) -> bool {
+            state.rng = RNG(bernstein_seed(light_id, ray_id));
             auto& l = scene.light(light_id);
             // TODO: this pdf depends on the LightTileGen used!
             float pdf_lightpick = 1.0f / scene.light_count();
@@ -88,6 +89,7 @@ int estimate_cam_path_len(const Scene& scene, const PerspectiveCamera& cam, bool
             bounce(scene, r, h, s, vertex_count);
         },
         [&vertex_count, &cam] (int x, int y, ::Ray& ray, ProbeState& state) -> bool {
+            state.rng = RNG(bernstein_seed(0, x  * cam.height() + y));
             const float sample_x = static_cast<float>(x) + state.rng.random_float();
             const float sample_y = static_cast<float>(y) + state.rng.random_float();
 

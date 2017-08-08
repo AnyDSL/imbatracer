@@ -71,6 +71,7 @@ template <>
 void DeferredVCM<mis::MisBPT>::render(AtomicImage& img) {
     cam_verts_->clear();
     light_verts_->clear();
+    cur_iteration_++;
 
     PROFILE(trace_camera_paths(), "Tracing camera paths");
     PROFILE(trace_light_paths(), "Tracing light paths");
@@ -85,6 +86,7 @@ template <>
 void DeferredVCM<mis::MisPT>::render(AtomicImage& img) {
     cam_verts_->clear();
     light_verts_->clear();
+    cur_iteration_++;
 
     PROFILE(trace_camera_paths(), "Tracing camera paths");
     // PROFILE(trace_light_paths(), "Tracing light paths");
@@ -96,6 +98,7 @@ template <>
 void DeferredVCM<mis::MisLT>::render(AtomicImage& img) {
     cam_verts_->clear();
     light_verts_->clear();
+    cur_iteration_++;
 
     PROFILE(trace_camera_paths(), "Tracing camera paths");
     PROFILE(importon_grid_.build(cam_verts_->begin(), cam_verts_->end(), base_radius_, [](auto& v){ return !v.specular; }), "Building hash grid (importons)");
@@ -108,6 +111,7 @@ template <>
 void DeferredVCM<mis::MisTWPT>::render(AtomicImage& img) {
     cam_verts_->clear();
     light_verts_->clear();
+    cur_iteration_++;
 
     PROFILE(trace_camera_paths(), "Tracing camera paths");
     PROFILE(importon_grid_.build(cam_verts_->begin(), cam_verts_->end(), base_radius_, [](auto& v){ return !v.specular; }), "Building hash grid (importons)");
@@ -145,12 +149,15 @@ void DeferredVCM<MisType>::trace_camera_paths() {
         };
     }
 
+    // Trace all primary rays and store the intersections.
     scheduler_.run_iteration(&camera_tile_gen_,
         env_hit,
         [this] (Ray& r, Hit& h, State& s) {
             process_hits(r, h, s, cam_verts_.get(), false);
         },
         [this] (int x, int y, Ray& ray, State& state) -> bool {
+            state.rng = RNG(bernstein_seed(cur_iteration_, x * settings_.height + y));
+
             // Sample a ray from the camera.
             const float sample_x = static_cast<float>(x) + state.rng.random_float();
             const float sample_y = static_cast<float>(y) + state.rng.random_float();
@@ -177,6 +184,7 @@ void DeferredVCM<MisType>::trace_light_paths() {
             process_hits(r, h, s, light_verts_.get(), true);
         },
         [this] (int ray_id, int light_id, ::Ray& ray, State& state) -> bool {
+            state.rng = RNG(bernstein_seed(cur_iteration_, light_id + ray_id * scene_.light_count()));
             auto& l = scene_.light(light_id);
 
             // TODO: this pdf depends on the LightTileGen used!
@@ -275,6 +283,7 @@ void DeferredVCM<MisType>::path_tracing(AtomicImage& img, bool next_evt) {
         },
         nullptr, // hits --> occluded
         [this, &img, next_evt] (int vert_id, int unused, ::Ray& ray, ShadowState& state) -> bool {
+            state.rng = RNG(bernstein_seed(cur_iteration_, (vert_id << 12) + 1337 * 42 / 8));
             const auto& v = (*cam_verts_)[vert_id];
 
             MaterialValue mat;
@@ -418,6 +427,8 @@ void DeferredVCM<MisType>::connect(AtomicImage& img) {
         },
         nullptr, // hits --> occluded
         [this] (int vert_id, int unused, ::Ray& ray, ShadowStateConnectDbg& state) -> bool {
+            state.rng = RNG(bernstein_seed(cur_iteration_, (vert_id << 12) + 1337 * 42 / 8));
+
             const auto& cam_v   = *cam_verts_;
             const auto& light_v = *light_verts_;
             const auto& v = cam_v[vert_id];

@@ -185,6 +185,14 @@ inline bool russian_roulette(const rgb& throughput, float rnd_num, float& pdf) {
     return rnd_num < pdf;
 }
 
+inline int bernstein_seed(int seed_base, int i) {
+    seed_base = 33 * seed_base ^ i;
+    seed_base = 33 * seed_base ^ i;
+    seed_base = 33 * seed_base ^ i;
+    seed_base = 33 * seed_base ^ i;
+    return seed_base;
+}
+
 } // namespace imba
 
 #endif // IMBA_RANDOM_H

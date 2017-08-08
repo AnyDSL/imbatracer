@@ -46,8 +46,6 @@ public:
             count = max_rays() - next_pixel_;
         }
 
-        static std::random_device rd;
-        uint64_t seed_base = rd();
         for (int i = next_pixel_; i < next_pixel_ + count; ++i) {
             // Compute coordinates, id etc.
             int pixel_idx = i / n_samples_;
@@ -61,15 +59,6 @@ public:
 
             state.pixel_id = pixel_idx;
             state.sample_id = sample_idx;
-
-            // Use Bernstein's hash function to scramble the seed base value
-            int seed = seed_base;
-            seed = 33 * seed ^ i;
-            seed = 33 * seed ^ i;
-            seed = 33 * seed ^ i;
-            seed = 33 * seed ^ i;
-            state.rng = RNG(seed);
-            state.rng.discard((seed % 5) + 16 + pixel_idx % 5);
 
             if (!sample_pixel(x, y, ray, state)) continue;
 
@@ -126,8 +115,6 @@ public:
         count = std::min(count, ray_count_ - generated_);
         if (count <= 0) return;
 
-        static std::random_device rd;
-        uint64_t seed_base = rd();
         for (int i = generated_; i < generated_ + count; ++i) {
             // Create the ray and its state.
             StateType state;
@@ -135,15 +122,6 @@ public:
 
             state.ray_id = i;
             state.light_id = light_;
-
-            // Use Bernstein's hash function to scramble the seed base value
-            int seed = seed_base;
-            seed = 33 * seed ^ i;
-            seed = 33 * seed ^ i;
-            seed = 33 * seed ^ i;
-            seed = 33 * seed ^ i;
-            state.rng = RNG(seed);
-            state.rng.discard((seed % 5) + 16 + i % 5);
 
             if (!sample_light(i, light_, ray, state)) continue;
 
@@ -182,9 +160,6 @@ public:
         count = std::min(count, len_ - generated_);
         if (count <= 0) return;
 
-        static std::random_device rd; // TODO: all fill_queue functions can be called in parallel, this should be thread_local everywhere!!
-        uint64_t seed_base = rd();
-
         for (int i = generated_; i < generated_ + count; ++i) {
             // Create the ray and its state.
             StateType state;
@@ -192,15 +167,6 @@ public:
 
             state.ray_id   = i / samples_ + offset_;
             state.light_id = i % samples_ + offset_;
-
-            // Use Bernstein's hash function to scramble the seed base value
-            int seed = seed_base;
-            seed = 33 * seed ^ i;
-            seed = 33 * seed ^ i;
-            seed = 33 * seed ^ i;
-            seed = 33 * seed ^ i;
-            state.rng = RNG(seed);
-            state.rng.discard((seed % 5) + 16 + state.ray_id % 5);
 
             if (!sample(state.ray_id, 0, ray, state)) continue;
 
