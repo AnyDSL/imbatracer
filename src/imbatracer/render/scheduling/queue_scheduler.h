@@ -1,166 +1,241 @@
-#ifndef IMBA_QUEUE_SCHEDULER_H
-#define IMBA_QUEUE_SCHEDULER_H
+#ifndef IMBA_RAYQUEUE_SCHEDULER_H
+#define IMBA_RAYQUEUE_SCHEDULER_H
 
 #include "imbatracer/render/scheduling/queue_pool.h"
 
-#define NOMINMAX
-#define TBB_USE_EXCEPTIONS 0
-#include <tbb/tbb.h>
-#include <tbb/task_group.h>
-
+#include <functional>
 #include <condition_variable>
 #include <mutex>
 
 namespace imba {
 
-/// Uses a fixed number of queues, and multiple shading threads.
-/// Traversal runs in the main thread and some other optimizations have been made for the GPU traversal.
-/// Thus, the QueueScheduler should never be used with the CPU traversal.
-template <typename StateType, typename ShadowStateType>
-class QueueScheduler : public RayScheduler<StateType, ShadowStateType> {
-    using BaseType = RayScheduler<StateType, ShadowStateType>;
-    using SampleFn = typename BaseType::SampleFn;
-    using ProcessPrimaryFn = typename BaseType::ProcessPrimaryFn;
-    using ProcessShadowFn = typename BaseType::ProcessShadowFn;
-
-    static constexpr int DEFAULT_QUEUE_SIZE = 1 << 16;
-    static constexpr int DEFAULT_QUEUE_COUNT = 12;
-
-protected:
-    using BaseType::scene_;
-    using BaseType::gpu_traversal;
+template <typename StateType>
+class QueueScheduler {
+    const bool gpu;
 
 public:
-    QueueScheduler(RayGen<StateType>& ray_gen,
-                   Scene& scene,
-                   int max_shadow_rays_per_hit,
-                   bool gpu_traversal = true,
-                   float regen_threshold = 0.75f,
-                   int queue_size = DEFAULT_QUEUE_SIZE,
-                   int queue_count = DEFAULT_QUEUE_COUNT)
-        : BaseType(scene, gpu_traversal)
-        , ray_gen_(ray_gen)
-        , primary_queue_pool_(queue_size, queue_count, gpu_traversal)
-        , shadow_queue_pool_(queue_size * max_shadow_rays_per_hit, 2 * queue_count / 3 + 1, gpu_traversal)
-        , regen_threshold_(regen_threshold)
-    {}
+    using ShadeFn      = typename std::function<void (Ray&, Hit&, StateType&)>;
+    using ShadeEmptyFn = typename std::function<void (Ray&, StateType&)>;
 
-    ~QueueScheduler() noexcept(true) {}
+    QueueScheduler(int capacity, int traversal_chunk_size, int traversal_thread_count, bool gpu)
+        : trav_chunk_sz_(traversal_chunk_size)
+        , q_(capacity, gpu)
+        , gpu(gpu)
+        , workers_(traversal_thread_count)
+        , busy_workers_(0)
+        , done_(false)
+        , started_(false)
+        , cur_chunk_(0)
+        , flush_(false)
+    {
+        resize(capacity);
 
-    void run_iteration(AtomicImage& out,
-                       ProcessShadowFn process_shadow_rays, ProcessPrimaryFn process_primary_rays,
-                       SampleFn sample_fn) override final {
-        ray_gen_.start_frame();
-
-        done_processing_ = 0;
-        while (!ray_gen_.is_empty() ||
-               primary_queue_pool_.nonempty_count() ||
-               shadow_queue_pool_.nonempty_count()) {
-            bool idle = true;
-
-            // Traverse a shadow queue and process it in parallel
-            auto q_shadow = shadow_queue_pool_.claim_queue_with_tag(QUEUE_READY_FOR_TRAVERSAL);
-            if (q_shadow) {
-                idle = false;
-
-                if (gpu_traversal)
-                    q_shadow->traverse_occluded_gpu(scene_.traversal_data_gpu());
-                else
-                    q_shadow->traverse_occluded_cpu(scene_.traversal_data_cpu());
-
-                shading_tasks_.run([this, process_shadow_rays, q_shadow, &out] {
-                    process_shadow_rays(*q_shadow, out);
-                    shadow_queue_pool_.return_queue(q_shadow, QUEUE_EMPTY);
-
-                    // Notify the scheduler that one shadow queue has been processed
-                    {
-                        std::lock_guard<std::mutex> lock(mutex_);
-                        done_processing_++;
-                    }
-                    cv_.notify_all();
-                });
-            }
-
-            // Traverse a primary ray queue
-            auto q_primary = primary_queue_pool_.claim_queue_with_tag(QUEUE_READY_FOR_TRAVERSAL);
-            if (q_primary) {
-                idle = false;
-                if (gpu_traversal)
-                    q_primary->traverse_gpu(scene_.traversal_data_gpu());
-                else
-                    q_primary->traverse_cpu(scene_.traversal_data_cpu());
-            } else {
-                q_primary = primary_queue_pool_.claim_queue_with_tag(QUEUE_READY_FOR_SHADING);
-            }
-
-            // Try to shade a queue of rays
-            auto q_shadow_out = shadow_queue_pool_.claim_queue_with_tag(QUEUE_EMPTY);
-            if (q_primary && q_shadow_out) {
-                idle = false;
-                shading_tasks_.run([this, process_primary_rays, &out, q_primary, q_shadow_out] () {
-                    process_primary_rays(*q_primary, *q_shadow_out, out);
-
-                    primary_queue_pool_.return_queue(q_primary, QUEUE_READY_FOR_TRAVERSAL);
-                    shadow_queue_pool_.return_queue(q_shadow_out, QUEUE_READY_FOR_TRAVERSAL);
-
-                    // Notify the scheduler that one primary queue has been processed
-                    {
-                        std::lock_guard<std::mutex> lock(mutex_);
-                        done_processing_++;
-                    }
-                    cv_.notify_all();
-                });
-            } else {
-                // We cannot shade the rays in the queue, so we postpone them for the next iteration
-                if (q_primary)    primary_queue_pool_.return_queue(q_primary, QUEUE_READY_FOR_SHADING);
-                if (q_shadow_out) shadow_queue_pool_.return_queue(q_shadow_out, QUEUE_EMPTY);
-            }
-
-            // Try to generate rays in empty queues
-            int n = primary_queue_pool_.nonempty_count();
-            while (!ray_gen_.is_empty() && n < primary_queue_pool_.size() / 2) {
-                auto q_empty = primary_queue_pool_.claim_queue_with_tag(QUEUE_EMPTY);
-                if (!q_empty) break;
-                idle = false;
-                ray_gen_.fill_queue(*q_empty, sample_fn);
-                primary_queue_pool_.return_queue(q_empty, QUEUE_READY_FOR_TRAVERSAL);
-                n++;
-            }
-
-            // Fill queues which are not completely filled with new rays
-            while (!ray_gen_.is_empty()) {
-                auto q_regen = primary_queue_pool_.claim_queue_for_regen(QUEUE_READY_FOR_TRAVERSAL, regen_threshold_);
-                if (!q_regen) break;
-                idle = false;
-                ray_gen_.fill_queue(*q_regen, sample_fn);
-                primary_queue_pool_.return_queue(q_regen, QUEUE_READY_FOR_TRAVERSAL);
-            }
-
-            // If nothing happened this iteration, wait for the next shading task
-            if (idle) {
-                std::unique_lock<std::mutex> lock(mutex_);
-                while (done_processing_ <= 0) cv_.wait(lock);
-                done_processing_--;
-            }
+        // Launch the traversal worker threads
+        int i = 0;
+        for (auto& t : workers_) {
+            t = std::thread([this, i]() { traversal_worker(i); });
+            i++;
         }
+    }
 
-        shading_tasks_.wait();
+    ~QueueScheduler() {
+        // Notify the workers to terminate and wait for them
+        { std::unique_lock<std::mutex> lock(mutex_);
+            done_ = true;
+        }
+        cv_work_.notify_all();
+
+        for (auto& t : workers_)
+            t.join();
+    }
+
+    /// Changes the maximum total number of rays to the given number.
+    /// Calling this function in parallel with \see{push} results in undef. behavior.
+    void resize(int sz) {
+        if (sz > q_.capacity())
+            q_.resize(sz);
+    }
+
+    /// Has to be called before doing any work on a batch of rays.
+    void start(const Scene* s, bool shadow_only, ShadeFn hit, ShadeEmptyFn miss) {
+        { std::unique_lock<std::mutex> lock(mutex_);
+            cur_chunk_        = 0;
+            flush_            = false;
+            started_          = true;
+            busy_workers_     = 0;
+            hit_callback_     = hit;
+            miss_callback_    = miss;
+            shadow_only_      = shadow_only;
+            scene_            = s;
+            q_.clear();
+        }
+        cv_work_.notify_all();
+    }
+
+    /// Adds a new ray to the queue. SLOW! Try to use the array version whenever possible.
+    /// If sufficient rays are available, traversal is called asynchronously.
+    void push(const Ray& r, const StateType& s) {
+        // TODO make this lock free by using atomics
+
+        std::unique_lock<std::mutex> lock(mutex_);
+
+        int idx = q_.push(r, s);
+
+        // If this is the last ray in a chunk, notify the traversal workers.
+        if ((idx + 1) % trav_chunk_sz_ == 0 && idx > 0)
+            cv_work_.notify_all();
+    }
+
+    /// Adds a set of rays to the queue.
+    /// Automatically triggers traversal / shading if a sufficient number of rays is available.
+    void push(Ray* rays, StateType* states, int count) {
+        // TODO make this lock free by using atomics
+
+        std::unique_lock<std::mutex> lock(mutex_);
+
+        int idx = 0;
+        for (int i = 0; i < count; ++i) {
+            idx = q_.push(rays[i], states[i]);
+
+            if ((idx + 1) % trav_chunk_sz_ == 0 && idx > 0)
+                cv_work_.notify_all();
+        }
+    }
+
+    /// Traverses and shades all remaining rays in the queue. Blocks until done.
+    void flush() {
+        std::unique_lock<std::mutex> lock(mutex_);
+        flush_   = true;
+        started_ = false;
+
+        // Wait for all chunks to be processed
+        while (cur_chunk_ * trav_chunk_sz_ < q_.size())
+            cv_done_.wait(lock);
+
+        lock.unlock();
+        cv_work_.notify_all();
+        lock.lock();
+
+        while (busy_workers_ > 0)
+            cv_done_.wait(lock);
     }
 
 private:
-    RayGen<StateType>& ray_gen_;
+    RayQueue<StateType> q_;
+    int trav_chunk_sz_;
+    int cur_chunk_;
 
-    RayQueuePool<StateType> primary_queue_pool_;
-    RayQueuePool<ShadowStateType> shadow_queue_pool_;
-    tbb::task_group shading_tasks_;
-
-    std::condition_variable cv_;
+    std::condition_variable cv_work_;
+    std::condition_variable cv_done_;
     std::mutex mutex_;
-    int done_processing_;
+    bool done_;
+    bool flush_;
+    bool started_;
 
-    float regen_threshold_;
+    int busy_workers_;
+    std::vector<std::thread> workers_;
+
+    ShadeFn hit_callback_;
+    ShadeEmptyFn miss_callback_;
+    bool shadow_only_;
+
+    const Scene* scene_;
+
+    void traversal_worker(int id) {
+        std::unique_lock<std::mutex> lock(mutex_);
+
+        bool notified_done  = false;
+        bool notified_start = false;
+        while (!done_) {
+            // Wait for a job to start
+            while (!started_ && !done_) {
+                if (!notified_done) {
+                    busy_workers_--;
+                    cv_done_.notify_all();
+                    notified_done  = true;
+                    notified_start = false;
+                }
+                cv_work_.wait(lock);
+            }
+            if (done_) break;
+
+            notified_done = false;
+            if (!notified_start) {
+                busy_workers_++;
+                cv_done_.notify_all();
+                notified_start = true;
+            }
+
+            // Call dibs on a chunk and wait for it to be generated.
+            int chunk = ++cur_chunk_;
+            if (chunk > q_.capacity() / trav_chunk_sz_) {
+                // This chunk does not exist -> we are done, wait for flush
+                busy_workers_--;
+                notified_done  = true;
+                notified_start = false;
+                cv_done_.notify_all();
+                while (!flush_ && !done_) cv_work_.wait(lock);
+                continue;
+            }
+
+            while (chunk * trav_chunk_sz_ > q_.size() && !flush_ && !done_)
+                cv_work_.wait(lock);
+
+            if (done_) break;
+
+            int begin = (chunk - 1) * trav_chunk_sz_;
+            int end = std::min(q_.size(), begin + trav_chunk_sz_);
+
+            // Traverse and shade the chunk in parallel
+            lock.unlock();
+            traverse(begin, end);
+            shade(begin, end);
+            lock.lock();
+        }
+    }
+
+    void traverse(int begin, int end) {
+        if (begin == end) return;
+
+        if (shadow_only_) {
+            if (gpu) q_.traverse_occluded_gpu(scene_->traversal_data_gpu(), begin, end);
+            else     q_.traverse_occluded_cpu(scene_->traversal_data_cpu(), begin, end);
+        } else {
+            if (gpu) q_.traverse_gpu(scene_->traversal_data_gpu(), begin, end);
+            else     q_.traverse_cpu(scene_->traversal_data_cpu(), begin, end);
+        }
+    }
+
+    void shade(int begin, int end) {
+        if (begin == end) return;
+
+        const int hit_count = q_.compact_hits(begin, end);
+
+        if (miss_callback_) {
+            tbb::parallel_for(tbb::blocked_range<int>(begin + hit_count, end),
+            [&] (const tbb::blocked_range<int>& range)
+            {
+                for (auto i = range.begin(); i != range.end(); ++i) {
+                    miss_callback_(q_.ray(i), q_.state(i));
+                }
+            });
+        }
+
+        if (hit_callback_) {
+            q_.sort_by_material([this](const Hit& hit){ return scene_->mat_id(hit); },
+                                scene_->material_count(), hit_count, begin);
+
+            tbb::parallel_for(tbb::blocked_range<int>(begin, begin + hit_count),
+            [&] (const tbb::blocked_range<int>& range)
+            {
+                for (auto i = range.begin(); i != range.end(); ++i) {
+                    hit_callback_(q_.ray(i), q_.hit(i), q_.state(i));
+                }
+            });
+        }
+    }
 };
 
-} // namespace imba
+}
 
-#endif // IMBA_QUEUE_SCHEDULER_H
+#endif // IMBA_RAYQUEUE_SCHEDULER_H

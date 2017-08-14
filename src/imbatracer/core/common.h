@@ -74,6 +74,16 @@ inline void check_normalized(const T& n, const char* file, int line) {
 
 #define V_ARRAY(T, N) static_cast<T*>(alloca((N) * sizeof(T)));
 
+#define PARALLEL
+
+#ifdef PARALLEL
+#define TBB_PAR_FOR_BEGIN(BEG, END) tbb::parallel_for(tbb::blocked_range<int>(BEG, END), [&] (const tbb::blocked_range<int>& range) {
+#define TBB_PAR_FOR_END })
+#else
+#define TBB_PAR_FOR_BEGIN(BEG, END) tbb::blocked_range<int> range(BEG, END);
+#define TBB_PAR_FOR_END
+#endif
+
 } // namespace imba
 
 #endif // IMBA_COMMON_H

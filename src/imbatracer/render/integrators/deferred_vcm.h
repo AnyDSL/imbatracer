@@ -3,6 +3,7 @@
 
 #include "imbatracer/render/materials/material_system.h"
 #include "imbatracer/render/scheduling/deferred_scheduler.h"
+#include "imbatracer/render/scheduling/queue_scheduler.h"
 
 #include "imbatracer/render/integrators/integrator.h"
 #include "imbatracer/render/integrators/deferred_vertices.h"
@@ -26,6 +27,14 @@ namespace imba {
 template <typename MisType>
 class DeferredVCM : public Integrator {
     struct State : public RayState {
+        union {
+            int pixel_id;
+            int light_id;
+        };
+
+        /// Random number generator used to sample all rays along this path.
+        RNG rng;
+
         /// The power or importance carried by the path up to this intersection
         rgb throughput;
 
@@ -36,44 +45,42 @@ class DeferredVCM : public Integrator {
         /// -1 if the ancestor was not stored (e.g. is on a specular surface, first vertex, cache too small, ...)
         int32_t ancestor;
 
+        bool adjoint;
+
         MisType mis;
     };
 
-    struct ShadowState : public RayState {
+    struct ShadowState {
         /// Weighted contribution of the shadow ray if it is not occluded
         rgb contrib;
+
+        int pixel_id;
+    };
+
+    struct LocalStats {
+        rgb contrib;
+        float mis_weight;
     };
 
     struct Vertex {
-        MisType mis;
-        rgb throughput; ///< The power or importance of the path leading to this vertex
+        State state;
 
         Intersection isect;
-
-        union {
-            int pixel_id; ///< Id of the pixel from which this path was sampled (only for camera paths)
-            int light_id; ///< Id of the light source from which this path was sampled (only for light paths)
-        };
-        int32_t  ancestor : 24;
-        uint32_t path_len : 8;
         bool specular;
 
-        Vertex() {}
-        Vertex(const MisType& mis, const rgb& c, int a, int pixel, int len, const Intersection& isect, bool specular)
-            : mis(mis), throughput(c), ancestor(a), pixel_id(pixel), path_len(len), isect(isect), specular(specular)
-        {}
+        LocalStats density;
 
-        // TODO this is used by the emission (can be replaced by the other constructor if light exposes material)
-        Vertex(const MisType& mis, const rgb& c, int a, int pixel, int len, const float3& pos)
-            : mis(mis), throughput(c), ancestor(a), pixel_id(pixel), path_len(len), specular(false)
-        {
-            isect.pos = pos;
-        }
+        Vertex() {}
+        Vertex(State state, const Intersection& isect, bool specular)
+            : state(state), isect(isect), specular(specular)
+        {}
     };
 
-    struct ShadowStateConnectDbg : public RayState {
+    struct ShadowStateConnectDbg {
         /// Weighted contribution of the shadow ray if it is not occluded
         rgb contrib;
+
+        int pixel_id;
 
 #ifdef PATH_STATISTICS
         const Vertex* cam;
@@ -101,30 +108,16 @@ public:
         : Integrator(scene, cam)
         , settings_(settings)
         , cur_iteration_(0)
-        , light_tile_gen_(scene.light_count(), settings.light_path_count, settings.tile_size * settings.tile_size)
-        , camera_tile_gen_(settings.width, settings.height, settings.concurrent_spp, settings.tile_size)
-        , scheduler_(&scene_, settings.q_size,
-                     settings.traversal_platform == UserSettings::gpu)
-        , shadow_scheduler_pt_(&scene_, settings.q_size,
-                               settings.traversal_platform == UserSettings::gpu)
-        , shadow_scheduler_lt_(&scene_, settings.q_size,
-                               settings.traversal_platform == UserSettings::gpu)
-        , shadow_scheduler_connect_(&scene_, settings.q_size,
-                                    settings.traversal_platform == UserSettings::gpu)
+        // TODO configure settings
+        , scheduler_(512, 256 * 256, 4, settings.traversal_platform == UserSettings::gpu)
+        , shadow_scheduler_pt_(512, 256 * 256, 4, settings.traversal_platform == UserSettings::gpu)
+        , shadow_scheduler_lt_(512, 256 * 256, 4, settings.traversal_platform == UserSettings::gpu)
+        , shadow_scheduler_connect_(512, 256 * 256, 4, settings.traversal_platform == UserSettings::gpu)
     {
-        // Compute the required cache size for storing the light and camera vertices.
-        bool use_gpu = settings.traversal_platform == UserSettings::gpu;
-        int avg_light_v = estimate_light_path_len(scene, use_gpu, settings.light_path_count);
-        int avg_cam_v = estimate_cam_path_len(scene, cam, use_gpu, 1);
-
-        // TODO: this path length estimation is only really necessary in a GPU implementation
-        //       on the CPU, we can stop wasting these rays and use them instead to build an initial distribution
-        //       to guide the first iteration! The memory will be allocated on the fly for this (amortized, doubling the size every time)
-        int num_cam_v   = 2.2f * avg_cam_v * settings.width * settings.height * settings.concurrent_spp;
-        int num_light_v = 2.2f * avg_light_v * settings.light_path_count;
-
-        cam_verts_.reset(new VertCache(num_cam_v));
-        light_verts_.reset(new VertCache(num_light_v));
+        cam_verts_  [0].reset(new VertCache());
+        light_verts_[0].reset(new VertCache());
+        cam_verts_  [1].reset(new VertCache());
+        light_verts_[1].reset(new VertCache());
     }
 
     void render(AtomicImage& img) override final;
@@ -132,6 +125,7 @@ public:
     void reset() override final {
         pm_radius_ = base_radius_;
         cur_iteration_ = 0;
+        cur_cache_ = 0;
     }
 
     void preprocess() override final {
@@ -147,42 +141,40 @@ private:
     float base_radius_;
     float merge_pdf_;
 
-    UniformLightTileGen<State> light_tile_gen_;
-    DefaultTileGen<State> camera_tile_gen_;
+    QueueScheduler<State> scheduler_;
+    QueueScheduler<ShadowState> shadow_scheduler_pt_;
+    QueueScheduler<ShadowState> shadow_scheduler_lt_;
+    QueueScheduler<ShadowState> shadow_scheduler_connect_;
 
-    DeferredScheduler<State> scheduler_;
-    DeferredScheduler<ShadowState, true> shadow_scheduler_pt_;
-    DeferredScheduler<ShadowState, true> shadow_scheduler_lt_;
-    DeferredScheduler<ShadowStateConnectDbg, true> shadow_scheduler_connect_;
-
-    std::unique_ptr<VertCache> cam_verts_;
-    std::unique_ptr<VertCache> light_verts_;
+    std::unique_ptr<VertCache> cam_verts_[2];
+    std::unique_ptr<VertCache> light_verts_[2];
+    int cur_cache_;
 
     HashGrid<VertexHandle> photon_grid_;
     HashGrid<VertexHandle> importon_grid_;
 
     PathDebugger<Vertex> path_log_;
 
-    void trace_camera_paths();
-    void trace_light_paths();
-    void process_hits(Ray& r, Hit& h, State& s, VertCache* cache, bool adjoint);
+    void trace();
+    void trace_camera_primary();
+    void trace_light_primary();
+    void process_hits(Ray& r, Hit& h, State& s);
     void process_envmap_hits(Ray& r, State& s);
-
     void bounce(State& state_out, const Intersection& isect, BSDF* bsdf, Ray& ray_out, bool adjoint, float offset, float rr_pdf);
 
-    /// Computes the cosine term for adjoint BSDFs that use shading normals.
-    ///
-    /// This function has to be used for all BSDFs while tracing paths from the light sources, to prevent brighness discontinuities.
-    /// See Veach's thesis for more details.
-    inline static float shading_normal_adjoint(const float3& normal, const float3& geom_normal, const float3& out_dir, const float3& in_dir) {
-        return dot(out_dir, normal) * dot(in_dir, geom_normal) / dot(out_dir, geom_normal);
-    }
+    /// Computes the contribution of all paths in \see{from} after \see{offset} via density estimation with the vertices in \see{accel}
+    /// The resulting unweighted contribution is stored directly in the vertices, along with their MIS weights.
+    /// \param num_paths The number of paths traced to generate the vertices in \see{accel}
+    void compute_local_stats(VertCache& from, int offset, const HashGrid<VertexHandle>& accel, int num_paths);
 
     // Sampling techniques (additional to camera rays hitting the light)
-    void path_tracing(AtomicImage& img, bool next_evt);
+    void path_tracing (AtomicImage& img, bool next_evt);
     void light_tracing(AtomicImage& img);
-    void connect(AtomicImage& img);
-    void merge(AtomicImage& img);
+    void connect      (AtomicImage& img);
+    void merge        (AtomicImage& img);
+
+    void begin_iteration();
+    void end_iteration();
 };
 
 } // namespace imba

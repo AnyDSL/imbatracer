@@ -69,6 +69,7 @@ public:
     }
 
     /// Finds the next queue that matches the given tag, sets its tag to QUEUE_IN_USE and returns it.
+    /// \returns Either a valid reference to a queue matching the tag, or a reference that equals nullptr
     QueueReference<StateType> claim_queue_with_tag(QueueTag tag) {
         for (size_t i = 0; i < queues_.size(); ++i) {
             QueueTag expected = tag;

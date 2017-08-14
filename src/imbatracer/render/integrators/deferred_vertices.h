@@ -10,20 +10,10 @@
 
 namespace imba {
 
-/// Traces a number of light paths through the scene and computes their average length.
-int estimate_light_path_len(const Scene& scene, bool use_gpu, int probes);
-
-/// Traces a number of camera paths through the scene and computes their average length.
-int estimate_cam_path_len(const Scene& scene, const PerspectiveCamera& cam, bool use_gpu, int probes);
-
-struct ProbeState : RayState {
-    rgb throughput;
-};
-
 template <typename Vertex>
 class DeferredVertices {
 public:
-    DeferredVertices(int capacity) : verts_(capacity), next_(0) {}
+    DeferredVertices(int capacity = 0) : verts_(capacity), next_(0) {}
 
     /// Adds a vertex to the cache.
     /// \returns The index of the vertex
@@ -40,7 +30,15 @@ public:
     int size() const { return std::min(static_cast<int>(verts_.size()), next_.load()); }
     int capacity() const { return verts_.size(); }
 
+    /// Grows the size of the cache to at least the given capacity.
+    void grow(int sz) {
+        if (sz < capacity()) return;
+
+        verts_.resize(2 * sz);
+    }
+
     const Vertex& operator[] (int i) const { assert(i < size()); return verts_[i]; }
+    Vertex& operator[] (int i) { assert(i < size()); return verts_[i]; }
 
     void clear() { next_.store(0); }
 

@@ -13,8 +13,6 @@
 #include "imbatracer/render/integrators/photon_vis.h"
 #include "imbatracer/render/integrators/deferred_vcm.h"
 
-//#define QUEUE_SCHEDULER
-
 using namespace imba;
 
 class CameraControl : public InputController {
@@ -128,13 +126,9 @@ int main(int argc, char* argv[]) {
     } else if (settings.algorithm == UserSettings::DEF_SPPM) {
         render_loop_deferred<mis::MisSPPM>(scene, cam, ctrl, settings);
     } else if (settings.algorithm == UserSettings::PT) {
-#ifdef QUEUE_SCHEDULER
-        PixelRayGen<PTState> ray_gen(settings.width, settings.height, settings.concurrent_spp);
-        QueueScheduler<PTState, ShadowState> scheduler(ray_gen, scene, 1, gpu_traversal);
-#else
         DefaultTileGen<PTState> ray_gen(settings.width, settings.height, settings.concurrent_spp, settings.tile_size);
         TileScheduler<PTState, ShadowState> scheduler(ray_gen, scene, 1, settings.thread_count, settings.tile_size * settings.tile_size * settings.concurrent_spp, gpu_traversal);
-#endif
+
         PathTracer integrator(scene, cam, scheduler, settings.max_path_len);
         integrator.preprocess();
         ctrl.set_speed(integrator.pixel_size() * 10.0f);

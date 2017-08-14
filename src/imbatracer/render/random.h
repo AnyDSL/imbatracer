@@ -14,7 +14,9 @@ namespace imba {
 /// http://cas.ee.ic.ac.uk/people/dt10/research/rngs-gpu-mwc64x.html
 class RNG {
 public:
-    RNG(uint64_t seed = 0) : state_(seed) {}
+    RNG(uint64_t seed = 0) : state_(seed) {
+        discard(4);
+    }
 
     float random_float(float min, float max) {
         const float r = random_float();

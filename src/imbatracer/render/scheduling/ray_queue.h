@@ -59,20 +59,10 @@ public:
     RayQueue() { }
 
     RayQueue(int capacity, bool gpu_buffers)
-        : ray_buffer_     (align(capacity))
-        , hit_buffer_     (align(capacity))
-        , state_buffer_   (align(capacity))
-        , sorted_indices_ (align(capacity))
-        , last_(-1)
+        : last_(-1)
         , gpu_buffers_(gpu_buffers)
     {
-        memset(ray_buffer_.data(), 0, sizeof(Ray) * align(capacity));
-
-        // Create buffers on the GPU if necessary.
-        if (gpu_buffers) {
-            dev_ray_buffer_ = anydsl::Array<Ray>(anydsl::Platform::Cuda, anydsl::Device(0), align_gpu(capacity));
-            dev_hit_buffer_ = anydsl::Array<Hit>(anydsl::Platform::Cuda, anydsl::Device(0), align_gpu(capacity));
-        }
+        resize(capacity);
     }
 
     RayQueue(const RayQueue<StateType>&) = delete;
@@ -99,6 +89,19 @@ public:
     int size() const { return last_ + 1; }
     int capacity() const { return state_buffer_.size(); }
 
+    void resize(int c) {
+        ray_buffer_    = anydsl::Array<Ray>    (align(c));
+        hit_buffer_    = anydsl::Array<Hit>    (align(c));
+        state_buffer_  = std::vector<StateType>(align(c));
+        sorted_indices_= std::vector<int>      (align(c));
+
+        // Create buffers on the GPU if necessary.
+        if (gpu_buffers_) {
+            dev_ray_buffer_ = anydsl::Array<Ray>(anydsl::Platform::Cuda, anydsl::Device(0), align_gpu(c));
+            dev_hit_buffer_ = anydsl::Array<Hit>(anydsl::Platform::Cuda, anydsl::Device(0), align_gpu(c));
+        }
+    }
+
     // Shrinks the queue to the given size.
     void shrink(int size) { last_ = size - 1; }
 
@@ -115,13 +118,16 @@ public:
     }
 
     /// Adds a single secondary or shadow ray to the queue. Thread-safe
-    void push(const Ray& ray, const StateType& state) {
+    /// \returns the index at which the ray was inserted.
+    int push(const Ray& ray, const StateType& state) {
         int id = ++last_; // atomic inc. of last_
 
-        assert(id < ray_buffer_.size() && "ray queue full");
+        assert(id < ray_buffer_.size() && "Attempted a push to a full ray queue.");
 
         ray_buffer_[id] = ray;
         state_buffer_[id] = state;
+
+        return id;
     }
 
     /// Adds a set of camera rays to the queue. Thread-safe
@@ -153,13 +159,14 @@ public:
     }
 
     /// Compact the queue by moving all rays that hit something (and their associated states and hits) to the front.
-    inline int compact_hits() {
+    inline int compact_hits(int begin = 0, int end = -1) {
+        if (end < 0) end = size();
         auto hits   = this->hits();
         auto states = this->states();
         auto rays   = this->rays();
 
         int last_empty = -1;
-        for (int i = 0; i < size(); ++i) {
+        for (int i = begin; i < end; ++i) {
             if (hits[i].tri_id < 0 && last_empty == -1) {
                 last_empty = i;
             } else if (hits[i].tri_id >= 0 && last_empty != -1) {
@@ -170,13 +177,13 @@ public:
             }
         }
 
-        for (int i = 0; i <= last_; ++i)
+        for (int i = begin; i < end; ++i)
             sorted_indices_[i] = i;
 
         if (last_empty != -1)
-            return last_empty;
+            return last_empty - begin;
         else
-            return size();
+            return end - begin;
     }
 
     /// Compacts the queue by moving all continued rays to the front. Does not move the hits.
@@ -203,122 +210,133 @@ public:
 
     typedef std::function<int (const Hit&)> GetMatIDFn;
 
-    inline void sort_by_material(GetMatIDFn get_mat_id, int num_mats, int count) {
-        if (matcount_.size() < num_mats)
-            matcount_ = std::vector<std::atomic<int> >(num_mats);
-        std::fill(matcount_.begin(), matcount_.end(), 0);
+    inline void sort_by_material(GetMatIDFn get_mat_id, int num_mats, int count, int begin = 0) {
+        // TODO / FIXME: sorting for new scheduler as part of traversal job, or after all hits are known?
 
-        // Count the number of hit points per material.
-        tbb::parallel_for(tbb::blocked_range<int>(0, count),
-            [&] (const tbb::blocked_range<int>& range)
-        {
-            for (auto i = range.begin(); i != range.end(); ++i) {
-                const int mat_id = get_mat_id(hit_buffer_[i]);
-                ray_buffer_[i].dir.w = int_as_float(mat_id);
-                matcount_[mat_id]++;
-            }
-        });
+        // thread_local std::vector<std::atomic<int> > matcount(num_mats);
 
-        // Compute the starting index of every bin.
-        int accum = 0;
-        for (int i = 0; i < num_mats; ++i) {
-            const int tmp = matcount_[i];
-            matcount_[i] = accum;
-            accum += tmp;
-        }
+        // if (matcount.size() < num_mats)
+        //     matcount = std::vector<std::atomic<int> >(num_mats);
+        // std::fill(matcount.begin(), matcount.end(), 0);
 
-        // Distribute the indices according to their material ids.
-        tbb::parallel_for(tbb::blocked_range<int>(0, count),
-            [&] (const tbb::blocked_range<int>& range)
-        {
-            for (auto i = range.begin(); i != range.end(); ++i) {
-                const int mat = float_as_int(ray_buffer_[i].dir.w);
-                sorted_indices_[matcount_[mat]++] = i;
-            }
-        });
+        // // Count the number of hit points per material.
+        // tbb::parallel_for(tbb::blocked_range<int>(begin, begin + count),
+        //     [&] (const tbb::blocked_range<int>& range)
+        // {
+        //     for (auto i = range.begin(); i != range.end(); ++i) {
+        //         const int mat_id = get_mat_id(hit_buffer_[i]);
+        //         ray_buffer_[i].dir.w = int_as_float(mat_id);
+        //         matcount[mat_id]++;
+        //     }
+        // });
+
+        // // Compute the starting index of every bin.
+        // int accum = 0;
+        // for (int i = 0; i < num_mats; ++i) {
+        //     const int tmp = matcount[i];
+        //     matcount[i] = accum;
+        //     accum += tmp;
+        // }
+
+        // // Distribute the indices according to their material ids.
+        // tbb::parallel_for(tbb::blocked_range<int>(begin, begin + count),
+        //     [&] (const tbb::blocked_range<int>& range)
+        // {
+        //     for (auto i = range.begin(); i != range.end(); ++i) {
+        //         const int mat = float_as_int(ray_buffer_[i].dir.w);
+        //         sorted_indices_[begin + matcount[mat]++] = i;
+        //     }
+        // });
     }
 
     /// Traverses all rays currently in the queue on the CPU.
-    void traverse_cpu(const TraversalData<traversal_cpu::Node>& c_data) {
-        assert(size() != 0);
+    void traverse_cpu(const TraversalData<traversal_cpu::Node>& c_data, int begin = 0, int end = -1) {
+        if (end < 0) end = size(); // TODO: adapt for version with offsets
+        // assert(size() != 0);
 
-        int count = align_cpu(size());
-        auto& data = const_cast<TraversalData<traversal_cpu::Node>&>(c_data);
-        auto nodes = reinterpret_cast<traversal_cpu::Node*>(data.nodes.data());
+        // int count = align_cpu(size());
+        // auto& data = const_cast<TraversalData<traversal_cpu::Node>&>(c_data);
+        // auto nodes = reinterpret_cast<traversal_cpu::Node*>(data.nodes.data());
 
-        traversal_cpu::intersect_cpu_instanced(
-            data.root,
-            nodes,
-            data.instances.data(),
-            data.tris.data(),
-            ray_buffer_.data(),
-            hit_buffer_.data(),
-            count);
+        // traversal_cpu::intersect_cpu_instanced(
+        //     data.root,
+        //     nodes,
+        //     data.instances.data(),
+        //     data.tris.data(),
+        //     ray_buffer_.data(),
+        //     hit_buffer_.data(),
+        //     count);
     }
 
     // Traverses all rays currently in the queue on the GPU.
-    void traverse_gpu(const TraversalData<traversal_gpu::Node>& c_data) {
-        assert(size() != 0);
+    void traverse_gpu(const TraversalData<traversal_gpu::Node>& c_data, int begin = 0, int end = -1) {
+        if (end < 0) end = size();
+
+        assert(end - begin != 0);
         assert(gpu_buffers_);
 
-        int count = align_gpu(size());
+        int count = align_gpu(end - begin);
         auto& data = const_cast<TraversalData<traversal_gpu::Node>&>(c_data);
         auto nodes = reinterpret_cast<traversal_gpu::Node*>(data.nodes.data());
 
-        anydsl::copy(ray_buffer_, dev_ray_buffer_, size());
+        anydsl::copy(ray_buffer_, begin, dev_ray_buffer_, begin, end - begin);
 
         traversal_gpu::intersect_gpu_instanced(
             data.root,
             nodes,
             (traversal_gpu::InstanceNode*)data.instances.data(),
             (traversal_gpu::Vec4*)data.tris.data(),
-            (traversal_gpu::Ray*)dev_ray_buffer_.data(),
-            (traversal_gpu::Hit*)dev_hit_buffer_.data(),
+            (traversal_gpu::Ray*)dev_ray_buffer_.data() + begin,
+            (traversal_gpu::Hit*)dev_hit_buffer_.data() + begin,
             count);
 
-        anydsl::copy(dev_hit_buffer_, hit_buffer_, size());
+        anydsl::copy(dev_hit_buffer_, begin, hit_buffer_, begin, end - begin);
     }
 
     /// Traverses all rays currently in the queue on the CPU. For shadow rays.
-    void traverse_occluded_cpu(const TraversalData<traversal_cpu::Node>& c_data) {
-        assert(size() != 0);
+    void traverse_occluded_cpu(const TraversalData<traversal_cpu::Node>& c_data, int begin = 0, int end = -1) {
+        if (end < 0) end = size(); // TODO: adapt for version with offsets
 
-        int count = align_cpu(size());
-        auto& data = const_cast<TraversalData<traversal_cpu::Node>&>(c_data);
+        // assert(size() != 0);
 
-        auto nodes = reinterpret_cast<traversal_cpu::Node*>(data.nodes.data());
+        // int count = align_cpu(size());
+        // auto& data = const_cast<TraversalData<traversal_cpu::Node>&>(c_data);
 
-        traversal_cpu::occluded_cpu_instanced(
-            data.root,
-            nodes,
-            data.instances.data(),
-            data.tris.data(),
-            ray_buffer_.data(),
-            hit_buffer_.data(),
-            count);
+        // auto nodes = reinterpret_cast<traversal_cpu::Node*>(data.nodes.data());
+
+        // traversal_cpu::occluded_cpu_instanced(
+        //     data.root,
+        //     nodes,
+        //     data.instances.data(),
+        //     data.tris.data(),
+        //     ray_buffer_.data(),
+        //     hit_buffer_.data(),
+        //     count);
     }
 
     // Traverses all rays currently in the queue on the GPU. For shadow rays.
-    void traverse_occluded_gpu(const TraversalData<traversal_gpu::Node>& c_data) {
-        assert(size() != 0);
+    void traverse_occluded_gpu(const TraversalData<traversal_gpu::Node>& c_data, int begin = 0, int end = -1) {
+        if (end < 0) end = size();
+
+        assert(end - begin != 0);
         assert(gpu_buffers_);
 
-        int count = align_gpu(size());
+        int count = align_gpu(end - begin);
         auto& data = const_cast<TraversalData<traversal_gpu::Node>&>(c_data);
         auto nodes = reinterpret_cast<traversal_gpu::Node*>(data.nodes.data());
 
-        anydsl::copy(ray_buffer_, dev_ray_buffer_, size());
+        anydsl::copy(ray_buffer_, begin, dev_ray_buffer_, begin, end - begin);
 
         traversal_gpu::occluded_gpu_instanced(
             data.root,
             nodes,
             (traversal_gpu::InstanceNode*)data.instances.data(),
             (traversal_gpu::Vec4*)data.tris.data(),
-            (traversal_gpu::Ray*)dev_ray_buffer_.data(),
-            (traversal_gpu::Hit*)dev_hit_buffer_.data(),
+            (traversal_gpu::Ray*)dev_ray_buffer_.data() + begin,
+            (traversal_gpu::Hit*)dev_hit_buffer_.data() + begin,
             count);
 
-        anydsl::copy(dev_hit_buffer_, hit_buffer_, size());
+        anydsl::copy(dev_hit_buffer_, begin, hit_buffer_, begin, end - begin);
     }
 
 private:
@@ -335,7 +353,6 @@ private:
 
     // Used for sorting the hit points with counting sort
     std::vector<int> sorted_indices_;
-    std::vector<std::atomic<int> > matcount_;
 };
 
 } // namespace imba
