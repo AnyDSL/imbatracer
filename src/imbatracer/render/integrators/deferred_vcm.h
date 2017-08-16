@@ -160,7 +160,7 @@ private:
     void trace_light_primary();
     void process_hits(Ray& r, Hit& h, State& s);
     void process_envmap_hits(Ray& r, State& s);
-    void bounce(State& state_out, const Intersection& isect, BSDF* bsdf, Ray& ray_out, bool adjoint, float offset, float rr_pdf);
+    void bounce(State& state, const Intersection& isect, BSDF* bsdf, Ray& ray, float offset, float rr_pdf);
 
     /// Computes the contribution of all paths in \see{from} after \see{offset} via density estimation with the vertices in \see{accel}
     /// The resulting unweighted contribution is stored directly in the vertices, along with their MIS weights.

@@ -25,19 +25,15 @@ void DeferredVCM<mis::MisVCM>::render(AtomicImage& img) {
         PROFILE(merge(img), "Merge");
     });
 
-    auto pt = std::async(std::launch::async, [this, &img] {
-        PROFILE(path_tracing(img, true), "PT");
-    });
-
     auto lt = std::async(std::launch::async, [this, &img] {
         PROFILE(light_tracing(img), "LT");
     });
 
     auto conn = std::async(std::launch::async, [this, &img] {
+        PROFILE(path_tracing(img, true), "PT");
         PROFILE(connect(img), "Connect");
     });
 
-    pt.wait();
     lt.wait();
     conn.wait();
     m.wait();
@@ -49,19 +45,15 @@ template <>
 void DeferredVCM<mis::MisBPT>::render(AtomicImage& img) {
     begin_iteration();
 
-    auto pt = std::async(std::launch::async, [this, &img] {
-        PROFILE(path_tracing(img, true), "PT");
-    });
-
     auto lt = std::async(std::launch::async, [this, &img] {
         PROFILE(light_tracing(img), "LT");
     });
 
     auto conn = std::async(std::launch::async, [this, &img] {
+        PROFILE(path_tracing(img, true), "PT");
         PROFILE(connect(img), "Connect");
     });
 
-    pt.wait();
     lt.wait();
     conn.wait();
 
@@ -135,14 +127,14 @@ void DeferredVCM<MisType>::begin_iteration() {
 
     PROFILE(trace(), "Tracing camera and light paths");
 
-    auto pm_task = std::async(std::launch::async, [this, &img] {
+    auto pm_task = std::async(std::launch::async, [this] {
         PROFILE(photon_grid_.build(light_verts_[cur_cache_]->begin(),
                                    light_verts_[cur_cache_]->end(),
                                    pm_radius_,
                                    [](auto& v){ return !v.specular; }), "Building hash grid");
     });
 
-    auto im_task = std::async(std::launch::async, [this, &img] {
+    auto im_task = std::async(std::launch::async, [this] {
         PROFILE(importon_grid_.build(cam_verts_[cur_cache_]->begin(),
                                      cam_verts_[cur_cache_]->end(),
                                      base_radius_,
@@ -150,10 +142,19 @@ void DeferredVCM<MisType>::begin_iteration() {
     });
 
 #ifdef PATH_STATISTICS
-    dump_vertices("camera_paths.path", settings_.width * settings_.height * settings_.concurrent_spp, cam_verts_[cur_cache_]->begin(), cam_verts_[cur_cache_]->end(),
-                  [](auto& v){ return DebugVertex(v.throughput, v.isect, v.pixel_id, v.ancestor, v.path_len, v.specular); });
-    dump_vertices("light_paths.path", settings_.light_path_count, light_verts_[cur_cache_]->begin(), light_verts_[cur_cache_]->end(),
-                  [](auto& v){ return DebugVertex(v.throughput, v.isect, v.light_id, v.ancestor, v.path_len, v.specular); });
+    dump_vertices("camera_paths.path", settings_.width * settings_.height * settings_.concurrent_spp,
+                  cam_verts_[cur_cache_]->begin(), cam_verts_[cur_cache_]->end(),
+                  [] (auto& v) {
+                      return DebugVertex(v.state.throughput, v.isect, v.state.pixel_id, v.state.ancestor,
+                                         v.state.path_length, v.specular);
+                  });
+
+    dump_vertices("light_paths.path", settings_.light_path_count,
+                  light_verts_[cur_cache_]->begin(), light_verts_[cur_cache_]->end(),
+                  [] (auto& v) {
+                      return DebugVertex(v.state.throughput, v.isect, v.state.light_id, v.state.ancestor,
+                                         v.state.path_length, v.specular);
+                  });
 
     path_log_.enable(PathDebugger<Vertex>::merging);
 #endif
@@ -181,7 +182,7 @@ void DeferredVCM<MisType>::compute_local_stats(VertCache& from, int offset, cons
 
             MaterialValue mat;
             scene_.material_system()->eval_material(v.isect, false, mat);
-            mat.bsdf.prepare(v.throughput, v.isect.out_dir);
+            mat.bsdf.prepare(v.state.throughput, v.isect.out_dir);
             if (mat.bsdf.is_specular()) continue;
             const auto bsdf = &mat.bsdf;
 
@@ -194,7 +195,7 @@ void DeferredVCM<MisType>::compute_local_stats(VertCache& from, int offset, cons
             float mis = 1.0f;
             for (int i = 0; i < count; ++i) {
                 auto p = records[i].vert;
-                if (p->state.path_len < 2) continue; // Do not consider particles on the emitter (if they were generated there)
+                if (p->state.path_length < 2) continue; // Do not consider particles on the emitter (if they were generated there)
 
                 const auto& in_dir = p->isect.out_dir;
 
@@ -205,7 +206,8 @@ void DeferredVCM<MisType>::compute_local_stats(VertCache& from, int offset, cons
                 if (pdf_dir_w == 0.0f || pdf_rev_w == 0.0f || is_black(bsdf_value))
                     continue;
 
-                const float mis_weight = mis::weight_merge(v.state.mis, p->state.mis, merge_pdf_, pdf_dir_w, pdf_rev_w, v.state.path_len, p->state.path_len);
+                const float mis_weight = mis::weight_merge(v.state.mis, p->state.mis, merge_pdf_, pdf_dir_w, pdf_rev_w,
+                                                           v.state.path_length, p->state.path_length);
                 mis *= mis_weight;
 
                 // Epanechnikov filter
@@ -283,7 +285,7 @@ void DeferredVCM<MisType>::trace_light_primary() {
 
     scheduler_.start(&scene_, false, [this] (Ray& r, Hit& h, State& s) {
         process_hits(r, h, s);
-    }, env_hit);
+    }, nullptr);
 
     // TODO add importance sampling based on
     //      (1) total light source power
@@ -296,7 +298,7 @@ void DeferredVCM<MisType>::trace_light_primary() {
     auto states = V_ARRAY(State, batch_size);
     for (auto i = range.begin(); i != range.end(); ++i) {
         State state;
-        state.rng      = RNG(bernstein_seed(cur_iteration_, light_id));
+        state.rng      = RNG(bernstein_seed(cur_iteration_, i));
 
         // Select a light source (TODO importance sampling)
         int light_id = state.rng.random_int(0, scene_.light_count());
@@ -308,13 +310,15 @@ void DeferredVCM<MisType>::trace_light_primary() {
 
         // Sample a ray and initialize its contribution.
         Light::EmitSample sample = l->sample_emit(state.rng);
+
+        Ray ray;
         ray.org = make_vec4(sample.isect.pos, 1e-4f);
         ray.dir = make_vec4(sample.dir, FLT_MAX);
 
         state.throughput  = sample.radiance / pdf_lightpick;
         state.path_length = 1;
         state.ancestor    = -1;
-        state.ancestor    = light_verts_->add(Vertex(state, sample.isect, l->is_delta() || !l->is_finite()));
+        state.ancestor    = light_verts_[cur_cache_]->add(Vertex(state, sample.isect, l->is_delta() || !l->is_finite()));
         state.adjoint     = true;
         state.mis.init_light(sample.pdf_emit_w, sample.pdf_direct_a, pdf_lightpick, sample.cos_out, l->is_finite(), l->is_delta());
 
@@ -331,7 +335,7 @@ template <typename MisType>
 void DeferredVCM<MisType>::trace() {
     const int num_cam_paths   = settings_.width * settings_.height * settings_.concurrent_spp;
     const int num_light_paths = settings_.light_path_count;
-    const float wave_rr_pdf = 0.5f;
+    const float wave_rr_pdf = 0.8f;
     const int num_continuations = settings_.width * settings_.height;
 
     trace_camera_primary();
@@ -349,7 +353,7 @@ void DeferredVCM<MisType>::trace() {
     std::vector<float> vertex_cdf;
     std::vector<int>   continue_mask;
 
-    scheduler_.resize(num_continuations);
+    scheduler_.resize(num_continuations * 2);
 
     for (int wave_depth = 0; wave_depth < settings_.max_path_len; ++wave_depth) {
         // Randomly decide to kill the entire wavefront.
@@ -403,7 +407,7 @@ void DeferredVCM<MisType>::trace() {
             [&] (const tbb::blocked_range<int>& range) {
                 for (auto i = range.begin(); i != range.end(); ++i) {
                     vertex_pmf   [i] /= pmf_sum;
-                    continue_mask[i]  = 0;
+                    continue_mask[i]  = 1;//0;
                 }
             });
 
@@ -415,7 +419,8 @@ void DeferredVCM<MisType>::trace() {
                 for (auto i = range.begin(); i != range.end(); ++i) {
                     auto idx = std::lower_bound(vertex_cdf.begin(), vertex_cdf.begin() + num_verts, wave_rng.random_float());
                     int k = idx - vertex_cdf.begin();
-                    continue_mask[k]++;
+                    if (k >= num_verts) k = num_verts - 1;
+                    // continue_mask[k]++;
                 }
             });
 
@@ -423,15 +428,18 @@ void DeferredVCM<MisType>::trace() {
         int old_sz_light = light_verts_[cur_cache_]->size();
 
         // Ensure that both vertex caches are large enough
-        cam_verts_  [cur_cache_]->grow(old_sz_cam   + num_continuations);
-        light_verts_[cur_cache_]->grow(old_sz_light + num_continuations);
+        cam_verts_  [cur_cache_]->grow(old_sz_cam   + num_continuations + num_verts);
+        light_verts_[cur_cache_]->grow(old_sz_light + num_continuations + num_verts);
 
         // TODO special case for specular (always continued with one ray, terminated with the wavefront, never split)
 
         // Trace continuation rays from the selected vertices.
         scheduler_.start(&scene_, false, [this] (Ray& r, Hit& h, State& s) {
             process_hits(r, h, s);
-        }, env_hit);
+        }, [this] (Ray& r, State& s) {
+            if (s.adjoint)
+                process_envmap_hits(r, s);
+        });
 
         TBB_PAR_FOR_BEGIN(0, num_verts)
         const int batch_size = range.end() - range.begin();
@@ -441,6 +449,9 @@ void DeferredVCM<MisType>::trace() {
         for (auto i = range.begin(); i != range.end(); ++i) {
             // Determine the index of the vertex and the number of continuation rays for that one.
             const int num_c    = continue_mask[i];
+
+            if (!num_c) continue; // This vertex was not selected
+
             const bool adjoint = i >= num_verts_cam;
             const int vert_idx = adjoint
                                ? i - num_verts_cam + vert_offset_light
@@ -455,7 +466,7 @@ void DeferredVCM<MisType>::trace() {
 
             MaterialValue mat;
             scene_.material_system()->eval_material(vert.isect, adjoint, mat);
-            mat.bsdf.prepare(state.throughput, vert.isect.out_dir);
+            mat.bsdf.prepare(vert.state.throughput, vert.isect.out_dir);
 
             // Sample all continuation rays and add them to the buffer.
             for (int k = 0; k < num_c; ++k) {
@@ -463,7 +474,7 @@ void DeferredVCM<MisType>::trace() {
                 State state = vert.state;
                 state.ancestor = vert_idx;
 
-                bounce(state, vert.isect, &mat.bsdf, ray, adjoint, offset, rr_pdf);
+                bounce(state, vert.isect, &mat.bsdf, ray, offset, rr_pdf);
 
                 // If the buffer is full, push it.
                 if (cur == batch_size) {
@@ -540,7 +551,7 @@ void DeferredVCM<MisType>::process_hits(Ray& r, Hit& h, State& state) {
     state.mis.update_hit(cos_theta_o, h.tmax * h.tmax);
     state.path_length++;
 
-    VertCache* cache = state.adjoint ? light_verts_.get() : cam_verts_.get();
+    VertCache* cache = state.adjoint ? light_verts_[cur_cache_].get() : cam_verts_[cur_cache_].get();
 
     state.ancestor = cache->add(Vertex(state, isect, mat.bsdf.is_specular()));
 
@@ -555,18 +566,17 @@ void DeferredVCM<MisType>::path_tracing(AtomicImage& img, bool next_evt) {
         add_contribution(img, s.pixel_id, s.contrib);
     });
 
-    // Generate the primary rays from the camera
     TBB_PAR_FOR_BEGIN(0, cam_verts_[cur_cache_]->size())
     const int batch_size = range.end() - range.begin();
     auto rays   = V_ARRAY(Ray,         batch_size);
     auto states = V_ARRAY(ShadowState, batch_size);
     int generated = 0;
     for (auto i = range.begin(); i != range.end(); ++i) {
-        const auto& v = (*cam_verts_[cur_cache_])[i];
+        auto& v = (*cam_verts_[cur_cache_])[i];
 
         MaterialValue mat;
         scene_.material_system()->eval_material(v.isect, false, mat);
-        mat.bsdf.prepare(v.throughput, v.isect.out_dir);
+        mat.bsdf.prepare(v.state.throughput, v.isect.out_dir);
 
         if (mat.bsdf.is_specular()) continue;
 
@@ -578,10 +588,10 @@ void DeferredVCM<MisType>::path_tracing(AtomicImage& img, bool next_evt) {
             float pdf_direct_a  = 1.0f / v.isect.area;
             float pdf_emit_w    = 1.0f / v.isect.area * cos_hemisphere_pdf(cos_out);
 
-            const float mis_weight = mis::weight_upt(v.mis, merge_pdf_, pdf_direct_a, pdf_emit_w, pdf_lightpick, v.path_len);
+            const float mis_weight = mis::weight_upt(v.state.mis, merge_pdf_, pdf_direct_a, pdf_emit_w, pdf_lightpick, v.state.path_length);
 
-            rgb color = v.throughput * mat.emit * mis_weight;
-            add_contribution(img, v.pixel_id, color);
+            rgb color = v.state.throughput * mat.emit * mis_weight;
+            add_contribution(img, v.state.pixel_id, color);
 
             continue;
         } else if (!next_evt)
@@ -602,9 +612,9 @@ void DeferredVCM<MisType>::path_tracing(AtomicImage& img, bool next_evt) {
         if (pdf_dir_w == 0.0f || pdf_rev_w == 0.0f)
            continue;
 
-        const float mis_weight = mis::weight_di(v.mis, merge_pdf_, pdf_dir_w, pdf_rev_w,
+        const float mis_weight = mis::weight_di(v.state.mis, merge_pdf_, pdf_dir_w, pdf_rev_w,
                                                 sample.pdf_direct_w, sample.pdf_emit_w, pdf_lightpick_inv,
-                                                cos_theta_i, sample.cos_out, ls->is_delta(), v.path_len);
+                                                cos_theta_i, sample.cos_out, ls->is_delta(), v.state.path_length);
 
         const float offset = 1e-3f * (sample.distance == FLT_MAX ? 1.0f : sample.distance);
 
@@ -628,13 +638,13 @@ void DeferredVCM<MisType>::path_tracing(AtomicImage& img, bool next_evt) {
 
 template <typename MisType>
 void DeferredVCM<MisType>::light_tracing(AtomicImage& img) {
-    shadow_scheduler_lt_.resize(cam_verts_[cur_cache_]->size());
+    shadow_scheduler_lt_.resize(light_verts_[cur_cache_]->size());
 
     shadow_scheduler_lt_.start(&scene_, true, nullptr, [this, &img] (Ray& r, ShadowState& s) {
         add_contribution(img, s.pixel_id, s.contrib);
     });
 
-    // Generate the primary rays from the camera
+    // Generate the primary rays from the lights
     TBB_PAR_FOR_BEGIN(0, light_verts_[cur_cache_]->size())
     const int batch_size = range.end() - range.begin();
     auto rays   = V_ARRAY(Ray,         batch_size);
@@ -643,7 +653,7 @@ void DeferredVCM<MisType>::light_tracing(AtomicImage& img) {
     for (auto i = range.begin(); i != range.end(); ++i) {
         const auto& v = (*light_verts_[cur_cache_])[i];
 
-        if (v.state.path_len == 1)
+        if (v.state.path_length == 1)
             continue; // Do not connect vertices on the light source itself
 
         float3 dir_to_cam = cam_.pos() - v.isect.pos;
@@ -681,10 +691,12 @@ void DeferredVCM<MisType>::light_tracing(AtomicImage& img) {
 
         if (pdf_rev_w == 0.0f) continue;
 
-        const float mis_weight = mis::weight_lt(v.state.mis, merge_pdf_, pdf_cam * cos_theta_surf, pdf_rev_w, settings_.light_path_count, v.path_len);
+        const float mis_weight = mis::weight_lt(v.state.mis, merge_pdf_, pdf_cam * cos_theta_surf, pdf_rev_w,
+                                                settings_.light_path_count, v.state.path_length);
 
         const float offset = dist_to_cam * 1e-4f;
 
+        Ray ray;
         ray.org = make_vec4(v.isect.pos, offset);
         ray.dir = make_vec4(dir_to_cam, dist_to_cam - offset);
 
@@ -728,16 +740,15 @@ void DeferredVCM<MisType>::connect(AtomicImage& img) {
 #endif
     });
 
-    // Generate the primary rays from the camera
     TBB_PAR_FOR_BEGIN(0, cam_verts_[cur_cache_]->size() * settings_.num_connections)
     const int batch_size = range.end() - range.begin();
     auto rays   = V_ARRAY(Ray,         batch_size);
     auto states = V_ARRAY(ShadowState, batch_size);
     int generated = 0;
     for (auto i = range.begin(); i != range.end(); ++i) {
-        const auto& cam_v   = *cam_verts_[cur_cache_];
+        auto& cam_v   = *cam_verts_[cur_cache_];
         const auto& light_v = *light_verts_[cur_cache_];
-        const auto& v = cam_v[vert_id];
+        auto& v = cam_v[i];
 
         // PDF conversion factor from using the vertex cache.
         // Vertex Cache is equivalent to randomly sampling a path with pdf ~ path length and uniformly sampling a vertex on this path.
@@ -745,7 +756,7 @@ void DeferredVCM<MisType>::connect(AtomicImage& img) {
 
         int lv_idx = v.state.rng.random_int(0, light_v.size());
         auto& light_vertex = light_v[lv_idx];
-        if (light_vertex.path_len == 1) // do not connect to the light (handled by next event!)
+        if (light_vertex.state.path_length == 1) // do not connect to the light (handled by next event!)
             continue;
 
         MaterialValue lmat;
@@ -799,10 +810,12 @@ void DeferredVCM<MisType>::connect(AtomicImage& img) {
         const float mis_weight = mis::weight_connect(v.state.mis, light_vertex.state.mis, merge_pdf_, pdf_dir_cam_w, pdf_rev_cam_w,
                                                      pdf_dir_light_w, pdf_rev_light_w,
                                                      cos_theta_cam, cos_theta_light, connect_dist_sq,
-                                                     v.state.path_len, light_vertex.state.path_len);
+                                                     v.state.path_length, light_vertex.state.path_length);
 
-        state.pixel_id = v.pixel_id;
-        state.contrib  = v.state.throughput * vc_weight * mis_weight * geom_term * bsdf_value_cam * bsdf_value_light * light_vertex.state.throughput;
+        ShadowState state;
+        state.pixel_id = v.state.pixel_id;
+        state.contrib  = v.state.throughput * vc_weight * mis_weight * geom_term
+                       * bsdf_value_cam * bsdf_value_light * light_vertex.state.throughput;
 
 #ifdef PATH_STATISTICS
         state.cam = &v;
@@ -811,6 +824,7 @@ void DeferredVCM<MisType>::connect(AtomicImage& img) {
 #endif
 
         const float offset = 1e-4f * connect_dist;
+        Ray ray;
         ray.org = make_vec4(v.isect.pos, offset);
         ray.dir = make_vec4(connect_dir, connect_dist - offset);
 
@@ -848,7 +862,7 @@ void DeferredVCM<MisType>::merge(AtomicImage& img) {
             rgb contrib(0.0f);
             for (int i = 0; i < count; ++i) {
                 auto p = photons[i].vert;
-                if (p->state.path_len < 2) continue; // do not merge on the light sources
+                if (p->state.path_length < 2) continue; // do not merge on the light sources
 
                 const auto& photon_in_dir = p->isect.out_dir;
 
@@ -859,7 +873,8 @@ void DeferredVCM<MisType>::merge(AtomicImage& img) {
                 if (pdf_dir_w == 0.0f || pdf_rev_w == 0.0f || is_black(bsdf_value))
                     continue;
 
-                const float mis_weight = mis::weight_merge(v.state.mis, p->state.mis, merge_pdf_, pdf_dir_w, pdf_rev_w, v.state.path_len, p->state.path_len);
+                const float mis_weight = mis::weight_merge(v.state.mis, p->state.mis, merge_pdf_, pdf_dir_w, pdf_rev_w,
+                                                           v.state.path_length, p->state.path_length);
 
                 // Epanechnikov filter
                 const float d = lensqr(p->isect.pos - v.isect.pos);
@@ -873,7 +888,7 @@ void DeferredVCM<MisType>::merge(AtomicImage& img) {
 #ifdef PATH_STATISTICS
                 const auto& cam_v   = *cam_verts_[cur_cache_];
                 const auto& light_v = *light_verts_[cur_cache_];
-                if (mis_weight > 0.9f && p->state.path_len == 2) {
+                if (mis_weight > 0.9f && p->state.path_length == 2) {
                     path_log_.log_merge(pm_radius_, v, *p, [&, this](Vertex& v) {
                         if (v.state.ancestor < 0) return false;
                         v = cam_v[v.state.ancestor];

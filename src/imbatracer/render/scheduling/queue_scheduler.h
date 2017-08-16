@@ -112,9 +112,7 @@ public:
         while (cur_chunk_ * trav_chunk_sz_ < q_.size())
             cv_done_.wait(lock);
 
-        lock.unlock();
         cv_work_.notify_all();
-        lock.lock();
 
         while (busy_workers_ > 0)
             cv_done_.wait(lock);
@@ -148,7 +146,7 @@ private:
         bool notified_start = false;
         while (!done_) {
             // Wait for a job to start
-            while (!started_ && !done_) {
+            while (!started_ && !done_ && cur_chunk_ * trav_chunk_sz_ >= q_.size()) {
                 if (!notified_done) {
                     busy_workers_--;
                     cv_done_.notify_all();
@@ -186,6 +184,16 @@ private:
             int begin = (chunk - 1) * trav_chunk_sz_;
             int end = std::min(q_.size(), begin + trav_chunk_sz_);
 
+            // This chunk was never generated
+            if (begin >= end) {
+                busy_workers_--;
+                notified_done  = true;
+                notified_start = false;
+                cv_done_.notify_all();
+                while (!flush_ && !done_) cv_work_.wait(lock);
+                continue;
+            };
+
             // Traverse and shade the chunk in parallel
             lock.unlock();
             traverse(begin, end);
@@ -195,8 +203,6 @@ private:
     }
 
     void traverse(int begin, int end) {
-        if (begin == end) return;
-
         if (shadow_only_) {
             if (gpu) q_.traverse_occluded_gpu(scene_->traversal_data_gpu(), begin, end);
             else     q_.traverse_occluded_cpu(scene_->traversal_data_cpu(), begin, end);
@@ -207,8 +213,6 @@ private:
     }
 
     void shade(int begin, int end) {
-        if (begin == end) return;
-
         const int hit_count = q_.compact_hits(begin, end);
 
         if (miss_callback_) {
