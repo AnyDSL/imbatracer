@@ -152,12 +152,15 @@ void PathTracer::process_primary_rays(RayQueue<PTState>& ray_in, RayQueue<Shadow
 }
 
 void PathTracer::render(AtomicImage& out) {
+    cur_iteration_++;
     scheduler_.run_iteration(out,
         [this] (RayQueue<ShadowState>& ray_in, AtomicImage& out) { process_shadow_rays(ray_in, out); },
         [this] (RayQueue<PTState>& ray_in, RayQueue<ShadowState>& ray_out_shadow, AtomicImage& out) {
             process_primary_rays(ray_in, ray_out_shadow, out);
         },
-        [this] (int x, int y, ::Ray& ray_out, PTState& state_out) -> bool {
+        [&] (int x, int y, ::Ray& ray_out, PTState& state_out) -> bool {
+            state_out.rng = RNG(bernstein_seed((cur_iteration_ << 16) + state_out.sample_id, x * out.height() + y));
+
             const float sample_x = static_cast<float>(x) + state_out.rng.random_float();
             const float sample_y = static_cast<float>(y) + state_out.rng.random_float();
 

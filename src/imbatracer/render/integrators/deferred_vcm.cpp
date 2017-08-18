@@ -318,9 +318,10 @@ void DeferredVCM<MisType>::trace_light_primary() {
         state.throughput  = sample.radiance / pdf_lightpick;
         state.path_length = 1;
         state.ancestor    = -1;
-        state.ancestor    = light_verts_[cur_cache_]->add(Vertex(state, sample.isect, l->is_delta() || !l->is_finite()));
         state.adjoint     = true;
         state.mis.init_light(sample.pdf_emit_w, sample.pdf_direct_a, pdf_lightpick, sample.cos_out, l->is_finite(), l->is_delta());
+
+        state.ancestor = light_verts_[cur_cache_]->add(Vertex(state, sample.isect, l->is_delta() || !l->is_finite()));
 
         rays  [i - range.begin()] = ray;
         states[i - range.begin()] = state;
@@ -336,7 +337,7 @@ void DeferredVCM<MisType>::trace() {
     const int num_cam_paths   = settings_.width * settings_.height * settings_.concurrent_spp;
     const int num_light_paths = settings_.light_path_count;
     const float wave_rr_pdf = 0.8f;
-    const int num_continuations = settings_.width * settings_.height;
+    const int num_continuations = (num_cam_paths + num_light_paths) * 2.0f;
 
     trace_camera_primary();
     trace_light_primary ();
@@ -393,8 +394,14 @@ void DeferredVCM<MisType>::trace() {
                         vertex_pmf[i] = is_black (vert.density.contrib)
                                       ? luminance(vert.state.throughput)
                                       : luminance(vert.density.contrib);
-                    } else
+                    } else {
                         vertex_pmf[i] = luminance(vert.state.throughput);
+                    }
+
+                    if (vertex_pmf[i] == 0.0f) {
+                        // TODO how to best handle this special case?
+                        vertex_pmf[i] += 0.1f;
+                    }
 
                     init += vertex_pmf[i];
                 }
@@ -407,7 +414,7 @@ void DeferredVCM<MisType>::trace() {
             [&] (const tbb::blocked_range<int>& range) {
                 for (auto i = range.begin(); i != range.end(); ++i) {
                     vertex_pmf   [i] /= pmf_sum;
-                    continue_mask[i]  = 1;//0;
+                    continue_mask[i]  = 0;
                 }
             });
 
@@ -420,7 +427,7 @@ void DeferredVCM<MisType>::trace() {
                     auto idx = std::lower_bound(vertex_cdf.begin(), vertex_cdf.begin() + num_verts, wave_rng.random_float());
                     int k = idx - vertex_cdf.begin();
                     if (k >= num_verts) k = num_verts - 1;
-                    // continue_mask[k]++;
+                    continue_mask[k]++;
                 }
             });
 
@@ -448,7 +455,7 @@ void DeferredVCM<MisType>::trace() {
         int cur = 0;
         for (auto i = range.begin(); i != range.end(); ++i) {
             // Determine the index of the vertex and the number of continuation rays for that one.
-            const int num_c    = continue_mask[i];
+            const int num_c = continue_mask[i];
 
             if (!num_c) continue; // This vertex was not selected
 
@@ -460,9 +467,9 @@ void DeferredVCM<MisType>::trace() {
                        ? (*light_verts_[cur_cache_])[vert_idx]
                        : (  *cam_verts_[cur_cache_])[vert_idx];
 
-            const float pdf_select = vertex_pmf[i];
-            const float rr_pdf = wave_rr_pdf * pdf_select / num_c;
-            const float offset = sqrtf(vert.isect.d_sqr) * 1e-4f;
+            const float pdf_select = 1.0f - powf(1.0f - vertex_pmf[i], num_continuations);
+            const float rr_pdf     = wave_rr_pdf * pdf_select * num_c;
+            const float offset     = sqrtf(vert.isect.d_sqr) * 1e-4f;
 
             MaterialValue mat;
             scene_.material_system()->eval_material(vert.isect, adjoint, mat);
@@ -505,10 +512,8 @@ void DeferredVCM<MisType>::bounce(State& state, const Intersection& isect, BSDF*
     bool specular;
     auto bsdf_value = bsdf->sample(isect.out_dir, sample_dir, state.rng, pdf_dir_w, specular);
 
-    if (pdf_dir_w == 0.0f || is_black(bsdf_value)) {
-        terminate_path(state);
+    if (pdf_dir_w == 0.0f || is_black(bsdf_value))
         return;
-    }
 
     float pdf_rev_w = 0.0f;
     if (!specular)
@@ -539,23 +544,19 @@ void DeferredVCM<MisType>::process_hits(Ray& r, Hit& h, State& state) {
     const auto isect = scene_.calculate_intersection(h, r);
     const float cos_theta_o = fabsf(dot(isect.out_dir, isect.geom_normal));
 
-    if (cos_theta_o == 0.0f) { // Prevent NaNs
-        terminate_path(state);
+    if (cos_theta_o == 0.0f) // Prevent NaNs
         return;
-    }
 
     MaterialValue mat;
     scene_.material_system()->eval_material(isect, state.adjoint, mat);
     mat.bsdf.prepare(state.throughput, isect.out_dir);
 
     state.mis.update_hit(cos_theta_o, h.tmax * h.tmax);
-    state.path_length++;
 
     VertCache* cache = state.adjoint ? light_verts_[cur_cache_].get() : cam_verts_[cur_cache_].get();
-
     state.ancestor = cache->add(Vertex(state, isect, mat.bsdf.is_specular()));
 
-    terminate_path(state);
+    state.path_length++;
 }
 
 template <typename MisType>

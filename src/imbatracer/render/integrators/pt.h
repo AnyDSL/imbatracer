@@ -21,6 +21,7 @@ public:
         : Integrator(scene, cam)
         , scheduler_(scheduler)
         , max_path_len_(max_path_len)
+        , cur_iteration_(0)
     {}
 
     virtual void render(AtomicImage& out) override;
@@ -29,6 +30,7 @@ private:
     RayScheduler<PTState, ShadowState>& scheduler_;
 
     const int max_path_len_;
+    int cur_iteration_;
 
     void process_primary_rays(RayQueue<PTState>& ray_in, RayQueue<ShadowState>& ray_out_shadow, AtomicImage& out);
 
