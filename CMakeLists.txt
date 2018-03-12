@@ -15,11 +15,9 @@ else()
     message(STATUS "The compiler ${CMAKE_CXX_COMPILER} has no C++11 support. Please use a different C++ compiler.")
 endif()
 
-# AnyDSL runtime setup
-find_package(AnyDSL-runtime REQUIRED)
-
-include(${ANYDSL_RUNTIME_CMAKE_DIR}/Runtime.cmake)
-include_directories(${ANYDSL_RUNTIME_DIR}/src)
+# AnyDSL runtime
+find_package(AnyDSL_runtime REQUIRED)
+include_directories(${AnyDSL_runtime_INCLUDE_DIRS})
 
 # pthreads
 find_package(Threads REQUIRED)

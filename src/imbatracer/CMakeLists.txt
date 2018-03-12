@@ -81,7 +81,6 @@ target_link_libraries(imbatracer
                       ${PNG_LIBRARIES}
                       ${TRAVERSAL_LIBRARY_CPU}
                       ${TRAVERSAL_LIBRARY_GPU}
-                      ${ANYDSL_RUNTIME_LIBRARY}
-                      ${ANYDSL_RUNTIME_LIBRARIES}
+                      ${AnyDSL_runtime_LIBRARIES}
                       ${TBB_LIBRARIES})
 
